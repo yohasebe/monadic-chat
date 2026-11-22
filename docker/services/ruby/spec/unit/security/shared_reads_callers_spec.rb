@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "../../../lib/monadic/workspace"
 require "tmpdir"
 require "fileutils"
 require_relative "../../../lib/monadic/adapters/selenium_helper"
@@ -33,24 +34,27 @@ RSpec.describe "Reads from the shared folder" do
   describe "the page a web fetch saved" do
     let(:helper) { Class.new { include MonadicHelper }.new }
 
-    def fetch_saving(name)
-      allow(helper).to receive(:sleep)
+    before do
+      MonadicSharedTools::BrowserOwner.reset!
+      allow(MonadicSharedTools::BrowserOwner).to receive(:observe).and_return({ sessions: [], max: 3 })
+    end
+
+    def fetch_printing(stdout)
       allow(helper).to receive(:send_command) do |**_, &block|
-        block.call("saved to: /monadic/data/#{name}\n", "", instance_double(Process::Status, success?: true))
+        block.call(stdout, "", instance_double(Process::Status, success?: true))
       end
       helper.selenium_fetch(url: "https://example.com/")
     end
 
-    it "reads the page it saved" do
-      File.write(File.join(@root, "page.md"), "# Page\n")
-      expect(fetch_saving("page.md")).to eq("# Page\n")
+    it "returns the page the fetcher printed" do
+      expect(fetch_printing("# Page\n")).to eq("# Page")
     end
 
-    it "reads nothing behind a link at the saved name" do
+    it "never reads a file the fetcher's output names" do
       File.symlink(@secret, File.join(@root, "page.md"))
-      result = fetch_saving("page.md")
+      result = fetch_printing("saved to: /monadic/data/page.md\n")
       expect(result).not_to include("secret")
-      expect(result).to start_with("Error occurred")
+      expect(result).to eq("saved to: /monadic/data/page.md")
     end
   end
 
@@ -131,9 +135,11 @@ RSpec.describe "Reads from the shared folder" do
       File.write(File.join(@root, "a.txt"), "a")
       File.symlink(@outside, File.join(@root, "elsewhere"))
       File.symlink(@secret, File.join(@root, "env-link"))
+      allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(File.dirname(@root), "state"))
       lister = Class.new { include MonadicSharedTools::FileOperations }.new
-      result = lister.list_files_in_shared_folder
-      expect(result[:directories].map { |d| d[:name] }).to eq(["notes"])
+      me = Struct.new(:chat_id, :session).new(Monadic::Workspace::Ids.generate(:chat), {})
+      result = lister.list_files_in_shared_folder(directory: "/", workbench: me)
+      expect(result[:directories].map { |d| d[:name] }).to eq(%w[conversations notes])
       expect(result[:files]).to include({ name: "elsewhere", type: "link" }, { name: "env-link", type: "link" })
     end
   end

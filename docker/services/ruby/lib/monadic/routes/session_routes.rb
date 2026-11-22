@@ -1,6 +1,12 @@
 # frozen_string_literal: false
 
 require_relative "../utils/privacy/marks"
+require_relative "../utils/privacy/words"
+require_relative "../workbench/record"
+require_relative "../workbench/look/record"
+require_relative "../workbench/shown"
+require_relative "../workbench/made"
+require_relative "../turn_state/form"
 
 # Session state management routes
 # Export/import conversation state and session data
@@ -8,7 +14,7 @@ require_relative "../utils/privacy/marks"
 # Largest saved conversation /load accepts, checked before the body is read (config.ru).
 SESSION_LOAD_MAX_BYTES = 500_000_000
 
-# Convert a Privacy Filter export (encrypted/masked_only/restored) into the
+# Convert an export (encrypted/masked_only/restored) into the
 # standard { parameters, messages } shape that the rest of /load expects.
 #
 # The header is intentionally compact (only app_name + counts), so we look
@@ -22,7 +28,7 @@ PRIVACY_SYNTH_APP_KEYS = %w[
 
 def privacy_synthesize_session(header, body, mode)
   header ||= {}
-  app_name = header["app_name"] || "Chat"
+  app_name = Monadic::Utils::AppNames.current(header["app_name"] || "Chat")
   messages = body["messages"] || []
 
   # Prefer parameters embedded in the body (newer rich exports preserve the
@@ -40,10 +46,9 @@ def privacy_synthesize_session(header, body, mode)
                      base[key] = value unless value.nil?
                    end
                  end
-                 base["monadic"] = false unless base.key?("monadic")
                  base
                end
-  parameters["app_name"] ||= app_name
+  parameters["app_name"] = Monadic::Utils::AppNames.current(parameters["app_name"] || app_name)
   parameters["imported_from"] = "privacy_export"
   parameters["imported_mode"] = mode
 
@@ -70,7 +75,8 @@ def tab_chat_session(tab_id)
   saved = WebSocketHelper.fetch_session_state(tab_id.to_s)
   return {} unless saved
 
-  (saved[:chat_state] || {}).merge(messages: saved[:messages], parameters: saved[:parameters])
+  (saved[:chat_state] || {}).merge(messages: saved[:messages], parameters: saved[:parameters],
+                                   Monadic::Workspace::Chats::SESSION_KEY => saved[:chat_id])
 end
 
 # The marked words of an imported file, checked: a list of { text, type }
@@ -103,8 +109,8 @@ get "/monadic_state" do
   if session[:monadic_state]
     # Convert symbol keys to strings for JSON serialization
     serializable_state = session[:monadic_state].each_with_object({}) do |(app_key, app_data), result|
-      # Skip special keys that don't follow the standard structure
-      next if [:conversation_context, :context_schema, "conversation_context", "context_schema"].include?(app_key)
+      # Skip what files of earlier versions kept beside the app state
+      next if %w[conversation_context context_schema].include?(app_key.to_s)
 
       if app_data.is_a?(Hash)
         result[app_key.to_s] = app_data.each_with_object({}) do |(state_key, state_entry), app_result|
@@ -119,18 +125,6 @@ get "/monadic_state" do
     end
 
     response_data[:monadic_state] = serializable_state
-
-    # Include conversation_context (Session Context) if present
-    conversation_context = session[:monadic_state][:conversation_context] || session[:monadic_state]["conversation_context"]
-    if conversation_context
-      response_data[:session_context] = conversation_context
-    end
-
-    # Include context_schema if present
-    context_schema = session[:monadic_state][:context_schema] || session[:monadic_state]["context_schema"]
-    if context_schema
-      response_data[:context_schema] = context_schema
-    end
   end
 
   # Include dynamic-skill unlock state so an exported session restores the
@@ -153,14 +147,12 @@ post "/load" do
         content = file.read
         json_data = JSON.parse(content)
 
-        # Privacy Filter export detection (Block D.4).
-        # Three forms produced by Block D.2/D.3:
+        # Export detection. Three forms:
         #   - encrypted: { schema_version, header, envelope: { kdf, cipher }, integrity }
         #   - masked_only: { header, messages } — no parameters, placeholders intact
         #   - restored: { header, messages, registry } — plain JSON
         # We unwrap each into the standard { parameters, messages } shape so the
         # rest of /load processes them like any other import.
-        privacy_registry_to_restore = nil
         privacy_terms_source = json_data
         if json_data.is_a?(Hash) && json_data["envelope"].is_a?(Hash) &&
            json_data["envelope"].dig("cipher", "algorithm") == "AES-256-GCM"
@@ -181,19 +173,11 @@ post "/load" do
           decrypted = JSON.parse(plaintext)
           privacy_terms_source = decrypted
           json_data = privacy_synthesize_session(json_data["header"], decrypted, "encrypted")
-          privacy_registry_to_restore = decrypted["registry"] if decrypted["registry"].is_a?(Hash)
         elsif json_data.is_a?(Hash) && json_data["header"].is_a?(Hash) &&
               json_data["messages"].is_a?(Array) && !json_data.key?("parameters")
           # Legacy 3-mode privacy export (masked_only or restored plain).
           mode = json_data["registry"].is_a?(Hash) ? "restored" : "masked_only"
-          privacy_registry_to_restore = json_data["registry"] if mode == "restored"
           json_data = privacy_synthesize_session(json_data["header"], json_data, mode)
-        elsif json_data.is_a?(Hash) && json_data["registry"].is_a?(Hash) &&
-              json_data["parameters"].is_a?(Hash)
-          # Newer plain export carries `registry` alongside parameters/messages.
-          # Capture the registry so the privacy pipeline can be re-seeded after
-          # import; the rest of /load handles parameters/messages normally.
-          privacy_registry_to_restore = json_data["registry"]
         end
 
         # Validate required fields
@@ -215,6 +199,8 @@ post "/load" do
         # Force initiate_from_assistant and auto_speech to false to prevent unwanted auto-behaviors on import
         # (deletion is not enough because app defaults will override missing keys)
         imported_params = json_data["parameters"].dup
+        # A file made with an app that has since been merged into another.
+        imported_params["app_name"] = Monadic::Utils::AppNames.current(imported_params["app_name"])
         imported_params["initiate_from_assistant"] = false
         imported_params["auto_speech"] = false
         imported[:parameters] = imported_params
@@ -233,55 +219,19 @@ post "/load" do
           imported[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
         end
 
-        # Restore monadic_state if present in import data (for Session State mechanism)
-        if json_data["monadic_state"]
-          # Convert string keys to symbols for consistency
-          # Only namespaces shaped like {key => {data, version, updated_at}}
-          # are app state. A file written before the export separated the
-          # Context Panel's structures out can carry those here instead, and
-          # reading ["data"] from an Integer or Array raised, which failed the
-          # whole import. Skip what does not fit and let session_context below
-          # restore the panel.
-          imported[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
-            next unless app_data.is_a?(Hash)
-
-            entries = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
-              next unless state_entry.is_a?(Hash) && state_entry.key?("data")
-
-              app_result[state_key] = {
-                data: state_entry["data"],
-                version: state_entry["version"].to_i,
-                updated_at: state_entry["updated_at"]
-              }
-            end
-            result[app_key] = entries unless entries.empty?
+        # The app state the file began with (Monadic::TurnState::Form's
+        # base): what fits is kept, what does not is left out and counted.
+        # What a file of an earlier version kept here beside the app state
+        # (the context of its side panel) is not read.
+        state_changes_dropped = 0
+        if json_data["monadic_state"].is_a?(Hash)
+          legacy = json_data["monadic_state"].transform_keys(&:to_s).transform_values do |entries|
+            entries.is_a?(Hash) ? entries.reject { |key, _| key.to_s == "conversation_context" } : entries
           end
+          base, state_changes_dropped = Monadic::TurnState::Form.clean_base(legacy)
+          imported[:monadic_state] = Monadic::TurnState::Form.to_session(base) if base
 
-          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{imported[:monadic_state].keys.join(', ')}" }
-        end
-
-        # Files written before the export separated them carry the panel under
-        # monadic_state instead. Read it from there when the dedicated field is
-        # absent, so an older export still restores its context.
-        legacy_state = json_data["monadic_state"]
-        if !json_data["session_context"] && legacy_state.is_a?(Hash)
-          legacy_context = legacy_state["conversation_context"]
-          json_data["session_context"] = legacy_context if legacy_context.is_a?(Hash)
-          legacy_schema = legacy_state["context_schema"]
-          json_data["context_schema"] ||= legacy_schema if legacy_schema
-        end
-
-        # Restore session_context if present in import data (for Session Context feature)
-        if json_data["session_context"]
-          imported[:monadic_state] ||= {}
-          imported[:monadic_state][:conversation_context] = json_data["session_context"]
-
-          # Also store context_schema if present
-          if json_data["context_schema"]
-            imported[:monadic_state][:context_schema] = json_data["context_schema"]
-          end
-
-          Monadic::Utils::ExtraLogger.log { "[Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}" }
+          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{Array(base&.keys).join(', ')}" }
         end
 
         # Process messages.
@@ -289,7 +239,7 @@ post "/load" do
         # replaced: it keeps the upstream socket billing, and its Stop-time
         # merge span would point into the OLD canon and fold the imported
         # history (same invariant as RESET's teardown).
-        app_name = json_data["parameters"]["app_name"]
+        app_name = imported_params["app_name"]
         imported[:messages] = json_data["messages"].uniq.map do |msg|
           # Skip invalid messages
           next unless msg["role"] && msg["text"]
@@ -320,9 +270,6 @@ post "/load" do
           # conversation restores it on render (KB save strips it separately).
           message_obj["verify"] = msg["verify"] if msg["verify"].is_a?(Hash)
           message_obj["app_name"] = app_name if app_name
-          if json_data["parameters"].key?("monadic")
-            message_obj["monadic"] = json_data["parameters"]["monadic"]
-          end
           # Preserve token count if present in import (for accurate stats without recomputation)
           message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
 
@@ -334,14 +281,35 @@ post "/load" do
           # silently losing the badges on round-trip).
           message_obj["interrupted"] = true if msg["interrupted"]
           message_obj["tools_used"] = msg["tools_used"] if msg["tools_used"].is_a?(Array)
+          # A user message whose reply was stopped: true only.
+          message_obj["reply_stopped"] = true if message_obj["role"] == "user" && msg["reply_stopped"] == true
+          # What the file says the reply made: a record only,
+          # which grants nothing here.
+          artifacts = Monadic::Workbench::Record.clean(msg["artifacts"])
+          message_obj["artifacts"] = artifacts if artifacts
+          looks = Monadic::Workbench::Look::Record.clean(msg["workbench_looks"])
+          message_obj["workbench_looks"] = looks if looks
+          shown = Monadic::Workbench::Shown.clean(msg["workbench_shown"])
+          message_obj["workbench_shown"] = shown if shown
+          made = Monadic::Workbench::Made.clean(msg["workbench_made"])
+          message_obj["workbench_made"] = made if made
+          revisions = Monadic::Workbench::Made.clean_revisions(msg["workbench_revisions"])
+          message_obj["workbench_revisions"] = revisions if revisions
+          # What the reply changed in its app's state, taken as the file's
+          # data; changes that do not fit are left out, and counted.
+          if msg.key?("state_changes")
+            changes = Monadic::TurnState::Form.clean_changes(msg["state_changes"])
+            if changes
+              message_obj["state_changes"] = changes
+            else
+              state_changes_dropped += 1
+            end
+          end
           message_obj
         end.compact # Remove nil values from invalid messages
 
-        # Privacy registry restoration (Block D.4): seeded into the chat when
-        # the tab takes the import, so the next message reuses the imported
-        # placeholders. RD-1 (memory-only) preserved.
-        # The words the user had marked come back with a restored file, so the
-        # imported chat goes on masking them (a masked file holds none).
+        # The words of a file of an earlier version go on being hidden, in the
+        # chat's table (a masked file holds none).
         terms_to_restore = begin
           privacy_import_terms(privacy_terms_source.is_a?(Hash) ? privacy_terms_source["terms"] : nil)
         rescue ArgumentError => e
@@ -349,25 +317,22 @@ post "/load" do
         end
         terms_to_restore = (terms_to_restore + marked_in_messages).reverse.uniq { |t| t[:text] }.reverse
         return error_json("Import error: the file has too many marked words") if terms_to_restore.size > 200
-        has_registry = privacy_registry_to_restore.is_a?(Hash) && !privacy_registry_to_restore.empty?
-        if has_registry || terms_to_restore.any?
-          registry = has_registry ? privacy_registry_to_restore : {}
-          imported[:monadic_state] ||= {}
-          imported[:monadic_state][:privacy] = {
-            registry: registry,
-            audit: [{ ts: Time.now.to_i, op: :import, count: registry.size }],
-            terms: terms_to_restore
-          }
-          # Importing a registry implies the user wanted privacy on for this
-          # conversation; mirror that in the backend SSOT toggle so vendor
-          # helpers honor it without requiring the user to re-toggle.
-          imported[:_privacy_session_enabled] = true
-        end
+        older_registry = privacy_terms_source.is_a?(Hash) ? privacy_terms_source.fetch("registry", {}) : {}
 
-        Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{json_data['parameters']['app_name']}'" }
+        # The chat goes on hiding its words with the file's table, under the
+        # new chat's own id (the tab takes it with the import).
+        word_table = Monadic::Utils::Privacy::Words.file_table(privacy_terms_source, registry: older_registry,
+                                                                                    terms: terms_to_restore)
+        imported[:word_table] = word_table if word_table
+
+        Monadic::Utils::ExtraLogger.log { "JSON import: #{imported[:messages].size} messages read for app '#{app_name}'" }
         token = WebSocketHelper.stage_import(tab_id, imported)
 
-        { success: true, app_name: json_data['parameters']['app_name'], import_token: token }.to_json
+        older_words = older_registry.empty? && terms_to_restore.empty? ? 0 : word_table['active'].size
+        { success: true, app_name: app_name, import_token: token, older_words: older_words,
+          state_dropped: state_changes_dropped }.to_json
+      rescue Monadic::Utils::Privacy::WordTable::Invalid => e
+        error_json("Import error: the file's word table could not be read: #{e.message}")
       rescue Monadic::Utils::Privacy::Marks::Invalid => e
         error_json("Import error: words marked with \u27E6 \u27E7 in the file could not be read: #{e.message}")
       rescue JSON::ParserError => e

@@ -481,7 +481,7 @@ RSpec.describe GeminiHelper do
     end
 
     # Private helper methods (extracted from process_functions)
-    %i[prepare_gemini_tool_arguments invoke_gemini_tool_function
+    %i[prepare_gemini_tool_arguments gemini_tool_error_text
        handle_media_generation_result handle_gemini_tool_execution_error
        translate_role unwrap_single_markdown_code_block].each do |method|
       it "#{method} is private" do

@@ -90,7 +90,6 @@ RSpec.describe "API Routes helpers" do
       it "extracts boolean feature flags from settings" do
         settings = {
           websearch: true,
-          monadic: false,
           image: true,
           pdf: false,
           jupyter: true,
@@ -106,20 +105,11 @@ RSpec.describe "API Routes helpers" do
         result = described_class.wv_extract_features(settings)
 
         expect(result["websearch"]).to be true
-        expect(result["monadic"]).to be false
         expect(result["image"]).to be true
         expect(result["jupyter"]).to be true
         expect(result["image_generation"]).to be true
         expect(result["initiate_from_assistant"]).to be true
         expect(result["auto_speech"]).to be false
-      end
-
-      it "normalizes pdf capability from pdf_vector_storage" do
-        settings = { pdf_vector_storage: true }
-
-        result = described_class.wv_extract_features(settings)
-
-        expect(result["pdf"]).to be true
       end
 
       it "normalizes pdf capability from pdf_upload" do
@@ -131,7 +121,7 @@ RSpec.describe "API Routes helpers" do
       end
 
       it "does not override explicit pdf: true with normalization" do
-        settings = { pdf: true, pdf_vector_storage: false }
+        settings = { pdf: true, pdf_upload: false }
 
         result = described_class.wv_extract_features(settings)
 

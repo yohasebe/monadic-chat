@@ -698,20 +698,25 @@ RSpec.describe VideoAnalyzeAgent do
 
 
       it 'transcribes the audio and describes the frames at the same time, without passing speech' do
+        # Each side waits for the other to start, so both meet only when they
+        # run at the same time; one after the other, the first waits in vain.
+        audio_started = Queue.new
+        vision_started = Queue.new
+        met = Queue.new
         allow(Monadic::Utils::SegmentTranscriber).to receive(:new) do |**_args|
-          sleep 0.4
+          audio_started << true
+          met << :audio if vision_started.pop(timeout: 5)
           double(run: transcript)
         end
         given = :unset
         allow(agent).to receive(:video_vision_query) do |_query, _frames, speech: nil|
-          sleep 0.4
+          vision_started << true
+          met << :vision if audio_started.pop(timeout: 5)
           given = speech
           'A deer crosses the road.'
         end
-        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         result = analyze
-        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-        expect(elapsed).to be < 0.7
+        expect(Array.new(met.size) { met.pop }).to contain_exactly(:audio, :vision)
         expect(given).to be_nil
         expect(result).to include("A deer crosses the road.\n\n---\n\nAudio Transcript:\n[00:01–00:03] Hello there.")
       end

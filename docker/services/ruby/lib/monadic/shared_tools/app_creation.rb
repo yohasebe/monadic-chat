@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative '../utils/shared_path_guard'
+require_relative '../workspace/chat_files'
 
 # Shared App Creation/Management Tools for Monadic Chat
 # Provides basic Monadic Chat application management capabilities
@@ -34,7 +35,7 @@ module MonadicSharedTools
     #
     # @example List all apps
     #   list_monadic_apps()
-    #   # => {success: true, apps: [{name: "ChatPlus", variants: ["openai", "claude", ...], ...}, ...]}
+    #   # => {success: true, apps: [{name: "Chat", variants: ["openai", "claude", ...], ...}, ...]}
     def list_monadic_apps
       begin
         # Determine apps directory based on environment
@@ -61,7 +62,7 @@ module MonadicSharedTools
           # Find MDSL files for this app
           mdsl_files = Dir.glob(File.join(app_path, '*.mdsl'))
           variants = mdsl_files.map do |mdsl_file|
-            # Extract variant name from filename (e.g., "chat_plus_openai.mdsl" -> "openai")
+            # Extract variant name from filename (e.g., "chat_openai.mdsl" -> "openai")
             basename = File.basename(mdsl_file, '.mdsl')
             basename.split('_').last
           end.sort
@@ -124,12 +125,12 @@ module MonadicSharedTools
     # Returns complete configuration, tools, and metadata for the specified
     # application and provider variant.
     #
-    # @param app_name [String] Name of the app (e.g., "chat_plus", "code_interpreter")
+    # @param app_name [String] Name of the app (e.g., "chat", "code_interpreter")
     # @param variant [String] Provider variant (e.g., "openai", "claude"). Optional.
     # @return [Hash] Success status and app information
     #
-    # @example Get Chat Plus OpenAI info
-    #   get_app_info(app_name: "chat_plus", variant: "openai")
+    # @example Get Chat OpenAI info
+    #   get_app_info(app_name: "chat", variant: "openai")
     #   # => {success: true, app: {...}, mdsl_content: "...", tools: [...]}
     #
     # @example Get first variant of Code Interpreter
@@ -258,7 +259,8 @@ module MonadicSharedTools
     # @param display_name [String] Display name (e.g., "My App")
     # @param provider [String] AI provider (e.g., "openai", "claude")
     # @param description [String] App description
-    # @return [Hash] Success status and filepath
+    # @return [Hash] Success status and the template's path (in the chat's
+    #   work folder)
     #
     # @example Create new app template
     #   create_simple_app_template(
@@ -267,7 +269,7 @@ module MonadicSharedTools
     #     provider: "openai",
     #     description: "A helpful AI assistant"
     #   )
-    def create_simple_app_template(app_name:, display_name:, provider: "openai", description: "")
+    def create_simple_app_template(app_name:, display_name:, provider: "openai", description: "", workbench: nil)
       begin
         # Validate app_name format
         # \A and \z: ^ and $ match at any line, and a name with a newline
@@ -286,13 +288,6 @@ module MonadicSharedTools
         # text can end early or interpolate into (a heredoc's closing word can).
         safe_display_name = display_name.to_s.dump
         safe_description = description.to_s.strip.dump
-
-        # Determine data directory
-        data_dir = if defined?(Monadic::Utils::Environment) && Monadic::Utils::Environment.in_container?
-                     SHARED_VOL
-                   else
-                     LOCAL_SHARED_VOL
-                   end
 
         # Create template content
         template = <<~MDSL
@@ -337,14 +332,15 @@ module MonadicSharedTools
         # Save template
         timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
         filename = "#{app_name}_#{provider}_template_#{timestamp}.mdsl"
-        filepath = File.join(data_dir, filename)
-
-        Monadic::Utils::SharedPathGuard.write_file!(filepath, template.encode('UTF-8'))
+        app = workbench&.session&.dig(:parameters, "app_name")
+        place = Monadic::Workspace::ChatFiles.for_write(filename, caller: workbench, app_name: app.to_s.empty? ? "Chat" : app)
+        Monadic::Utils::SharedPathGuard.mkdir_p!(File.dirname(place.full), strict: true)
+        Monadic::Utils::SharedPathGuard.write_file!(place.full, template.encode('UTF-8'), replace: false, strict: true)
 
         {
           success: true,
-          filepath: filename,
-          full_path: filepath,
+          filepath: place.relative,
+          execution_path: place.container_path,
           message: "App template created successfully. Customize the MDSL file and place it in apps/#{app_name}/ directory to activate."
         }
 

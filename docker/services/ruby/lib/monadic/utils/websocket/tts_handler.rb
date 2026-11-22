@@ -2,6 +2,7 @@
 
 require_relative '../tts_provider'
 require_relative '../privacy/outbound'
+require_relative '../privacy/words'
 
 # Text-to-speech (TTS) operations for WebSocket connections.
 # Handles voice listing, TTS request processing, playback control,
@@ -147,14 +148,14 @@ module WebSocketHelper
   # @param ws_session_id [String] WebSocket session ID for targeted broadcasting
   # @param instructions [String, nil] Natural-language "how to speak" directive
   #   forwarded to OpenAI TTS (`gpt-4o-mini-tts`) only; nil for other providers
-  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:, instructions: nil)
+  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:, instructions: nil, reply_speech: nil)
     # Special handling for Web Speech API - no API call needed
     if provider == "webspeech" || provider == "web-speech"
-      res_hash = { "type" => "web_speech", "content" => text }
+      res_hash = speech_frame({ "type" => "web_speech", "content" => text }, reply_speech)
       send_or_broadcast(res_hash.to_json, ws_session_id)
 
       # Send completion message
-      complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
+      complete_message = speech_frame({ "type" => "tts_complete", "total_segments" => 1 }, reply_speech).to_json
       send_or_broadcast(complete_message, ws_session_id)
       return
     end
@@ -181,12 +182,13 @@ module WebSocketHelper
         if chat_changed.call
           nil # dropped: the chat was reset while the audio was being made
         elsif res_hash && res_hash["type"] == "privacy_withheld"
-          send_tts_withheld(ws_session_id)
+          send_tts_withheld(ws_session_id, reply_speech)
         elsif res_hash && res_hash["type"] == "audio"
           res_hash["segment_index"] = 0
           res_hash["total_segments"] = 1
           res_hash["is_segment"] = false  # Not segmented
           res_hash["sequence_id"] = "tts_#{SecureRandom.hex(8)}"
+          res_hash = speech_frame(res_hash, reply_speech)
 
           if ws_session_id
             WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
@@ -201,27 +203,34 @@ module WebSocketHelper
             "total_segments" => 1,
             "progress" => 100
           }
-          send_or_broadcast(progress_message.to_json, ws_session_id)
+          send_or_broadcast(speech_frame(progress_message, reply_speech).to_json, ws_session_id)
         else
           # Forward error to frontend so user sees what went wrong
           error_content = res_hash&.dig("content") || "Unknown TTS error"
           puts "[TTS] Single request failed: #{error_content}"
-          send_error(error_content, ws_session_id)
+          send_error(error_content, ws_session_id, speech_frame({}, reply_speech))
         end
       rescue StandardError => e
         puts "[TTS] Single request exception: #{e.message}"
         Monadic::Utils::ExtraLogger.log { "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
         # Forward exception as error to frontend
-        send_error("TTS error: #{e.message}", ws_session_id)
+        send_error("TTS error: #{e.message}", ws_session_id, speech_frame({}, reply_speech))
       end
 
       # Send completion message (not into a chat this speech was not for:
       # it would hide the indicator of whatever that chat is doing)
       unless chat_changed.call
-        complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
+        complete_message = speech_frame({ "type" => "tts_complete", "total_segments" => 1 }, reply_speech).to_json
         send_or_broadcast(complete_message, ws_session_id)
       end
     end
+  end
+
+  # Speech made for an answer names it (reply_speech: its request), so that
+  # the page drops what comes for an answer it cancelled, even what was on
+  # its way when it did.
+  private def speech_frame(hash, reply_speech)
+    reply_speech ? hash.merge("reply_speech" => reply_speech) : hash
   end
 
   # Common TTS playback processing for PLAY_TTS and Auto Speech.
@@ -235,7 +244,7 @@ module WebSocketHelper
   # @param language [String] Language code
   # @param manual_play [Boolean] If true, this is a manual Play button click - no byte limit applied
   # @param ws_session_id [String, nil] WebSocket session ID for targeted audio delivery
-  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil, instructions: nil)
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, manual_play: false, ws_session_id: nil, instructions: nil, reply_speech: nil)
     # Use passed ws_session_id or fall back to thread-local variable
     ws_session_id ||= Thread.current[:websocket_session_id]
 
@@ -255,7 +264,7 @@ module WebSocketHelper
           "segments_total" => total_segments
         }
       }
-      send_or_broadcast(notice_message.to_json, ws_session_id)
+      send_or_broadcast(speech_frame(notice_message, reply_speech).to_json, ws_session_id)
 
       return start_single_tts_request(
         text: text,
@@ -265,7 +274,8 @@ module WebSocketHelper
         response_format: response_format,
         language: language,
         ws_session_id: ws_session_id,
-        instructions: instructions
+        instructions: instructions,
+        reply_speech: reply_speech
       )
     end
 
@@ -286,7 +296,8 @@ module WebSocketHelper
         response_format: response_format,
         language: language,
         ws_session_id: ws_session_id,
-        instructions: instructions
+        instructions: instructions,
+        reply_speech: reply_speech
       )
     end
 
@@ -328,7 +339,7 @@ module WebSocketHelper
           "bytes_total" => text_bytes
         }
       }
-      send_or_broadcast(notice_message.to_json, ws_session_id)
+      send_or_broadcast(speech_frame(notice_message, reply_speech).to_json, ws_session_id)
     end
 
     # If no segments fit within the limit, always include at least the first
@@ -351,7 +362,7 @@ module WebSocketHelper
             "bytes_total" => text_bytes
           }
         }
-        send_or_broadcast(notice_message.to_json, ws_session_id)
+        send_or_broadcast(speech_frame(notice_message, reply_speech).to_json, ws_session_id)
       end
     end
 
@@ -364,7 +375,8 @@ module WebSocketHelper
       response_format: response_format,
       language: language,
       ws_session_id: ws_session_id,
-      instructions: instructions
+      instructions: instructions,
+      reply_speech: reply_speech
     )
   end
 
@@ -382,12 +394,10 @@ module WebSocketHelper
             else obj["voice"]
             end
     text = obj["text"]
-    # Privacy Filter: card text comes back from the frontend with original
-    # PII restored (display form). Replace those values with the short
-    # spoken-placeholder form ("PERSON 1", "EMAIL ADDRESS 1", ...) so:
-    #   - cloud TTS providers never see real PII
-    #   - the listener does not have to hear long emails / phone numbers
-    #   - Web Speech (browser-native) gets the same treatment for UX
+    # Card text comes back from the page with the chat's words put back.
+    # In a chat that hides words they are read as their type and number
+    # ("PERSON 1", ...), so the speech service never gets them; Web Speech
+    # (browser-native) gets the same text.
     #     parity even though the audio synthesis is local
     text = privacy_sanitize_tts_text(text, session, obj["provider"] || obj["tts_provider"])
     return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
@@ -422,12 +432,11 @@ module WebSocketHelper
     end
   end
 
-  # Speech held back because its text holds a word the user marked for the
-  # Privacy Filter: the page stops waiting for speech, then shows why (a
+  # Speech held back because its text holds a word the chat hides: the page stops waiting for speech, then shows why (a
   # notice for the speech only: the reply itself is fine and stays).
-  private def send_tts_withheld(ws_session_id)
-    send_or_broadcast({ "type" => "tts_stopped" }.to_json, ws_session_id)
-    send_or_broadcast({ "type" => "tts_notice", "content" => { "notice_type" => "privacy_withheld" } }.to_json, ws_session_id)
+  private def send_tts_withheld(ws_session_id, reply_speech = nil)
+    send_or_broadcast(speech_frame({ "type" => "tts_stopped" }, reply_speech).to_json, ws_session_id)
+    send_or_broadcast(speech_frame({ "type" => "tts_notice", "content" => { "notice_type" => "privacy_withheld" } }, reply_speech).to_json, ws_session_id)
   end
 
   private def handle_ws_stop_tts(connection, obj, session)
@@ -482,7 +491,9 @@ module WebSocketHelper
       @tts_thread = nil
     end
 
-    thread&.join
+    # The answer being written is made first (not taken by this: the HTML
+    # handler records it).
+    wait_for_answer(thread)
 
     # Extract TTS parameters
     provider = obj["tts_provider"]
@@ -494,9 +505,8 @@ module WebSocketHelper
             else obj["tts_voice"]
             end
     text = obj["text"]
-    # Privacy Filter: see handle_ws_tts for the rationale. Apply the same
-    # sanitize so the Play button does not leak restored PII to the cloud
-    # TTS provider.
+    # As in handle_ws_tts: the Play button speaks the same text, so a word
+    # the chat hides does not go to the speech service.
     text = privacy_sanitize_tts_text(text, session, obj["tts_provider"] || obj["provider"])
     return if text.nil? && obj["text"].is_a?(String) && !obj["text"].empty?
     speed = obj["tts_speed"]
@@ -516,29 +526,22 @@ module WebSocketHelper
     )
   end
 
-  # Replace original PII values in restored TTS text with the same short
-  # placeholders that sanitize_for_tts produces for streamed (still
-  # masked) text. Returns the original text unchanged when Privacy is
-  # not active in this session.
-  #
-  # Why on the server (not the client): the registry lives server-side
-  # by design (RD-1: never persisted, never shipped); doing the rewrite
-  # here keeps the registry inside the trust boundary. The frontend
-  # sends the rendered card text as-is; this method abstracts the
-  # values out before any cloud TTS API or browser-native synth call.
-  # Returns nil (nothing is spoken; the page is told why) when the filter is
-  # on but cannot mask, so a cloud TTS provider never gets the restored text.
+  # The text as it may be spoken for a chat that hides its words: each word
+  # read as its placeholder's type and number. Done on the server so the
+  # table stays here. nil (nothing is spoken; the page is told why) when
+  # that cannot be done.
   private def privacy_sanitize_tts_text(text, session, provider = nil)
     return text unless text.is_a?(String) && !text.empty?
 
     begin
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+      Monadic::Utils::Privacy::Outbound.chat_session!(session)
+      table = Monadic::Utils::Privacy::Words.table(session)
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       send_error("Speech was not made: #{e.message}.", Thread.current[:websocket_session_id])
       return nil
     end
-    spoken = pipeline.respond_to?(:sanitize_restored_for_tts) ? pipeline.sanitize_restored_for_tts(text) : text
-    # Words the user marked are never spoken, however they are written: the
+    spoken = table ? Monadic::Utils::Privacy::Words.spoken(table, text) : text
+    # A word the chat hides is never spoken, however it is written: the
     # text is checked as the TTS service would receive it too (after the
     # user's dictionary and the provider's conversion of markers).
     begin

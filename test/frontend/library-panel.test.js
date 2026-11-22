@@ -1202,7 +1202,7 @@ describe('library-panel module', () => {
     }
 
     it('isCurrentAppKbSaveEligible returns false for apps with library_save: false', () => {
-      setApp('ChatPlusOpenAI', { library_save: false, library_search: false, privacy_enabled: true });
+      setApp('SecondOpinionOpenAI', { library_save: false, library_search: false });
       expect(lib.isCurrentAppKbSaveEligible()).toBe(false);
     });
 
@@ -1212,7 +1212,7 @@ describe('library-panel module', () => {
     });
 
     it('isCurrentAppKbRetrievalEligible returns false when library_search is false (PF-only and artifact apps)', () => {
-      setApp('ChatPlusOpenAI', { library_save: false, library_search: false, privacy_enabled: true });
+      setApp('SecondOpinionOpenAI', { library_save: false, library_search: false });
       expect(lib.isCurrentAppKbRetrievalEligible()).toBe(false);
     });
 
@@ -1231,9 +1231,9 @@ describe('library-panel module', () => {
       const spy = jest.fn();
       window.applyAppCapabilityClasses = spy;
       try {
-        setApp('ChatPlusOpenAI', { library_search: false });
+        setApp('SecondOpinionOpenAI', { library_search: false });
         lib.updateRagToggleVisibility();
-        expect(spy).toHaveBeenLastCalledWith('ChatPlusOpenAI');
+        expect(spy).toHaveBeenLastCalledWith('SecondOpinionOpenAI');
 
         setApp('ChatOpenAI', { library_search: true });
         lib.updateRagToggleVisibility();
@@ -1245,14 +1245,14 @@ describe('library-panel module', () => {
 
     it('updateSaveButtonAvailability disables and explains when the app is ineligible', () => {
       // Save button is always present in the DOM (no display:none gate).
-      // When the app does not support library_save (e.g. Chat Plus, which
+      // When the app does not support library_save (e.g. Second Opinion, which
       // declares `privacy do; enabled true; end`), the button stays
       // visible but disabled with a tooltip explaining why. This mirrors
       // the Privacy Filter session toggle's "visible but disabled"
       // pattern on apps that don't support PF.
       document.body.innerHTML = '<button id="library-save"></button>';
       const btn = document.getElementById('library-save');
-      setApp('ChatPlusOpenAI', { library_save: false });
+      setApp('SecondOpinionOpenAI', { library_save: false });
       lib.updateSaveButtonAvailability();
       expect(btn.disabled).toBe(true);
       // Tooltip should reference the "app does not support saving" reason,
@@ -1260,21 +1260,31 @@ describe('library-panel module', () => {
       expect(btn.getAttribute('title')).toMatch(/does not support|サポート/i);
     });
 
-    it('updateSaveButtonAvailability disables with privacy-active tooltip when Privacy Filter is ON', () => {
+    it('updateSaveButtonAvailability disables Save for a chat that hides words', () => {
       document.body.innerHTML = '<button id="library-save"></button>';
       const btn = document.getElementById('library-save');
-      // Eligible app (library_save: true) so the privacy-active branch is reachable.
       setApp('ChatOpenAI', { library_save: true });
-      // Force privacyOn() to return true via the window.privacyEnabled
-      // fallback that the module reads when WsPrivacyHandler isn't loaded.
-      const prev = window.privacyEnabled;
-      window.privacyEnabled = true;
+      window.WordTable = { isMarked: () => true };
       try {
         lib.updateSaveButtonAvailability();
         expect(btn.disabled).toBe(true);
-        expect(btn.getAttribute('title')).toMatch(/Privacy/i);
+        expect(btn.getAttribute('title')).toMatch(/hides words/i);
       } finally {
-        window.privacyEnabled = prev;
+        delete window.WordTable;
+      }
+    });
+
+    it('follows the word table when the chat starts hiding words', () => {
+      document.body.innerHTML = '<button id="library-save"></button>';
+      const btn = document.getElementById('library-save');
+      setApp('ChatOpenAI', { library_save: true });
+      window.WordTable = { isMarked: () => true };
+      try {
+        btn.disabled = false;
+        document.dispatchEvent(new CustomEvent('wordtable:changed'));
+        expect(btn.disabled).toBe(true);
+      } finally {
+        delete window.WordTable;
       }
     });
 

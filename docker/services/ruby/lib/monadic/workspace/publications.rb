@@ -186,6 +186,9 @@ module Monadic
           record = ledger.artifact(id)
           raise Unavailable, 'the artifact is not ready' unless record && record[:status] == 'ready'
           raise Unavailable, 'only what a chat made is published' unless record[:owner] == 'chat'
+          # An image is read only from the chat's folder, checked each time
+          # (Monadic::Workbench::Artifact); it has no copy to serve.
+          raise Unavailable, 'this kind of file is not published' unless LedgerSchema::ARTIFACT_KINDS.key?(record[:kind])
 
           ext = File.extname(LedgerSchema::ARTIFACT_KINDS.fetch(record[:kind])).delete_prefix('.')
           path = Artifacts.path(id, record[:kind], ledger: ledger)

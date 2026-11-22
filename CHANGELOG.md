@@ -1,3 +1,105 @@
+- [November, 2026] 1.0.0-beta.45
+  - Security
+    - The browser tool does not read what is typed in password and other secret fields **(rebuild the Python container)**
+    - The desktop app keeps the protections the server sets for its pages
+    - The AI's file tools do not read or list the folders of other chats
+  - Changes you may notice
+    - The Privacy Filter and Private chats are replaced by `Anonymize`; every chat is kept in the chat history: **delete a chat you do not want to keep**
+    - The PDF Database is removed: **import PDFs into the Knowledge Base** (earlier PDFs are not moved)
+    - Every app can save to and search the Knowledge Base; `Use Knowledge Base for retrieval (this session)` is off by default and remembered for each app
+    - Chat Plus is merged into Chat, Language Practice Plus into Language Practice, and Music Lab is called Music Tutor; chats made with the old apps open in the new ones
+    - Chat answers without waiting for its notes: the notes are updated after each reply with one more request to the same provider and model
+    - The Session Context panel is removed: apps show their state as notes on the work screen
+    - Docker Desktop is started only when it is the engine the `docker` command uses
+    - What the apps make is saved in the chat's folder in `conversations/` and shown on the work screen
+    - Code Interpreter, Research Assistant and Math Tutor run code in the chat's folder: **read your own files by their full path (`/monadic/data/...`)**
+    - Files the AI writes with the file tools are kept in the chat's work folder (`conversations/…/work/`), and the reply gives their paths; nothing an app or a document import makes is saved at the top of the shared folder, and code starts in a run folder of the chat in every app
+    - MCP: generated speech, images, videos and music are saved under `mcp/` in the shared folder
+    - Deleting a turn also takes back the app's state and moves the files the reply made to the chat's `trash` folder
+    - The Jupyter apps run notebooks without starting JupyterLab; `Start JupyterLab` is `Open JupyterLab`
+    - Syntax Tree no longer needs LaTeX
+    - A turn ends after 20 rounds of tool calls (10 in many apps), and a repeated identical tool call is refused
+    - Ollama apps are defined as for the other providers; models without the tools capability answer as a plain chat
+    - The default Ollama model is `gpt-oss:20b`
+    - Default models: GPT Image 2.5 Flare for OpenAI images, Mistral Large 4 and Grok 4.7 for code, and Gemini Omni 1.2 Flash for Gemini videos
+    - Apps that name no model start with GPT-6.1 Terra (OpenAI) and Grok 4.3 (xAI); Coding Assistant, Code Interpreter, Jupyter Notebook and Second Opinion keep GPT-6.1 Sol and Grok 4.7
+    - Mistral Medium 3.5 is no longer offered; chats that used it continue with Mistral Large 4
+    - Gemini apps offer Gemini 3.8 Flash in place of Gemini 3.6 Flash, and Gemini speech-to-text uses Gemini 3.8 Flash
+    - Language Practice writes its advice in the interface language
+    - The sidebar has `Menu`, `Work screen`, `Files` and `History` tabs
+    - A chat's browser closes on `Reset`, an app change, an import or after 5 minutes unused; of the Selenium container's ports, only noVNC (7900) is open
+    - Closing the desktop app's Web UI window keeps the conversation and its reply
+    - MCP: the Knowledge Base tools use the web interface's Knowledge Base; `knowledge_base` takes `all` or an app name, and `level` is removed
+    - The web interface and exported workflow SVGs load no fonts from the internet
+  - New
+    - `Anonymize` hides chosen words in what a chat sends and puts them back in replies; `Masked` and `Restored` exports
+    - A conversation file that holds words marked for the Privacy Filter opens with them hidden: **check them in the `Anonymize` panel**
+    - The work screen shows the chat's browser, images, PDFs, text and code, audio, video, notebooks, and draws Markdown, tables, SVG, HTML, Mermaid, draw.io, Vega-Lite and ABC files
+    - The model is told what the work screen shows and can look at the item shown
+    - The `History` tab narrows chats by app and date and removes several at once
+    - `Plotly static images` in `Install Options` keeps a PNG of each Plotly chart in a notebook **(rebuild the Python container)**
+    - The music apps take attached audio and MIDI files
+    - New models: Gemini 4 Hydrogen, Gemini 4 Carbon, Claude Fable 5.2, GPT-6.1 Terra, GPT Image 2.6 Flare and Sunburst, and ElevenLabs Scribe v3
+    - Settings > API Keys can check each key with its provider and show whether the provider's default models are in that key's model list
+    - Every file on the work screen has `Save as…`, which saves it under its own name
+    - Monadic Chat uses the engine the `docker` command uses, so Podman and Colima work besides Docker Desktop; the status bar names the engine
+    - Image downloads show as one line that counts up in the console
+    - The `Work screen` tab shows a dot when something new comes to it while another tab is shown
+  - Fixed
+    - `Cancel` stops a reply while tools are running
+    - An Ollama model's thinking stays hidden and is turned off while `Show Thinking` is off, also the first time a model is used
+    - The reasoning effort chosen for a Grok model and `Max Output Tokens` for an Ollama model are sent with the chat request
+    - Gemini chats count their active messages and tokens against the model's input limit
+    - Models added in `~/monadic/config/models.json` get their properties on the server as in the web interface
+    - A setting changed while a reply is being made applies from the next message, and a reasoning, `Show Thinking`, `Web Search`, temperature, penalty or `Max Output Tokens` setting a message does not carry is no longer taken from an earlier message
+    - `Web Search` works with models that search by themselves and take no tools
+    - The reasoning effort of a Mistral model can be chosen
+    - Chat and other apps that unlock their tools on request search the web with Mistral models when `Web Search` is on
+    - Images earlier in a chat are sent to OpenAI models that take images, and are not sent to Ollama models that take none
+    - Gemini models without thinking levels or a thinking budget are sent no thinking settings in a chat
+    - An Ollama app chosen after Ollama started shows what its models can do
+    - An app update makes the Python container again when only its scripts changed
+    - Keys that 1Password provides one at a time no longer end in a line break that stopped the providers from accepting them
+    - The conversation export says when it did not start, and runs once per click
+    - The Settings categories and the switches that show a diagram's source work with the keyboard
+    - The export dialog, draw.io diagrams and the first setup follow the interface language
+    - `Reset` on iOS offers to save the chat to the Knowledge Base
+    - A workflow SVG of an app with a non-English name is saved under the app's name
+    - The workflow viewer's loading and error messages follow the interface language
+    - Claude apps with an advisor no longer tell a model that cannot use it to call it
+    - A dropped connection during a reply gives the page back for input
+    - Streamed replies no longer lose words
+    - Earlier replies are no longer duplicated or dropped with Ollama, Mistral and DeepSeek
+    - The AI User panel names Ollama as the provider of Ollama apps
+    - Long chains of tool calls work with every provider
+    - Ollama apps no longer repeat a tool call or end a reply empty
+    - A reply stopped for repeated tool calls names the tools
+    - Gemini and Mistral replies no longer lose text or garble non-English characters
+    - An error during a reply ends it as an error, and no tool called before the error runs
+    - Every tool the model calls at once runs, with OpenAI, Mistral and DeepSeek too
+    - Replies follow the language of your message also after tool calls, with every provider
+    - The reasoning effort chosen for a Claude model is used
+    - A reply no longer shows reasoning from another chat
+    - The thinking level chosen for a Gemini model is used
+    - Gemini apps start with their default model, Gemini 3.8 Flash, instead of Gemini 4 Argon
+    - The reasoning effort chosen for a DeepSeek model is used, and DeepSeek reasoning can be turned off
+    - Claude Fable models work in the apps that consult an advisor
+    - Looking through folders one after another no longer stops a reply as a repeated tool call
+    - A reply with many formulas or code blocks shows each in its place
+    - A chat continued from the history or an import keeps its own app
+    - A stopped container an app needs is started again
+    - The Selenium container starts with macOS Screen Sharing on
+    - MIDI files with Japanese track names are analyzed **(rebuild the Python container)**
+    - PDF and Knowledge Base imports take non-ASCII file names
+    - AutoForge adds files to a project made earlier in the chat
+    - `Copy Link` and `Copy Image Address` in the desktop app copy the address
+  - For developers
+    - The `monadic`, `turn_state` and `context_schema` settings are no longer used: **remove them from your apps**; an app keeps state with its tools
+    - `privacy do` in an app's MDSL has no effect and the server warns when the app is loaded: **remove it, and add `library_save false` and `library_search false` to `features` to keep the Knowledge Base off in that app**
+    - New `features`: `work_screen` (`"drafts"`, `"translations"` or `"code"`), `code_runs_in_chat_folder`, `show_thinking false` and `max_tool_rounds`; `reasoning_effort` written in `features` is used
+    - MCP: `monadic_agent` sends its task to the model as the user's message
+    - `PDF_RAG_TOKENS` and `PDF_RAG_OVERLAP_LINES` are no longer used
+
 - [October, 2026] 1.0.0-beta.44
   - Security
     - Tool calls are limited to the tools given to the model

@@ -242,9 +242,6 @@ describe('safeWsSend', () => {
     expect(MonadicWs.isIdempotent('EDIT')).toBe(true);
     expect(MonadicWs.isIdempotent('UPDATE_PARAMS')).toBe(true);
     expect(MonadicWs.isIdempotent('UPDATE_LANGUAGE')).toBe(true);
-    expect(MonadicWs.isIdempotent('PDF_TITLES')).toBe(true);
-    expect(MonadicWs.isIdempotent('DELETE_PDF')).toBe(true);
-    expect(MonadicWs.isIdempotent('DELETE_ALL_PDFS')).toBe(true);
     expect(MonadicWs.isIdempotent('CHAT')).toBe(false);
     expect(MonadicWs.isIdempotent('PLAY_TTS')).toBe(false);
     expect(MonadicWs.isIdempotent('LIBRARY_SUGGEST_TITLE')).toBe(false);
@@ -259,3 +256,4 @@ describe('safeWsSend', () => {
     expect(MonadicWs.isIdempotent('UNKNOWN_FUTURE_MSG')).toBe(false);
   });
 });
+

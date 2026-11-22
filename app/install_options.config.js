@@ -4,7 +4,7 @@
 //   - The canonical list of optional Python container packages
 //     (PYOPT_*, IMGOPT_*, INSTALL_LATEX) — each with the env name,
 //     the matching HTML checkbox id, and a default English label.
-//   - The Privacy Filter and Extractor language code lists.
+//   - The name finder (Privacy container) and Extractor language code lists.
 //   - "Always-installed" languages that the UI pins as
 //     `checked disabled` (English baseline for both Privacy and
 //     Extractor).
@@ -31,7 +31,7 @@
 //           Dockerfile ARG name that monadic.sh passes via --build-arg)
 //   label → English fallback when no i18n key is set
 //   group → 'python' (Python Libraries CPU), 'system' (apt),
-//           'music' (Music Lab requirement), 'tools' (CLI utilities)
+//           'music' (Music Tutor requirement), 'tools' (CLI utilities)
 const PYTHON_OPTIONS = Object.freeze([
   Object.freeze({ id: 'install-latex',        env: 'INSTALL_LATEX',       label: 'LaTeX (minimal set for diagrams)', group: 'system' }),
   Object.freeze({ id: 'pyopt-nltk',           env: 'PYOPT_NLTK',          label: 'nltk',                              group: 'python' }),
@@ -39,11 +39,12 @@ const PYTHON_OPTIONS = Object.freeze([
   Object.freeze({ id: 'pyopt-gensim',         env: 'PYOPT_GENSIM',        label: 'gensim',                            group: 'python' }),
   Object.freeze({ id: 'pyopt-mediapipe',      env: 'PYOPT_MEDIAPIPE',     label: 'mediapipe (CPU)',                   group: 'python' }),
   Object.freeze({ id: 'pyopt-transformers',   env: 'PYOPT_TRANSFORMERS',  label: 'transformers (CPU only)',           group: 'python' }),
+  Object.freeze({ id: 'pyopt-plotly-static',  env: 'PYOPT_PLOTLY_STATIC', label: 'Plotly static images (kaleido + Chromium)', group: 'python' }),
   Object.freeze({ id: 'pyopt-librosa',        env: 'PYOPT_LIBROSA',       label: 'librosa + madmom',                  group: 'music' }),
   Object.freeze({ id: 'imgopt-imagemagick',   env: 'IMGOPT_IMAGEMAGICK',  label: 'ImageMagick (convert/mogrify)',     group: 'tools' })
 ]);
 
-// Privacy Filter language codes. English is mandatory (always enabled)
+// Name finder (Privacy container) language codes. English is mandatory (always enabled)
 // and pinned `checked disabled` in the HTML; the others are opt-in.
 // PRIVACY_LANGS is a RUNTIME setting: every supported spaCy model is
 // baked into the privacy image, and the selection controls which models

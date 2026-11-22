@@ -146,7 +146,6 @@ const SAMPLE_MINIMAL = {
   shared_tool_groups: [],
   agents: {},
   features: {},
-  context_schema: null,
   system_prompt: 'You are a helpful assistant.',
 };
 
@@ -165,13 +164,7 @@ const SAMPLE_FULL = {
     { name: 'file_tools', tool_names: ['read_file', 'write_file'] },
   ],
   agents: { code_agent: 'gpt-4o-mini' },
-  features: { websearch: true, monadic: true, pdf_vector_storage: false },
-  context_schema: {
-    fields: [
-      { name: 'topics', label: 'Topics' },
-      { name: 'findings', label: 'Findings' },
-    ]
-  },
+  features: { websearch: true, math: true, image_generation: false },
   system_prompt: 'You are a research assistant with web browsing capabilities.',
   input_types: ['text', 'image'],
   output_types: ['text', 'html'],
@@ -227,7 +220,7 @@ describe('WorkflowViewer', () => {
     test('should build legend on init', () => {
       const legend = document.querySelector('.workflow-viewer-legend');
       const items = legend.querySelectorAll('.wv-legend-item');
-      // Input/Response, Speech (STT/TTS), Prompt, Model, Tool, Agent, Feature, Context
+      // Input/Response, Speech (STT/TTS), Prompt, Model, Tool, Agent, Feature, History
       expect(items.length).toBe(8);
     });
   });
@@ -512,7 +505,7 @@ describe('WorkflowViewer graph structure', () => {
 
     test('should create 5 flow + side nodes', () => {
       // User Input, System Prompt, Model, Response = 4 flow nodes
-      // Context = 1 side node (always present)
+      // History = 1 side node (always present)
       expect(insertedVertices.length).toBe(5);
     });
 
@@ -537,7 +530,7 @@ describe('WorkflowViewer graph structure', () => {
       expect(insertedEdges.length).toBe(5);
     });
 
-    test('should create 1 feedback edge for non-monadic app without context schema', () => {
+    test('should create 1 feedback edge for a minimal app', () => {
       const feedbackEdges = insertedEdges.filter(e =>
         e.style && e.style.dashed === true && e.style.exitX === 0 && e.style.entryX === 0
       );
@@ -550,7 +543,7 @@ describe('WorkflowViewer graph structure', () => {
     });
   });
 
-  describe('Full app (tools, agents, features, context schema)', () => {
+  describe('Full app (tools, agents, features)', () => {
     beforeEach(async () => {
       await loadAppWithData(SAMPLE_FULL);
     });
@@ -561,8 +554,7 @@ describe('WorkflowViewer graph structure', () => {
       // 1 Agent: code_agent (side, right of Model)
       // 1 Features (side, right of Model) — websearch + monadic = 2 enabled
       // 1 Message History (side, left of Response) — always present
-      // 1 Monadic Context (side, left of Response) — has context_schema fields
-      expect(insertedVertices.length).toBe(9);
+      expect(insertedVertices.length).toBe(8);
     });
 
     test('should include Tools node with tool groups', () => {
@@ -581,15 +573,8 @@ describe('WorkflowViewer graph structure', () => {
       const featNode = insertedVertices.find(v => v.value.includes('Features'));
       expect(featNode).toBeDefined();
       expect(featNode.value).toContain('Websearch');
-      expect(featNode.value).toContain('Monadic');
-      expect(featNode.value).not.toContain('pdf vector storage'); // false = excluded
-    });
-
-    test('should include Monadic Context node with schema fields', () => {
-      const ctxNode = insertedVertices.find(v => v.value.includes('Monadic Context'));
-      expect(ctxNode).toBeDefined();
-      expect(ctxNode.value).toContain('Topics');
-      expect(ctxNode.value).toContain('Findings');
+      expect(featNode.value).toContain('Math');
+      expect(featNode.value).not.toContain('Image Generation'); // false = excluded
     });
 
     test('should include Message History node', () => {
@@ -609,12 +594,12 @@ describe('WorkflowViewer graph structure', () => {
       expect(respNode.value).toContain('HTML Output');
     });
 
-    test('should create 2 feedback edges for monadic app with context schema', () => {
-      // 3 flow + 5 side (tools, agent, features, history, context) + 2 feedback = 10
+    test('should create 1 feedback edge', () => {
+      // 3 flow + 4 side (tools, agent, features, history) + 1 feedback = 8
       const feedbackEdges = insertedEdges.filter(e =>
         e.style && e.style.dashed === true && e.style.exitX === 0 && e.style.entryX === 0
       );
-      expect(feedbackEdges.length).toBe(2);
+      expect(feedbackEdges.length).toBe(1);
     });
   });
 
@@ -623,54 +608,67 @@ describe('WorkflowViewer graph structure', () => {
       await loadAppWithData(SAMPLE_FULL);
     });
 
-    test('flow nodes should have width of 220', () => {
+    test('flow nodes take the smallest width, 150, where no text is measured', () => {
       const inputNode = insertedVertices.find(v => v.value.includes('User Input'));
-      expect(inputNode.geometry.width).toBe(220);
+      expect(inputNode.geometry.width).toBe(150);
     });
 
-    test('Tools node should have width of 240', () => {
+    test('Tools node takes the smallest width, 160, where no text is measured', () => {
       const toolNode = insertedVertices.find(v => v.value.includes('Tools'));
-      expect(toolNode.geometry.width).toBe(240);
+      expect(toolNode.geometry.width).toBe(160);
     });
 
-    test('Feature/History/Context nodes should have width of 200', () => {
+    test('Feature/History nodes take the smallest width, 140, where no text is measured', () => {
       const featNode = insertedVertices.find(v => v.value.includes('Features'));
-      expect(featNode.geometry.width).toBe(200);
+      expect(featNode.geometry.width).toBe(140);
       const histNode = insertedVertices.find(v => v.value.includes('Message History'));
-      expect(histNode.geometry.width).toBe(200);
-      const ctxNode = insertedVertices.find(v => v.value.includes('Monadic Context'));
-      expect(ctxNode.geometry.width).toBe(200);
+      expect(histNode.geometry.width).toBe(140);
     });
   });
 
   describe('Error handling', () => {
-    test('should display error when fetch fails', async () => {
-      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+    async function failedWith(response) {
+      if (response instanceof Error) global.fetch.mockRejectedValueOnce(response);
+      else global.fetch.mockResolvedValueOnce(response);
       window.WorkflowViewer._doLoadApp('BadApp');
       await new Promise(r => setTimeout(r, 0));
-      const container = document.getElementById('workflow-viewer-container');
-      expect(container.innerHTML).toContain('Failed');
-      expect(container.innerHTML).toContain('Network error');
+      return document.getElementById('workflow-viewer-container');
+    }
+
+    test('says the workflow could not be shown when the fetch fails, without the error text', async () => {
+      const container = await failedWith(new Error('Network error'));
+      expect(container.textContent).toContain('could not be shown');
+      expect(container.textContent).not.toContain('Network error');
     });
 
-    test('should display error for non-OK HTTP response', async () => {
-      global.fetch.mockResolvedValueOnce({ ok: false, status: 404 });
-      window.WorkflowViewer._doLoadApp('MissingApp');
-      await new Promise(r => setTimeout(r, 0));
-      const container = document.getElementById('workflow-viewer-container');
-      expect(container.innerHTML).toContain('Failed');
-      expect(container.innerHTML).toContain('404');
+    test('says so for a response that is not OK', async () => {
+      const container = await failedWith({ ok: false, status: 404 });
+      expect(container.textContent).toContain('could not be shown');
+      expect(container.textContent).not.toContain('404');
     });
 
-    test('should display error from API error response', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ error: 'App not found' }),
-      });
-      window.WorkflowViewer._doLoadApp('GhostApp');
-      await new Promise(r => setTimeout(r, 0));
-      const container = document.getElementById('workflow-viewer-container');
-      expect(container.innerHTML).toContain('App not found');
+    test('shows no markup or text the server gave as the error', async () => {
+      const container = await failedWith({ ok: true, json: async () => ({ error: '<img src=x onerror=alert(1)>App not found' }) });
+      expect(container.textContent).toContain('could not be shown');
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.textContent).not.toContain('App not found');
+    });
+  });
+
+  describe('Model node', () => {
+    afterEach(() => { delete window.params; });
+
+    test('names the model chosen in the settings when it is one of the app\'s', async () => {
+      window.params = { model: 'gpt-4o-mini' };
+      await loadAppWithData(SAMPLE_FULL);
+      expect(insertedVertices.some(v => v.value.includes('gpt-4o-mini'))).toBe(true);
+    });
+
+    test('names the app\'s first model when the one chosen is not the app\'s', async () => {
+      window.params = { model: 'another-model' };
+      await loadAppWithData(SAMPLE_FULL);
+      expect(insertedVertices.some(v => v.value.includes('another-model'))).toBe(false);
+      expect(insertedVertices.some(v => v.value.includes('gpt-4o'))).toBe(true);
     });
   });
 
@@ -868,19 +866,14 @@ describe('WorkflowViewer label generation', () => {
     expect(inputNode.value).toContain('<b>');
   });
 
-  test('Message History node should always be present even without context_schema', async () => {
-    // Even with null context_schema
-    const noSchema = { ...SAMPLE_MINIMAL, context_schema: null };
+  test('Message History node should always be present', async () => {
     global.fetch.mockResolvedValueOnce({
-      ok: true, json: async () => noSchema,
+      ok: true, json: async () => SAMPLE_MINIMAL,
     });
     window.WorkflowViewer._doLoadApp('TestApp');
     await new Promise(r => setTimeout(r, 0));
     const histNode = insertedVertices.find(v => v.value.includes('Message History'));
     expect(histNode).toBeDefined();
-    // No Monadic Context node when schema is null
-    const ctxNode = insertedVertices.find(v => v.value.includes('Monadic Context'));
-    expect(ctxNode).toBeUndefined();
   });
 
   test('titleCase should handle acronyms (PDF, HTML) correctly', async () => {
@@ -1012,7 +1005,9 @@ describe('WorkflowViewer.exportSvg', () => {
     await loadAndInjectSvg();
     const result = window.WorkflowViewer.exportSvg();
     expect(result).toContain('<style');
-    expect(result).toContain('Montserrat');
+    expect(result).toContain('font-family');
+    expect(result).not.toContain('@import');
+    expect(result).not.toContain('fonts.googleapis.com');
     delete global.fetch;
   });
 
@@ -1026,6 +1021,38 @@ describe('WorkflowViewer.exportSvg', () => {
 
   test('exportSvg should be a public method', () => {
     expect(typeof window.WorkflowViewer.exportSvg).toBe('function');
+  });
+
+  describe('the name of the saved file', () => {
+    async function savedName(names) {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true, json: async () => Object.assign({}, SAMPLE_MINIMAL, names),
+      });
+      document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
+      window.WorkflowViewer._doLoadApp('TestApp');
+      await new Promise(r => setTimeout(r, 0));
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      document.getElementById('workflow-viewer-container').appendChild(svg);
+      global.URL.createObjectURL = jest.fn(() => 'blob:x');
+      global.URL.revokeObjectURL = jest.fn();
+      let name = null;
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () { name = this.download; });
+      try {
+        window.WorkflowViewer.downloadSvg();
+      } finally {
+        click.mockRestore();
+        delete global.fetch;
+      }
+      return name;
+    }
+
+    test('comes from the display name', async () => {
+      expect(await savedName({ display_name: 'Music Generator', app_name: 'MusicGeneratorOpenAI' })).toBe('workflow-music-generator.svg');
+    });
+
+    test('comes from the app name when the display name has no ASCII letters', async () => {
+      expect(await savedName({ display_name: '音楽の生成', app_name: 'MusicGeneratorOpenAI' })).toBe('workflow-musicgeneratoropenai.svg');
+    });
   });
 });
 
@@ -1060,7 +1087,6 @@ describe('WorkflowViewer real-time highlighting', () => {
     expect(() => window.WorkflowViewer.setStage('model')).not.toThrow();
     expect(() => window.WorkflowViewer.setStage('tools')).not.toThrow();
     expect(() => window.WorkflowViewer.setStage('response')).not.toThrow();
-    expect(() => window.WorkflowViewer.setStage('context')).not.toThrow();
     expect(() => window.WorkflowViewer.setStage('done')).not.toThrow();
   });
 
@@ -1076,7 +1102,7 @@ describe('WorkflowViewer real-time highlighting', () => {
 
   test('setStage should accept all valid stage names without error', () => {
     document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
-    const stages = ['input', 'prompt', 'model', 'tools', 'response', 'context', 'done'];
+    const stages = ['input', 'prompt', 'model', 'tools', 'response', 'done'];
     stages.forEach(function (stage) {
       expect(() => window.WorkflowViewer.setStage(stage)).not.toThrow();
     });
@@ -1168,7 +1194,7 @@ describe('WorkflowViewer highlighting with loaded graph', () => {
   });
 
   test('sequential stage transitions should not throw', () => {
-    const sequence = ['input', 'model', 'tools', 'response', 'context', 'done'];
+    const sequence = ['input', 'model', 'tools', 'response', 'done'];
     sequence.forEach(function (stage) {
       expect(() => window.WorkflowViewer.setStage(stage)).not.toThrow();
     });

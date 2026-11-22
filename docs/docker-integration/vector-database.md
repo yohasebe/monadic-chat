@@ -1,6 +1,6 @@
 # Vector Database
 
-Monadic Chat includes a vector database for searching by meaning across the Knowledge Base, the PDF Database, and the help documentation. This page explains how it is used.
+Monadic Chat includes a vector database for searching by meaning across the Knowledge Base and the help documentation. This page explains how it is used.
 
 ## Overview :id=overview
 
@@ -8,7 +8,7 @@ The vector database:
 - Converts text into vectors (embeddings) on your computer
 - Stores the vectors in the Qdrant container, together with information about where each piece of text came from
 - Finds text by similarity of meaning rather than by matching keywords
-- Is used by the Knowledge Base, the PDF Database, and the Monadic Chat Help app
+- Is used by the Knowledge Base and the Monadic Chat Help app
 
 Embedding and search run locally; no API key is needed for them.
 
@@ -45,12 +45,11 @@ When a file is imported into the Knowledge Base:
 ## What Is Stored :id=database-schema
 
 - **Knowledge Base**: saved conversations and imported files, as documents and their sections
-- **PDF Database**: PDFs imported through the [PDF Database](../basic-usage/pdf_storage.md) panel. Each app sees only the PDFs imported in it; the PDF Database is separate from the Knowledge Base
 - **Help data**: the Monadic Chat documentation, used by the Monadic Chat Help app
 
 ## Scope :id=visibility
 
-Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base browser shows every entry. Apps that support Knowledge Base search use it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
+Each Knowledge Base entry belongs either to the app (and provider) it was saved in, or to `Global`. The Knowledge Base browser shows every entry. Apps search the Knowledge Base only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel, and they find the entries saved in that app and the `Global` entries. Live Conversation searches it through its own **Tools** switch. See the [scope model](/apps/knowledge-base.md) on the Knowledge Base page.
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 

@@ -14,7 +14,6 @@
   // Handle fragment message from streaming response
   // This function will be used by the fragment_with_audio handler and all vendor helpers
   function handleFragmentMessage(fragment) {
-    console.log('[handleFragmentMessage] Called with:', fragment ? fragment.type : 'null', 'content length:', fragment?.content?.length || 0);
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       // Skip streaming updates in background tabs to avoid duplicate rendering and TTS triggers
       window.__lastSkippedFragment = fragment;
@@ -22,7 +21,6 @@
     }
     if (fragment && fragment.type === 'fragment') {
       var tempCardEl = $id('temp-card');
-      console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', !!tempCardEl, 'visible:', tempCardEl ? tempCardEl.style.display !== 'none' : false, 'display:', tempCardEl ? tempCardEl.style.display : 'N/A');
       const text = fragment.content || '';
 
       // Debug logging for streaming fragment ordering
@@ -152,7 +150,6 @@
 
       // Add to streaming text display
       var tempText = tempCardEl.querySelector('.card-text');
-      console.log('[handleFragmentMessage] .card-text exists:', !!tempText, 'adding text length:', text.length);
       if (tempText) {
         // Ensure temp-card is visible when adding content
         $show(tempCardEl);
@@ -179,7 +176,6 @@
 
         // Append all at once for better performance
         tempText.appendChild(docFrag);
-        console.log('[handleFragmentMessage] Appended to .card-text, new length:', tempText.textContent.length);
 
         // Debug: Log after append
         if (window.debugFragments) {

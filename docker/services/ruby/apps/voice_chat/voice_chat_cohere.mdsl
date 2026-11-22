@@ -1,31 +1,31 @@
 app "VoiceChatCohere" do
   description do
     en <<~TEXT
-    Conversational AI with voice input and output support. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with voice input and output support. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    音声入出力をサポートする会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    音声入出力をサポートする会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    支持语音输入输出的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    支持语音输入输出的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    음성 입출력을 지원하는 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    음성 입출력을 지원하는 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    IA conversacional con soporte de entrada y salida de voz. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con soporte de entrada y salida de voz. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    IA conversationnelle avec entrée et sortie vocales. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec entrée et sortie vocales. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Konversations-KI mit Spracheingabe und -ausgabe. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit Spracheingabe und -ausgabe. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   
@@ -40,7 +40,7 @@ app "VoiceChatCohere" do
   - Keep your responses brief (under 50 words) for better voice playback. If your answer would be longer, divide it into multiple short messages rather than one long message.
   - Try to keep your response as short as possible.
 
-  I have access to web search when needed. I will use it when:
+  If web search is turned on for this conversation, I can use it when:
   - You ask about current events or recent information
   - You need facts about specific people, companies, or organizations
   - You want the latest information on any topic
@@ -56,6 +56,8 @@ app "VoiceChatCohere" do
   display_name "Voice Chat"
   
   features do
+    max_tool_rounds 10
+    show_thinking false
     websearch false
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit true

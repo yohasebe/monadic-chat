@@ -31,7 +31,6 @@ beforeEach(() => {
   global.setAutoSpeechSuppressed = jest.fn();
   global.isAutoSpeechSuppressed = jest.fn().mockReturnValue(false);
   global.applyToggle = jest.fn();
-  global.applyMermaid = jest.fn();
   global.applyDrawIO = jest.fn();
   global.applyMath = jest.fn();
   global.applyAbc = jest.fn();
@@ -94,26 +93,6 @@ describe('ws-message-renderer', () => {
       delete window.addAttachmentsToCard;
     });
 
-    // The page may keep what it holds on disk (sessionStorage): whether the
-    // chat is Private is noted before any of its words are taken in.
-    it('notes whether the chat is Private before it takes in the words', () => {
-      const order = [];
-      window.WsPrivacyHandler = { notePrivate: jest.fn(() => order.push('private')) };
-      global.createCard = jest.fn(() => { order.push('card'); return document.createElement('div'); });
-      try {
-        const data = { private: true, content: [
-          { role: 'system', text: 'S', mid: 'sys-1' },
-          { role: 'user', text: 'private words', mid: 'u-1', active: true }
-        ] };
-        handlers.handlePastMessages(data);
-        expect(window.WsPrivacyHandler.notePrivate).toHaveBeenCalledWith(data);
-        expect(order[0]).toBe('private');
-        expect(order).toContain('card');
-      } finally {
-        delete window.WsPrivacyHandler;
-      }
-    });
-
     it('renders user and assistant messages from history', () => {
       const data = {
         content: [
@@ -166,6 +145,21 @@ describe('ws-message-renderer', () => {
       expect(window.initialLoadComplete).toBe(true);
     });
 
+    it('tells once, in the conversation, that a reply the lost connection cut off ended', () => {
+      window._replyInterrupted = true;
+      handlers.handlePastMessages({ content: [] });
+      handlers.handlePastMessages({ content: [] });
+      const told = global.setAlert.mock.calls.filter(([, type]) => type === 'error');
+      expect(told.length).toBe(1);
+      expect(window._replyInterrupted).toBe(false);
+    });
+
+    it('says nothing more when no reply was cut off', () => {
+      delete window._replyInterrupted;
+      handlers.handlePastMessages({ content: [] });
+      expect(global.setAlert.mock.calls.filter(([, type]) => type === 'error')).toEqual([]);
+    });
+
     it('suppresses auto speech on import', () => {
       handlers.handlePastMessages({ content: [], from_import: true });
 
@@ -173,6 +167,21 @@ describe('ws-message-renderer', () => {
       // isProcessingImport is set to true during import, then cleared at end of handlePastMessages
       // So we verify the suppression call happened instead
       expect(window.skipAssistantInitiation).toBe(true);
+    });
+
+    it('returns the column to the settings for a chat taken in, and to be continued', () => {
+      const order = [];
+      window.enterSettingsMode = jest.fn(() => order.push('settings'));
+      window.setStartButtonMode = jest.fn((continuing) => order.push(continuing));
+      handlers.handlePastMessages({ content: [{ role: 'user', text: 'Hi', mid: 'm1' }], from_import: true });
+      expect(order).toEqual(['settings', true]);
+
+      // The same chat drawn again after reconnecting stays where it is.
+      order.length = 0;
+      handlers.handlePastMessages({ content: [{ role: 'user', text: 'Hi', mid: 'm1' }] });
+      expect(order).toEqual([true]);
+      delete window.enterSettingsMode;
+      delete window.setStartButtonMode;
     });
 
     it('updates AI User button state', () => {

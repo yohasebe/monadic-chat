@@ -6,9 +6,7 @@
 #
 # One entry per line: path | text the line contains | where it writes | why
 # where: state, log, config, system-temp, shared-root, build-time, test-only
-docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(File.dirname(legacy_volume_marker)) | log | notice marker in the log folder
-docker/services/ruby/lib/monadic.rb | File.write(legacy_volume_marker | log | notice marker in the log folder
-docker/services/ruby/lib/monadic/app.rb | File.open(COMMAND_LOG_FILE | log | command log
+docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(Monadic::Utils::Environment.log_path) | log | the log folder at startup
 docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(root, 0o700) | state | folder of kept artifacts (state folder)
 docker/services/ruby/lib/monadic/workspace/publications.rb | Dir.mkdir(root, 0o700) | state | folder of publications (state folder)
@@ -37,7 +35,6 @@ docker/services/ruby/lib/monadic/workspace/shared_folder.rb | File.unlink(temp) 
 docker/services/ruby/lib/monadic/agents/ai_user_agent.rb | FileUtils.mkdir_p(log_dir) | log | log folder
 docker/services/ruby/lib/monadic/agents/ai_user_agent.rb | File.open(File.join(log_dir, 'ai_user_debug.log'), 'a') | log | debug log in the log folder
 docker/services/ruby/lib/monadic/agents/audio_analysis_agent.rb | Tempfile.new(["music_analyst" | system-temp | the system's temporary folder
-docker/services/ruby/lib/monadic/utils/tool_image_utils.rb | FileUtils.mkdir_p(dir) unless Dir.exist?(dir) | shared-root | the shared folder itself
 docker/services/ruby/lib/monadic/utils/extra_logger.rb | File.open(log_file | log | extra log
 docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.mkdir_p(File.dirname(ENV_PATH)) | config | config folder
 docker/services/ruby/lib/monadic/utils/setup.rb | FileUtils.touch(ENV_PATH) | config | config env file
@@ -55,8 +52,6 @@ docker/services/ruby/lib/monadic/help/installation.rb | FileUtils.mkdir_p(@direc
 docker/services/ruby/lib/monadic/help/installation.rb | File.open(File.join(@directory, "#{name}.lock"), mode | state | help install locks (state folder)
 docker/services/ruby/lib/monadic/help/installation.rb | Tempfile.create(['progress-' | state | help install journal (state folder)
 docker/services/ruby/lib/monadic/help/installation.rb | File.rename(file.path | state | help install journal (state folder)
-docker/services/ruby/lib/monadic/routes/pdf_routes.rb | Tempfile.new("temp_pdf") | system-temp | the system's temporary folder
-docker/services/ruby/apps/drawio_grapher/drawio_grapher_tools.rb | FileUtils.mkdir_p(data_dir) | shared-root | the shared folder itself
 docker/services/ruby/apps/auto_forge/auto_forge.rb | File.open(local, 'wb') | system-temp | patch work folder (Dir.mktmpdir)
 docker/services/ruby/apps/auto_forge/auto_forge.rb | File.write(diff, patch_text) | system-temp | patch work folder (Dir.mktmpdir)
 docker/services/ruby/apps/auto_forge/utils/directory_operations.rb | FileUtils.rm_rf(@test_dir) | test-only | the file's own self-test (Dir.mktmpdir)
@@ -72,3 +67,10 @@ docker/services/ruby/lib/monadic/utils/shared_path_guard.rb | File.open(copy, "w
 docker/services/ruby/lib/monadic/history/store.rb | FileUtils.mkdir_p(File.dirname(@path), mode: 0o700) | state | folder of the conversation history (state folder; refused inside the shared folder)
 docker/services/ruby/lib/monadic/history/store.rb | File.open(@path, File::WRONLY | File::CREAT, 0o600) { nil } | state | the conversation history, made owner-only before SQLite opens it (state folder)
 docker/services/ruby/lib/monadic/history/store.rb | File.chmod(0o600, file) if File.exist?(file) | state | keeps the history and its companion files owner-only (state folder)
+docker/services/ruby/lib/monadic/utils/trial_log.rb | File.open(File.join(folder, FILE_NAME), File::WRONLY | File::APPEND | File::CREAT, 0o600) | log | measurement log in the folder MONADIC_TRIAL_LOG names (shell only; refused inside the shared folder)
+docker/services/ruby/lib/monadic/workbench/store.rb | File.unlink(temp) rescue nil | state | workbench manifest's temporary copy that could not be put in place (state folder)
+docker/services/ruby/lib/monadic/workbench/store.rb | Dir.mkdir(dir, 0o700) | state | workbench folders, made new (state folder)
+docker/services/ruby/lib/monadic/workbench/job_output.rb | Dir.mkdir(dir, 0o700) | state | a generator's job folder in the workbench, made new (state folder)
+docker/services/ruby/lib/monadic/workbench/job_output.rb | FileUtils.rm_rf(checked_dir!(dir, root: root)) | state | removes a checked job folder of the workbench (state folder)
+docker/services/ruby/lib/monadic/workbench/job_output.rb | PARTS.each { |part| Dir.mkdir(File.join(dir, part), 0o700) } | state | a generator job's in/ and out/ folders, made new (state folder)
+docker/services/ruby/apps/syntax_tree/syntax_tree_tools.rb | File.write(input, notation) | system-temp | the notation given to RSyntaxTree, in a work folder of its own (Dir.mktmpdir)

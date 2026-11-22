@@ -19,6 +19,23 @@ const WorkflowViewer = (function () {
   let currentApp = null;
   let pendingApp = null;
   let currentData = null;
+
+  // A message in the viewer (loading, or a failure), translated and set as
+  // text: what went wrong is not shown.
+  function showMessage(iconClass, key, fallback) {
+    if (!container) return;
+    var text = fallback;
+    if (typeof i18next !== 'undefined' && i18next.t) {
+      var v = i18next.t(key);
+      if (v && v !== key) text = v;
+    }
+    var box = document.createElement('div');
+    box.className = 'workflow-viewer-message';
+    var icon = document.createElement('i');
+    icon.className = iconClass;
+    box.append(icon, document.createTextNode(text));
+    container.replaceChildren(box);
+  }
   let expandedGroups = {};
   let tooltip = null;
   let initialised = false;
@@ -42,12 +59,12 @@ const WorkflowViewer = (function () {
       prompt:   dk ? '#3b1f5e' : '#ede9fe',  model:      dk ? '#1a3a2a' : '#dcfce7',
       tool:     dk ? '#4a2c1a' : '#ffedd5',  toolGroup:  dk ? '#3d2a14' : '#fff7ed',
       agent:    dk ? '#3b1a1a' : '#fee2e2',  feature:    dk ? '#2a2a2a' : '#f3f4f6',
-      context:  dk ? '#3a3520' : '#fef9c3',
+      history:  dk ? '#3a3520' : '#fef9c3',
       speech:   dk ? '#134e4a' : '#ccfbf1',
       inputBdr:    dk ? '#3b82f6' : '#3b82f6',  responseBdr: dk ? '#3b82f6' : '#3b82f6',
       promptBdr:   dk ? '#8b5cf6' : '#7c3aed',  modelBdr:    dk ? '#22c55e' : '#16a34a',
       toolBdr:     dk ? '#f97316' : '#ea580c',  agentBdr:    dk ? '#ef4444' : '#dc2626',
-      featureBdr:  dk ? '#6b7280' : '#9ca3af',  contextBdr:  dk ? '#eab308' : '#ca8a04',
+      featureBdr:  dk ? '#6b7280' : '#9ca3af',  historyBdr:  dk ? '#eab308' : '#ca8a04',
       speechBdr:   dk ? '#14b8a6' : '#0d9488',
       text:    v('--text-primary', '#333'),
       textSub: dk ? '#9ca3af' : '#6b7280',
@@ -92,13 +109,22 @@ const WorkflowViewer = (function () {
     viewStates[currentApp] = {
       scale: view.scale || 1,
       tx: (view.translate ? view.translate.x : 0),
-      ty: (view.translate ? view.translate.y : 0)
+      ty: (view.translate ? view.translate.y : 0),
+      cw: container.clientWidth,
+      ch: container.clientHeight
     };
   }
 
   function restoreViewState() {
     if (!graph || !currentApp || !viewStates[currentApp]) return false;
     var vs = viewStates[currentApp];
+    // A view kept for a container of another size (the settings panel shown
+    // again at its full height, the side panel opened or closed) would leave
+    // the graph small in a corner or cut off: it is fitted afresh instead.
+    if (Math.abs(container.clientWidth - vs.cw) > 2 || Math.abs(container.clientHeight - vs.ch) > 2) {
+      delete viewStates[currentApp];
+      return false;
+    }
     graph.getView().scaleAndTranslate(vs.scale, vs.tx, vs.ty);
     // A saved state can still be wrong for the CURRENT container size (e.g.
     // captured in floating mode, restored inline). Report failure so the
@@ -131,29 +157,36 @@ const WorkflowViewer = (function () {
     container.innerHTML = '';
     createGraph();
     renderGraph(buildGraphData(currentData, getExpanded()), !!savedScale);
-    // Re-center graph at the preserved zoom level
-    if (savedScale && graph) {
-      var view = graph.getView();
-      view.scaleAndTranslate(1, 0, 0);
-      var bounds = graph.getGraphBounds();
-      if (bounds && bounds.width > 0 && bounds.height > 0) {
-        var cw = container.clientWidth, ch = container.clientHeight;
-        if (cw > 0 && ch > 0) {
-          var tx = -bounds.x + (cw / savedScale - bounds.width) / 2;
-          var ty = -bounds.y + (ch / savedScale - bounds.height) / 2;
-          view.scaleAndTranslate(savedScale, tx, ty);
-        }
-      }
-    }
+    // Placed again at the preserved zoom level
+    if (savedScale && graph) placeGraph(savedScale);
+  }
+
+  // Shows the diagram at scale: centred where it fits, from its top-left
+  // edge where it does not (the rest is reached by dragging).
+  function placeGraph(scale) {
+    var view = graph.getView();
+    view.scaleAndTranslate(1, 0, 0);
+    var bounds = graph.getGraphBounds();
+    if (!bounds || bounds.width === 0 || bounds.height === 0) return;
+    var cw = container.clientWidth, ch = container.clientHeight;
+    if (cw === 0 || ch === 0) return;
+    var pad = 24;
+    var spareW = cw / scale - bounds.width;
+    var spareH = ch / scale - bounds.height;
+    var tx = -bounds.x + (spareW >= 0 ? spareW / 2 : pad / scale);
+    var ty = -bounds.y + (spareH >= 0 ? spareH / 2 : pad / scale);
+    view.scaleAndTranslate(scale, tx, ty);
   }
 
   // ── Layout constants ───────────────────────────────────────
-  var FONT_SIZE = 12;
+  // Boxes are as wide as their text and the gaps small, so that the whole
+  // diagram fitted to the panel keeps its text large.
+  var FONT_SIZE = 15;
   var LINE_H = 22;
-  var HEAD_H = 26;
+  var HEAD_H = 24;
   var PAD = 10;
-  var SIDE_GAP = 40;
-  var OVERLAP_GAP = 12;
+  var SIDE_GAP = 28;
+  var OVERLAP_GAP = 10;
 
   // ── Style helpers ──────────────────────────────────────────
   function makeStyle(fill, stroke, extra) {
@@ -243,6 +276,20 @@ const WorkflowViewer = (function () {
     }
 
     return html;
+  }
+
+  // The width of a label as the browser draws it (the same font and size),
+  // measured off screen; 0 where nothing is drawn.
+  var measureEl = null;
+  function labelWidth(html) {
+    if (!measureEl) {
+      measureEl = document.createElement('div');
+      measureEl.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;white-space:nowrap;' +
+        'font-family:Montserrat, sans-serif;font-size:' + FONT_SIZE + 'px';
+      document.body.appendChild(measureEl);
+    }
+    measureEl.innerHTML = html;
+    return measureEl.scrollWidth || 0;
   }
 
   function calcSize(bodyCount, minW, opts) {
@@ -344,7 +391,9 @@ const WorkflowViewer = (function () {
     flowEdges.push({ from: inputId, to: promptId });
 
     // 3. Model — expandable
-    var modelLabel = (data.models && data.models[0]) || 'model';
+    // The model chosen in the settings, where it is one of the app's.
+    var models = data.models || [];
+    var modelLabel = (params.model && models.indexOf(params.model) >= 0) ? params.model : (models[0] || 'model');
     var modelId = nid();
     var core = data.core || {};
     var modelExp = expanded.has('model');
@@ -460,9 +509,9 @@ const WorkflowViewer = (function () {
       nodes.push({
         id: fId, type: 'feature', heading: 'Features',
         body: onFeatures.map(function (f) { return titleCase(f.replace(/_/g, ' ')); }),
-        flow: false, sideOf: modelId, side: 'right'
+        flow: false, sideOf: modelId, side: 'left'
       });
-      sideEdges.push({ from: modelId, to: fId, dashed: true, noArrow: true, direction: 'right' });
+      sideEdges.push({ from: modelId, to: fId, dashed: true, noArrow: true, direction: 'left' });
     }
 
     // ── Message History — always shown, left of Response ─────────
@@ -474,24 +523,7 @@ const WorkflowViewer = (function () {
     });
     sideEdges.push({ from: responseId, to: hId, dashed: true, noArrow: true, direction: 'left' });
 
-    // ── Monadic Context — only when context_schema has fields ──
-    var ctx = data.context_schema;
-    var hasContext = ctx && ctx.fields && ctx.fields.length > 0;
-    var cId = hasContext ? nid() : null;
-    if (hasContext) {
-      var contextBody = ctx.fields.map(function (f) { return f.label || f.name; });
-      nodes.push({
-        id: cId, type: 'context', heading: 'Monadic Context',
-        body: contextBody,
-        flow: false, sideOf: responseId, side: 'left'
-      });
-      sideEdges.push({ from: responseId, to: cId, dashed: true, direction: 'left' });
-    }
-
     var feedbackEdges = [{ from: hId, to: inputId }];
-    if (hasContext) {
-      feedbackEdges.push({ from: cId, to: inputId });
-    }
 
     return {
       nodes: nodes, flowEdges: flowEdges, sideEdges: sideEdges,
@@ -519,8 +551,7 @@ const WorkflowViewer = (function () {
     case 'feature':
       return makeStyle(c.feature, c.featureBdr);
     case 'history':
-    case 'context':
-      return makeStyle(c.context, c.contextBdr);
+      return makeStyle(c.history, c.historyBdr);
     default:
       return makeStyle(c.feature, c.featureBdr);
     }
@@ -557,12 +588,13 @@ const WorkflowViewer = (function () {
           });
         }
 
-        // Determine width
+        // Determine width: the text's, within a smallest width per kind
         var minW;
         if (hasScrollText) minW = 320;
-        else if (n.isToolContainer) minW = 240;
-        else if (n.type === 'feature' || n.type === 'context' || n.type === 'history') minW = 200;
-        else minW = 220;
+        else if (n.isToolContainer) minW = 160;
+        else if (n.type === 'feature' || n.type === 'history') minW = 140;
+        else minW = 150;
+        if (!hasScrollText) minW = Math.max(minW, labelWidth(lbl) + PAD * 2 + 4);
 
         // Determine size
         var size;
@@ -596,6 +628,13 @@ const WorkflowViewer = (function () {
       });
     });
 
+    // The flow column's boxes take one width: the widest of them.
+    var flowCells = graphData.nodes.filter(function (n) { return n.flow; })
+      .map(function (n) { return cellMap[n.id]; })
+      .filter(function (c) { return c && c.geometry; });
+    var flowW = flowCells.reduce(function (w, c) { return Math.max(w, c.geometry.width); }, 0);
+    flowCells.forEach(function (c) { c.geometry.width = flowW; });
+
     // Step 2: hierarchical layout on flow nodes only.
     // Hide side nodes so the layout engine ignores them.
     sideNodes.forEach(function (sn) {
@@ -605,9 +644,9 @@ const WorkflowViewer = (function () {
 
     var layout = new HierarchicalLayout(graph);
     layout.orientation = 'north';
-    layout.intraCellSpacing = 24;
-    layout.interRankCellSpacing = 32;
-    layout.interHierarchySpacing = 24;
+    layout.intraCellSpacing = 18;
+    layout.interRankCellSpacing = 22;
+    layout.interHierarchySpacing = 18;
     layout.disableEdgeStyle = false;
     layout.execute(parent);
 
@@ -667,7 +706,7 @@ const WorkflowViewer = (function () {
             var sg = sc.geometry;
             sg.x = (direction === 'right') ? colX : pg.x - sg.width - SIDE_GAP;
             sg.y = yOff;
-            yOff += sg.height + 12;
+            yOff += sg.height + OVERLAP_GAP;
           });
           nextY = yOff;
         });
@@ -724,7 +763,15 @@ const WorkflowViewer = (function () {
           var fromCell = cellMap[fe.from], inputCell = cellMap[fe.to];
           if (fromCell && inputCell && fromCell.geometry && inputCell.geometry) {
             var fg = fromCell.geometry, ig = inputCell.geometry;
-            var leftX = Math.min(fg.x, ig.x) - 40 - idx * 20;
+            // The line goes up left of every box beside its way, so it
+            // crosses none.
+            var top = Math.min(fg.y, ig.y), bottom = Math.max(fg.y + fg.height, ig.y + ig.height);
+            var leftEdge = Object.keys(cellMap).reduce(function (x, id) {
+              var g = cellMap[id].geometry;
+              if (!g || g.y > bottom || g.y + g.height < top) return x;
+              return Math.min(x, g.x);
+            }, Math.min(fg.x, ig.x));
+            var leftX = leftEdge - 20 - idx * 16;
             var fbStyle = edgeStyle(true, false, {
               exitX: 0, exitY: 0.5,
               entryX: 0, entryY: 0.5
@@ -755,6 +802,14 @@ const WorkflowViewer = (function () {
     });
   }
 
+  // The scale at which the diagram's text is as large as the page's: a small
+  // diagram fitted to the panel grows no larger than that.
+  function pageTextScale() {
+    var bodyPx = parseFloat(window.getComputedStyle(document.body).fontSize) || 14;
+    return bodyPx / FONT_SIZE;
+  }
+
+  // Shows the whole diagram in the panel.
   function fitGraphToContainer() {
     if (!graph || !container) return;
     var view = graph.getView();
@@ -763,14 +818,10 @@ const WorkflowViewer = (function () {
     if (!bounds || bounds.width === 0 || bounds.height === 0) return;
     var cw = container.clientWidth, ch = container.clientHeight;
     if (cw === 0 || ch === 0) return;
-    var pad = 24;
+    var pad = 12;
     var sx = (cw - pad * 2) / bounds.width;
     var sy = (ch - pad * 2) / bounds.height;
-    var scale = Math.min(sx, sy, 1.2);
-    scale = Math.max(scale, 0.15);
-    var tx = -bounds.x + (cw / scale - bounds.width) / 2;
-    var ty = -bounds.y + (ch / scale - bounds.height) / 2;
-    view.scaleAndTranslate(scale, tx, ty);
+    placeGraph(Math.max(Math.min(sx, sy, pageTextScale()), 0.15));
   }
 
   // ── Click handling ───────────────────────────────────────────
@@ -1008,11 +1059,24 @@ const WorkflowViewer = (function () {
     return Math.max(MIN_PANEL_H, available);
   }
 
-  function applyInlineHeight() {
-    if (currentMode !== 'inline' || !panelEl) return;
+  // The height the inline panel takes where it is now: what the user set,
+  // within what the viewport leaves above the Start Session button.
+  function inlineHeight() {
     var available = computeInlineHeight();
     var saved = loadInlineHeight();
-    var h = (saved && saved > 0) ? Math.min(saved, available) : available;
+    return (saved && saved > 0) ? Math.min(saved, available) : available;
+  }
+
+  // True when the inline panel is shown at another height than its place
+  // gives it now (it was sized while hidden, or where it stood before).
+  function inlineHeightStale() {
+    if (currentMode !== 'inline' || !panelEl || panelEl.offsetParent === null) return false;
+    return Math.abs(panelEl.getBoundingClientRect().height - inlineHeight()) > 2;
+  }
+
+  function applyInlineHeight() {
+    if (currentMode !== 'inline' || !panelEl) return;
+    var h = inlineHeight();
     panelEl.style.height = h + 'px';
     panelEl.style.maxHeight = 'none';
     if (graph) {
@@ -1264,8 +1328,7 @@ const WorkflowViewer = (function () {
 
   function buildExportCSS() {
     return [
-      "@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');",
-      "foreignObject div { font-family: 'Montserrat', 'Segoe UI', sans-serif; }",
+      "foreignObject div { font-family: 'Segoe UI', system-ui, sans-serif; }",
       "foreignObject b { font-weight: 600; }",
       ".wv-scroll-text { overflow: hidden; }"
     ].join('\n');
@@ -1383,19 +1446,15 @@ const WorkflowViewer = (function () {
       'prompt': ['input', 'prompt'],
       'model': ['input', 'prompt', 'model'],
       'tools': ['input', 'prompt', 'model', 'toolGroup'],
-      'response': ['input', 'prompt', 'model', 'response'],
-      'context': ['response', 'context']
+      'response': ['input', 'prompt', 'model', 'response']
     };
 
     var activeNodes = nodeMap[stage] || [];
     var primaryNode = activeNodes[activeNodes.length - 1];
 
     // Pulse-glow on primary node.
-    // 'context' stage arrives after 'done' with no subsequent clear,
-    // so limit its pulse to 3 cycles then settle to a static glow.
-    var pulseCycles = (stage === 'context') ? 3 : 0;
     if (primaryNode && cellsByType[primaryNode]) {
-      applyHighlight(cellsByType[primaryNode], 'wv-node-active', pulseCycles);
+      applyHighlight(cellsByType[primaryNode], 'wv-node-active', 0);
     }
 
     // Flow-animate edges along the chain
@@ -1578,6 +1637,9 @@ const WorkflowViewer = (function () {
           if (skipNextResize || !graph || !container || container.clientWidth === 0) return;
           clearTimeout(resizeTimer);
           resizeTimer = setTimeout(function () {
+            // Shown again where it has another height to take: sized and
+            // fitted afresh.
+            if (inlineHeightStale()) { applyInlineHeight(); return; }
             if (!restoreViewState()) fitGraphToContainer();
           }, 80);
         }).observe(container);
@@ -1767,7 +1829,7 @@ const WorkflowViewer = (function () {
       if (!container || !Graph || !name) return;
       saveViewState(); // Save current app's view before switching
       currentApp = name; currentData = null; updateTitle(null);
-      container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-spinner fa-spin me-2"></i>Loading...</div>';
+      showMessage('fas fa-spinner fa-spin me-2', 'ui.workflowViewerLoading', 'Loading…');
       fetch('/api/app/' + encodeURIComponent(name) + '/graph' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''))
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (data) {
@@ -1782,9 +1844,10 @@ const WorkflowViewer = (function () {
           container.innerHTML = '';
           createGraph();
           renderGraph(buildGraphData(data, getExpanded()));
+          if (inlineHeightStale()) applyInlineHeight();
         })
         .catch(function (err) {
-          container.innerHTML = '<div class="workflow-viewer-message"><i class="fas fa-exclamation-triangle me-2"></i>Failed: ' + (err.message || '?') + '</div>';
+          showMessage('fas fa-exclamation-triangle me-2', 'ui.workflowViewerGraphFailed', 'The workflow could not be shown.');
           console.error('[WorkflowViewer]', err);
         });
     },
@@ -1868,18 +1931,16 @@ const WorkflowViewer = (function () {
       return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(clone);
     },
     // Trigger a browser download of the current graph as an .svg file.
-    // Filename derives from the current app's display name (slug) with a
-    // safe fallback. No-op when the graph hasn't loaded yet.
+    // Filename derives from the current app's display name (slug), then
+    // from its app name when the display name has no ASCII letters (a
+    // Japanese name, say). No-op when the graph hasn't loaded yet.
     downloadSvg: function (opts) {
       var svg = this.exportSvg(opts);
       if (!svg) return false;
-      var slug = 'workflow';
-      try {
-        if (currentData && (currentData.display_name || currentData.app_name)) {
-          slug = String(currentData.display_name || currentData.app_name)
-            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'workflow';
-        }
-      } catch (e) { /* keep default slug */ }
+      var slugOf = function (name) {
+        return name ? String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : '';
+      };
+      var slug = (currentData && (slugOf(currentData.display_name) || slugOf(currentData.app_name))) || 'workflow';
       var blob = new Blob([svg], { type: 'image/svg+xml' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');

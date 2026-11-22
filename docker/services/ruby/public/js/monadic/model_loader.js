@@ -47,6 +47,45 @@
     }
   }
 
+  // The Ollama models installed now, for an Ollama app just chosen: models
+  // pulled or removed, or Ollama started, after the page loaded. When the
+  // list differs from the one the page has, every Ollama app takes the new
+  // list and the chosen app is set up again with it.
+  let refreshingOllama = false;
+  window.refreshOllamaModels = async function refreshOllamaModels(appValue) {
+    const apps = window.apps || {};
+    const app = apps[appValue];
+    if (refreshingOllama || !app || String(app.group || '').toLowerCase() !== 'ollama') return false;
+    refreshingOllama = true;
+    try {
+      const models = await loadOllamaCapabilities();
+      const names = Object.keys(models);
+      if (names.length === 0) return false;
+      let current = [];
+      try { current = JSON.parse(app.models || '[]'); } catch (_) { current = []; }
+      // What each model can do is taken also when the list is the same: the
+      // page may hold the names alone (Ollama could not be asked before).
+      const capabilitiesChanged = names.some((name) => {
+        return JSON.stringify(window.modelSpec[name]) !== JSON.stringify(models[name]);
+      });
+      Object.assign(window.modelSpec, models);
+      if (JSON.stringify(current) === JSON.stringify(names) && !capabilitiesChanged) return false;
+      Object.keys(apps).forEach((key) => {
+        if (String(apps[key].group || '').toLowerCase() === 'ollama') apps[key].models = JSON.stringify(names);
+      });
+      // The app the page shows now is the one set up again: another chosen
+      // while Ollama was asked is not set back to this one, and takes the
+      // new list when it is an Ollama app too.
+      const chosen = typeof $id === 'function' ? $id('apps') : null;
+      const shown = chosen && chosen.value !== appValue ? chosen.value : appValue;
+      if (String((apps[shown] || {}).group || '').toLowerCase() !== 'ollama') return false;
+      if (typeof window.proceedWithAppChange === 'function') window.proceedWithAppChange(shown);
+      return true;
+    } finally {
+      refreshingOllama = false;
+    }
+  };
+
   // Initialize model specifications
   async function initializeModels() {
     const models = await loadModelSpec();

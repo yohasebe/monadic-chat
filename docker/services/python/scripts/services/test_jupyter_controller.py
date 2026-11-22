@@ -267,6 +267,99 @@ class TestJupyterController(unittest.TestCase):
 
 
 @unittest.skipUnless(HAS_JUPYTER_DEPS, "Required modules not available (run inside Docker)")
+class TestMoveAndInsert(unittest.TestCase):
+    """Moving and inserting cells, by position in the notebook as it is."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.test_dir, "nb.ipynb")
+        jupyter_controller.create_notebook(self.path)
+        cells = [{'type': 'code', 'content': f'x = {i}'} for i in range(12)]
+        jupyter_controller.add_cells_to_notebook(self.path, cells)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def sources(self):
+        return [c['source'] for c in jupyter_controller.read_notebook(self.path)['cells']]
+
+    def test_moves_a_cell_forward_and_back_past_ten(self):
+        nb = jupyter_controller.read_notebook(self.path)
+        nb['cells'][1]['outputs'] = [jupyter_controller.nbf.v4.new_output('stream', name='stdout', text='one')]
+        nb['cells'][1]['metadata']['tags'] = ['kept']
+        moved_id = nb['cells'][1]['id']
+        jupyter_controller.write_notebook(self.path, nb)
+
+        jupyter_controller.move_cell(self.path, 1, 11)
+        cells = jupyter_controller.read_notebook(self.path)['cells']
+        self.assertEqual(cells[11]['source'], 'x = 1')
+        self.assertEqual(cells[11]['id'], moved_id)
+        self.assertEqual(cells[11]['metadata']['tags'], ['kept'])
+        self.assertEqual(cells[11]['outputs'][0]['text'], 'one')
+        self.assertEqual(cells[1]['source'], 'x = 2')
+
+        jupyter_controller.move_cell(self.path, 11, 0)
+        self.assertEqual(self.sources()[:3], ['x = 1', 'x = 0', 'x = 2'])
+
+    def test_refuses_positions_outside_the_notebook(self):
+        for frm, to in ((12, 0), (0, 12), (-1, 0)):
+            with self.assertRaises(IndexError):
+                jupyter_controller.move_cell(self.path, frm, to)
+        self.assertEqual(self.sources(), [f'x = {i}' for i in range(12)])
+
+    def test_inserts_at_the_start_the_middle_and_the_end(self):
+        jupyter_controller.insert_cells(self.path, 0, [{'type': 'markdown', 'content': '# Top'}])
+        jupyter_controller.insert_cells(self.path, 5, [{'cell_type': 'code', 'source': ['a = 1\n', 'b = 2']}])
+        jupyter_controller.insert_cells(self.path, 14, [{'type': 'code', 'content': 'end'}])
+        got = self.sources()
+        self.assertEqual(got[0], '# Top')
+        self.assertEqual(got[5], 'a = 1\nb = 2')
+        self.assertEqual(got[-1], 'end')
+        self.assertEqual(len(got), 15)
+        ids = [c['id'] for c in jupyter_controller.read_notebook(self.path)['cells']]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_inserts_into_an_empty_notebook(self):
+        empty = os.path.join(self.test_dir, "empty.ipynb")
+        jupyter_controller.create_notebook(empty)
+        jupyter_controller.insert_cells(empty, 0, [{'type': 'code', 'content': 'x'}])
+        self.assertEqual(len(jupyter_controller.read_notebook(empty)['cells']), 1)
+
+    def test_refuses_bad_positions_and_cells(self):
+        with self.assertRaises(IndexError):
+            jupyter_controller.insert_cells(self.path, 13, [{'type': 'code', 'content': 'x'}])
+        for cells in ([], 'x', [{'type': 'raw', 'content': 'x'}], ['x']):
+            with self.assertRaises(ValueError):
+                jupyter_controller.insert_cells(self.path, 0, cells)
+        self.assertEqual(len(self.sources()), 12)
+
+    def test_does_not_save_over_a_notebook_changed_meanwhile(self):
+        state = jupyter_controller.file_state(self.path)
+        nb = jupyter_controller.read_notebook(self.path)
+        nb['cells'].pop()
+        jupyter_controller.write_notebook(self.path, nb)
+        with self.assertRaises(jupyter_controller.NotebookChanged):
+            jupyter_controller.save_unless_changed(self.path, nb, state)
+
+    def test_leaves_no_file_beside_the_notebook(self):
+        jupyter_controller.move_cell(self.path, 0, 3)
+        self.assertEqual(os.listdir(self.test_dir), ['nb.ipynb'])
+
+    def test_commands_report_failure_with_a_status(self):
+        with patch.object(jupyter_controller, 'get_notebook_path', lambda x: self.path):
+            with patch('sys.argv', ['jupyter_controller.py', 'move', 'nb', '0', '40']):
+                with self.assertRaises(SystemExit) as ended:
+                    jupyter_controller.main()
+                self.assertEqual(ended.exception.code, 1)
+            with patch('sys.argv', ['jupyter_controller.py', 'insert', 'nb', '0', 'not json']):
+                with self.assertRaises(SystemExit):
+                    jupyter_controller.main()
+            with patch('sys.argv', ['jupyter_controller.py', 'move', 'nb', '0', '2']):
+                jupyter_controller.main()
+        self.assertEqual(self.sources()[2], 'x = 0')
+
+
+@unittest.skipUnless(HAS_JUPYTER_DEPS, "Required modules not available (run inside Docker)")
 class TestJupyterControllerIntegration(unittest.TestCase):
     """Integration tests that test the full command-line interface"""
     

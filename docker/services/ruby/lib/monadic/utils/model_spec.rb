@@ -1,9 +1,16 @@
 require "json"
+require_relative "environment"
 
 module Monadic
   module Utils
     class ModelSpec
       class << self
+        # The user's models.json, where the config folder is in this mode
+        # (the page's /api/models reads the same file).
+        def user_models_path
+          File.join(Monadic::Utils::Environment.config_path, "models.json")
+        end
+
         def load_spec
           return @spec if @spec
           begin
@@ -11,7 +18,7 @@ module Monadic
             base_spec = js_content ? extract_js_object(js_content, "modelSpec") : {}
 
             # Then, apply overrides from models.json if it exists
-            override_path = File.expand_path("~/monadic/config/models.json")
+            override_path = user_models_path
             merged_spec = if File.exist?(override_path)
               begin
                 override_spec = JSON.parse(File.read(override_path))

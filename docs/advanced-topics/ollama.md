@@ -22,6 +22,8 @@ ollama pull <model-name>
 
 Available models are listed in the [Ollama Library](https://ollama.com/library). For the tool features of Monadic Chat, choose a model with the `tools` capability; see [Model Capabilities](#model-capabilities).
 
+The default model (see [Technical Details](#technical-details)) takes about 13 GB of memory in addition to what Docker uses; check the memory a model you choose needs on its Ollama Library page. Smaller models do not always call the tools: a reply can say that it saved a file or updated the work screen when it did not.
+
 ### 3. Start Ollama
 
 Ollama must be running when you use the Ollama apps. On macOS and Windows, the Ollama app starts at login. On Linux, start it yourself if it is not running:
@@ -51,7 +53,7 @@ ollama pull <model-name>
 ollama rm <model-name>
 ```
 
-Installed models appear in the model menu of the Ollama apps. If a model you just added does not appear, reload the web interface.
+Installed models appear in the model menu of the Ollama apps. The menu is read again from Ollama each time an Ollama app is chosen, so a model added while Monadic Chat is running appears when you choose the app again.
 
 ## Model Capabilities :id=model-capabilities
 
@@ -60,7 +62,7 @@ Monadic Chat reads each model's capabilities from Ollama's `/api/show` endpoint 
 | Capability | What it enables |
 |------------|-----------------|
 | **vision** | Image input. The image button appears only for these models. |
-| **tools** | Tool calling: web search and the tool features of Coding Assistant, Mail Composer and Knowledge Base. |
+| **tools** | Tool calling: web search, Knowledge Base search, the conversation records of Chat, the Practice notes of Language Practice, and the tool features of Coding Assistant and Mail Composer. |
 | **thinking** | Reasoning output, shown in the thinking panel. The Show Thinking toggle turns it on and off. |
 
 Structured output (generation constrained by a JSON schema) works with every model.
@@ -77,7 +79,7 @@ When `/api/show` gives no answer for a model, Monadic Chat guesses from the mode
 
 ## Models Without Tool Calling
 
-When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Web search and the tool features of Coding Assistant, Mail Composer and Knowledge Base do not work with that model. For plain conversation, such a model works without problems.
+When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Monadic Chat sends that model no tools: web search, Knowledge Base search, the conversation records of Chat, the Practice notes of Language Practice and the tool features of Coding Assistant and Mail Composer do not work with it. For plain conversation, such a model works without problems.
 
 ## Available Apps
 
@@ -85,17 +87,16 @@ The following apps are available in the Ollama group:
 
 | App | Description |
 |-----|-------------|
-| **Chat** | General conversation. Accepts images when a vision model is selected. |
+| **Chat** | General conversation. Keeps the topics, people and notes of the conversation on the work screen. Accepts images when a vision model is selected. |
 | **Coding Assistant** | Help with programming, including file operations in the shared folder. |
-| **Knowledge Base** | Work with the Knowledge Base: search, list, change scope, import and delete entries. |
-| **Language Practice** | Conversation practice in a foreign language, with corrections. |
+| **Language Practice** | Conversation practice in a foreign language. Corrections and advice are collected on the work screen. |
 | **Mail Composer** | Help with writing emails, including file operations in the shared folder. |
 | **Voice Chat** | Conversation by voice. |
 
-Coding Assistant, Mail Composer and Knowledge Base need a model with the `tools` capability.
+These apps are defined as for the other providers. Their tool features need a model with the `tools` capability; with a model without it, they hold a plain conversation.
 
-## Technical Details
+## Technical Details :id=technical-details
 
-- **Default model**: Set `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`.
+- **Default model**: `gpt-oss:20b`. To change it, set `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`.
 - **Connection**: The backend connects to `host.docker.internal:11434`, and to `localhost:11434` when that fails.
-- **Model list**: The list of models is read from Ollama while it is running and refreshed every 30 seconds.
+- **Model list**: The list of models is read from Ollama when the web interface loads and each time an Ollama app is chosen.

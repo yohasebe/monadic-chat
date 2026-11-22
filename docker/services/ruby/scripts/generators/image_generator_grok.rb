@@ -11,6 +11,7 @@ require_relative "../../lib/monadic/utils/ssl_configuration"
 require_relative "../../lib/monadic/utils/secret_references"
 require_relative "../../lib/monadic/utils/model_spec"
 require_relative "../../lib/monadic/utils/error_formatter"
+require_relative "../../lib/monadic/workbench/job_output"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -107,6 +108,14 @@ def parse_options(argv)
     opts.on("-m", "--model MODEL", "Image model to use (defaults to the provider default)") do |model|
       options[:model] = model
     end
+
+    opts.on("--out-dir DIR", "Job folder the server made to receive the image (instead of the shared folder)") do |dir|
+      options[:out_dir] = dir
+    end
+
+    opts.on("--job-input PATH", "Image the server put in the job's input folder, to edit (can be given more than once)") do |path|
+      (options[:job_inputs] ||= []) << path
+    end
   end.parse!(argv)
   options
 end
@@ -115,22 +124,60 @@ end
 def validate_options(options)
   return "ERROR: A prompt is required. Use -p or --prompt to specify the prompt." unless options[:prompt]
 
-  if options[:operation] == "edit" && options[:images].empty?
+  inputs = options[:images].size + Array(options[:job_inputs]).size
+  if options[:operation] == "edit" && inputs.zero?
     return "ERROR: At least one image is required for edit operation. Use -i or --image."
   end
-  return "❌ Maximum 5 images allowed for xAI edit API." if options[:images].size > 5
+  return "❌ Maximum 5 images allowed for xAI edit API." if inputs > 5
+
+  if options[:out_dir]
+    begin
+      Monadic::Workbench::JobOutput.checked_dir!(options[:out_dir], part: "out")
+    rescue Monadic::Workbench::JobOutput::Refused => e
+      return "ERROR: The output folder is refused: #{e.message}"
+    end
+  end
 
   nil
 end
 
-def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: nil, images: [], model: nil, num_retrials: 3)
-  if images.size > 5
+# The images to edit as data URIs, read once (a try again sends the same):
+# images of the shared folder, and those the server put in the job's input
+# folder (read only from there, for the run that writes to out_dir).
+def encode_inputs(images, job_inputs, out_dir)
+  encoded = images.map do |img_path|
+    resolved = resolve_image_path(img_path)
+    raise ArgumentError, "Image file not found: #{img_path}" unless resolved
+
+    encode_image_as_data_uri(resolved)
+  end
+  job = out_dir && File.dirname(out_dir)
+  Array(job_inputs).each do |path|
+    bytes = Monadic::Workbench::JobOutput.read_input(path, job: job)
+    mime = Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+    raise ArgumentError, "#{File.basename(path)} is not a PNG, JPEG, GIF or WebP image" unless mime
+
+    encoded << "data:#{mime};base64,#{Base64.strict_encode64(bytes)}"
+  end
+  encoded
+end
+
+def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: nil, images: [], model: nil, num_retrials: 3,
+                   job_inputs: [], out_dir: nil, encoded: nil)
+  if images.size + Array(job_inputs).size > 5
     return { original_prompt: prompt, success: false, message: "❌ Maximum 5 images allowed for xAI edit API." }
   end
   if quality && !Monadic::Utils::ModelSpec.image_options("xai", "quality").include?(quality)
     return { original_prompt: prompt, success: false, message: "❌ Invalid quality: #{quality}" }
   end
   model ||= default_grok_image_model
+  if operation == "edit" && encoded.nil?
+    begin
+      encoded = encode_inputs(images, job_inputs, out_dir)
+    rescue ArgumentError, Monadic::Workbench::JobOutput::Refused => e
+      return { original_prompt: prompt, success: false, message: e.message }
+    end
+  end
   api_key = Monadic::Utils::SecretReferences.config_value("XAI_API_KEY")
 
   res = nil
@@ -161,14 +208,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: ni
         response_format: "b64_json"
       }
 
-      # Resolve and encode images as data URIs
-      encoded_images = images.map do |img_path|
-        resolved = resolve_image_path(img_path)
-        unless resolved
-          return { original_prompt: prompt, success: false, message: "Image file not found: #{img_path}" }
-        end
-        { type: "image_url", url: encode_image_as_data_uri(resolved) }
-      end
+      encoded_images = encoded.map { |url| { type: "image_url", url: url } }
 
       # xAI uses "image" for single, "images" for multiple
       if encoded_images.size == 1
@@ -200,17 +240,19 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: ni
       image_data = Base64.decode64(base64_data)
     end
 
-    primary_save_path = "/monadic/data/"
-    secondary_save_path = File.expand_path("~/monadic/data/")
-
-    save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
     # Random suffix: Time.now.to_i has 1-second resolution, so concurrent
     # generations (e.g. parallel Conduit jobs) would otherwise collide on the
     # same output filename. The caller reads the name from this script's output.
     filename = "#{Time.now.to_i}_#{SecureRandom.hex(4)}.png"
-    file_path = File.join(save_path, filename)
-
-    Monadic::Utils::SharedPathGuard.write_file!(file_path, image_data)
+    if out_dir
+      # A job folder the server made: a new file there, nothing else.
+      Monadic::Workbench::JobOutput.write!(out_dir, filename, image_data)
+    else
+      primary_save_path = "/monadic/data/"
+      secondary_save_path = File.expand_path("~/monadic/data/")
+      save_path = Dir.exist?(primary_save_path) ? primary_save_path : secondary_save_path
+      Monadic::Utils::SharedPathGuard.write_file!(File.join(save_path, filename), image_data)
+    end
 
     { original_prompt: prompt, revised_prompt: revised_prompt, success: true, filename: filename }
   else
@@ -233,7 +275,8 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: ni
     if fallback && model != fallback
       warn "Image model #{model.inspect} failed (#{error_msg}); retrying with #{fallback.inspect}" if ENV["EXTRA_LOGGING"]
       retried = generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, quality: quality,
-                               images: images, model: fallback, num_retrials: 0)
+                               images: images, model: fallback, num_retrials: 0,
+                               job_inputs: job_inputs, out_dir: out_dir, encoded: encoded)
       if retried.is_a?(Hash) && retried[:success]
         retried[:fallback_from] = model
         retried[:message] = "Requested model #{model} was unavailable; generated with #{fallback} instead."
@@ -252,7 +295,8 @@ rescue StandardError => e
   if num_retrials.positive?
     sleep 1
     return generate_image(prompt, operation: operation, aspect_ratio: aspect_ratio, quality: quality, images: images,
-                          model: model, num_retrials: num_retrials)
+                          model: model, num_retrials: num_retrials, job_inputs: job_inputs, out_dir: out_dir,
+                          encoded: encoded)
   else
     return { original_prompt: prompt, success: false, message: "Error: Image operation failed after multiple attempts." }
   end
@@ -266,6 +310,7 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio], quality: options[:quality],
-                       images: options[:images], model: resolve_grok_image_model(options[:model]))
+                       images: options[:images], model: resolve_grok_image_model(options[:model]),
+                       job_inputs: Array(options[:job_inputs]), out_dir: options[:out_dir])
   puts JSON.pretty_generate(res)
 end

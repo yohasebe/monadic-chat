@@ -53,10 +53,10 @@ RSpec.describe 'Tool-Prompt Consistency Validation' do
       ruby_patterns: ['syntax_tree_tools.rb'],
       expected_tools: %w[render_syntax_tree]
     },
-    'language_practice_plus' => {
-      mdsl_patterns: ['language_practice_plus_*.mdsl'],
-      ruby_patterns: ['language_practice_plus_tools.rb'],
-      expected_tools: %w[set_target_language]
+    'language_practice' => {
+      mdsl_patterns: ['language_practice_*.mdsl'],
+      ruby_patterns: ['language_practice_tools.rb'],
+      expected_tools: %w[set_target_language save_response load_context]
     }
   }.freeze
 
@@ -76,7 +76,7 @@ RSpec.describe 'Tool-Prompt Consistency Validation' do
     lib_installer check_environment
     delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results
     execute_and_fix_jupyter_cells list_jupyter_notebooks
-    restart_jupyter_kernel interrupt_jupyter_execution
+    clear_jupyter_outputs
     move_jupyter_cell insert_jupyter_cells
     validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
     save_context get_context update_context remove_from_context clear_context

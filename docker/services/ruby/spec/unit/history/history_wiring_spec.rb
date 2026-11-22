@@ -81,16 +81,6 @@ RSpec.describe 'What the handlers write to the history' do
     Dir.glob(File.join(dir, '*')).map { |f| File.binread(f) }.join
   end
 
-  # The chat has begun once it has a message, and stays begun when its
-  # messages are removed (the Session Context and tool results may remain).
-  it 'marks the chat begun when it is synced with a message, for the rest of the chat' do
-    first, = connect_twice
-    session = chat_session('hello', generation: first)
-    sync(session)
-    session[:messages].clear
-    expect(Monadic::History::Policy.begun?(session)).to be(true)
-  end
-
   it 'does not let a connection that a newer one replaced write its older copy' do
     first, second = connect_twice
     newer = chat_session('newer text', generation: second)
@@ -112,65 +102,15 @@ RSpec.describe 'What the handlers write to the history' do
     expect(stored_bytes).not_to include(marker)
   end
 
-  [true, false].each do |healthy|
-    it "keeps out a chat that asked for the filter before its first words (filter up: #{healthy})" do
-      allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(healthy)
-      allow(host).to receive(:send_privacy_state)
-      session = chat_session(marker, generation: 1).merge(messages: [])
-
-      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-      session[:messages] << { 'mid' => 'm1', 'role' => 'user', 'text' => marker }
-      sync(session)
-      host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => false })
-      sync(session)
-      expect(store.get(session[:chat_id])).to be_nil
-      store.close
-      expect(stored_bytes).not_to include(marker)
-    end
-  end
-
-  # Whether a chat is Private is decided when it begins: the filter asked
-  # for in a chat with words in it is refused, and what was kept stays.
-  it 'refuses the filter in a chat the user has written in, and keeps the chat' do
-    probe = class_double(Monadic::Utils::Privacy::PresidioBackend)
-    allow(Monadic::Utils::Privacy::PresidioBackend).to receive(:new).and_return(probe)
-    session = chat_session('kept words', generation: 1)
-    sync(session)
-
-    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-    expect(host.sent.last).to include('type' => 'privacy_toggle_ack', 'enabled' => false, 'error' => 'privacy_chat_started')
-    expect(session[:_privacy_session_enabled]).not_to be(true)
-    expect(Monadic::History::Policy.private?(session)).to be(false)
-    sync(session)
-    expect(store.get(session[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq(['kept words'])
-  end
-
-  it 'refuses the filter once the session has started, before any user words' do
-    session = chat_session('x', generation: 1).merge(messages: [{ 'mid' => 's1', 'role' => 'system', 'text' => 'You are helpful.' }])
-    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-    expect(host.sent.last).to include('enabled' => false, 'error' => 'privacy_chat_started')
-    expect(Monadic::History::Policy.private?(session)).to be(false)
-  end
-
-  it 'lets a Private chat ask for the filter again' do
-    allow_any_instance_of(Monadic::Utils::Privacy::PresidioBackend).to receive(:health).and_return(true)
-    allow(host).to receive(:send_privacy_state)
-    session = chat_session(marker, generation: 1).merge(_privacy_session_enabled: true)
-    host.send(:handle_ws_privacy_toggle, nil, session, { 'enabled' => true })
-    expect(host.sent.last).to include('type' => 'privacy_toggle_ack', 'enabled' => true, 'error' => nil)
-  end
-
   it 'does not carry a chat into the next app when the app changes without Reset' do
-    session = chat_session(marker, generation: 1).merge(_privacy_session_enabled: true)
+    session = chat_session(marker, generation: 1)
     sync(session)
     host.send(:handle_ws_update_params, nil, { 'params' => { 'app_name' => 'ChatClaude' } }, session)
     session[:messages] << { 'mid' => 'm2', 'role' => 'user', 'text' => 'first words in the new app' }
     sync(session)
 
     texts = store.list.map { |row| store.get(row['chat_id'])['payload']['messages'].map { |m| m['text'] } }
-    expect(texts).to eq([['first words in the new app']])
-    store.close
-    expect(stored_bytes).not_to include(marker)
+    expect(texts).to contain_exactly([marker], ['first words in the new app'])
   end
 
   describe 'the list, names and removal' do
@@ -211,14 +151,60 @@ RSpec.describe 'What the handlers write to the history' do
       expect(host.sent.last).to include('success' => false, 'error' => 'history_not_found')
     end
 
-    it 'keeps the order of the list when only the Session Context changes' do
+    it 'tells the chat shown in the asking tab from one open in another window' do
+      here = chat_session('shown here', generation: 1)
+      sync(here)
+      elsewhere = chat_session('shown elsewhere', generation: 1)
+      sync(elsewhere)
+      allow(WebSocketHelper).to receive(:live_chat_ids).and_return([elsewhere[:chat_id]])
+
+      host.send(:handle_ws_history_list, nil, {}, here)
+      items = host.sent.last['items'].to_h { |i| [i['chat_id'], i.slice('open', 'here')] }
+      expect(items[here[:chat_id]]).to eq('open' => true, 'here' => true)
+      expect(items[elsewhere[:chat_id]]).to eq('open' => true, 'here' => false)
+    end
+
+    it 'narrows the list by app and by how long a chat was not used, and names the apps kept' do
+      now = Time.now
+      old = chat_session('an old chat', generation: 1)
+      allow(Time).to receive(:now).and_return(now - (40 * 86_400))
+      sync(old)
+      recent = chat_session('a recent chat', generation: 1)
+      recent[:parameters] = { 'app_name' => 'ChatClaude', 'model' => 'claude-x' }
+      allow(Time).to receive(:now).and_return(now)
+      sync(recent)
+
+      host.send(:handle_ws_history_list, nil, { 'unused_days' => 30 })
+      expect(host.sent.last['items'].map { |i| i['chat_id'] }).to eq([old[:chat_id]])
+      expect(host.sent.last).to include('unused_days' => 30, 'apps' => %w[ChatClaude ChatOpenAI])
+
+      host.send(:handle_ws_history_list, nil, { 'app' => 'ChatClaude' })
+      expect(host.sent.last['items'].map { |i| i['chat_id'] }).to eq([recent[:chat_id]])
+
+      host.send(:handle_ws_history_list, nil, { 'unused_days' => 12 })
+      expect(host.sent.last['unused_days']).to be_nil
+      expect(host.sent.last['items'].size).to eq(2)
+    end
+
+    it 'removes several chats at once, leaving one open in a window' do
+      kept = Array.new(3) { |i| chat_session("chat #{i} #{marker}", generation: 1).tap { |c| sync(c) } }
+      open_tab = open_in_tab(kept.last)
+
+      host.send(:handle_ws_history_delete, nil, { 'chat_ids' => kept.map { |c| c[:chat_id] } + ['../x'] })
+      reply = host.sent.last
+      expect(reply['chat_ids']).to match_array(kept.first(2).map { |c| c[:chat_id] })
+      expect(reply['failed']).to eq(kept.last[:chat_id] => 'history_chat_open', '../x' => 'history_not_found')
+      expect(store.list.map { |r| r['chat_id'] }).to eq([kept.last[:chat_id]])
+      WebSocketHelper.unregister_live_session(open_tab, 1)
+    end
+
+    it 'keeps the order of the list when a chat is saved again with no new message' do
       first = chat_session('first chat', generation: 1)
       sync(first)
       later = chat_session('later chat', generation: 1).merge(chat_id: Monadic::Workspace::Ids.generate(:chat))
       allow(Time).to receive(:now).and_return(Time.now + 60)
       sync(later)
       allow(Time).to receive(:now).and_return(Time.now + 120)
-      first[:monadic_state] = { conversation_context: { 'topics' => [{ 'text' => 'trips' }] } }
       sync(first)
       expect(store.list.map { |r| r['chat_id'] }).to eq([later[:chat_id], first[:chat_id]])
     end
@@ -253,7 +239,6 @@ RSpec.describe 'What the handlers write to the history' do
       expect(here[:messages].map { |m| m['text'] }).to eq([marker])
       expect(here[:parameters]).to include('app_name' => 'ChatOpenAI', 'ui_language' => 'ja', 'auto_speech' => false)
       expect(here).not_to have_key(:gemini3_last_image)
-      expect(host.sent.find { |m| m['type'] == 'past_messages' }).to include('private' => false)
 
       Thread.current[:websocket_session_id] = tab
       kept[:messages] << { 'mid' => 'm2', 'role' => 'user', 'text' => 'from the old tab' }
@@ -265,44 +250,41 @@ RSpec.describe 'What the handlers write to the history' do
       expect(store.get(kept[:chat_id])['payload']['messages'].map { |m| m['text'] }).to eq([marker, 'from the new tab'])
     end
 
-    # The page holds the words of a chat it is sent; whether that chat is
-    # Private comes with them, so the page does not store them.
-    it 'sends whether a chat is Private with its words' do
-      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'x', 'app_name' => 'ChatOpenAI' }],
-                  parameters: { 'app_name' => 'ChatOpenAI' } }
-      Monadic::History::Policy.mark_private!(session)
-      allow(host).to receive(:prepare_apps_data).and_return({})
-      host.send(:send_chat_to_page, nil, session)
-      expect(host.sent.find { |m| m['type'] == 'past_messages' }).to include('private' => true)
+    it 'takes the chat from the tab that had it: work begun for it before is no longer admitted' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      chats = Monadic::Workspace::Chats
+      before = chats.epoch(kept[:chat_id])
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      here = empty_tab_session(other_tab)
+
+      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
+      expect(chats.admit_in_epoch(kept[:chat_id], before) { :ran }).to be_nil
+      expect(chats.admit_in_epoch(kept[:chat_id], chats.epoch(kept[:chat_id])) { :ran }).to eq(:ran)
     end
 
-    it 'sends whether a chat is Private with its words when the tab connects again' do
-      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
-      Monadic::History::Policy.mark_private!(session)
-      broadcast = []
-      allow(host).to receive(:sleep)
-      allow(host).to receive(:send_or_broadcast) { |json, _id| broadcast << JSON.parse(json) }
-      Thread.current[:rack_session] = session
-      host.push_apps_data(nil, {}, [{ 'role' => 'user', 'text' => 'x' }])
-      expect(broadcast.find { |m| m['type'] == 'past_messages' }).to include('private' => true)
-    ensure
-      Thread.current[:rack_session] = nil
+    it 'keeps the chat a tab continued after no tab kept it, when the chat is let go of late' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      chats = Monadic::Workspace::Chats
+      let_go = chats.epoch(kept[:chat_id]) # when no tab kept it
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      here = empty_tab_session(other_tab)
+      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
+      continued = chats.epoch(kept[:chat_id])
+
+      expect(chats.renew_epoch!(kept[:chat_id], from: let_go)).to be(false)
+      expect(chats.epoch(kept[:chat_id])).to eq(continued)
     end
 
-    it 'asks before it replaces a Private chat with words in it, and shows the resumed chat locked' do
+    it 'replaces a chat with words in it without asking' do
       kept = chat_session('kept', generation: 1)
       sync(kept)
       other_tab = "tab-#{SecureRandom.hex(4)}"
       here = { chat_id: Monadic::Workspace::Ids.generate(:chat), _ws_generation: WebSocketHelper.claim_session_state(other_tab),
-               messages: [{ 'role' => 'user', 'text' => 'private words' }], parameters: {}, _privacy_session_enabled: true }
-      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => false, 'error' => 'history_private_here')
-      expect(here[:messages].map { |m| m['text'] }).to eq(['private words'])
-
-      Thread.current[:websocket_session_id] = other_tab
-      obj = { 'chat_id' => kept[:chat_id], 'confirm' => true }
-      host.send(:handle_ws_history_resume, nil, obj, here, host.send(:history_resume_refusal, obj, here))
-      expect(host.sent.last).to include('success' => true)
-      expect(host.sent).to include(include('type' => 'privacy_state', 'enabled' => false, 'restored' => true))
+               messages: [{ 'role' => 'user', 'text' => 'words here' }], parameters: {} }
+      expect(resume_in(other_tab, here, kept[:chat_id])).to include('success' => true)
+      expect(here[:messages].map { |m| m['text'] }).to eq(['kept'])
     end
 
     it 'does not resume a chat open in another tab, or touch the chat here' do
@@ -338,6 +320,18 @@ RSpec.describe 'What the handlers write to the history' do
       expect(store.get(kept[:chat_id])['owner_tab']).to eq(tab_a)
     end
 
+    it 'names the chat asked about when continuing it fails, and only the kind of failure' do
+      kept = chat_session(marker, generation: 1)
+      sync(kept)
+      other_tab = "tab-#{SecureRandom.hex(4)}"
+      here = empty_tab_session(other_tab)
+      allow(host).to receive(:put_history_chat).and_raise(RuntimeError, "words of #{marker}")
+      reply = resume_in(other_tab, here, kept[:chat_id])
+      expect(reply).to eq('type' => 'history_resumed', 'success' => false, 'error' => 'history_failed',
+                          'chat_id' => kept[:chat_id])
+      expect(reply.to_s).not_to include(marker)
+    end
+
     it 'does not take a chat that is not kept, so what runs here goes on' do
       here = empty_tab_session(tab)
       missing = { 'chat_id' => Monadic::Workspace::Ids.generate(:chat) }
@@ -360,11 +354,7 @@ RSpec.describe 'What the handlers write to the history' do
       Thread.current[:websocket_session_id] = tab
       kept[:messages] = []
       sync(kept)
-      kept[:_privacy_session_enabled] = true
-      sync(kept)
       expect(store.get(kept[:chat_id])).to include('owner_tab' => other_tab)
-      kept.delete(:_privacy_session_enabled)
-      kept.delete(Monadic::History::Policy::SESSION_KEY)
       kept[:messages] = [{ 'mid' => 'm9', 'role' => 'user', 'text' => 'from the old tab' }]
       sync(kept)
       expect(store.get(kept[:chat_id])).to include('owner_tab' => other_tab)

@@ -27,6 +27,8 @@
     "logs": "Abrir Registros",
     "settings": "Configuración",
     "openBrowser": "Navegador",
+    "showWebUI": "Mostrar Web UI",
+    "closeWebUI": "Cerrar Web UI",
     "openNoVNC": "Abrir noVNC",
     "openSharedFolder": "Carpeta Compartida",
     "quit": "Salir",
@@ -69,7 +71,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Requerido para Concept Visualizer / Syntax Tree",
+        "help": "Requerido para Concept Visualizer",
         "items": { "install": "Instalar LaTeX (conjunto mínimo para diagramas)" }
       },
       "python": {
@@ -80,12 +82,13 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (solo CPU)",
-          "transformers": "transformers (solo CPU)"
+          "transformers": "transformers (solo CPU)",
+          "plotlyStatic": "Imágenes estáticas de Plotly (kaleido + Chromium)"
         }
       },
       "music": {
         "title": "Análisis musical",
-        "help": "Requerido para Music Lab. Instala bibliotecas de análisis de audio (detección de acordes, estimación de tempo/tonalidad, etc.).",
+        "help": "Requerido para Music Tutor y Music Analyst. Instala bibliotecas de análisis de audio (detección de acordes, estimación de tempo/tonalidad, etc.).",
         "items": {
           "librosa": "librosa + madmom"
         }
@@ -117,7 +120,7 @@
     "documentation": "Documentación",
     "startSeleniumContainer": "Iniciar Contenedor Selenium",
     "stopSeleniumContainer": "Detener Contenedor Selenium",
-    "startJupyterLab": "Iniciar JupyterLab",
+    "openJupyterLab": "Abrir JupyterLab",
     "stopJupyterLab": "Detener JupyterLab",
     "importDocumentDB": "Importar DB de Documentos",
     "exportDocumentDB": "Exportar DB de Documentos",
@@ -143,7 +146,7 @@
     "cancel": "Cancelar",
     "yes": "Sí",
     "no": "No",
-    "dockerNotRunning": "Docker no está en ejecución. Por favor, inicie Docker Desktop primero.",
+    "dockerNotRunning": "Docker no está en ejecución. Inicie primero Docker Desktop (o el entorno compatible con Docker que use).",
     "dockerStarting": "Iniciando Docker Desktop...",
     "dockerStartFailed": "Error al iniciar Docker Desktop. Por favor, inícielo manualmente y vuelva a intentarlo.",
     "containersStarting": "Iniciando contenedores Docker...",
@@ -152,6 +155,8 @@
     "containersUpdating": "Actualizando contenedores Docker...",
     "quitConfirmTitle": "Salir de Monadic Chat",
     "quitConfirmMessage": "Los contenedores Docker están en ejecución. ¿Desea detenerlos antes de salir?",
+    "backgroundHoldFailedTitle": "No se pudo confirmar que el micrófono se detuvo",
+    "backgroundHoldFailedMessage": "Monadic Chat no pudo confirmar que el micrófono y el audio se detuvieron, así que la Web UI sigue abierta. ¿Cerrarla ahora? Se perderá la conversación que contiene.",
     "stopContainers": "Detener Contenedores",
     "quitDirectly": "Salir Directamente",
     "confirmRemoveDockerData": "Confirmar Eliminación",
@@ -162,7 +167,7 @@
     "seleniumWillNotStartOnNextLaunch": "El contenedor Selenium NO se iniciará en el próximo arranque de Monadic Chat.",
     "exportDbConfirmTitle": "Exportar Base de Datos de Documentos",
     "exportDbConfirmMessage": "¿Exportar toda la base de datos de documentos?",
-    "exportDbConfirmDetail": "La exportación contiene todas las conversaciones guardadas y documentos PDF. Se recomienda encarecidamente cifrar la salida — sin cifrado, toda la información personal almacenada se escribe en texto plano en el archivo.",
+    "exportDbConfirmDetail": "La exportación contiene todas las conversaciones guardadas en la base de conocimiento y todos los documentos PDF. No incluye el historial de conversaciones. Se recomienda encarecidamente cifrar la salida — sin cifrado, toda la información personal almacenada se escribe en texto plano en el archivo.",
     "exportDbEncrypted": "Cifrar y Exportar",
     "exportDbPlain": "Exportar en Texto Plano",
     "exportDbPassphraseTitle": "Establecer contraseña para la exportación cifrada",
@@ -172,7 +177,7 @@
     "exportDbEncryptedFailed": "Falló el cifrado. El tarball en texto plano (monadic-qdrant.tar.gz) permanece en su lugar.",
     "importDbConfirmTitle": "Importar Base de Datos de Documentos",
     "importDbConfirmMessage": "¿Reemplazar la base de datos actual con el archivo importado?",
-    "importDbConfirmDetail": "La importación SOBRESCRIBIRÁ todas las conversaciones, PDFs y entradas de Knowledge Base actualmente guardadas. Los datos actuales no se pueden recuperar tras la importación. Asegúrese de que el archivo (~/monadic/data/monadic-qdrant.tar.gz o monadic-qdrant.tar.gz.enc) provenga de una fuente de confianza.",
+    "importDbConfirmDetail": "La importación SOBRESCRIBIRÁ todas las conversaciones guardadas en la base de conocimiento, los PDFs y las demás entradas de Knowledge Base. El historial de conversaciones no cambia. Los datos actuales no se pueden recuperar tras la importación. Asegúrese de que el archivo (~/monadic/data/monadic-qdrant.tar.gz o monadic-qdrant.tar.gz.enc) provenga de una fuente de confianza.",
     "importDbContinue": "Reemplazar e Importar",
     "importDbPassphraseTitle": "Descifrar Base de Datos de Documentos",
     "importDbPassphraseHint": "Ingrese la contraseña usada al exportar.",
@@ -230,20 +235,31 @@
       "notBuilt": "aún no construido",
       "optionsChanged": "opciones cambiadas ({{options}})",
       "pythonContainer": "Contenedor Python",
+      "privacyContainer": "Contenedor Privacy (detector de nombres)",
       "minutes": "{{range}} min"
     }
   },
   "messages": {
-    "dockerNotRunning": "Docker Desktop no está en ejecución. Por favor, inicie Docker Desktop primero e intente de nuevo.",
+    "dockerNotRunning": "Docker no está en ejecución. Inicie Docker Desktop (o el entorno compatible con Docker que use) e intente de nuevo.",
     "dockerPermissionDenied": "Docker está en ejecución, pero este usuario no tiene permiso para usarlo. Añada su usuario al grupo docker (sudo usermod -aG docker $USER) y cierre sesión y vuelva a entrar. En Omarchy, ejecute en su lugar omarchy-setup-security-sudoless-docker. Pertenecer al grupo docker equivale a tener privilegios de root.",
     "dockerEngineNotRunning": "Docker no está en ejecución. Inicie el servicio de Docker (sudo systemctl start docker) o Docker Desktop e intente de nuevo.",
     "noInternetAtStartup": "No se encontró conexión a Internet al iniciar. Los modelos locales, la configuración y los archivos siguen funcionando; los proveedores de IA en la nube, la descarga de imágenes de contenedores y la búsqueda de actualizaciones necesitan conexión. Reinicie Monadic Chat cuando esté en línea.",
-    "dockerNotRunningStart": "Docker Desktop no está en ejecución. Por favor, inicie Docker Desktop y presione el botón <b>iniciar</b>.",
+    "dockerNotRunningStart": "Docker no está en ejecución. Inicie Docker Desktop (o el entorno compatible con Docker que use) y presione el botón <b>iniciar</b>.",
+    "dockerRefused": "No se puede usar Docker: {{reason}}.",
+    "dockerEngine": "Motor de contenedores: {{engine}}",
+    "dockerEngineContext": "Motor de contenedores: {{engine}} (contexto de Docker: {{context}})",
+    "pullProgress": "Descargando imágenes de contenedores… {{size}}",
+    "pullDone": "Imágenes de contenedores descargadas ({{size}})",
+    "pullProgressNoSize": "Descargando imágenes de contenedores…",
+    "pullDoneNoSize": "Imágenes de contenedores descargadas",
+    "containerNotBuilt": "aún no creada",
     "systemInitComplete": "Inicialización del sistema completa",
     "openingBrowser": "Abriendo el navegador.",
     "openBrowserManually": "Por favor, abra el navegador manualmente en http://localhost:4567",
     "browserOpenFailed": "No se pudo abrir el navegador automáticamente. Por favor, navegue manualmente a: http://localhost:4567",
     "serverVerifyFailed": "No se pudo verificar que el servidor esté en ejecución. Por favor, verifique el estado de Docker e intente reiniciar.",
+    "rubyNotStarted": "El contenedor de Ruby no se inició, por lo que Monadic Chat no está en ejecución.",
+    "fixAndStartAgain": "Corrija la causa y pulse <b>Iniciar</b> de nuevo.",
     "errorConnecting": "Error al conectar con el servidor. Por favor, verifique el estado de Docker e intente reiniciar.",
     "newVersionAvailable": "Una nueva versión ({{version}}) está disponible (actual: {{current}}).",
     "downloadAndInstall": "Descargar e instalar",
@@ -257,6 +273,9 @@
     "serverNotRunning": "El servidor no está en ejecución. Inicie primero el servidor.",
     "serverStoppedAfterSleep": "El servidor se detuvo tras la suspensión/reanudación del sistema. Reinicie el servidor.",
     "quittingMonadicChat": "Saliendo de Monadic Chat...",
+    "backgroundReplyDone": "Se ha recibido la respuesta.",
+    "backgroundReplyFailed": "No se recibió la respuesta. Revise la Web UI.",
+    "backgroundReplyLost": "Se perdió la conexión. Revise la Web UI.",
     "monadicChatPreparing": "Preparando Monadic Chat...",
     "dockerNotInstalled": {
       "darwin": "No se encontró Docker. Instale Docker Desktop for Mac, inícielo y pulse <b>Start</b>.",
@@ -290,8 +309,6 @@
     "importingDocumentDB": "Importando DB de documentos...",
     "exportingDocumentDB": "Exportando DB de documentos...",
     "stoppingDockerServices": "Deteniendo servicios Docker...",
-    "standaloneModeTip": "Por favor, asegúrese de que Docker Desktop esté en ejecución mientras usa Monadic Chat.",
-    "standaloneModeTipLinux": "Asegúrese de que Docker esté en ejecución mientras usa Monadic Chat.",
     "pressStartButton": "Presione el botón <b>iniciar</b> para inicializar el servidor.",
     "checkingForUpdates": "Buscando actualizaciones...",
     "serverRunningOnPort": "El servidor está ejecutándose en el puerto 4567. Abriendo el navegador.",

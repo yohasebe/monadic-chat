@@ -29,7 +29,7 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Music Lab Tools
+  # Music Tutor Tools
   # ============================================
   describe 'MusicLab Tools' do
     let(:app_class) do
@@ -234,23 +234,23 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Language Practice Plus Tools
+  # Language Practice Tools
   # ============================================
-  describe 'LanguagePracticePlus Tools' do
+  describe 'LanguagePractice Tools' do
     before(:all) do
-      tools_file = File.join(File.expand_path('../../../apps/language_practice_plus', __dir__), 'language_practice_plus_tools.rb')
+      tools_file = File.join(File.expand_path('../../../apps/language_practice', __dir__), 'language_practice_tools.rb')
       require tools_file if File.exist?(tools_file)
     end
 
     let(:app_class) do
-      Object.const_get('LanguagePracticePlusOpenAI') if Object.const_defined?('LanguagePracticePlusOpenAI')
+      Object.const_get('LanguagePracticeOpenAI') if Object.const_defined?('LanguagePracticeOpenAI')
     end
 
     let(:instance) { app_class&.new }
 
     describe '#set_target_language' do
       it 'accepts target_lang setting' do
-        skip 'LanguagePracticePlusOpenAI not loaded' unless instance
+        skip 'LanguagePracticeOpenAI not loaded' unless instance
         skip 'set_target_language not defined' unless instance.respond_to?(:set_target_language)
 
         # Note: parameter is :target_lang, not :language
@@ -259,44 +259,13 @@ RSpec.describe 'Tool Method Behavior' do
         expect(result).to be_a(Hash).or be_a(String)
       end
     end
-  end
 
-  # ============================================
-  # Mermaid Grapher Tools
-  # ============================================
-  describe 'MermaidGrapher Tools' do
-    before(:all) do
-      tools_file = File.join(File.expand_path('../../../apps/mermaid_grapher', __dir__), 'mermaid_grapher_tools.rb')
-      require tools_file if File.exist?(tools_file)
-    end
-
-    let(:app_class) do
-      Object.const_get('MermaidGrapherOpenAI') if Object.const_defined?('MermaidGrapherOpenAI')
-    end
-
-    let(:instance) { app_class&.new }
-
-    describe '#preview_mermaid', :integration do
-      # The preview page is written into the shared folder: a temporary one
-      # here, never the user's.
-      before do
-        @shared = Dir.mktmpdir('mermaid-shared-')
-        allow(Monadic::Utils::Environment).to receive(:shared_volume).and_return(@shared)
-        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@shared)
-      end
-
-      after { FileUtils.rm_rf(@shared) if @shared }
-
-      it 'validates mermaid code' do
-        skip 'MermaidGrapherOpenAI not loaded' unless instance
-        skip 'preview_mermaid not defined' unless instance.respond_to?(:preview_mermaid)
-
-        # This may require external service
-        mermaid_code = "graph TD\n    A-->B"
-
-        result = instance.preview_mermaid(code: mermaid_code)
-
-        expect(result).to be_a(Hash).or be_a(String)
+    it 'has the practice tools for every provider' do
+      tools = %i[load_context save_response set_target_language]
+      %w[OpenAI Claude Gemini Grok MistralAI DeepSeek Cohere Ollama].each do |provider|
+        name = "LanguagePractice#{provider}"
+        skip "#{name} not loaded" unless Object.const_defined?(name)
+        expect(Object.const_get(name).instance_methods).to include(*tools), "#{name} lacks the practice tools"
       end
     end
   end

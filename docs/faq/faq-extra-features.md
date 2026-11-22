@@ -2,7 +2,7 @@
 
 ##### Q: I downloaded a model with Ollama, but it is not reflected in the web interface. What should I do? :id=ollama-model-not-showing
 
-**A**: It may take a moment for a newly downloaded model to become available. Wait a while and then reload the web interface. If the model still does not appear, run `ollama list` in your terminal to verify the model is installed. If the model is listed but not appearing in the web interface, try restarting Monadic Chat.
+**A**: Choose an Ollama app again: the model list is read from Ollama each time an Ollama app is chosen. If the model still does not appear, run `ollama list` in your terminal to check that the model is installed.
 
 ---
 
@@ -24,7 +24,7 @@
 
 - **Native Web Search**: OpenAI, Claude, Gemini, and Grok use their built-in web search
 - **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when `TAVILY_API_KEY` is configured in `~/monadic/config/env`
-- **URL Content Extraction**: With every provider, the **Text from URL** button below the message box reads the text of a web page (using Selenium)
+- **URL Content Extraction**: With every provider, **Open URL** below the message box opens a web page on the work screen or reads its text into the message box (using Selenium)
 
 Web search is turned on and off with the **Web Search** switch. In the Chat app it is on by default for OpenAI, Claude, Gemini and Grok, and off for the other providers.
 

@@ -163,7 +163,7 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 
 #### Provider-Specific Considerations :id=provider-considerations
 
-- **Function Limits**: Up to 20 function calls per turn (30 with Mistral)
+- **Function Limits**: Up to 20 function calls per turn
 - **Code Execution**: All providers use `run_code` for code execution
 - **Array Parameters**: OpenAI requires `items` property for array parameters
 
@@ -270,7 +270,8 @@ This setup allows you to:
 When developing locally while using container features:
 - **Ruby container**: Can be stopped to use local Ruby environment
 - **Other containers**: Must remain running for apps that depend on them
-- **Python container**: Required for apps like Concept Visualizer and Syntax Tree that use LaTeX
+- **Python container**: Required for apps like Concept Visualizer that use LaTeX
+- **Syntax Tree**: Runs the `rsyntaxtree` command on the host (see `docs_dev/common-issues.md`)
 - **Paths**: Automatically adjusted via `Monadic::Utils::Environment` module
 
 ### Testing Apps with Container Dependencies :id=testing-container-dependencies

@@ -46,6 +46,28 @@ RSpec.describe "GeminiHelper tool-result rounds" do
     expect(tool_round_names(session)).to include("hidden_tool")
   end
 
+  describe "a URL in the user's message, with web search on" do
+    def tools_for(settings)
+      stub_const("APPS", { "SpecGeminiApp" => double("app", settings: settings) })
+      body = {}
+      helper.send(:configure_gemini_tools, app: "SpecGeminiApp", role: "user", body: body, obj: {},
+                                           session: { parameters: {} }, tool_capable: true,
+                                           use_native_websearch: true, message: "open https://example.com please")
+      body["tools"]
+    end
+
+    it "is left to the app's own tools when the request offers them" do
+      tools = tools_for({ tools: { "function_declarations" => declarations } })
+
+      expect(tools.size).to eq(1)
+      expect(tools.first).to have_key("function_declarations")
+    end
+
+    it "is read by Gemini itself when the app has no tools" do
+      expect(tools_for({ tools: [] })).to include({ "url_context" => {} })
+    end
+  end
+
   it "does not add tools to a request that had none" do
     body = {}
     helper.send(:apply_tool_round_tools!, body, declarations)

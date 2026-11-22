@@ -8,22 +8,24 @@ end
 require_relative 'utils/provider_model_cache'
 require_relative 'shared_tools/registry'
 require_relative 'shared_tools/file_operations'
+require_relative 'shared_tools/workbench_tools'
 require_relative 'shared_tools/python_execution'
 require_relative 'shared_tools/web_search_tools'
 require_relative 'shared_tools/app_creation'
 require_relative 'shared_tools/file_reading'
 require_relative 'shared_tools/jupyter_operations'
 require_relative 'shared_tools/web_automation'
+require_relative 'shared_tools/scratch_browser'
 require_relative 'shared_tools/audio_transcription'
 require_relative 'shared_tools/image_analysis'
 require_relative 'shared_tools/video_analysis'
 require_relative 'shared_tools/session_context'
-require_relative 'shared_tools/context_panel_helper'
 require_relative 'shared_tools/planning'
 require_relative 'shared_tools/verification'
 require_relative 'shared_tools/parallel_dispatch'
 require_relative 'shared_tools/parallel_python_execution'
 require_relative 'shared_tools/library_search'
+require_relative 'utils/system_prompt_injector'
 require_relative 'dsl/configurations'
 require_relative 'dsl/loader'
 require_relative 'dsl/provider_config'
@@ -50,7 +52,6 @@ module MonadicDSL
   # - abc: Enables ABC music notation rendering and playback for music composition
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation
-  # - monadic: Enables monadic mode for structured JSON responses and special rendering
   # - websearch: Enables web search functionality for retrieving external information (web_search)
   # - jupyter: Enables access to Jupyter notebooks in the conversation
   # - temperature: Controls randomness in model responses (0.0-2.0)
@@ -146,46 +147,23 @@ module MonadicDSL
     library_search: true
   }.freeze
 
-  # Apply MDSL-declared capabilities + defaults + privacy-derived
-  # overrides + invariant validation. Run AFTER the MDSL block has
+  # Apply MDSL-declared capabilities + defaults + invariant
+  # validation. Run AFTER the MDSL block has
   # populated state.features and state.settings, BEFORE library_search
   # auto-injection.
   #
   # Decision order:
-  #   1. If `privacy do; enabled true; end` was declared, force
-  #      library_save=false and library_search=false. MDSL is not
-  #      allowed to contradict (raises on `library_save true` mixed
-  #      with privacy-on).
-  #   2. Otherwise, read MDSL-declared library_save / library_search
+  #   1. Read MDSL-declared library_save / library_search
   #      from features, falling back to CAPABILITY_DEFAULTS.
-  #   3. Validate the cross-flag invariant: library_search=true
+  #   2. Validate the cross-flag invariant: library_search=true
   #      implies library_save=true (search without save is a no-op
   #      since results would have nowhere to come from).
   def self.finalize_capabilities!(state)
-    privacy_on = state.settings[:privacy_enabled] == true
     # MDSL may write to either state.features (preferred — `features do`
     # block) or state.settings directly; we read both for backward
     # compat. nil indicates "not declared".
     declared_save   = first_nonnil(state.features[:library_save],   state.settings[:library_save])
     declared_search = first_nonnil(state.features[:library_search], state.settings[:library_search])
-
-    if privacy_on
-      if declared_save == true
-        raise ConfigurationError,
-              "App '#{state.name}': library_save=true conflicts with privacy.enabled=true. " \
-              "Privacy Filter apps cannot save to the Knowledge Base. " \
-              "Remove `library_save true` from the features block, or remove the privacy block."
-      end
-      if declared_search == true
-        raise ConfigurationError,
-              "App '#{state.name}': library_search=true conflicts with privacy.enabled=true. " \
-              "Privacy Filter apps cannot retrieve from the Knowledge Base. " \
-              "Remove `library_search true` from the features block, or remove the privacy block."
-      end
-      state.settings[:library_save] = false
-      state.settings[:library_search] = false
-      return
-    end
 
     save_value   = declared_save.nil?   ? CAPABILITY_DEFAULTS[:library_save]   : !!declared_save
     search_value = declared_search.nil? ? CAPABILITY_DEFAULTS[:library_search] : !!declared_search
@@ -248,6 +226,37 @@ module MonadicDSL
 
   def self.file_operations_already_imported?(state)
     (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :file_operations }
+  end
+
+  def self.workbench_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :workbench }
+  end
+
+  def self.documents_already_imported?(state)
+    (state.settings[:imported_tool_groups] || []).any? { |g| g[:name] == :documents }
+  end
+
+  # An app that puts its work on the work screen (its `work_screen`
+  # feature, SystemPromptInjector::WORK_SCREEN_PROMPTS) writes it as a
+  # document (write_section).
+  def self.inject_documents!(state)
+    mode = (state.features[:work_screen] || state.settings[:work_screen]).to_s
+    return unless Monadic::Utils::SystemPromptInjector::WORK_SCREEN_PROMPTS.key?(mode)
+
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:documents, visibility: "always")
+    state.settings[:tools] = merge_tools_for_provider(provider, state.settings[:tools], tool_config.to_h)
+  end
+
+  # Every app can show a file of the shared folder in the work screen
+  # (show_on_workbench): it calls no provider's API, so it is offered
+  # whatever the provider. Non-tool-capable models never receive it.
+  def self.inject_workbench!(state)
+    provider = state.settings[:provider].to_s.downcase.to_sym
+    tool_config = ToolConfiguration.new(state, provider)
+    tool_config.import_shared_tools(:workbench, visibility: "always")
+    state.settings[:tools] = merge_tools_for_provider(provider, state.settings[:tools], tool_config.to_h)
   end
 
   # After the user's MDSL block runs, ensure shared-folder read/write is wired
@@ -323,7 +332,7 @@ module MonadicDSL
     app_def.instance_eval(&block)
 
     # Resolve per-app capability flags from MDSL declarations + defaults
-    # + privacy-derived overrides. This must run BEFORE library_search
+    # overrides. This must run BEFORE library_search
     # auto-injection because the injection eligibility now reads the
     # resolved state.settings[:library_search] flag.
     finalize_capabilities!(state)
@@ -346,6 +355,22 @@ module MonadicDSL
         inject_file_operations!(state)
       rescue StandardError => e
         puts "[DSL] file_operations auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    unless workbench_already_imported?(state)
+      begin
+        inject_workbench!(state)
+      rescue StandardError => e
+        puts "[DSL] workbench auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    unless documents_already_imported?(state)
+      begin
+        inject_documents!(state)
+      rescue StandardError => e
+        puts "[DSL] documents auto-inject skipped for #{state.name}: #{e.class}: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
 
@@ -395,10 +420,10 @@ module MonadicDSL
       @state.settings[:include_modules] = modules.map(&:to_s)
     end
     
-    # Monadic mode for structured output
-    def monadic(value)
-      @state.features[:monadic] = value
-    end
+    # Settings of earlier versions: read and not used.
+    def monadic(_value = nil); end
+
+    def context_schema; end
     
     # Assistant initiation flag
     def initiate_from_assistant(value)
@@ -457,21 +482,12 @@ module MonadicDSL
       end
     end
 
-    # Privacy Filter (PII masking before LLM, restoration on response).
-    # Usage:
-    #   privacy do
-    #     enabled true
-    #     languages ["ja", "en"]
-    #   end
-    # Setting privacy_enabled=true triggers container_dependencies to require
-    # the :privacy service. The privacy container is part of the default build
-    # set; PRIVACY_FILTER=false in env opts out at runtime.
-    def privacy(&block)
-      config = PrivacyFilterConfiguration.new
-      config.instance_eval(&block) if block_given?
-      hash = config.to_hash
-      @state.settings[:privacy] = hash
-      @state.settings[:privacy_enabled] = hash[:enabled]
+    # A `privacy do` block has no effect: words are hidden per chat with the
+    # Anonymize button. It is accepted so an app that has one still loads.
+    def privacy(*)
+      warn "[DSL] App '#{@state.name}': `privacy do` has no effect and can be removed. " \
+           "The Knowledge Base stays available in this app unless it declares " \
+           "`library_save false` and `library_search false` in its features."
     end
 
     # Vocabulary: shared ${TOKEN} variables between the user and the assistant.
@@ -543,22 +559,6 @@ module MonadicDSL
         config = AppAgentsConfiguration.new
         config.instance_eval(&block)
         @state.settings[:agents] = config.to_hash
-      end
-    end
-
-    # Context schema for monadic apps
-    # Defines what context fields should be tracked automatically
-    # @example
-    #   context_schema do
-    #     field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects"
-    #     field :people, icon: "fa-users", label: "People", description: "Names mentioned"
-    #     field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts"
-    #   end
-    def context_schema(&block)
-      if block_given?
-        config = ContextSchemaConfiguration.new
-        config.instance_eval(&block)
-        @state.settings[:context_schema] = config.to_hash
       end
     end
 
@@ -665,16 +665,13 @@ module MonadicDSL
 
     include_statements += include_modules
 
-    # Include shared tool modules for imported tool groups
-    # This ensures the Ruby methods are available when AI calls the tools
-    if state.settings[:imported_tool_groups]
-      state.settings[:imported_tool_groups].each do |group_info|
-        group_name = group_info[:name]
-        module_name = MonadicSharedTools::Registry.module_name_for(group_name)
-        if module_name
-          include_statements << module_name
-        end
-      end
+    # Include shared tool modules for imported tool groups, offered to the
+    # model or kept for the app's own use (internal)
+    group_names = Array(state.settings[:imported_tool_groups]).map { |group_info| group_info[:name] } +
+                  Array(state.settings[:internal_tool_groups])
+    group_names.uniq.each do |group_name|
+      module_name = MonadicSharedTools::Registry.module_name_for(group_name)
+      include_statements << module_name if module_name
     end
 
     include_lines = include_statements.map { |m| "        include #{m} if defined?(#{m})" }.join("\n")
@@ -741,7 +738,8 @@ module MonadicDSL
     # explicitly opts in. This prevents unexpected thinking token generation
     # and tool call loops. Apps that benefit from reasoning should declare
     # reasoning_effort "low"/"medium"/"high" in their MDSL llm block.
-    effort = state.settings[:reasoning_effort] || "none"
+    # It may be written in the llm block or in features; features wins.
+    effort = state.features[:reasoning_effort] || state.settings[:reasoning_effort] || "none"
     class_def << "        @settings[:reasoning_effort] = #{effort.inspect}\n"
 
     # reasoning_content ("disabled"/"enabled") is independent of
@@ -765,6 +763,12 @@ module MonadicDSL
     # Add imported_tool_groups if specified
     if state.settings[:imported_tool_groups]
       class_def << "        @settings[:imported_tool_groups] = #{state.settings[:imported_tool_groups].inspect}\n"
+    end
+
+    # Tools of groups kept for the app's own use: never offered to the model
+    if state.settings[:internal_tool_names]
+      class_def << "        @settings[:internal_tool_groups] = #{state.settings[:internal_tool_groups].inspect}\n"
+      class_def << "        @settings[:internal_tool_names] = #{state.settings[:internal_tool_names].inspect}\n"
     end
 
     # Build and add badges
@@ -827,14 +831,6 @@ module MonadicDSL
       class_def << "        @settings[:compaction] = #{state.settings[:compaction].inspect}\n"
     end
 
-    # Add privacy filter settings if specified.
-    # `:privacy_enabled` is a derived flag used by container_dependencies to
-    # decide whether to require the privacy service.
-    unless state.settings[:privacy].nil?
-      class_def << "        @settings[:privacy] = #{state.settings[:privacy].inspect}\n"
-      class_def << "        @settings[:privacy_enabled] = #{state.settings[:privacy_enabled].inspect}\n"
-    end
-
     # Vocabulary opt-in tokens (plain symbol data; resolution is runtime).
     unless state.settings[:vocabulary].nil?
       class_def << "        @settings[:vocabulary] = #{state.settings[:vocabulary].inspect}\n"
@@ -855,11 +851,6 @@ module MonadicDSL
     # Add agents if specified (internal sub-agents like code_generator, speech_to_text)
     if state.settings[:agents] && !state.settings[:agents].empty?
       class_def << "        @settings[:agents] = #{state.settings[:agents].inspect}\n"
-    end
-
-    # Add context_schema if specified (for monadic apps)
-    if state.settings[:context_schema]
-      class_def << "        @settings[:context_schema] = #{state.settings[:context_schema].inspect}\n"
     end
 
     class_def << "      end\n"

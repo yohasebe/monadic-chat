@@ -181,6 +181,23 @@ RSpec.describe FunctionCallErrorHandler do
     end
   end
   
+  describe '#stop_reply' do
+    it 'names the tools of a cycle that stopped the turn' do
+      ErrorPatternDetector.begin_turn(session)
+      8.times { handler.record_tool_call(session, 'update_context') }
+      sent = []
+      reply = handler.stop_reply(session) { |res| sent << res }
+      expect(sent).to eq([{ "type" => "message", "content" => "DONE", "finish_reason" => "stop" }])
+      expect(reply.dig(0, "choices", 0, "message", "content")).to include('update_context')
+    end
+
+    it 'reports repeated errors when no cycle stopped the turn' do
+      session[:parameters] = { "stop_retrying" => true }
+      reply = handler.stop_reply(session)
+      expect(reply.dig(0, "choices", 0, "message", "content")).to eq('Repeated errors detected. Stopping.')
+    end
+  end
+
   describe '#reset_error_tracking' do
     it 'clears error patterns' do
       # Set up some error tracking

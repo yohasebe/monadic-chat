@@ -74,6 +74,7 @@ describe('ws-app-data-handlers', () => {
         document.getElementById('tts-provider').appendChild(option);
       });
       // STT options
+      createDOMOption('elevenlabs-stt-scribe-v3');
       createDOMOption('elevenlabs-stt-scribe-v2');
       createDOMOption('elevenlabs-stt-scribe');
     });
@@ -106,6 +107,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-v4-turbo-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-stt-scribe-v3').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(false);
       expect(document.getElementById('elevenlabs-stt-scribe').disabled).toBe(false);
     });
@@ -119,6 +121,7 @@ describe('ws-app-data-handlers', () => {
       expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-v4-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-stt-scribe-v3').disabled).toBe(true);
       expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(true);
     });
 
@@ -317,7 +320,6 @@ describe('ws-app-data-handlers', () => {
       createDOMElement('base-app-title');
       createDOMElement('base-app-icon');
       createDOMElement('base-app-desc');
-      createDOMElement('monadic-badge');
       createDOMElement('websearch-badge');
       createDOMElement('tools-badge');
       createDOMElement('math-badge');
@@ -549,7 +551,6 @@ describe('ws-app-data-handlers', () => {
       createDOMElement('base-app-title');
       createDOMElement('base-app-icon');
       createDOMElement('base-app-desc');
-      createDOMElement('monadic-badge');
       createDOMElement('tools-badge');
       createDOMElement('show-all-models', 'input');
       document.getElementById('show-all-models').type = 'checkbox';
@@ -615,6 +616,16 @@ describe('ws-app-data-handlers', () => {
       expect(window.isProcessingImport).toBe(true);
       expect(window.skipAssistantInitiation).toBe(true);
       expect(global.setAutoSpeechSuppressed).toHaveBeenCalledWith(true, { reason: 'parameters import' });
+    });
+
+    it('takes the imported chat\'s app and model into params, so the app change keeps them', () => {
+      global.params = { app_name: 'ChatOpenAI', model: 'chat-model', auto_speech: true };
+      handlers.handleParametersMessage({
+        content: { app_name: 'ImageGeneratorOpenAI', model: 'image-model', auto_speech: false,
+                   initial_prompt: 'not kept here' },
+        from_import: true
+      });
+      expect(global.params).toEqual({ app_name: 'ImageGeneratorOpenAI', model: 'image-model', auto_speech: false });
     });
 
     it('stores pending parameters when apps not loaded', () => {
@@ -694,7 +705,7 @@ describe('multiple APPS within one timeout window', () => {
     mk('base-app-title');
     mk('base-app-icon');
     mk('base-app-desc');
-    ['monadic-badge', 'websearch-badge', 'tools-badge', 'math-badge'].forEach((id) => mk(id));
+    ['websearch-badge', 'tools-badge', 'math-badge'].forEach((id) => mk(id));
     mk('show-all-models', 'input').type = 'checkbox';
     mk('model', 'select');
     mk('model-selected');

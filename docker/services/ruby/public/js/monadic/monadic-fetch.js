@@ -88,7 +88,7 @@
   }
 
   // The tab the request is made from, so the server can tell which chat it
-  // is for before it reads the body (a Private chat makes no files).
+  // is for before it reads the body.
   function withTabId(url) {
     if (typeof url !== 'string' || url.charAt(0) !== '/' || /[?&]tab_id=/.test(url)) return url;
     const id = typeof window.getMonadicTabId === 'function' ? window.getMonadicTabId() : '';

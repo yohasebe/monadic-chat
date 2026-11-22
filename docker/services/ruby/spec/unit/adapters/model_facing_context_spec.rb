@@ -96,8 +96,15 @@ RSpec.describe BaseVendorHelper, '#user_turn_to_record?' do
     expect(within).to be(true)
   end
 
-  it 'is false for no text and no attachments, or outside a request, or for another role' do
-    none = Monadic::Workspace::RequestContext.with(context) { helper.user_turn_to_record?('user', '', session_with([])) }
+  it 'is true for no text when the server recorded the message of this request (images only)' do
+    within = Monadic::Workspace::RequestContext.with(context) { helper.user_turn_to_record?('user', '', session_with([])) }
+
+    expect(within).to be(true)
+  end
+
+  it 'is false for no text with no message recorded for this request, or outside a request, or for another role' do
+    other = { messages: [{ 'role' => 'user', 'text' => '', 'request_id' => 'q_earlier' }] }
+    none = Monadic::Workspace::RequestContext.with(context) { helper.user_turn_to_record?('user', '', other) }
     tool = Monadic::Workspace::RequestContext.with(context) { helper.user_turn_to_record?('tool', '', session_with(refs)) }
 
     expect(none).to be(false)

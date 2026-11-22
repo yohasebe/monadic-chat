@@ -29,7 +29,6 @@ Learn the fundamentals of using Monadic Chat's features and built-in application
 *   [Message Input](/basic-usage/message-input.md)
 *   [Workflow Viewer](/basic-usage/workflow-viewer.md)
 *   [Basic Apps](/basic-usage/basic-apps.md)
-*   [PDF Database](/basic-usage/pdf_storage.md)
 *   [Syntax Highlighting](/basic-usage/syntax-highlighting.md)
 
 ## Apps
@@ -46,7 +45,7 @@ Detailed documentation for each of the built-in applications.
 *   [Web & Media Analysis Apps](/apps/analysis-apps.md)
 *   [Knowledge Base](/apps/knowledge-base.md)
 *   [Coding & Notebook Apps](/apps/coding-apps.md)
-*   [Music Lab & Music Analyst](/apps/music-apps.md)
+*   [Music Tutor & Music Analyst](/apps/music-apps.md)
 *   [Auto Forge](/apps/auto_forge.md)
 
 ## Docker Integration
@@ -71,13 +70,12 @@ Explore advanced configurations, app development, and integration possibilities.
 *   [Application Setting Items](/advanced-topics/setting-items.md)
 *   [Recipe Examples](/advanced-topics/recipe-examples.md)
 *   [Tool Groups](/advanced-topics/tool-groups.md)
-*   [Monadic Mode](/advanced-topics/monadic-mode.md)
-*   [Session Context](/advanced-topics/session-context.md)
+*   [Session State](/advanced-topics/monadic-mode.md)
 *   [Adding Docker Containers](/advanced-topics/adding-containers.md)
 *   [Using Ollama](/advanced-topics/ollama.md)
 *   [Help System Configuration](/advanced-topics/help-system.md)
 *   [MCP Integration](/advanced-topics/mcp-integration.md)
-*   [Privacy Filter](/advanced-topics/privacy-filter.md)
+*   [Anonymization](/advanced-topics/anonymization.md)
 
 ## Reference
 

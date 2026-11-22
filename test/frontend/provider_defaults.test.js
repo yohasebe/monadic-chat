@@ -88,9 +88,9 @@ describe('providerDefaults', () => {
   });
 
   describe('default model values (first element)', () => {
-    it('openai chat default is gpt-6.1-sol, with gpt-6-sol kept next', () => {
-      expect(providerDefaults.openai.chat[0]).toBe('gpt-6.1-sol');
-      expect(providerDefaults.openai.chat[1]).toBe('gpt-6-sol');
+    it('openai chat default is gpt-6.1-terra, with gpt-6.1-sol kept next', () => {
+      expect(providerDefaults.openai.chat[0]).toBe('gpt-6.1-terra');
+      expect(providerDefaults.openai.chat[1]).toBe('gpt-6.1-sol');
     });
 
     it('anthropic chat default is claude-sonnet-5-5', () => {
@@ -101,12 +101,12 @@ describe('providerDefaults', () => {
       expect(providerDefaults.gemini.chat[0]).toBe('gemini-3.8-flash');
     });
 
-    it('xai code default is grok-build-0.1', () => {
-      expect(providerDefaults.xai.code[0]).toBe('grok-build-0.1');
+    it('xai code default is grok-4.7', () => {
+      expect(providerDefaults.xai.code[0]).toBe('grok-4.7');
     });
 
-    it('openai image default is gpt-image-2', () => {
-      expect(providerDefaults.openai.image[0]).toBe('gpt-image-2');
+    it('openai image default is gpt-image-2.5-flare', () => {
+      expect(providerDefaults.openai.image[0]).toBe('gpt-image-2.5-flare');
     });
 
     it('openai video category removed (Sora API shutdown)', () => {
@@ -121,8 +121,8 @@ describe('providerDefaults', () => {
       expect(providerDefaults.gemini.image[0]).toBe('gemini-nano-banana-2.1');
     });
 
-    it('gemini video default is gemini-omni-1.1-flash', () => {
-      expect(providerDefaults.gemini.video[0]).toBe('gemini-omni-1.1-flash');
+    it('gemini video default is gemini-omni-1.2-flash', () => {
+      expect(providerDefaults.gemini.video[0]).toBe('gemini-omni-1.2-flash');
     });
 
     it('xai image default is grok-imagine-image', () => {

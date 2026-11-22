@@ -1,6 +1,15 @@
 # Monadic Chat Web Interface
 
-<!-- SCREENSHOT: Main web interface showing chat area, sidebar with settings, and status indicators -->
+![The web interface](../assets/images/figures/web-interface.svg)
+
+1. The name of the app. Click it to reset the chat (the current app is kept).
+2. The status: what Monadic Chat is doing now.
+3. Shows or hides the sidebar.
+4. **Current settings** and **Session**, with the app and model of the session. See [System Settings Screen](#system-settings-screen).
+5. The conversation, one card for each message. See [Message Cards](#message-cards).
+6. The message box and its buttons. See [Message Input](message-input.md).
+7. The sidebar's tabs: **Menu**, **Work screen**, **Files** and **History**.
+8. The panels of the chosen tab. See [Sidebar Panels](#info-panel).
 
 The web interface is made up of the conversation area, the message input area, and a set of side panels.
 
@@ -16,7 +25,7 @@ In internal browser mode, five buttons appear at the bottom-right corner (hover 
 - **Zoom In**: Increase the page zoom factor
 - **Zoom Out**: Decrease the page zoom factor
 - **Reset Zoom**: Reset page zoom to default
-- **Reset All**: After you confirm, clear the page's stored data (local storage and caches) and reload it, returning to the initial app selection. Cookies, such as the theme and the conversation language, are kept
+- **Reset All**: After you confirm, clear the page's stored data (local storage and caches) and reload it, returning to the initial app selection. Cookies, such as the theme, the conversation language and whether the menu is shown, are kept
 - **Monadic Chat Console**: Show the main console window
 
 ### External Browser Mode :id=external-browser-mode
@@ -31,18 +40,26 @@ You can change the language at any time during a conversation. The choice is sto
 
 ## System Settings Screen :id=system-settings-screen
 
-<!-- SCREENSHOT: System settings panel showing Base App selector, Model dropdown, reasoning controls, token limits, and parameters -->
+![System settings](../assets/images/figures/system-settings.svg)
 
-This screen is where you choose the app and model for a session and adjust the conversation parameters. During a session, click the summary bar at the top (app, model and badges) to return to it.
+1. **Base App**: the app of the session.
+2. **Max Context Size** and **Max Output Tokens**: how many messages stay in the context, and how long a reply can be. Each has a switch.
+3. **Model**: the model to use. **All** lists every model of the provider.
+4. **Reasoning Effort** and **Show Thinking**: how deeply the model reasons, and whether its thinking is shown.
+5. **Temperature** and the other parameters.
+6. **Initial Prompt for AI Assistant**: the system prompt, which you can read and edit.
+7. **Start Session**: starts the conversation with these settings.
+
+This screen is where you choose the app and model for a session and adjust the conversation parameters. Once a session starts, the bar at the top has two tabs, **Current settings** and **Session**: **Current settings** shows this screen and **Session** shows the conversation, where you left it. **Continue Session** under the settings also goes back to the conversation. After you open a chat from the history, **Session** continues it, as **Continue Session** does. The bar also shows the app, the model and badges.
 
 **Base App** <br />
 Select one of the basic apps. Each app has different default parameters and initial prompts. See [Base Apps](./basic-apps.md) for details.
 
 **Max Context Size** <br />
-The maximum number of messages to keep active in the conversation context (default: 100).
+The maximum number of messages to keep active in the conversation context. The field shows the value in use: 100 unless the app sets its own; the switch is on for apps that set one.
 
 **Max Output Tokens** <br />
-Limit the maximum number of tokens in the API response (default: 4000).
+Limit the maximum number of tokens in the API response. The field shows the value in use: the selected model's maximum output, or 4000 for a model with none listed. For a reasoning model the limit is set to its maximum and cannot be changed.
 
 **Model** <br />
 Select the AI model to use. Available models depend on the selected app; turn on **All** to list every model of the provider. Deprecated models are not listed.
@@ -51,7 +68,7 @@ Select the AI model to use. Available models depend on the selected app; turn on
 Adjust the reasoning depth for models that support advanced thinking. Models with mandatory adaptive reasoning continue to reason even when reasoning controls are off or the app uses structured output; these settings do not eliminate reasoning costs. On such models, an app that asks for no reasoning runs at the lowest level the model offers. Hiding the thinking trace only changes its display. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode).
 
 **Show Thinking** <br />
-Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off. In [Live Conversation](../apps/chat-apps.md#live-conversation) this toggle is not shown, because realtime models do not emit a reasoning trace.
+Show or hide the model's thinking/reasoning trace as a collapsible "Thinking Process" panel in each response. The toggle appears only for models that support thinking, and it is linked with the reasoning control: turning it on while the reasoning effort is "None" raises the effort to the model's lowest thinking level, and setting the effort back to "None" turns the toggle off. The toggle starts on, except with Ollama, where it also decides whether the model thinks. Apps that answer by voice (Voice Chat, Voice Interpreter and Language Practice) start with the thinking hidden, also for models that have no toggle. In [Live Conversation](../apps/chat-apps.md#live-conversation) this toggle is not shown, because realtime models do not emit a reasoning trace.
 
 **Parameters**<br />
 Temperature, Presence Penalty, Frequency Penalty
@@ -69,31 +86,51 @@ Show a live diagram of the selected app (Hidden, In Panel or Floating) — how i
 Start a new chat or continue your current conversation.
 
 **Session Indicator Badges**<br />
-The summary bar shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
+The bar at the top shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
 
-The top bar of the page shows the conversation status and, while it is on, the Privacy Filter indicator.
+The top bar of the page shows the conversation status. Its color tells what kind of status it is:
+
+![Kinds of status](../assets/images/figures/status-kinds.svg)
+
+1. Green: ready, or a step is done.
+2. Amber: the AI is working on a reply.
+3. Amber: something stopped or needs your attention.
+4. Red: something failed or cannot be done now.
+5. Blue: information, such as the connection to the server.
+6. Grey: a step of your own input is done.
+
+## Message Cards :id=message-cards
+
+Each message of the conversation is a card. The header of an assistant's card has these buttons:
+
+![Buttons of an assistant's card](../assets/images/figures/message-buttons.svg)
+
+1. **Copy**: copies the message's text.
+2. **Start TTS**: reads the message aloud.
+3. **Stop TTS**: stops the reading.
+4. **Delete**: deletes the message, or the message and those after it.
+5. **Edit**: lets you change the message's text.
+6. The turn the message belongs to.
+7. Green while the message is within the context sent to the model.
+
+A user's card has **Copy**, **Delete** and **Edit**.
 
 ## Sidebar Panels :id=info-panel
 
-The sidebar holds the following panels, from top to bottom. Click a panel's title to collapse or expand it.
+![Tabs of the side column](../assets/images/figures/side-column.svg)
+
+The sidebar has four tabs at the top: **Menu**, which holds the following panels from top to bottom, **Work screen** (see [Work Screen](#work-screen) below), **Files** (see [Files Tab](#shared-folder-panel)) and **History** (see [History Tab](#chat-history-panel), shown while chats are kept). The page opens on Menu. Click a panel's title to collapse or expand it.
+
+The tabs, and the bar with **Current settings** above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab. On a narrow window, the sidebar and the conversation take turns at the full width.
 
 **Monadic Chat Info**<br />
 Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the **Web Search** and **Math Rendering** switches, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
 
-- **Web Search**: Allow the AI to search the web for current information. Available for models that support tool/function calling. In [Live Conversation](../apps/chat-apps.md#live-conversation), web search is part of the app's own Tools toggle instead (off by default).
+- **Web Search**: Allow the AI to search the web for current information. Available for models that support tool/function calling. In [Live Conversation](../apps/chat-apps.md#live-conversation), web search is part of the app's own **Search and compute** switch instead (off by default).
 - **Math Rendering**: Render mathematical expressions using KaTeX. When it is off, the model is asked to write formulas in plain text or Unicode, and to return LaTeX source, when you ask for it, in a code block.
 
 **AI Assistant & AI User**<br />
 The models in use for the assistant and for the AI User feature, and the statistics of the current session (message and token counts).
-
-**PDF Database**<br />
-Shown only for apps with a PDF database. See [PDF Database Panel](#pdf-database-display-panel) below.
-
-**Chat History**<br />
-The latest chats kept on this computer. See [Chat History Panel](#chat-history-panel) below.
-
-**Shared Folder**<br />
-Browse the shared folder. See [Shared Folder Panel](#shared-folder-panel) below.
 
 **Knowledge Base**<br />
 **Save** the current conversation to the Knowledge Base, **Browse** it, and turn **Use Knowledge Base for retrieval (this session)** on or off. See [Knowledge Base](../apps/knowledge-base.md).
@@ -103,10 +140,6 @@ Browse the shared folder. See [Shared Folder Panel](#shared-folder-panel) below.
 - **Import**: Load conversation data from a JSON file. If the saved session uses a deprecated model that has a successor, the successor is used and a notification is shown
 - **Export**: Save the current conversation to a JSON file
 - **PDF Export**: Save the current conversation as a PDF file with syntax highlighting and formatting
-- **Privacy Filter**: Turn the Privacy Filter on or off for the session, in apps that support it. See [Privacy Filter](../advanced-topics/privacy-filter.md)
-
-**Session Context**<br />
-Shown for apps that keep monadic context: the context tracked in the conversation, which you can edit and save.
 
 **Theme**<br />
 System, Light or Dark.
@@ -115,6 +148,7 @@ System, Light or Dark.
 - **Auto speech**: Automatically read the assistant's response aloud using synthesized speech
 - **Easy submit**: Send messages with the Enter key, or by clicking **Stop** after speech input
 - **Auto scroll while streaming**: Follow the response as it is written
+- **Show new items in the work screen**: When the AI shows something new, the sidebar switches to the [work screen](#work-screen). When off, the work screen announces it and you switch yourself
 - **Start from assistant**: The assistant makes the first message when starting a conversation
 
 These controls are hidden in [Live Conversation](../apps/chat-apps.md#live-conversation), which manages audio itself.
@@ -122,9 +156,48 @@ These controls are hidden in [Live Conversation](../apps/chat-apps.md#live-conve
 **Speech**<br />
 See [Speech Panel](#speech-settings-panel) below.
 
+## Work Screen :id=work-screen
+
+The **Work screen** tab shows the browser the AI uses in the current conversation, as it draws, while the tab is shown. It is view only. When the AI opens a browser (for example in [Web Insight](../apps/analysis-apps.md#web-insight)), the sidebar switches to this tab, unless you are typing or **Show new items in the work screen** is off; then the work screen only announces it.
+
+![The work screen](../assets/images/figures/work-screen.svg)
+
+1. The items of the work screen: the browser, images and files. Click one to show it.
+2. Removes the item from the work screen. Items that can be removed have this button.
+3. Steps through the items.
+4. **Drawn** and **Source code**: for a file that is drawn, switch between the drawing and the text.
+5. The item shown.
+
+The browser stays open after the reply and closes after five minutes without use. **Reset** closes it. Screenshots that the AI captures without opening a browser are shown as images of the work screen.
+
+The work screen also shows the images the AI makes, such as an image generated by [Image Generator](../apps/image-generator.md). A row at the top lists the items of the work screen; click one to show it. The browser is one of them: it stays in the row after it closes (the work screen then says so) until you remove it with its ×. Each image is a file in the chat's folder of the shared folder: the work screen shows its path and **Save as…** (**Download** in a web browser), which saves a copy anywhere you choose. The × on an image's tab removes it from the work screen; the file stays in the shared folder. The conversation shows one line with the image's path and **Save as…**; click the path to show the image in the work screen.
+
+The work screen also shows the state notes of an app that keeps [Session State](../advanced-topics/monadic-mode.md#state-notes): a page of what the app has recorded in the chat, such as Chat's topics, people and notes. The page is made again when a reply changes the state or a turn is deleted. When the page is the first item of the chat's work screen, the sidebar switches to it, as for other new items; after that, it is updated in place and the sidebar stays where it is.
+
+The work screen also shows files of the shared folder: images, text files (with line numbers; a long file shows its beginning), audio, video, and PDFs (a page at a time: move between pages with ‹ and › or the ← and → keys, zoom with − and +, and select text on the page), and Jupyter notebooks (`.ipynb`, read only: each cell with what its last run showed; nothing in it runs, and an interactive output such as a Plotly chart is shown only when the notebook saved an image of it). To open one, click it in the [Files tab](#shared-folder-panel). The AI can also show a file of the shared folder there while it talks about it. A file is not copied: if it changes or is removed in the shared folder after it was opened, the work screen says so; **Open it as it is now** shows the file again as it is. **Reload** reads a file shown again at any time. **Save as…** (**Download** in a web browser) saves a copy of the file under its own name, as long as it is still the version shown. A file opened again, by you or by the AI, takes the place of the one shown before.
+
+Click an image in the conversation, one you sent or one a reply shows from the shared folder, to show it in the work screen. Click an image in the work screen (or press Enter on it) to show it larger; click it again, or press Esc, to close it.
+
+Some text files are drawn: Markdown (`.md`), Mermaid diagrams (`.mmd`), tables (`.csv`, `.tsv`: the first row is the header, and the first 2,000 rows and 50 columns are shown), SVG images, static HTML pages (`.html`: scripts do not run, links do not open, and only images embedded as `data:` show), Vega-Lite charts (`.vl.json`, with the data in the file), draw.io diagrams (`.drawio`, the first page; images the diagram names are not loaded), and tunes in ABC notation (`.abc`, drawn as a score). **Drawn** and **Source code** above the file switch between the drawing and the text with line numbers. Code (by its extension, such as `.py` or `.rb`) and the code cells of notebooks are shown with syntax highlighting. Nothing drawn is loaded from the network. A file larger than 8 MB, or one that cannot be drawn, is not drawn: the work screen says why, and **Source code** shows its text.
+
+The AI can also write a text it made, such as a table, a diagram, a chart or a long document, as a new file in the chat's folder and show it in the work screen in one step. A line under the reply names each file the AI showed in the work screen; click it to show that version again (if the file changed since, the work screen says so). A line for a section of a long text the AI writes over turns (such as a story in [Novel Writer](../apps/writing-apps.md#novel-writer)) opens the whole text as it is now, at that section. Such a text shows each section as the AI wrote it last; deleting the turn that rewrote a section shows the version before it again. **Versions** under the text lists every version its sections have in the chat, newest first; click one to open it as a file of its own.
+
+The items stay in a row in the order they came. Move along it with ‹ and › above the item, or with the ← and → keys while the work screen has the focus.
+
+When you send a message, the AI is told what is on the work screen: the name, path and status of each item, the item your tab shows, and what part of it is in view (the lines of a text file, the page of a PDF, the position in audio or video, and how many characters you selected). The contents of the items are not sent this way.
+
+The AI can also look at the item your tab shows, when it needs to see it: an image as it is, or a text file as text: either the lines you have in view and a few lines around them, or the file from its beginning (a long file is cut). A PDF is looked at as the part of the page in view (an image of it as your tab draws it), the text of that whole page, and any text you selected in it; or as the text of its first 100 pages. To see what is in view, the AI asks your tab, which answers while the work screen shows the file. The text of a PDF is read in the Python container; when it is not running, the AI gets the image and the selected text only. The browser is looked at as a picture of what it shows in its window (not the whole page), with the page's title and its address without the part after `?` or `#`; this works only in the desktop app's containers, not when the server runs on the host for development. It looks at the item selected in the tab you sent the message from, as it is at that moment; if the file changed or you selected another item meanwhile, it looks at nothing rather than at something else. When the work screen shows a file drawn, the AI cannot tell which of its lines are in view; it reads the file's text from its beginning instead, and is told that this is the text, not the drawing. Audio and video cannot be looked at. The AI can look only with a model that takes images. A line under the reply says what the AI looked at (its name, version and lines) and whether it was sent to the AI provider; if the reply ends without an answer, the line is under your message. The conversation and the history keep that line, not what was looked at. If the chat is reset before the request is sent, nothing of it is sent.
+
+When the AI shows something new, the work screen shows it, unless you are typing a message or turned off **Show new items in the work screen** in the Interaction panel. What you open yourself is always shown. If the sidebar is hidden, it stays hidden. When something new comes or an item is updated while another tab is shown, the **Work screen** tab shows a dot until you open it. The work screen keeps up to eight items: when a new one comes, the oldest item is removed from the work screen (its file stays in the shared folder). The item an open page (a web browser tab) is showing, the latest image and an open browser are kept. When every item is kept, remove one with its × before opening another; a browser that opens then is shown once you remove one.
+
 ## Speech Panel :id=speech-settings-panel
 
-<!-- SCREENSHOT: Speech panel showing Speech-to-Text model selector, Text-to-Speech provider and voice dropdowns, and TTS speed slider -->
+![Speech panel](../assets/images/figures/speech-panel.svg)
+
+1. **Speech-to-Text Model**: the model that writes down what you say.
+2. **Text-to-Speech Provider**: the service that reads replies aloud.
+3. The voice of the chosen provider.
+4. **TTS Speed**: how fast replies are read.
 
 !> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
@@ -147,59 +220,45 @@ Select the voice for speech synthesis. Available voices depend on the selected p
 **TTS Speed**<br />
 Adjust the playback speed of synthesized speech (0.7 to 1.2).
 
-## PDF Database Panel :id=pdf-database-display-panel
+## History Tab :id=chat-history-panel
 
-<!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
+Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside the shared folder. A chat is kept from the first message you write, and each new message updates it.
 
-?> This panel is displayed only when an app with a PDF database is selected.
+What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session State](../advanced-topics/monadic-mode.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. The API keys set in Monadic Chat and 1Password references are removed from what is kept, chat names included. Other secrets written in a chat, such as a password or a key that Monadic Chat does not have, are kept as written: do not paste them into a chat.
 
-Click **Import** to upload a PDF; you can give it a title (if you leave it empty, the file name is used). Multiple PDF files can be uploaded. **Refresh** updates the list, the trash can icon next to a PDF removes it, and **Clear All** removes every PDF of the app, each after a confirmation.
+Backups of your computer (such as Time Machine) and sync services that hold `~/monadic` copy the history too. **Export Document DB** in the Actions menu does not include the history.
 
-PDFs are stored on your computer. Back them up with **Export Document DB** and restore them with **Import Document DB** (Actions menu). For more information, see [PDF Database](./pdf_storage.md).
+The **History** tab lists the kept chats, the latest activity first, and is shown while chats are kept.
 
-## Chat History Panel :id=chat-history-panel
-
-Monadic Chat keeps your chats on this computer, in `~/monadic/state`, outside the shared folder. A chat is kept from the first message you write, and each new message updates it. Private chats (chats started with the [Privacy Filter](../advanced-topics/privacy-filter.md) on) are not kept.
-
-What is kept of a chat: the text of its messages, the app, the model and the system prompt, the main settings (such as reasoning effort, context size, web search and the conversation language), and the [Session Context](../advanced-topics/session-context.md). Images, the contents of attached files, thinking and the records of tool calls are not kept. The API keys set in Monadic Chat and 1Password references are removed from what is kept, chat names included. Other secrets written in a chat, such as a password or a key that Monadic Chat does not have, are kept as written: do not paste them into a chat.
-
-Backups of your computer (such as Time Machine) and sync services that hold `~/monadic` copy the history too.
-
-The Chat History panel lists the five chats with the latest activity; click one to continue it in this tab. **See all** opens the Chats tab of the window the shared folder uses.
-
-In the Chats tab:
-
-- The search box finds chats by their names and by the words in them.
-- Each chat shows its name (or its first and latest topics), the app, the number of messages and when it last had a new message. The list is ordered by that time, newest first; **Show more** adds older chats.
-- **Continue** opens the chat in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. If it is Private and has messages, you are asked first, since it is not kept.
-- **Name** gives the chat a name (up to 120 characters). Press Enter to save it or Esc to cancel.
-- **Remove from the history** removes the chat after a second click to confirm. The chat can no longer be read from Monadic Chat. Files the chat made in the shared folder, exported files and backups of your computer are not removed.
+- The search box finds chats by their names and by the words in them. **Show more** adds older chats.
+- Each chat shows its name (or its first topic), the app, the number of messages and when it last had a new message.
+- Click a chat to continue it in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. On a narrow window, the conversation is shown after the chat is continued.
+- The **⋯** button of a chat holds **Continue**, **Name** and **Remove from the history**. **Name** gives the chat a name (up to 120 characters); press Enter to save it or Esc to cancel. **Remove from the history** asks you to confirm in the row. A removed chat can no longer be read from Monadic Chat; files the chat made in the shared folder, exported files and backups of your computer are not removed.
 - A chat open in a tab is marked "Open in a tab" and can be neither continued nor removed from another tab. To continue or remove it, start a new chat in the tab that has it open.
 
-## Shared Folder Panel :id=shared-folder-panel
+## Files Tab :id=shared-folder-panel
 
-The Shared Folder panel shows what the shared folder (`~/monadic/data`) holds. Click **Browse** to open the list in the Files tab of its window (the Chats tab holds the [chat history](#chat-history-panel)). It shows one folder at a time; click a folder to open it, and use the path at the top to go back.
+The **Files** tab shows what the shared folder (`~/monadic/data`) holds, one folder at a time. Click a folder to open it; use the path at the top, or the up-arrow button, to go back. Click a file to open it in the [work screen](#work-screen) (images, text files, audio, video, PDFs and Jupyter notebooks); clicking another kind of file selects it.
 
-Each entry shows its name, what it is, its size and when it was last modified:
+In the conversation and the work screen, a path in the shared folder is shown by its file name, with a dotted underline; point to it to see the whole path. Two files of the same name are shown with their folder. Text copied from the page, and what is sent to the model, keep the whole path. Code blocks, and a path that holds a word hidden with `Anonymize`, show the path as written.
+
+Each entry shows its name, when it was last modified, its size and what it is:
 
 - **What it is** comes from Monadic Chat's own record where it has one (the folders of chats, files named `pub_…`) and otherwise only from the entry's name, marked "(by its name)". A name does not tell whether a file is still needed. The videos and subtitles the page plays are kept by Monadic Chat outside the shared folder; files named `pub_…` in the shared folder are not used and can be moved to the trash.
 - Entries Monadic Chat or your own setup reads (your scripts, apps and helpers, your Docker services, the backup of the document database) are marked with a lock and the reason.
 - The folder of a chat open in a tab is marked "in use".
 - Files made by Monadic Chat's own test runs (named `monadic-test-…`) are marked "Made by a test run"; names that test runs used before are marked "Possibly left by a test run".
 - Links are listed as links and not followed.
+- Files the system keeps are not listed: what the operating system or Jupyter leaves beside your files (such as `.DS_Store`, `Thumbs.db` and `.ipynb_checkpoints`) and Monadic Chat's own hidden files at the top of the shared folder.
 - Sizes of folders are counted in the background and appear as they finish. A size shown as "≥" was counted only in part (a very large folder, or one partly unreadable).
 
-The upper band sets what is listed: search by name, sort by name, size (**Largest first**) or modification time (**Newest first**), narrow to one kind of item, and narrow to items not modified in the last 30, 90 or 365 days. Long lists are shown in pages of 100, 200 or 500 items. A line below the bands says when the list is loading, when the folder is empty or nothing matches, and what went wrong or what moving to the Trash did.
+The search box finds entries by name, the menu beside it orders them by name, modification time (**Newest first**) or size (**Largest first**; kept for the next time), and the filter button narrows the list to one kind of item or to items not modified in the last 30, 90 or 365 days. While a filter is on, a band above the list says so, with a button to clear it. **Show more** adds the next 50 entries. A line above the list says when it is loading, when the folder is empty or nothing matches, and what went wrong, what was copied or what moving to the Trash did; a result stays until you close it.
 
-Click a folder's name, double-click its row, or press Enter (or Cmd/Ctrl+↓) to open it; use the up-arrow button next to the path (or Cmd/Ctrl+↑) to go back up.
+Select entries with the box before each one: Shift+click selects a range, and Cmd/Ctrl+click on a name selects it without opening it. In the list, ↑ and ↓ move, Shift+↑ and ↓ extend the selection, Space selects, Enter opens, Cmd/Ctrl+A selects all shown, and Esc clears the selection. The select button above the list holds **Select all shown**, **Select all that can be moved to the Trash** (every matching entry, shown or not), **Select test files** and **Skip folders when selecting all**. While entries are selected, a band above the list shows their count and total size, with buttons to copy the paths a chat uses for them (`/monadic/data/…`, one per line), to move them to the Trash, and to clear the selection.
 
-Click a row to select it, Cmd/Ctrl+click to add or remove one, Shift+click to add a range, or press on a row and move over others. The arrow keys move the selection (Shift extends it), Cmd/Ctrl+A selects all shown, and Esc in the list clears the selection. What is selected stays selected across pages and orders, and is cleared when the search, a filter or the folder changes.
+The **⋯** button of an entry (or the Menu key, or Shift+F10, in the list) holds what can be done with it: open it, copy its path, show it in your file manager (in the desktop app; neither a folder nor a file is opened) and move it to the Trash.
 
-Double-click an image, audio, video, PDF or text file, or select it and press Space, to preview it over the panel. In the preview, ← and → go to the files before and after it on the page, and Esc or the close button closes it (the controls of a player keep their own keys). Text files, including HTML, SVG and Markdown, are shown as plain text, up to their first 256 KB. Audio and video do not start on their own. The copy button on the right of an item copies the path a chat uses for it (`/monadic/data/…`), to name the file in a message.
-
-In the desktop app, the button on the right of an item shows it in your file manager, selected in the folder that holds it; neither a folder nor a file is opened.
-
-In the desktop app, items can also be moved to the system's Trash. The lower band holds **Skip folders when selecting all**, **Select all shown**, **Select on all pages** (every item matching the search and filters), **Select test files** and the trash button; the count and total size of what is selected, with a button to clear the selection, are shown beside them. With **Skip folders when selecting all** checked, **Select all shown**, **Select on all pages** and Cmd/Ctrl+A select files only; a folder can still be selected by itself. Click the trash button and confirm in the dialog that names the count and the first items. While items are being moved, a spinner is shown over the panel and nothing else can be done in it. Items that are kept for a reason, and the folder of a chat open in a tab and what is in it, cannot be selected. Moved items can be put back from the Trash.
+In the desktop app, entries can be moved to the system's Trash. Only entries Monadic Chat allows are moved: entries that are kept for a reason, and the folder of a chat open in a tab and what is in it, can be selected (to copy their paths) but are not moved, and the band says how many of the selected cannot be moved. In a browser, the button is shown but cannot be used, and the band says so. Confirm in the dialog that names the count and the first items. Moved items can be put back from the Trash.
 
 ?> Monadic Chat keeps a small hidden file, `.monadic-shared-root`, in the shared folder. Do not remove it: without it, entries cannot be shown in the file manager or moved to the Trash (the list is still shown).
 

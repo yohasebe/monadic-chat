@@ -81,7 +81,7 @@ module Monadic
       end
 
       def wv_extract_features(s)
-        flags = %w[websearch monadic image pdf jupyter mermaid math abc
+        flags = %w[websearch image pdf jupyter mermaid math abc
                    easy_submit auto_speech initiate_from_assistant]
         result = flags.each_with_object({}) do |f, h|
           val = s[f.to_sym]
@@ -93,9 +93,9 @@ module Monadic
         result["image_generation"] = wv_generates_image?(s)
         # video_generation is a generation feature in its own right.
         result["video_generation"] = !!(s[:video_generation] || s["video_generation"])
-        # Normalize: pdf_vector_storage and pdf_upload imply pdf capability
+        # Normalize: pdf_upload implies pdf capability
         unless result["pdf"]
-          result["pdf"] = !!(s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"])
+          result["pdf"] = !!(s[:pdf_upload] || s["pdf_upload"])
         end
         result
       end

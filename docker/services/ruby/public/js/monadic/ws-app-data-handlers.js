@@ -30,6 +30,7 @@ function handleElevenLabsVoices(data) {
   const voices = data["content"];
 
   const sttOptionIds = [
+    "elevenlabs-stt-scribe-v3",
     "elevenlabs-stt-scribe-v2",
     "elevenlabs-stt-scribe"
   ];
@@ -601,9 +602,6 @@ function handleAppsMessage(data) {
         if (titleEl) titleEl.textContent = displayText;
 
         // Update badges immediately
-        const monadicBadge = $id("monadic-badge");
-        $toggle(monadicBadge, selectedApp["monadic"]);
-
         const websearchBadge = $id("websearch-badge");
         $toggle(websearchBadge, selectedApp["websearch"]);
 
@@ -625,12 +623,6 @@ function handleAppsMessage(data) {
         }
         if (typeof window.updateAppBadges === 'function') {
           window.updateAppBadges(firstValidApp);
-        }
-
-        if (firstValidApp === "PDF") {
-          if (window.ws) {
-            window.sendPdfWsMessage({ message: "PDF_TITLES" });
-          }
         }
 
         // Call proceedWithAppChange directly to ensure proper initialization
@@ -807,6 +799,9 @@ function handleAppsMessage(data) {
  * @param {Object} data - Message data with content (parameters object)
  * @returns {string|undefined} Status string for testing: 'skip', 'param_update', 'pending'
  */
+// What proceedWithAppChange keeps from params while a chat is imported.
+const IMPORT_KEPT_PARAMS = ['app_name', 'model', 'initiate_from_assistant', 'auto_speech'];
+
 function handleParametersMessage(data) {
   const apps = window.apps || {};
 
@@ -834,6 +829,15 @@ function handleParametersMessage(data) {
     if (typeof window !== 'undefined') {
       window.isProcessingImport = true;
       window.skipAssistantInitiation = true;
+    }
+    // The chat being taken in (an import, a chat from the history) was made
+    // with these. The app change that follows keeps them while importing
+    // (proceedWithAppChange), so they are the chat's, not the app shown
+    // before; otherwise the app shown before comes back.
+    if (typeof params !== 'undefined' && params) {
+      IMPORT_KEPT_PARAMS.forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(data["content"], key)) params[key] = data["content"][key];
+      });
     }
   }
 
@@ -1035,9 +1039,6 @@ function handleParametersMessage(data) {
       if (titleEl) titleEl.textContent = currentApp["display_name"] || currentApp["app_name"];
       const iconEl = $id("base-app-icon");
       if (iconEl) iconEl.innerHTML = currentApp["icon"];
-
-      const monadicBadge = $id("monadic-badge");
-      $toggle(monadicBadge, currentApp["monadic"]);
 
       const toolsBadge = $id("tools-badge");
       $toggle(toolsBadge, currentApp["tools"]);

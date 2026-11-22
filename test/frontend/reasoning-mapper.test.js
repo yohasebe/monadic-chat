@@ -32,8 +32,13 @@ global.modelSpec = {
   'grok-4.20-0309-reasoning': {
     reasoning_effort: [['low', 'high'], 'low']
   },
+  'gemini-levels': {
+    supports_thinking_level: true,
+    reasoning_effort: [['low', 'medium', 'high', 'xhigh'], 'low']
+  },
   'deepseek-reasoner': {
-    reasoning_content: ['disabled', 'enabled']
+    reasoning_content: ['disabled', 'enabled'],
+    reasoning_effort: [['none', 'low', 'high', 'max'], 'high']
   },
   'sonar-reasoning': {
     reasoning_effort: [['minimal', 'low', 'medium', 'high'], 'medium']
@@ -100,9 +105,9 @@ describe('ReasoningMapper', () => {
       expect(options).toEqual(['low', 'high']);
     });
 
-    test('DeepSeek returns limited options', () => {
+    test('DeepSeek returns the levels its spec lists', () => {
       const options = ReasoningMapper.getAvailableOptions('DeepSeek', 'deepseek-reasoner');
-      expect(options).toEqual(['minimal', 'medium']);
+      expect(options).toEqual(['none', 'low', 'high', 'max']);
     });
   });
 
@@ -112,9 +117,14 @@ describe('ReasoningMapper', () => {
       expect(result).toEqual({ reasoning_effort: 'low' });
     });
 
-    test('Claude maps to thinking_budget', () => {
+    test('Claude sends the effort chosen', () => {
       const result = ReasoningMapper.mapToProviderParameter('Anthropic', 'claude-sonnet-4-20250514', 'medium');
-      expect(result).toEqual({ thinking_budget: 10000 });
+      expect(result).toEqual({ reasoning_effort: 'medium' });
+    });
+
+    test('Claude sends an effort above high as chosen', () => {
+      const result = ReasoningMapper.mapToProviderParameter('Anthropic', 'claude-sonnet-4-20250514', 'max');
+      expect(result).toEqual({ reasoning_effort: 'max' });
     });
 
     test('Gemini maps through reasoning_effort', () => {
@@ -127,12 +137,24 @@ describe('ReasoningMapper', () => {
       expect(result).toEqual({ reasoning_effort: 'low' });
     });
 
-    test('DeepSeek maps to enabled/disabled', () => {
-      const mediumResult = ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'medium');
-      expect(mediumResult).toEqual({ reasoning_content: 'enabled' });
+    test('A DeepSeek chat saved with thinking off restores to off, even with the app effort beside it', () => {
+      expect(ReasoningMapper.savedChoice('DeepSeek', { reasoning_content: 'disabled', reasoning_effort: 'low' })).toBe('none');
+      expect(ReasoningMapper.savedChoice('DeepSeek', { reasoning_content: 'enabled', reasoning_effort: 'max' })).toBe('max');
+      expect(ReasoningMapper.savedChoice('OpenAI', { reasoning_content: 'disabled', reasoning_effort: 'low' })).toBe('low');
+    });
 
-      const minimalResult = ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'minimal');
-      expect(minimalResult).toEqual({ reasoning_content: 'disabled' });
+    test('Gemini thinking levels carry the choice in both keys, so an app default does not win', () => {
+      expect(ReasoningMapper.mapToProviderParameter('Google', 'gemini-levels', 'xhigh'))
+        .toEqual({ thinking_level: 'xhigh', reasoning_effort: 'xhigh' });
+      expect(ReasoningMapper.mapToProviderParameter('Google', 'gemini-levels', 'minimal')).toBeNull();
+    });
+
+    test('DeepSeek turns thinking off for none and on at the chosen level otherwise', () => {
+      expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'low'))
+        .toEqual({ reasoning_content: 'enabled', reasoning_effort: 'low' });
+      expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'none'))
+        .toEqual({ reasoning_content: 'disabled', reasoning_effort: 'none' });
+      expect(ReasoningMapper.mapToProviderParameter('DeepSeek', 'deepseek-reasoner', 'medium')).toBeNull();
     });
 
     test('Unsupported combinations return null', () => {
@@ -157,10 +179,31 @@ describe('ReasoningMapper', () => {
       expect(result).toBe('medium');
     });
 
-    test('DeepSeek returns medium', () => {
+    test('DeepSeek returns spec default', () => {
       const result = ReasoningMapper.getDefaultValue('DeepSeek', 'deepseek-reasoner');
-      expect(result).toBe('medium');
+      expect(result).toBe('high');
     });
 
+  });
+  describe('Mistral', () => {
+    beforeAll(() => {
+      window.modelSpec['a-mistral-model'] = { reasoning_effort: [['low', 'medium', 'high'], 'low'], supports_thinking: true };
+      window.modelSpec['a-mistral-model-without-levels'] = { supports_thinking: true };
+    });
+
+    test('offers the levels the model takes, with its default', () => {
+      expect(ReasoningMapper.isSupported('Mistral', 'a-mistral-model')).toBe(true);
+      expect(ReasoningMapper.getAvailableOptions('Mistral', 'a-mistral-model')).toEqual(['low', 'medium', 'high']);
+      expect(ReasoningMapper.getDefaultValue('Mistral', 'a-mistral-model')).toBe('low');
+    });
+
+    test('sends the level chosen', () => {
+      expect(ReasoningMapper.mapToProviderParameter('Mistral', 'a-mistral-model', 'high')).toEqual({ reasoning_effort: 'high' });
+      expect(ReasoningMapper.mapToProviderParameter('Mistral', 'a-mistral-model', 'max')).toBeNull();
+    });
+
+    test('offers none for a model without levels', () => {
+      expect(ReasoningMapper.isSupported('Mistral', 'a-mistral-model-without-levels')).toBe(false);
+    });
   });
 });

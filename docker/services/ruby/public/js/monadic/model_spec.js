@@ -234,6 +234,20 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // PDF and document input (input_file) answered correctly in the app.
+  "gpt-6.1-terra": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh", "max"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   "gpt-6-sol": {
     "context_window": [1, 1050000],
     "max_output_tokens": [1, 128000],
@@ -422,6 +436,36 @@ const modelSpec = {
     "supports_pdf": false,
     "supports_pdf_upload": false
   },
+  // Claude Fable 5.2: thinking always on; with the advisor tool it accepts
+  // only Fable 5.2 or Mythos 5.2 as the advisor.
+  "claude-fable-5-2": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh", "max"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "supports_adaptive_thinking": true,
+    "thinking_on_by_default": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "rejects_sampling_params": true,
+    "rejects_forced_tool_choice": true,
+    "thinking_block_binding": true,
+    "thinking_display_default_omitted": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": [],
+    "advisor_models": ["claude-mythos-5-2", "claude-fable-5-2"]
+  },
   // Anthropic models
   // Fable is Anthropic's top tier (above Opus). Same API contract as Opus
   // 4.7/4.8 — adaptive thinking only, rejects sampling params, effort
@@ -461,6 +505,7 @@ const modelSpec = {
     "structured_output": true,
     "structured_output_mode": "json_schema",
     "beta_flags": [],
+    "advisor_models": ["claude-mythos-5-2", "claude-fable-5-2", "claude-mythos-5-1", "claude-fable-5-1"],
     "unavailable_fallback": "claude-opus-5-5"
   },
   "claude-fable-5": {
@@ -706,7 +751,7 @@ const modelSpec = {
   "claude-haiku-4-5-20251001": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 8192], 8192],
+    "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": false,
@@ -911,6 +956,33 @@ const modelSpec = {
   // medium and high (minimal is 400); thinkingBudget 0 and temperature are
   // accepted; function calls, images and Google Search work.
   "gemini-4-argon": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high"], "medium"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "medium", "high"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
+  // Gemini 4 Hydrogen (2026-11-12): thinking levels low to xhigh (minimal is
+  // 400); input, thinking and output share the context window.
+  "gemini-4-hydrogen": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "medium", "high", "xhigh"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
+  // Gemini 4 Carbon (2026-11-10): thinking levels low, medium and high.
+  "gemini-4-carbon": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "reasoning_effort": [["low", "medium", "high"], "medium"],
@@ -1202,7 +1274,10 @@ const modelSpec = {
     "vision_capability": true,
     "supports_structured_output": true,
     "supports_thinking": true,
-    "reasoning_effort": [["none", "high"], "none"]
+    "reasoning_effort": [["none", "high"], "none"],
+    "deprecated": true,
+    "sunset_date": "2027-04-30",
+    "successor": "mistral-large-4"
   },
   // Mistral Small 4 (mistral-small-2603): hybrid instruct+reasoning+coding,
   // 256k context, 119B params with 6.5B active, cost-efficient.
@@ -1447,7 +1522,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   // V4 series: unified models with thinking/non-thinking mode toggle
   "deepseek-v4-flash": {
@@ -1461,7 +1536,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   "deepseek-v4-pro": {
     "context_window" : [1, 1000000],
@@ -1472,7 +1547,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   // DeepSeek's only vision model. The "-exp" is the vendor's own marker for an
   // experimental release, so it is offered for image input but kept out of the
@@ -1494,19 +1569,19 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "reasoning_content": ["disabled", "enabled"],
-    "reasoning_effort": ["high", "max"]
+    "reasoning_effort": [["none", "low", "high", "max"], "high"]
   },
   // Ollama models (local inference)
   // NOTE: Ollama model capabilities are normally fetched dynamically via
   // /api/ollama/models (see model_loader.js). This static entry exists only
-  // as a safety net — it ensures the recommended model's image upload and
-  // thinking panel still work if Ollama was unreachable at page load.
+  // as a safety net — it ensures the default model's tools and thinking panel
+  // still work if Ollama was unreachable at page load.
   // Dynamic entries override this when Ollama is available.
-  "qwen3-vl:8b-thinking": {
-    "context_window": [1, 262144],
+  "gpt-oss:20b": {
+    "context_window": [1, 131072],
     "max_output_tokens": [1, 32768],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": false,
     "supports_thinking": true
   },
 
@@ -1525,7 +1600,8 @@ const modelSpec = {
                    "onyx", "nova", "sage", "shimmer", "verse", "marin", "cedar"],
     "tts_default_voice": "coral",
     "tts_audio_formats": ["mp3", "opus", "aac", "flac", "wav", "pcm"],
-    "tts_streaming": true
+    "tts_streaming": true,
+    "sunset_date": "2027-01-06"
   },
   "tts-1-hd": {
     "tts_capability": true,
@@ -1534,7 +1610,8 @@ const modelSpec = {
                    "nova", "sage", "shimmer"],
     "tts_default_voice": "alloy",
     "tts_audio_formats": ["mp3", "opus", "aac", "flac", "wav", "pcm"],
-    "tts_streaming": true
+    "tts_streaming": true,
+    "sunset_date": "2027-01-06"
   },
   "tts-1": {
     "tts_capability": true,
@@ -1543,7 +1620,8 @@ const modelSpec = {
                    "nova", "sage", "shimmer"],
     "tts_default_voice": "alloy",
     "tts_audio_formats": ["mp3", "opus", "aac", "flac", "wav", "pcm"],
-    "tts_streaming": true
+    "tts_streaming": true,
+    "sunset_date": "2027-01-06"
   },
   "grok-tts": {
     "tts_capability": true,
@@ -1568,27 +1646,27 @@ const modelSpec = {
     // not on every call, so none is sent. Inline tags in the text still work.
     "tts_style_directive": "omit"
   },
-  // Stops 2026-11-17.
+  // Stops 2026-12-18.
   "gemini-3.1-flash-tts-preview": {
     "deprecated": true,
-    "sunset_date": "2026-11-17",
+    "sunset_date": "2026-12-18",
     "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini"
   },
-  // Stops 2026-11-17.
+  // Stops 2026-12-18.
   "gemini-2.5-flash-preview-tts": {
     "deprecated": true,
-    "sunset_date": "2026-11-17",
+    "sunset_date": "2026-12-18",
     "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
     "tts_pace_prefix": true
   },
-  // Stops 2026-11-17.
+  // Stops 2026-12-18.
   "gemini-2.5-pro-preview-tts": {
     "deprecated": true,
-    "sunset_date": "2026-11-17",
+    "sunset_date": "2026-12-18",
     "successor": "gemini-3.8-flash-tts",
     "tts_capability": true,
     "tts_family": "gemini",
@@ -1707,6 +1785,10 @@ const modelSpec = {
   "gpt-4o-transcribe-diarize": {
     "stt_capability": true,
     "sunset_date": "2027-02-26"
+  },
+  "scribe_v3": {
+    "stt_capability": true,
+    "stt_provider": "elevenlabs"
   },
   "scribe_v2": {
     "stt_capability": true,
@@ -1892,14 +1974,14 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
+    // Fast and less costly first; Coding Assistant, Code Interpreter, Jupyter
+    // Notebook and Second Opinion name gpt-6.1-sol in their MDSL.
+    "chat": ["gpt-6.1-terra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.2"],
     "code": ["gpt-6-sol", "gpt-5.6-sol", "gpt-5.4-mini"],
     "vision": ["gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini"],
     "audio_transcription": ["gpt-transcribe"],
-    // First entry is the default. The 2.5 models are offered as choices; moving
-    // the default is a separate decision that needs a like-for-like comparison
-    // of speed, quality and token usage.
-    "image": ["gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"],
+    // First entry is the default. gpt-image-2 stops 2027-02-10.
+    "image": ["gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst", "gpt-image-2"],
     "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   "anthropic": {
@@ -1916,9 +1998,9 @@ const providerDefaults = {
     "image": ["gemini-nano-banana-2.1", "gemini-3-pro-image"],
     // Gemini Omni over the Interactions API (scripts/generators/video_generator_gemini.rb);
     // Veo 3.1, its predecessor, is listed by Google to stop 2026-10-22.
-    "video": ["gemini-omni-1.1-flash"],
+    "video": ["gemini-omni-1.2-flash"],
     "music": ["lyria-3.5", "lyria-3-clip-preview"],
-    // The preview TTS models (deprecated, stop 2026-11-17) are not offered.
+    // The preview TTS models (deprecated, stop 2026-12-18) are not offered.
     "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
   },
   "cohere": {
@@ -1927,15 +2009,17 @@ const providerDefaults = {
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
-    "chat": ["mistral-large-4", "mistral-medium-3-5", "zai-glm-5-3", "zai-glm-5-3-flash"],
-    "code": ["mistral-medium-3-5", "mistral-small-2603"],
+    "chat": ["mistral-large-4", "zai-glm-5-3", "zai-glm-5-3-flash"],
+    "code": ["mistral-large-4", "mistral-small-2603"],
     "vision": ["mistral-small-2603"],
     "tts": ["voxtral-mini-tts-3-0"],
     "audio_transcription": ["voxtral-mini-transcribe-3-0"]
   },
   "xai": {
-    "chat": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.3", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
-    "code": ["grok-build-0.1", "grok-4.7", "grok-4.6", "grok-4.5", "grok-4.3"],
+    // Fast and less costly first; Coding Assistant, Code Interpreter, Jupyter
+    // Notebook, Second Opinion and AutoForge name grok-4.7 in their MDSL.
+    "chat": ["grok-4.3", "grok-4.7", "grok-4.6", "grok-4.5", "grok-4.20-0309-non-reasoning", "grok-4.20-0309-reasoning", "grok-4.20-multi-agent-0309"],
+    "code": ["grok-4.7", "grok-build-0.1", "grok-4.6", "grok-4.5", "grok-4.3"],
     "vision": ["grok-4.7", "grok-4.6", "grok-4.5", "grok-4.3"],
     // Image models, cheapest first; the
     // first is the default. These have no catalog entries, so this list is
@@ -1955,7 +2039,7 @@ const providerDefaults = {
     "vision": ["deepseek-flash"]
   },
   "ollama": {
-    "chat": ["gemma4:e4b", "qwen3-vl:8b-thinking"]
+    "chat": ["gpt-oss:20b"]
   },
   "elevenlabs": {
     "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5", "eleven_v4", "eleven_v4_turbo"],
@@ -1997,6 +2081,12 @@ const imageGenerationOptions = {
         "quality": ["auto", "low", "medium", "high", "xhigh", "max"]
       },
       "gpt-image-2.5-sunburst": {
+        "quality": ["auto", "low", "medium", "high", "xhigh", "max"]
+      },
+      "gpt-image-2.6-flare": {
+        "quality": ["auto", "low", "medium", "high", "xhigh", "max"]
+      },
+      "gpt-image-2.6-sunburst": {
         "quality": ["auto", "low", "medium", "high", "xhigh", "max"]
       }
     },

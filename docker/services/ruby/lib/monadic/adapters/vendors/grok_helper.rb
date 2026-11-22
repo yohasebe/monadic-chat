@@ -4,6 +4,8 @@ require 'cgi'
 
 require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
+require_relative "../../workbench/offer"
+require_relative "../../workbench/chat_output"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
 require_relative "../../utils/error_formatter"
@@ -19,6 +21,7 @@ require "json"
 
 module GrokHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include FunctionCallErrorHandler
   include GrokCompaction
@@ -332,6 +335,10 @@ module GrokHelper
             }
           end
         end
+        # What the work screen shows, after the message's own parts.
+        if (observation = observation_for(session, msg))
+          message["content"] << { "type" => "text", "text" => observation }
+        end
         message
       end
     end
@@ -348,23 +355,30 @@ module GrokHelper
       context_messages << { "role" => "user", "content" => [{ "type" => "text", "text" => initial_message }] }
     end
 
-    # Handle tool role - send tool results back
-    if role == "tool" && obj["function_returns"]
-      if obj["assistant_function_calls"]
-        context_messages << {
-          "role" => "assistant",
-          "content" => [{"type" => "text", "text" => ""}],
-          "assistant_function_calls" => obj["assistant_function_calls"]
-        }
-      end
+    # The turn's own message, before the rounds of tool calls that follow it.
+    turn_message = context_messages.last
 
-      obj["function_returns"].each do |result|
-        context_messages << {
-          "role" => "tool",
-          "content" => result["content"] || result[:content],
-          "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
-        }
+    # Handle tool role - send tool results back: each round of the turn, its
+    # calls then their results, in order.
+    if role == "tool" && obj["function_returns"]
+      rounds = Array(obj["earlier_tool_rounds"]) + [[obj["assistant_function_calls"], obj["function_returns"]]]
+      returns = rounds.flat_map do |calls, results|
+        call_message = if calls&.any?
+                         { "role" => "assistant", "content" => [{ "type" => "text", "text" => "" }],
+                           "assistant_function_calls" => calls }
+                       end
+        [call_message, *Array(results).map do |result|
+          {
+            "role" => "tool",
+            "content" => result["content"] || result[:content],
+            "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
+          }
+        end].compact
       end
+      # Each look's image follows the results, in a message of its own.
+      context_messages.concat(with_workbench_looks(returns, session, tool_id: method(:chat_tool_call_id)) do |looks|
+        chat_look_message(looks)
+      end)
 
       # Inject pending tool images
       if session[:pending_tool_images]&.any?
@@ -403,19 +417,18 @@ module GrokHelper
                          context_messages[0]["role"] == "system" &&
                          context_messages[1]["role"] == "user" &&
                          session[:messages].length <= 1
-    last_message_is_tool = context_messages.last && context_messages.last["role"] == "tool"
-
-    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && !last_message_is_tool
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it.
+    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && turn_message&.dig("role") == "user"
       new_text = last_text + "\n\n" + prompt_suffix.strip
-      if context_messages.dig(-1, "content")
-        last_content = context_messages.last["content"]
-        if last_content.is_a?(Array)
-          last_content.each do |content_item|
-            content_item["text"] = new_text if content_item["type"] == "text"
-          end
-        elsif last_content.is_a?(String)
-          context_messages.last["content"] = new_text
-        end
+      turn_content = turn_message["content"]
+      if turn_content.is_a?(Array)
+        # The message's own text (its first text element) takes the
+        # suffix; the work screen observation after it stays.
+        own_text = turn_content.find { |content_item| content_item["type"] == "text" }
+        own_text["text"] = new_text if own_text
+      elsif turn_content.is_a?(String)
+        turn_message["content"] = new_text
       end
     end
 
@@ -471,7 +484,7 @@ module GrokHelper
     obj = session[:parameters]
 
     # Force text-only response when force-stop is active
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end
@@ -486,19 +499,18 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to xAI. No-op when
-    # the app does not declare `privacy do; enabled true; end` in MDSL. Grok
-    # uses the Responses API shape (body["input"]).
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["input"].is_a?(Array)
-      body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
-    end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged).
+    hiding = hide_words_in_request!(body, session)
+    compacted_with_other_words!(body, session, hiding.last) if hiding
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
+    offer_tools!(body, session, app, provider: "grok", model: body["model"])
+    # Each post of the body is checked for what it holds of the work screen.
+    res = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                             looks: { session: session, provider: "grok", model: body["model"] })
+    end
 
     unless res.status.success?
       error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
@@ -537,17 +549,13 @@ module GrokHelper
           { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
         end
 
-        # Accumulate across multi-turn tool rounds within a single user request.
-        # Without the `||= [] + ...` pattern, each new tool round would overwrite
-        # prior rounds' calls and the model would lose the history of what it
-        # already called. Mirrors the Claude / OpenAI multi-turn context fix.
-        (obj["assistant_function_calls"] ||= []).concat(function_calls.map do |fc|
+        start_grok_tool_round(obj, grok_reasoning_to_replay(output) + function_calls.map do |fc|
           { "type" => "function_call", "id" => fc["id"], "call_id" => fc["call_id"] || fc["id"],
             "name" => fc["name"], "arguments" => fc["arguments"] || "{}" }
         end)
 
         session[:call_depth_per_turn] += 1
-        if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+        if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
           return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
             provider: "xAI", message: "Maximum function call depth exceeded"
           ) }]
@@ -595,29 +603,6 @@ module GrokHelper
       argument_hash = {}
     end
 
-    # Fix Jupyter filenames if stored filename exists
-    if obj["current_notebook_filename"] && argument_hash["filename"]
-      jupyter_functions = %w[add_jupyter_cells delete_jupyter_cell update_jupyter_cell
-                            get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-                            restart_jupyter_kernel interrupt_jupyter_execution
-                            move_jupyter_cell insert_jupyter_cells]
-
-      if jupyter_functions.include?(function_name)
-        provided_filename = argument_hash["filename"].to_s.gsub(/\.ipynb$/, '')
-        stored_filename = obj["current_notebook_filename"].gsub(/\.ipynb$/, '')
-        shared_volume = Monadic::Utils::Environment.in_container? ? MonadicApp::SHARED_VOL : MonadicApp::LOCAL_SHARED_VOL
-        provided_path = File.join(shared_volume, "#{provided_filename}.ipynb")
-
-        if !File.exist?(provided_path)
-          stored_base_name = stored_filename.gsub(/_\d{8}_\d{6}$/, '')
-          provided_base_name = provided_filename.gsub(/_\d{8}_\d{6}$/, '')
-          if stored_base_name == provided_base_name
-            argument_hash["filename"] = stored_filename
-          end
-        end
-      end
-    end
-
     # Symbolize keys, skip null values
     argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
       next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
@@ -625,76 +610,43 @@ module GrokHelper
       memo[k.to_sym] = v
     end
 
-    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-    # injection so the session object is never walked. No-op without vocabulary.
-    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
-
-    # Inject session for tools that need it
-    method_obj = APPS[app].method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
-      argument_hash[:session] = session
-    end
-
-    # Execute function
-    begin
-      refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-      function_return = if refusal
-        # Run only the tools offered to the model in the latest request.
-        refusal
-      elsif function_name == "request_tool"
-        Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-          session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-        )
-      else
-        APPS[app].public_send(function_name.to_sym, **argument_hash)
-      end
-      send_verification_notification(session, &block) if function_name == "report_verification"
-
-      # Fix HTML-escaped SVG files (Grok-specific)
-      fix_grok_svg_escaping(function_name, function_return)
-
-      # Store Jupyter notebook filename
-      store_grok_notebook_filename(function_name, function_return, obj)
-
-      # Store image/video filenames
-      store_grok_media_filename(function_name, function_return, obj, session)
-
-      Monadic::Utils::ExtraLogger.log { "Tool executed: #{function_name}, result: #{function_return.to_s[0..200]}..." }
-
-      Monadic::Utils::TtsTextExtractor.extract_tts_text(
-        app: app, function_name: function_name,
-        argument_hash: argument_hash, session: session
-      )
-    rescue StandardError => e
+    error_text = lambda { |e|
       DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
-      function_return = Monadic::Utils::ErrorFormatter.tool_error(
-        provider: "xAI", tool_name: function_name, message: e.message
-      )
+      Monadic::Utils::ErrorFormatter.tool_error(provider: "xAI", tool_name: function_name, message: e.message)
+    }
+    # What Grok's results need: an SVG file written with its markup escaped
+    # put right, and the notebook or the media file a tool made remembered.
+    grok_follow_up = lambda do |function_return|
+      fix_grok_svg_escaping(function_name, function_return)
+      store_grok_notebook_filename(function_name, function_return, obj)
+      store_grok_media_filename(function_name, function_return, obj, session)
+      function_return
+    rescue StandardError => e
+      error_text.call(e)
     end
+    result = run_tool_call(
+      app, session, function_name, argument_hash, call_id: tool_call["id"],
+      amend: grok_follow_up, error_text: error_text, &block
+    )
+    function_return = result.value
+    Monadic::Utils::ExtraLogger.log { "Tool executed: #{function_name}, result: #{workbench_loggable(function_return).to_s[0..200]}..." }
 
-    # Check for repeated errors
-    if handle_function_error(session, function_return, function_name, &block)
+    # The same error too often: the round ends with what the tool said.
+    if result.stop
       error_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => function_return.to_s }
       return [error_result, true]
     end
 
-    # Collect _image for screenshot injection
-    if function_return.is_a?(Hash) && function_return[:_image]
-      session[:pending_tool_images] = Array(function_return[:_image])
-      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-      content_str = JSON.generate(clean_return)
+    # A result with images for the model goes without its private keys
+    if result.images
+      (session[:pending_tool_images] ||= []).concat(result.images)
+      content_str = JSON.generate(result.without_private_keys)
     else
-      content_str = function_return.to_s
-    end
-
-    # Store gallery_html for server-side injection
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
+      content_str = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
     end
 
     tool_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => content_str }
-    [tool_result, false]
+    [tool_result, false, function_return]
   end
 
   # Fix HTML-escaped SVG files created by Grok's code generation
@@ -731,7 +683,8 @@ module GrokHelper
     return unless function_return =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
 
     obj["current_notebook_filename"] = $1
-    obj["current_notebook_link"] = "<a href='http://127.0.0.1:8889/lab/tree/#{$1}' target='_blank'>Open #{$1}</a>"
+    name = $1
+    obj["current_notebook_link"] = "<a href='#{CGI.escapeHTML(get_jupyter_notebook_url(name))}' target='_blank'>Open #{CGI.escapeHTML(File.basename(name))}</a>"
   end
 
   # Store image/video filenames from generation results
@@ -743,9 +696,6 @@ module GrokHelper
       return unless result["success"] && result["filename"]
 
       case function_name
-      when "generate_image_with_grok"
-        obj["current_image_filename"] = result["filename"]
-        session[:grok_last_image] = result["filename"]
       when "generate_video_with_grok_imagine"
         obj["current_video_filename"] = result["filename"]
         session[:grok_last_video_filename] = result["filename"]
@@ -756,25 +706,12 @@ module GrokHelper
     end
   end
 
-  # Post-process Grok's response: fix filenames, image paths, notebook URLs
+  # Post-process Grok's response: fix notebook filenames and URLs
   private def postprocess_grok_response(new_results, obj)
     return unless new_results.is_a?(Array) && !new_results.empty?
 
     content = new_results.dig(0, "choices", 0, "message", "content")
     return unless content
-
-    # Fix image paths for Code Interpreter
-    if obj["app_name"].to_s.include?("CodeInterpreter") || obj["display_name"].to_s.include?("Code Interpreter")
-      if content =~ /File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
-        filename = $1
-        unless content.include?("<div class=\"generated_image\">")
-          if content =~ /(Output:.*?```[^`]*```)/m
-            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{CGI.escapeHTML(filename.to_s)}\" />\n</div>"
-            content = content.sub($1, $1 + image_html)
-          end
-        end
-      end
-    end
 
     # Fix notebook filenames
     if obj["current_notebook_filename"]
@@ -785,16 +722,6 @@ module GrokHelper
       content = content.gsub(/\b#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb\b/i, actual_filename)
       content = content.gsub(%r{http://localhost:8889/lab/tree/#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb}i,
                             "http://localhost:8889/lab/tree/#{actual_filename}")
-    end
-
-    # Fix image filenames
-    if obj["current_image_filename"]
-      actual_image_filename = obj["current_image_filename"]
-      content = content.gsub(/\d{8}-\d{6}\.png/i, actual_image_filename)
-      content = content.gsub(/(?<!\d)\d{10}\.png/i, actual_image_filename)
-      content = content.gsub(/src="\/data\/\d{8}-\d{6}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
-      content = content.gsub(/src="\/data\/\d{10}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
-      content = content.gsub(/\/data\/[a-zA-Z0-9_-]+\.png/, "/data/#{actual_image_filename}")
     end
 
     new_results[0]["choices"][0]["message"]["content"] = content
@@ -1004,6 +931,30 @@ module GrokHelper
   end
 
   # Connect to xAI Responses API and get a response
+  # The round's reasoning items that go back with its calls: those that
+  # carry the encrypted reasoning (the model's own context, not its summary).
+  private def grok_reasoning_to_replay(output)
+    output.select { |item| item["type"] == "reasoning" && item["encrypted_content"] }
+  end
+
+  # A new round of tool calls: the round before it (its calls and their
+  # results) is kept, in order, with the turn's earlier rounds.
+  private def start_grok_tool_round(obj, calls)
+    if Array(obj["assistant_function_calls"]).any?
+      (obj["earlier_tool_rounds"] ||= []) << [obj["assistant_function_calls"], Array(obj["function_returns"])]
+    end
+    obj["assistant_function_calls"] = calls
+    obj["function_returns"] = []
+  end
+
+  # The reasoning effort to ask a model for: the value given when the catalog
+  # lists it for the model, otherwise nil (nothing is sent).
+  def grok_reasoning_effort(model, value)
+    effort = value.to_s.strip
+    options = (Monadic::Utils::ModelSpec.get_reasoning_effort_options(model) rescue nil)&.dig(:options)
+    options.is_a?(Array) && options.include?(effort) ? effort : nil
+  end
+
   def api_request(role, session, call_depth: 0, disable_streaming: false, &block)
     # Reset call_depth counter and tool state for each new user turn
     if role == "user"
@@ -1012,6 +963,7 @@ module GrokHelper
       session[:images_injected_this_turn] = Set.new
       session[:parameters]["function_returns"] = nil
       session[:parameters]["assistant_function_calls"] = nil
+      session[:parameters]["earlier_tool_rounds"] = nil
       # Reset the cross-round reasoning accumulator. Grok emits its reasoning
       # summary before a tool call; without accumulating it across the
       # tool-call recursion, only the final (often reasoning-free) round's
@@ -1041,19 +993,23 @@ module GrokHelper
                      end
 
     prompt_suffix = obj["prompt_suffix"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature is sent with 0; a
+    # penalty or an output limit it does not name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
-    max_tokens = obj["max_tokens"]&.to_i
-    temperature = obj["temperature"].to_f
-    presence_penalty = obj["presence_penalty"] ? obj["presence_penalty"].to_f : nil
-    frequency_penalty = obj["frequency_penalty"] ? obj["frequency_penalty"].to_f : nil
-    reasoning_effort = obj["reasoning_effort"]
-    context_size = obj["context_size"].to_i
+    max_tokens = turn.max_tokens
+    temperature = turn.temperature || 0.0
+    presence_penalty = turn.presence_penalty
+    frequency_penalty = turn.frequency_penalty
+    reasoning_effort = turn.reasoning_effort
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
     # Check for websearch configuration
-    websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch = turn.websearch == true
 
     # Dynamically switch model if websearch is needed but not supported
     original_model = model
@@ -1068,7 +1024,7 @@ module GrokHelper
       DebugHelper.debug("Grok websearch disabled (requested=#{websearch}, supports=#{Monadic::Utils::ModelSpec.supports_web_search?(model)})", category: :api, level: :info)
     end
 
-    Monadic::Utils::ExtraLogger.log { "=== Grok websearch parameter check ===\nobj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})\nwebsearch enabled = #{websearch}" }
+    Monadic::Utils::ExtraLogger.log { "=== Grok websearch parameter check ===\nwebsearch enabled = #{websearch}" }
 
     message = nil
     data = nil
@@ -1204,6 +1160,14 @@ module GrokHelper
     body["presence_penalty"] = presence_penalty if presence_penalty
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_output_tokens"] = max_tokens if max_tokens
+    # A reasoning model's reasoning comes back encrypted, to go back with the
+    # calls it led to (the request is not stored on the server).
+    if (Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort") rescue false)
+      body["include"] = ["reasoning.encrypted_content"]
+      # The effort the user chose, when it is one the model takes.
+      effort = grok_reasoning_effort(model, reasoning_effort)
+      body["reasoning"] = { "effort" => effort } if effort
+    end
 
 
     if obj["response_format"]
@@ -1271,8 +1235,18 @@ module GrokHelper
     [res]
   end
 
+  # A compaction blob made while the chat hid other words than the request
+  # is hidden with is not sent (a word hidden since is in it as it is).
+  def compacted_with_other_words!(body, session, snapshot)
+    return unless Array(body["input"]).any? { |item| item.is_a?(Hash) && item["type"] == "compaction" }
+    return if session.dig(:grok_compaction, "words") == snapshot.revision
+
+    session.delete(:grok_compaction)
+    raise Monadic::Utils::Privacy::Outbound::Refused, "the words to hide changed while the conversation was being compacted; nothing was sent"
+  end
+
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing Grok Responses API query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing Grok Responses API query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
     if obj.nil?
@@ -1281,7 +1255,9 @@ module GrokHelper
       obj = session[:parameters]
     end
 
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
+    output_items = []
     texts = {}
     tools = {}
     finish_reason = nil
@@ -1293,256 +1269,231 @@ module GrokHelper
     usage_output_tokens = nil
     usage_total_tokens = nil
 
-    res.each do |chunk|
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream. A proc, not a lambda: its returns end the reply.
+    handle = proc do |json|
 
-      if buffer.valid_encoding? == false
+      Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
+
+      # Check if response model differs from requested model
+      response_model = json["model"]
+      requested_model = query["original_user_model"] || query["model"]
+      check_model_switch(response_model, requested_model, session, &block)
+
+      # Handle different event types for Responses API
+      event_type = json["type"]
+
+      case event_type
+      when "response.created"
+        # Response created - log for debugging
+        Monadic::Utils::ExtraLogger.log { "Grok response.created" }
+
+      when "response.in_progress"
+        # xAI sends proper delta events, so skip in_progress to avoid duplication
         next
-      end
 
-      begin
-        # Check for completion patterns
-        if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
-          break
-        end
-      rescue StandardError
-        next
-      end
+      when "response.output_text.delta"
+        # Text fragment from streaming
+        fragment = json["delta"]
 
-      scanner = StringScanner.new(buffer)
-      # Responses API uses SSE format with data: prefix
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
+        if fragment && !fragment.empty?
+          id = json["response_id"] || json["item_id"] || "default"
+          texts[id] ||= String.new
 
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = matched.match(pattern)[1]
-          begin
-            json = JSON.parse(json_data)
+          texts[id] << fragment
 
-            Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
-
-            # Check if response model differs from requested model
-            response_model = json["model"]
-            requested_model = query["original_user_model"] || query["model"]
-            check_model_switch(response_model, requested_model, session, &block)
-
-            # Handle different event types for Responses API
-            event_type = json["type"]
-
-            case event_type
-            when "response.created"
-              # Response created - log for debugging
-              Monadic::Utils::ExtraLogger.log { "Grok response.created" }
-
-            when "response.in_progress"
-              # xAI sends proper delta events, so skip in_progress to avoid duplication
-              next
-
-            when "response.output_text.delta"
-              # Text fragment from streaming
-              fragment = json["delta"]
-
-              if fragment && !fragment.empty?
-                id = json["response_id"] || json["item_id"] || "default"
-                texts[id] ||= String.new
-
-                texts[id] << fragment
-
-                if fragment.length > 0
-                  res_event = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res_event
-                end
-              end
-
-            when "response.output_text.done"
-              # Text output completed - finalize text
-              text = json["text"]
-              if text
-                id = json["item_id"] || "default"
-                texts[id] = text  # Final text
-              end
-
-            when "response.output_item.added"
-              # New output item added
-              item = json["item"]
-              if item && item["type"] == "function_call"
-                # Store the function name and ID for later use
-                item_id = item["id"]
-                if item_id
-                  tools[item_id] ||= {}
-                  tools[item_id]["name"] = item["name"] if item["name"]
-                  tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
-                  tools[item_id]["arguments"] ||= ""
-                end
-                res_event = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                block&.call res_event
-              end
-
-            when "response.output_item.done"
-              # Output item completed
-              item = json["item"]
-              if item && item["type"] == "function_call"
-                item_id = item["id"]
-                if item_id
-                  tools[item_id] ||= {}
-                  tools[item_id]["name"] = item["name"] if item["name"]
-                  tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
-                  tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
-                  tools[item_id]["completed"] = true
-                end
-              end
-
-            when "response.function_call_arguments.delta", "response.function_call.arguments.delta", "response.function_call.delta"
-              # Tool call arguments fragment
-              item_id = json["item_id"]
-              delta = json["delta"]
-
-              if item_id && delta
-                tools[item_id] ||= {}
-                tools[item_id]["arguments"] ||= ""
-                tools[item_id]["arguments"] += delta
-              end
-
-            when "response.function_call_arguments.done", "response.function_call.arguments.done", "response.function_call.done"
-              # Tool call arguments completed
-              item_id = json["item_id"]
-              arguments = json["arguments"]
-              name = json["name"]
-
-              if item_id
-                tools[item_id] ||= {}
-                tools[item_id]["arguments"] = arguments if arguments
-                tools[item_id]["name"] = name if name
-                tools[item_id]["completed"] = true
-              end
-
-            when "response.reasoning_summary_text.delta"
-              # Reasoning summary delta (streaming)
-              rid = json["item_id"] || current_reasoning_id
-              delta = json["delta"]
-
-              if delta && !delta.to_s.empty?
-                current_reasoning_id = rid if rid
-                reasoning_content << delta.to_s
-
-                # Send reasoning delta to frontend (like Claude's thinking)
-                res_event = {
-                  "type" => "thinking",
-                  "content" => delta.to_s
-                }
-                block&.call res_event
-              end
-
-            when "response.reasoning_summary_text.done", "response.reasoning_summary_part.done"
-              # Reasoning summary completed - text is already accumulated from deltas
-              rid = json["item_id"] || current_reasoning_id
-              if rid
-                current_reasoning_id = nil
-              end
-
-            when "response.web_search_call.in_progress"
-              # Web search started
-              res_event = { "type" => "wait", "content" => "<i class='fas fa-search'></i> SEARCHING WEB" }
-              block&.call res_event
-
-            when "response.web_search_call.searching"
-              # Web search in progress - could show progress if needed
-
-            when "response.web_search_call.completed"
-              # Web search completed
-              Monadic::Utils::ExtraLogger.log { "Grok web search completed: item_id=#{json["item_id"]}" }
-
-            when "response.completed", "response.done"
-              # Response completed - extract usage and set finish_reason
-              response_data = json["response"] || json
-              # Capture usage if present
-              usage = response_data["usage"] || json["usage"]
-              if usage.is_a?(Hash)
-                usage_input_tokens = usage["input_tokens"] || usage["prompt_tokens"] || usage_input_tokens
-                usage_output_tokens = usage["output_tokens"] || usage["completion_tokens"] || usage_output_tokens
-                usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
-              end
-
-              finish_reason = response_data["stop_reason"] || json["stop_reason"] || "stop"
-
-            when "response.error"
-              # Error occurred
-              error_msg = json.dig("error", "message") || "Unknown error"
-              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-                provider: "xAI",
-                message: error_msg
-              )
-              res_event = { "type" => "error", "content" => formatted_error }
-              block&.call res_event
-
-              return [res_event]
-
-            else
-              # Handle legacy format fallback (choices[0].delta.reasoning_content)
-              if json.dig("choices", 0, "delta", "reasoning_content")
-                reasoning = json.dig("choices", 0, "delta", "reasoning_content")
-                unless reasoning.to_s.strip.empty? || reasoning == "Thinking..."
-                  reasoning_content << reasoning
-                  res_event = {
-                    "type" => "thinking",
-                    "content" => reasoning
-                  }
-                  block&.call res_event
-                end
-              elsif json.dig("choices", 0, "delta", "content")
-                # Legacy chat completions format fallback
-                fragment = json.dig("choices", 0, "delta", "content").to_s
-                if fragment.length > 0
-                  id = json["id"] || "default"
-                  texts[id] ||= String.new
-                  texts[id] << fragment
-                  res_event = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res_event
-                end
-              elsif event_type
-                Monadic::Utils::ExtraLogger.log { "Grok unknown event type: #{event_type}" }
-              end
-            end
-
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[Grok Events] Error: #{e.message}\n[Grok Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+          if fragment.length > 0
+            res_event = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res_event
           end
-        else
-          buffer = scanner.rest
-          break
+        end
+
+      when "response.output_text.done"
+        # Text output completed - finalize text
+        text = json["text"]
+        if text
+          id = json["item_id"] || "default"
+          texts[id] = text  # Final text
+        end
+
+      when "response.output_item.added"
+        # New output item added
+        item = json["item"]
+        if item && item["type"] == "function_call"
+          # Store the function name and ID for later use
+          item_id = item["id"]
+          if item_id
+            tools[item_id] ||= {}
+            tools[item_id]["name"] = item["name"] if item["name"]
+            tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
+            tools[item_id]["arguments"] ||= ""
+          end
+          res_event = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+          block&.call res_event
+        end
+
+      when "response.output_item.done"
+        # Output item completed
+        item = json["item"]
+        output_items << item if item.is_a?(Hash)
+        if item && item["type"] == "function_call"
+          item_id = item["id"]
+          if item_id
+            tools[item_id] ||= {}
+            tools[item_id]["name"] = item["name"] if item["name"]
+            tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
+            tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
+            tools[item_id]["completed"] = true
+          end
+        end
+
+      when "response.function_call_arguments.delta", "response.function_call.arguments.delta", "response.function_call.delta"
+        # Tool call arguments fragment
+        item_id = json["item_id"]
+        delta = json["delta"]
+
+        if item_id && delta
+          tools[item_id] ||= {}
+          tools[item_id]["arguments"] ||= ""
+          tools[item_id]["arguments"] += delta
+        end
+
+      when "response.function_call_arguments.done", "response.function_call.arguments.done", "response.function_call.done"
+        # Tool call arguments completed
+        item_id = json["item_id"]
+        arguments = json["arguments"]
+        name = json["name"]
+
+        if item_id
+          tools[item_id] ||= {}
+          tools[item_id]["arguments"] = arguments if arguments
+          tools[item_id]["name"] = name if name
+          tools[item_id]["completed"] = true
+        end
+
+      when "response.reasoning_summary_text.delta"
+        # Reasoning summary delta (streaming)
+        rid = json["item_id"] || current_reasoning_id
+        delta = json["delta"]
+
+        if delta && !delta.to_s.empty?
+          current_reasoning_id = rid if rid
+          reasoning_content << delta.to_s
+
+          # Send reasoning delta to frontend (like Claude's thinking)
+          res_event = {
+            "type" => "thinking",
+            "content" => delta.to_s
+          }
+          block&.call res_event
+        end
+
+      when "response.reasoning_summary_text.done", "response.reasoning_summary_part.done"
+        # Reasoning summary completed - text is already accumulated from deltas
+        rid = json["item_id"] || current_reasoning_id
+        if rid
+          current_reasoning_id = nil
+        end
+
+      when "response.web_search_call.in_progress"
+        # Web search started
+        res_event = { "type" => "wait", "content" => "<i class='fas fa-search'></i> SEARCHING WEB" }
+        block&.call res_event
+
+      when "response.web_search_call.searching"
+        # Web search in progress - could show progress if needed
+
+      when "response.web_search_call.completed"
+        # Web search completed
+        Monadic::Utils::ExtraLogger.log { "Grok web search completed: item_id=#{json["item_id"]}" }
+
+      when "response.completed", "response.done"
+        # Response completed - extract usage and set finish_reason
+        response_data = json["response"] || json
+        # Capture usage if present
+        usage = response_data["usage"] || json["usage"]
+        if usage.is_a?(Hash)
+          usage_input_tokens = usage["input_tokens"] || usage["prompt_tokens"] || usage_input_tokens
+          usage_output_tokens = usage["output_tokens"] || usage["completion_tokens"] || usage_output_tokens
+          usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
+        end
+
+        finish_reason = response_data["stop_reason"] || json["stop_reason"] || "stop"
+
+      when "response.error", "response.failed", "error"
+
+        # An error inside the stream ends the reply as that error.
+
+        stream_error = json.dig("error", "message") || json.dig("response", "error", "message") || json["message"] || "Unknown error"
+
+        throw :grok_stream_end
+
+      else
+        # Handle legacy format fallback (choices[0].delta.reasoning_content)
+        if json.dig("choices", 0, "delta", "reasoning_content")
+          reasoning = json.dig("choices", 0, "delta", "reasoning_content")
+          unless reasoning.to_s.strip.empty? || reasoning == "Thinking..."
+            reasoning_content << reasoning
+            res_event = {
+              "type" => "thinking",
+              "content" => reasoning
+            }
+            block&.call res_event
+          end
+        elsif json.dig("choices", 0, "delta", "content")
+          # Legacy chat completions format fallback
+          fragment = json.dig("choices", 0, "delta", "content").to_s
+          if fragment.length > 0
+            id = json["id"] || "default"
+            texts[id] ||= String.new
+            texts[id] << fragment
+            res_event = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res_event
+          end
+        elsif event_type
+          Monadic::Utils::ExtraLogger.log { "Grok unknown event type: #{event_type}" }
         end
       end
-    rescue StandardError => e
-      DebugHelper.debug("JSON parsing error: #{e.message}", category: :api, level: :error)
-      DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
-      DebugHelper.debug("Error details: #{e.inspect}", category: :api, level: :debug)
+    end
+
+    catch(:grok_stream_end) do
+      read = lambda do |data, event|
+        throw :grok_stream_end if data.strip == "[DONE]" || event == "done"
+
+        handle.call(JSON.parse(data))
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Grok Events] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Grok Events] Error: #{e.message}\n[Grok Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[Grok Events] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+      return StreamRecords.error_reply("xAI", stream_error, &block)
     end
 
     # Handle tool calls if any were collected
     if tools.any? && tools.any? { |_, tool| tool["completed"] }
       session[:call_depth_per_turn] += 1
 
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "xAI",
           message: "Maximum function call depth exceeded"
@@ -1564,9 +1515,9 @@ module GrokHelper
       end
 
       if tool_calls.any?
-        # Store assistant function calls in Responses API format for context.
-        # Accumulate across rounds so prior turns' calls remain visible.
-        (obj["assistant_function_calls"] ||= []).concat(tools.filter_map do |item_id, tool_data|
+        # Store assistant function calls in Responses API format for context,
+        # after the reasoning that led to them.
+        start_grok_tool_round(obj, grok_reasoning_to_replay(output_items) + tools.filter_map do |item_id, tool_data|
           next unless tool_data["completed"]
           {
             "type" => "function_call",
@@ -1722,7 +1673,9 @@ module GrokHelper
         begin
           if result_content.is_a?(String)
             content_json = JSON.parse(result_content)
-            if content_json["success"] && content_json["filename"]
+            if content_json["success"] && content_json["path"]
+              response_parts << Monadic::Workbench::ChatOutput.chat_line("The video", content_json["path"])
+            elsif content_json["success"] && content_json["filename"]
               response_parts << "<div class=\"prompt\" style=\"margin-bottom: 15px;\">"
               response_parts << "  <b>Video Generated</b>"
               response_parts << "</div>"
@@ -1766,42 +1719,34 @@ module GrokHelper
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      tool_result, error_stop = invoke_grok_tool_function(app, session, tool_call, function_name, &block)
+      tool_result, error_stop, returned = invoke_grok_tool_function(app, session, tool_call, function_name, &block)
       tool_results << tool_result if tool_result
       next if error_stop
+      next unless returned.is_a?(Monadic::Workbench::Offered) && returned.for?(session)
+
+      # An image was put on the workbench: the reply's work is done. The
+      # turn's other calls are not run (each gets a result), and the reply
+      # ends without asking the model.
+      answered = tool_results.map { |r| r["call_id"] }
+      tools.each do |skipped|
+        next if answered.include?(skipped["id"])
+
+        tool_results << { "call_id" => skipped["id"], "name" => skipped.dig("function", "name"),
+                          "content" => Monadic::Workbench::Offered.not_executed }
+      end
+      (obj["function_returns"] ||= []).concat(tool_results)
+      return Monadic::Workbench::Offer.end_reply(returned, &block)
     end
 
-    # Store tool results in session for API request.
-    # Accumulate across rounds so prior turns' results remain visible to
-    # the model on the next API call. Mirrors the Claude / OpenAI fix.
+    # This round's results; the earlier rounds are in earlier_tool_rounds.
     (obj["function_returns"] ||= []).concat(tool_results)
 
-    # Check if we've reached max call depth
-    if call_depth >= MAX_FUNC_CALLS
-      summary = "Completed #{tool_results.length} tool execution(s):\n\n"
-      tool_results.each do |result|
-        result_content = (result['content'] || result[:content]).to_s
-        result_name = result['name'] || result[:name]
-        summary += "- #{result_name}: #{result_content[0..100]}#{result_content.length > 100 ? '...' : ''}\n"
-      end
-
-      return [{
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => summary
-          },
-          "finish_reason" => "stop"
-        }]
-      }]
-    end
-
     # Check if we should stop due to repeated errors
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     # CORRECT FLOW: Send tool results back to Grok to get natural language response
     # According to documentation, we must send tool results with function_call_output back to Grok
@@ -1828,7 +1773,7 @@ module GrokHelper
       block&.call({ "type" => "fragment", "content" => response_content })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
 
-      new_results = [{
+      new_results = replies_as_is([{
         "choices" => [{
           "message" => {
             "role" => "assistant",
@@ -1836,7 +1781,7 @@ module GrokHelper
           },
           "finish_reason" => "stop"
         }]
-      }]
+      }])
     else
       new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
     end
@@ -1844,15 +1789,15 @@ module GrokHelper
     # Post-process Grok's response to replace incorrect filenames and fix image paths
     postprocess_grok_response(new_results, obj)
 
+    # A request that failed ends the reply as its error, not as a success.
+    return new_results if new_results.is_a?(Array) && new_results.first.is_a?(Hash) && new_results.first["type"] == "error"
+
     # If Grok returns empty or inadequate response after tool execution, provide a fallback
     content_check = new_results&.dig(0, "choices", 0, "message", "content").to_s.strip
     tool_calls_check = new_results&.dig(0, "choices", 0, "message", "tool_calls")
 
     is_inadequate = new_results.nil? || new_results.empty? ||
-                    (content_check.empty? && (tool_calls_check.nil? || tool_calls_check.empty?)) ||
-                    (obj["current_image_filename"] && !content_check.include?("<img") &&
-                     !content_check.include?("generated_image") &&
-                     (tool_calls_check.nil? || tool_calls_check.empty?))
+                    (content_check.empty? && (tool_calls_check.nil? || tool_calls_check.empty?))
 
     if is_inadequate
       fallback_content = response_content || "Tools executed successfully."
@@ -1862,7 +1807,7 @@ module GrokHelper
         fallback_content += "\n\n#{obj["current_notebook_link"]}"
       end
 
-      return [{
+      return replies_as_is([{
         "choices" => [{
           "message" => {
             "role" => "assistant",
@@ -1870,7 +1815,7 @@ module GrokHelper
           },
           "finish_reason" => "stop"
         }]
-      }]
+      }])
     end
 
     return new_results

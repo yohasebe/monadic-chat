@@ -98,14 +98,6 @@ module Monadic
           services << :python # Selenium operations run through Python
         end
 
-        # Privacy: required when an app declares privacy.enabled in MDSL.
-        # The privacy container is part of the default build set;
-        # ensure-service privacy returns PRIVACY_DISABLED only when the user
-        # has explicitly opted out via PRIVACY_FILTER=false.
-        if get.call(:privacy_enabled)
-          services << :privacy
-        end
-
         services
       end
 
@@ -176,6 +168,27 @@ module Monadic
         true
       end
 
+      # Start one service in the background; it is seen as starting from now.
+      def start_service_async(service, reason: "trigger")
+        mark_starting([service], true)
+        begin
+          Thread.new do
+            start_service(service)
+          rescue StandardError => e
+            DegradationNotifier.report(
+              component: "container-deps",
+              message: "background container startup failed (#{reason}): #{e.message}",
+              severity: :error
+            )
+          ensure
+            mark_starting([service], false)
+          end
+        rescue ThreadError
+          mark_starting([service], false)
+          raise
+        end
+      end
+
       def start_thread(scheduled, target_settings, reason)
         Thread.new do
           ensure_services_for_app(target_settings)
@@ -218,14 +231,7 @@ module Monadic
         return :failed unless COMPOSE_SERVICES[service]
 
         monadic_sh = find_monadic_sh
-        unless monadic_sh
-          DegradationNotifier.report(
-            component: "container:#{service_name}",
-            message: "cannot start dependency container: monadic.sh not found",
-            severity: :error
-          )
-          return :failed
-        end
+        return start_existing_container(service) unless monadic_sh
 
         output = `bash #{Shellwords.escape(monadic_sh)} ensure-service #{service_name} 2>/dev/null`.strip
 
@@ -263,6 +269,26 @@ module Monadic
           )
           :failed
         end
+      end
+
+      # Without monadic.sh (inside the Ruby container): a container that
+      # exists and is stopped is started as it is. One that was never
+      # created cannot be made from here.
+      def start_existing_container(service)
+        return :disabled if service == :privacy && defined?(CONFIG) && CONFIG["PRIVACY_FILTER"].to_s == "false"
+        return :already_running if container_running?(service)
+
+        name = CONTAINER_NAMES[service]
+        system("docker", "start", name, out: File::NULL, err: File::NULL) if name
+        return :started if container_running?(service)
+
+        DegradationNotifier.report(
+          component: "container:#{service}",
+          message: "container is not running and could not be started; dependent app features will be unavailable. " \
+                   "Stop and start Monadic Chat to bring it up.",
+          severity: :error
+        )
+        :failed
       end
 
       # Locate monadic.sh in dev or packaged app environments.

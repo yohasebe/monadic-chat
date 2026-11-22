@@ -2,7 +2,7 @@
 
 ## System Requirements :id=system-requirements
 
-- **Docker**: Docker Desktop (a recent version), or Docker Engine on Linux
+- **Docker**: Docker Desktop (a recent version), or Docker Engine on Linux. Other engines that the `docker` command can use: see [Container Engine](../docker-integration/basic-architecture.md#container-engine)
 - **Memory**: At least 8GB RAM (16GB recommended)
 - **Storage**: Sufficient free disk space for Docker images and user data
 - **macOS**: macOS 13 (Ventura) or later on Apple Silicon (M1 or later). Intel Macs are not supported.
@@ -24,7 +24,7 @@ Drag the Docker icon to Applications folder and launch. Accept the service agree
 
 2. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.44 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/Monadic.Chat-1.0.0-beta.44-arm64.dmg)
+📦 [Download Monadic Chat 1.0.0-beta.45 for macOS](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/Monadic.Chat-1.0.0-beta.45-arm64.dmg)
 
 ### **Windows**
 
@@ -35,21 +35,17 @@ Open PowerShell as administrator and run:
 > wsl --install -d Ubuntu
 ```
 
-<!-- SCREENSHOT: PowerShell window showing WSL installation progress with Ubuntu being installed -->
-
 Restart your computer. Set up Ubuntu username and password when prompted.
 
 2. **Install Docker Desktop**
 
 Download from [Docker Desktop](https://docs.docker.com/desktop/) and install.
 
-<!-- SCREENSHOT: Docker Desktop for Windows download page showing Windows installer download button -->
-
 Accept the service agreement and use recommended settings.
 
 3. **Download and install Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.44 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/Monadic.Chat.Setup.1.0.0-beta.44.exe)
+📦 [Download Monadic Chat 1.0.0-beta.45 for Windows](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/Monadic.Chat.Setup.1.0.0-beta.45.exe)
 
 ### **Linux**
 
@@ -69,7 +65,7 @@ On Omarchy, run `omarchy-setup-security-sudoless-docker` instead. Membership in 
 
 2. **Download Monadic Chat**
 
-📦 [Download Monadic Chat 1.0.0-beta.44 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/monadic-chat_1.0.0-beta.44_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.44/monadic-chat_1.0.0-beta.44_arm64.AppImage)
+📦 [Download Monadic Chat 1.0.0-beta.45 for Linux (x86_64)](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/monadic-chat_1.0.0-beta.45_x86_64.AppImage) — [arm64](https://github.com/yohasebe/monadic-chat/releases/download/v1.0.0-beta.45/monadic-chat_1.0.0-beta.45_arm64.AppImage)
 
 3. **Make it executable and run it**
 
@@ -90,13 +86,13 @@ After installation:
 
 1. Click **Settings** in the console, open **API Keys**, enter the keys for the AI services you want to use, and click **Save**
 2. Click **Start**. The first start downloads the prebuilt images and builds the Ruby and Python images, which takes 10–30 minutes depending on your internet connection and computer. Later starts reuse them
-3. When everything is ready, the **System** status in the console shows **Started** in green, and **Open Browser** becomes available
+3. When everything is ready, the **System** status in the console shows **Started** in green, and the **Browser** button becomes available
 
 For detailed usage instructions, see the [Web Interface](../basic-usage/web-interface.md) section.
 
 ## Updating Monadic Chat :id=update
 
-<!-- SCREENSHOT: Monadic Chat menu showing File menu with Check for Updates option -->
+![The File menu](../assets/images/figures/menu-file.svg)
 
 Monadic Chat checks for updates when it starts (when it is online).
 
@@ -104,7 +100,7 @@ Monadic Chat checks for updates when it starts (when it is online).
 2. Click **Download & Install**. The update downloads in the background, with its progress shown in the console
 3. When the download completes, choose **Restart Now** to install it, or **Later**
 
-You can also download it yourself from the [release page for 1.0.0-beta.44](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.44), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
+You can also download it yourself from the [release page for 1.0.0-beta.45](https://github.com/yohasebe/monadic-chat/releases/tag/v1.0.0-beta.45), or browse [all releases](https://github.com/yohasebe/monadic-chat/releases).
 
 ## Advanced Configuration :id=advanced-configuration
 

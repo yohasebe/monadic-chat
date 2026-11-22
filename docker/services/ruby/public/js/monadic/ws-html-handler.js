@@ -81,7 +81,7 @@ function handleHtml(data) {
     } else if (data["content"]["text"]) {
       // Client-side rendering with MarkdownRenderer
       html = window.MarkdownRenderer ?
-        window.MarkdownRenderer.render(data["content"]["text"], { appName: data["content"]["app_name"] }) :
+        window.MarkdownRenderer.render(data["content"]["text"]) :
         data["content"]["text"];
     } else {
       console.error("Message has neither html nor text field:", data["content"]);
@@ -152,27 +152,6 @@ function handleHtml(data) {
     }
   }
 
-  // Privacy Filter: after the latest card lands in the DOM, walk **every**
-  // card in #discourse and wrap each known PII value in a marker span.
-  // Walking the whole discourse (instead of only the current card) lets
-  // user-input cards pick up matches once their string appears in the
-  // registry, and keeps the visual treatment consistent across cards
-  // when the same name appears multiple turns later. The walker is
-  // idempotent — already-wrapped spans are skipped.
-  // Scheduled via setTimeout(0) so it queues behind appendCard's
-  // MarkdownRenderer pass (KaTeX / mermaid take their slots first).
-  const knownEntities = data && data["content"] && data["content"]["privacy_known_entities"];
-  if (knownEntities && knownEntities.length &&
-      window.WsPrivacyHandler &&
-      typeof window.WsPrivacyHandler.highlightUnmaskedSpans === 'function') {
-    setTimeout(function () {
-      const discourseEl = $id('discourse');
-      if (discourseEl) {
-        window.WsPrivacyHandler.highlightUnmaskedSpans(discourseEl, knownEntities);
-      }
-    }, 0);
-  }
-
   // Vocabulary: decorate ${TOKEN}s (hover = resolved path, click = open in file
   // explorer). Same setTimeout(0) ordering as the privacy walker so it runs
   // after the MarkdownRenderer pass.
@@ -211,6 +190,19 @@ function _handleAssistantRole(data, html, moreComing) {
   const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", window.assistantBadge(data["content"]), html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
+  // What the reply made (an image placed in the chat's folder), as the
+  // message records it.
+  if (window.Workbench && Array.isArray(data["content"]["artifacts"])) {
+    window.Workbench.drawRecord(data["content"]["mid"], data["content"]["artifacts"]);
+  }
+  // What the reply looked at in the work screen, as the message records it.
+  if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(data["content"]["workbench_looks"])) {
+    window.Workbench.drawLooks(data["content"]["mid"], data["content"]["workbench_looks"]);
+  }
+  // What the reply showed in the work screen, as the message records it.
+  if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(data["content"]["workbench_shown"])) {
+    window.Workbench.drawShown(data["content"]["mid"], data["content"]["workbench_shown"]);
+  }
 
   if (moreComing) {
     // Keep input disabled and streaming state active
@@ -287,7 +279,7 @@ function _handleFinalAssistantMessage(data) {
     msgEl.disabled = false;
   }
   // Re-enable all input controls
-  ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "select-role"].forEach(function(id) {
+  ["send", "clear", "image-file", "voice", "doc", "url", "select-role"].forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = false;
   });

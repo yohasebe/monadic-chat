@@ -24,6 +24,11 @@ module Monadic
       ADTS = ->(head) { head.getbyte(0) == 0xFF && head.getbyte(1) && (head.getbyte(1) & 0xF6) == 0xF0 }
       FLAC = ->(head) { head.start_with?('fLaC'.b) }
       OGG = ->(head) { head.start_with?('OggS'.b) }
+      MIDI = ->(head) { head.start_with?('MThd'.b) }
+      PDF = ->(head) { head.start_with?('%PDF'.b) }
+      ZIP = ->(head) { head.start_with?("PK\x03\x04".b) }
+      # Text: no NUL byte in the first bytes.
+      TEXT = ->(head) { !head.include?("\0".b) }
 
       PURPOSES = {
         'video' => {
@@ -42,7 +47,27 @@ module Monadic
           '.opus' => OGG,
           '.flac' => FLAC,
           '.aac' => ->(head) { ADTS.call(head) || ID3.call(head) },
-          '.webm' => EBML
+          '.webm' => EBML,
+          # Standard MIDI files, for the apps that analyze music
+          '.mid' => MIDI,
+          '.midi' => MIDI
+        }.freeze,
+        # Documents converted to text for a message (Import document)
+        'document' => {
+          '.pdf' => PDF,
+          '.docx' => ZIP,
+          '.xlsx' => ZIP,
+          '.pptx' => ZIP,
+          '.txt' => TEXT,
+          '.md' => TEXT,
+          '.csv' => TEXT,
+          '.tsv' => TEXT,
+          '.json' => TEXT,
+          '.html' => TEXT,
+          '.htm' => TEXT,
+          '.xml' => TEXT,
+          '.yaml' => TEXT,
+          '.yml' => TEXT
         }.freeze
       }.freeze
 

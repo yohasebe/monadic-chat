@@ -3,7 +3,7 @@
     "title": "Monadic Chat Apps - Tools Inventory",
     "description": "Comprehensive inventory of shared tool groups and custom tools across all Monadic Chat applications",
     "generated_date": "2025-10-30",
-    "total_apps": 31,
+    "total_apps": 30,
     "total_mdsl_files": 120,
     "shared_tool_groups": 8
   },
@@ -28,7 +28,7 @@
       ],
       "used_by_apps": 10,
       "apps": [
-        "chat_plus",
+        "chat",
         "coding_assistant",
         "content_reader",
         "document_generator",
@@ -242,7 +242,11 @@
   "apps": {
     "auto_forge": {
       "display_name": "AutoForge",
-      "providers": ["claude", "grok", "openai"],
+      "providers": [
+        "claude",
+        "grok",
+        "openai"
+      ],
       "imported_tools": {
         "web_automation": "conditional"
       },
@@ -268,26 +272,32 @@
     "chat": {
       "display_name": "Chat",
       "providers": [
-        "claude", "cohere", "deepseek", "gemini", "grok",
-        "mistral", "ollama", "openai"
-      ],
-      "imported_tools": {},
-      "custom_tools": []
-    },
-    "chat_plus": {
-      "display_name": "ChatPlus",
-      "providers": [
-        "claude", "cohere", "deepseek", "gemini", "grok",
-        "mistral", "ollama", "openai"
+        "claude",
+        "cohere",
+        "deepseek",
+        "gemini",
+        "grok",
+        "mistral",
+        "ollama",
+        "openai"
       ],
       "imported_tools": {
+        "session_context": "always",
         "file_operations": "always"
       },
       "custom_tools": []
     },
     "code_interpreter": {
       "display_name": "CodeInterpreter",
-      "providers": ["claude", "cohere", "deepseek", "gemini", "grok", "mistral", "openai"],
+      "providers": [
+        "claude",
+        "cohere",
+        "deepseek",
+        "gemini",
+        "grok",
+        "mistral",
+        "openai"
+      ],
       "imported_tools": {
         "python_execution": "always",
         "file_reading": "always"
@@ -309,7 +319,12 @@
     },
     "jupyter_notebook": {
       "display_name": "JupyterNotebook",
-      "providers": ["claude", "gemini", "grok", "openai"],
+      "providers": [
+        "claude",
+        "gemini",
+        "grok",
+        "openai"
+      ],
       "imported_tools": {
         "jupyter_operations": "always",
         "python_execution": "always",
@@ -344,7 +359,15 @@
     },
     "research_assistant": {
       "display_name": "ResearchAssistant",
-      "providers": ["claude", "cohere", "deepseek", "gemini", "grok", "mistral", "openai"],
+      "providers": [
+        "claude",
+        "cohere",
+        "deepseek",
+        "gemini",
+        "grok",
+        "mistral",
+        "openai"
+      ],
       "imported_tools": {
         "file_operations": "always",
         "web_search_tools": "conditional"
@@ -387,9 +410,6 @@
       "app_creation": 0
     },
     "apps_with_no_tools": [
-      "chat",
-      "language_practice",
-      "language_practice_plus",
       "translate",
       "voice_chat",
       "voice_interpreter"
@@ -398,12 +418,23 @@
       {
         "app": "jupyter_notebook",
         "imports": 4,
-        "groups": ["jupyter_operations", "python_execution", "file_operations", "file_reading"]
+        "groups": [
+          "jupyter_operations",
+          "python_execution",
+          "file_operations",
+          "file_reading"
+        ]
       },
       {
         "app": "content_reader",
         "imports": 5,
-        "groups": ["file_operations", "web_search_tools", "image_analysis", "audio_transcription", "planning"]
+        "groups": [
+          "file_operations",
+          "web_search_tools",
+          "image_analysis",
+          "audio_transcription",
+          "planning"
+        ]
       }
     ],
     "visibility_distribution": {

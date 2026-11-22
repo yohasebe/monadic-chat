@@ -4,6 +4,7 @@ require_relative "../../utils/request_retry"
 require_relative "../../utils/shared_path_guard"
 require_relative "../../utils/http_client"
 require_relative "../../utils/privacy/outbound"
+require_relative "../../workbench/offer"
 require 'cgi'
 require 'fileutils'
 require 'base64'
@@ -20,11 +21,13 @@ require_relative "../../utils/json_repair"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/openai_file_inputs_cache"
 require_relative "../../utils/extra_logger"
+require_relative "../../utils/trial_log"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 require_relative "../../dsl/configurations"
 module OpenAIHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
@@ -367,7 +370,7 @@ module OpenAIHelper
     non_tool_model = !tool_capability
     supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model)
 
-    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch_enabled = Monadic::TurnSettings.current(obj).websearch == true
     use_responses_api_for_websearch = websearch_enabled &&
                                       Monadic::Utils::ModelSpec.supports_web_search?(model)
 
@@ -417,8 +420,9 @@ module OpenAIHelper
   private def build_openai_base_body(model, obj, app, caps, max_completion_tokens, temperature, presence_penalty, frequency_penalty)
     body = { "model" => model }
     reasoning_model = caps[:reasoning_model]
-    reasoning_effort = obj["reasoning_effort"]
-    verbosity = obj["verbosity"]
+    turn = Monadic::TurnSettings.current(obj)
+    reasoning_effort = turn.reasoning_effort
+    verbosity = turn.verbosity
 
     # Add verbosity for models that support it (via ModelSpec)
     if verbosity && Monadic::Utils::ModelSpec.supports_verbosity?(model)
@@ -456,11 +460,11 @@ module OpenAIHelper
   end
 
   # Configure tools on the request body.
-  private def configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
-    skip_tools = caps[:non_tool_model] || (role == "tool" && !use_responses_api)
-
-    if skip_tools
-      Monadic::Utils::ExtraLogger.log { "OpenAI: Skipping tools because non_tool_model=#{caps[:non_tool_model]} or role='#{role}'" }
+  private def configure_openai_tools(body, obj, app, session, caps)
+    # A round that sends tool results back keeps the tools, so the model can
+    # call another one, as on every other provider.
+    if caps[:non_tool_model]
+      Monadic::Utils::ExtraLogger.log { "OpenAI: Skipping tools for a model without tool calling" }
       body.delete("tools")
       body.delete("response_format")
       return
@@ -718,51 +722,34 @@ module OpenAIHelper
           end
         end
       end
+      # What the work screen shows, after the message's own parts.
+      if (observation = observation_for(session, msg))
+        message["content"] << { "type" => "text", "text" => observation }
+      end
       message
     end
 
-    # "system" role must be replaced with "developer" for reasoning models
+    # "system" role must be replaced with "developer" for reasoning models.
+    # The text itself is set below, from the initial prompt and its
+    # injections, for every model.
     if reasoning_model
-      num_system_messages = 0
       body["messages"].each do |msg|
-        if msg["role"] == "system"
-          msg["role"] = "developer"
-          msg["content"].each do |content_item|
-            if content_item["type"] == "text" && num_system_messages == 0
-              base_text = if websearch_enabled && websearch_prompt
-                            "Web search enabled\n---\n" + content_item["text"]
-                          else
-                            "Formatting re-enabled\n---\n" + content_item["text"]
-                          end
-
-              augmented_text = Monadic::Utils::SystemPromptInjector.augment(
-                base_prompt: base_text,
-                session: session,
-                options: {
-                  websearch_enabled: false,
-                  reasoning_model: true,
-                  websearch_prompt: nil,
-                  system_prompt_suffix: obj["system_prompt_suffix"]
-                },
-                separator: "\n\n"
-              )
-
-              if websearch_enabled && websearch_prompt
-                augmented_text += "\n---\n" + websearch_prompt
-              end
-
-              Monadic::Utils::ExtraLogger.log { "[DEBUG] OpenAI Reasoning Model System Prompt Injection:\n  - Base text length: #{base_text.length}\n  - Augmented text length: #{augmented_text.length}" }
-
-              content_item["text"] = augmented_text
-            end
-          end
-          num_system_messages += 1
-        end
+        msg["role"] = "developer" if msg["role"] == "system"
       end
     end
 
+    # The turn's own message, before the rounds of tool calls that follow it.
+    turn_message = body["messages"].last
+
     if role == "tool"
-      body["messages"] += obj["function_returns"]
+      body["messages"] += with_workbench_looks(obj["function_returns"], session, tool_id: method(:chat_tool_call_id)) do |looks|
+        { role: "user",
+          content: looks.flat_map do |look|
+            parts = workbench_look_parts(look)
+            [{ "type" => "text", "text" => parts[:text] },
+             (parts[:image] && { "type" => "image_url", "image_url" => { "url" => parts[:image].data_url, "detail" => "high" } })].compact
+          end }
+      end
       body.delete("tool_choice") if body["tool_choice"]
     end
 
@@ -815,20 +802,19 @@ module OpenAIHelper
         # Ignore session storage issues
       end
 
-      if last_text.to_s != ""
-        last_text += img_references_text
-      else
-        if context.last && context.last["text"]
-          context.last["text"] += img_references_text
-        end
-      end
+      # The references go into what is sent (the message's own text,
+      # below), never into the session's message.
+      last_text = last_text.to_s + img_references_text
     end
 
     # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
     is_initial_greeting = body["messages"].length == 1 &&
                           (body["messages"][0]["role"] == "system" || body["messages"][0]["role"] == "developer")
 
-    if last_text.to_s != "" && body.dig("messages", -1, "content") && !is_initial_greeting
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it.
+    turn_is_user = turn_message.is_a?(Hash) && turn_message["role"].to_s == "user" && turn_message["content"].is_a?(Array)
+    if last_text.to_s != "" && turn_is_user && !is_initial_greeting
       augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
         base_message: last_text.to_s,
         session: session,
@@ -837,13 +823,11 @@ module OpenAIHelper
         }
       )
 
-      if augmented_text != last_text.to_s
-        body["messages"].last["content"].each do |content_item|
-          if content_item["type"] == "text"
-            content_item["text"] = augmented_text
-          end
-        end
-      end
+      # The message's own text (its first text element) takes the suffix
+      # (and the image references); a text element added after it (the work
+      # screen observation) stays.
+      own_text = turn_message["content"].find { |content_item| content_item["type"] == "text" }
+      own_text["text"] = augmented_text if own_text && own_text["text"] != augmented_text
     end
 
     # Use unified system prompt injector for dynamic prompt augmentation
@@ -872,11 +856,9 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      supports_vision = !!obj["vision_capability"]
-      begin
-        supports_vision ||= !!MonadicApp.check_vision_capability(body["model"]) if defined?(MonadicApp)
-      rescue StandardError
-      end
+      # Whether the model takes images is the catalog's to say (a model it
+      # does not know is sent them), not the page's.
+      supports_vision = Monadic::Utils::ModelSpec.vision_capability?(body["model"])
 
       unless supports_vision
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
@@ -1035,7 +1017,8 @@ module OpenAIHelper
     }
 
     effort_config = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
-    effort = openai_effort_for(model, body["reasoning_effort"] || obj["reasoning_effort"] || effort_config&.dig(:default))
+    effort = openai_effort_for(model, body["reasoning_effort"] || Monadic::TurnSettings.current(obj).reasoning_effort ||
+                                      effort_config&.dig(:default))
     if effort && effort_config && effort_config[:options].include?(effort)
       # Omitting "none" would select the API's default reasoning level.
       responses_body["reasoning"] = { "effort" => effort }
@@ -1154,7 +1137,7 @@ module OpenAIHelper
       end
     end
 
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       responses_body.delete("tools")
       responses_body.delete("tool_choice")
     end
@@ -1215,19 +1198,16 @@ module OpenAIHelper
     http = HTTP.headers(headers)
     model = body["model"]
 
-    # Privacy Filter: mask user-message PII before sending to OpenAI. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session)
-      if body["messages"].is_a?(Array)
-        body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-      end
-      if body["input"].is_a?(Array)
-        body["input"] = apply_privacy_to_messages(body["input"], session, app_settings)
-      end
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged).
+    hiding = hide_words_in_request!(body, session)
+    # A conversation kept on the provider's side holds words as they were
+    # sent then; a chat with a table sends all of it, hidden, each time.
+    if hiding && body["previous_response_id"]
+      raise Monadic::Utils::Privacy::Outbound::Refused,
+            "a conversation kept on the provider's side cannot be hidden with the chat's words; nothing was sent"
     end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
 
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
@@ -1241,28 +1221,32 @@ module OpenAIHelper
                       end
 
     res = nil
-    MAX_RETRIES.times do
-      if use_responses_api
-        Monadic::Utils::ExtraLogger.log {
-          if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
-            lines = ["DEBUG: Sending to Responses API with PDF content:", "Body structure: #{body.keys}"]
-            body["input"].each_with_index do |msg, idx|
-              if msg["content"].is_a?(Array)
-                msg["content"].each do |item|
-                  lines << "  Input[#{idx}] content type: #{item['type']}"
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do
+        if use_responses_api
+          Monadic::Utils::ExtraLogger.log {
+            if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
+              lines = ["DEBUG: Sending to Responses API with PDF content:", "Body structure: #{body.keys}"]
+              body["input"].each_with_index do |msg, idx|
+                if msg["content"].is_a?(Array)
+                  msg["content"].each do |item|
+                    lines << "  Input[#{idx}] content type: #{item['type']}"
+                  end
                 end
               end
+              lines.join("\n")
             end
-            lines.join("\n")
-          end
-        }
+          }
+        end
+
+        offer_tools!(body, session, app, provider: "openai", model: body["model"])
+        res = post_with_workbench_looks(session, provider: "openai", model: body["model"]) do
+          http.timeout(**timeout_settings).post(target_uri, json: body)
+        end
+        break if res.status.success?
+
+        sleep RETRY_DELAY
       end
-
-      Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-      res = http.timeout(**timeout_settings).post(target_uri, json: body)
-      break if res.status.success?
-
-      sleep RETRY_DELAY
     end
 
     unless res&.status&.success?
@@ -1281,6 +1265,11 @@ module OpenAIHelper
       return [res]
     end
 
+    openai_replies(res, body, obj, app, session, use_responses_api, original_user_model, current_call_depth, &block)
+  end
+
+  # The replies to a successful request (execute_openai_api_call).
+  private def openai_replies(res, body, obj, app, session, use_responses_api, original_user_model, current_call_depth, &block)
     if !body["stream"]
       obj = JSON.parse(res.body)
 
@@ -1393,17 +1382,21 @@ module OpenAIHelper
                      end
 
     prompt_suffix = obj["prompt_suffix"]
-    model = obj["model"]
-    reasoning_effort = obj["reasoning_effort"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature or penalty is sent
+    # with 0 where the model takes them; an output limit it does not name
+    # is the model's.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
+    reasoning_effort = turn.reasoning_effort
 
-    # Handle max_tokens
-    max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
+    max_completion_tokens = turn.max_completion_tokens || turn.max_tokens
 
     # Store the original model for comparison later
     original_user_model = model
 
     # If no max_tokens specified, use model defaults for reasoning models
-    if max_completion_tokens.nil? || max_completion_tokens == 0
+    if max_completion_tokens.nil?
       require_relative '../../utils/model_token_utils'
       max_completion_tokens = ModelTokenUtils.get_max_tokens(original_user_model)
       DebugHelper.debug("OpenAI: Using default max_tokens #{max_completion_tokens} for model #{original_user_model}", category: :api, level: :info)
@@ -1415,10 +1408,10 @@ module OpenAIHelper
     # Define shared folder path based on environment
     shared_folder = Monadic::Utils::Environment.shared_volume
 
-    temperature = obj["temperature"].to_f
-    presence_penalty = obj["presence_penalty"].to_f
-    frequency_penalty = obj["frequency_penalty"].to_f
-    context_size = obj["context_size"].to_i
+    temperature = turn.temperature || 0.0
+    presence_penalty = turn.presence_penalty || 0.0
+    frequency_penalty = turn.frequency_penalty || 0.0
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
@@ -1525,7 +1518,7 @@ module OpenAIHelper
 
     # Build base body and configure tools
     body = build_openai_base_body(model, obj, app, caps, max_completion_tokens, temperature, presence_penalty, frequency_penalty)
-    configure_openai_tools(body, obj, app, session, role, caps, use_responses_api)
+    configure_openai_tools(body, obj, app, session, caps)
 
     # Process images and build messages
     context = model_facing_context(context)
@@ -1602,134 +1595,115 @@ module OpenAIHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
     # Determine reasoning model solely via model_spec
-    reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(obj["model"], "reasoning_effort")
+    reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(Monadic::TurnSettings.current(obj).model, "reasoning_effort")
 
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = {}
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
-    tools = {}
+    tool_calls = []
     finish_reason = nil
 
-    res.each do |chunk|
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream: one JSON object per data line.
+    handle = lambda do |json|
 
-      if buffer.valid_encoding? == false
-        next
+      Monadic::Utils::ExtraLogger.log_json("Chat API chunk", json)
+
+      # Check if response model differs from requested model
+      response_model = json["model"]
+      requested_model = query["original_user_model"] || query["model"]
+      check_model_switch(response_model, requested_model, session, &block)
+
+      finish_reason = json.dig("choices", 0, "finish_reason")
+      case finish_reason
+      when "length"
+        finish_reason = "length"
+      when "stop"
+        finish_reason = "stop"
+      else
+        finish_reason = nil
       end
 
-      begin
-        break if /\Rdata: [DONE]\R/ =~ buffer
-      rescue StandardError
-        next
+      # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
+      if json.dig("choices", 0, "delta", "content")
+        # Merge text fragments based on "id"
+        id = json["id"]
+        texts[id] ||= json
+        choice = texts[id]["choices"][0]
+        # The message gets its own text: the first delta's text is appended
+        # below like every other, and must not be the string sent as a fragment.
+        choice["message"] ||= choice["delta"].except("content")
+        choice["message"]["content"] ||= String.new
+        fragment = json.dig("choices", 0, "delta", "content").to_s
+        choice["message"]["content"] << fragment
+        next if !fragment || fragment == ""
+
+        if fragment.length > 0
+          res = {
+            "type" => "fragment",
+            "content" => fragment,
+            "sequence" => fragment_sequence,
+            "timestamp" => Time.now.to_f,
+            "is_first" => fragment_sequence == 0
+          }
+          fragment_sequence += 1
+          block&.call res
+        end
+
+        texts[id]["choices"][0].delete("delta")
       end
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      scanner = StringScanner.new(buffer)
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = matched.match(pattern)[1]
-          begin
-            # Log raw JSON data before parsing (for debugging delta issues)
-            if Monadic::Utils::ExtraLogger.enabled?
-              if json_data.include?("delta") && (json_data.include?("き") || json_data.include?("れ"))
-                Monadic::Utils::ExtraLogger.log { "[RAW JSON BEFORE PARSE - Chat API] #{json_data}" }
-              end
-            end
-
-            json = JSON.parse(json_data)
-
-            Monadic::Utils::ExtraLogger.log_json("Chat API chunk", json)
-
-            # Check if response model differs from requested model
-            response_model = json["model"]
-            requested_model = query["original_user_model"] || query["model"]
-            check_model_switch(response_model, requested_model, session, &block)
-
-            finish_reason = json.dig("choices", 0, "finish_reason")
-            case finish_reason
-            when "length"
-              finish_reason = "length"
-            when "stop"
-              finish_reason = "stop"
-            else
-              finish_reason = nil
-            end
-
-            # Check if the delta contains 'content' (indicating a text fragment) or 'tool_calls'
-            if json.dig("choices", 0, "delta", "content")
-              # Merge text fragments based on "id"
-              id = json["id"]
-              texts[id] ||= json
-              choice = texts[id]["choices"][0]
-              choice["message"] ||= choice["delta"].dup
-              # Use String.new to create mutable string (file has frozen_string_literal: true)
-              choice["message"]["content"] ||= String.new
-              fragment = json.dig("choices", 0, "delta", "content").to_s
-              choice["message"]["content"] << fragment
-              next if !fragment || fragment == ""
-
-              if fragment.length > 0
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment,
-                  "sequence" => fragment_sequence,
-                  "timestamp" => Time.now.to_f,
-                  "is_first" => fragment_sequence == 0
-                }
-                fragment_sequence += 1
-                block&.call res
-              end
-
-              texts[id]["choices"][0].delete("delta")
-            end
-
-            if json.dig("choices", 0, "delta", "tool_calls")
-              res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-              block&.call res
-              
-
-              tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
-
-              if tid
-                tools[tid] = json
-                tools[tid]["choices"][0]["message"] ||= tools[tid]["choices"][0]["delta"].dup
-                tools[tid]["choices"][0].delete("delta")
-              else
-                new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                existing_tool_call = tools.values.last.dig("choices", 0, "message")
-                existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
-              end
-            end
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
+      # Several calls can come in one delta; each has its index, and the later
+      # parts of its arguments come with the same index.
+      if (call_deltas = json.dig("choices", 0, "delta", "tool_calls"))
+        block&.call({ "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" })
+        call_deltas.each_with_index do |call_delta, position|
+          index = call_delta["index"] || position
+          if call_delta["id"]
+            tool_calls[index] = { "id" => call_delta["id"], "type" => call_delta["type"] || "function",
+                                  "function" => { "name" => call_delta.dig("function", "name").to_s,
+                                                  "arguments" => +call_delta.dig("function", "arguments").to_s } }
+          elsif (more = call_delta.dig("function", "arguments")) && tool_calls[index]
+            tool_calls[index]["function"]["arguments"] << more
           end
-        else
-          buffer = scanner.rest
-          break
         end
       end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error: #{e.message}\n[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+    end
+
+    catch(:openai_chat_stream_end) do
+      read = lambda do |data, _event|
+        throw :openai_chat_stream_end if data.strip == "[DONE]"
+
+        json = JSON.parse(data)
+        if json["error"]
+          stream_error = json["error"].is_a?(Hash) ? json["error"]["message"] : json["error"]
+          throw :openai_chat_stream_end
+        end
+        handle.call(json)
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error: #{e.message}\n[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+      return StreamRecords.error_reply("OpenAI", stream_error, &block)
     end
 
     result = texts.empty? ? nil : texts.first[1]
 
-    if tools.any?
-      assemble_openai_chat_tool_results(app, session, tools, result, &block)
+    tool_calls.compact!
+    if tool_calls.any?
+      assemble_openai_chat_tool_results(app, session, tool_calls, result, &block)
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
@@ -1755,10 +1729,10 @@ module OpenAIHelper
   # model would see only the latest turn's tool_use in the next request
   # and hallucinate that earlier tool work never happened. This mirrors
   # the Claude fix in claude_helper.rb#assemble_claude_tool_context.
-  private def assemble_openai_chat_tool_results(app, session, tools_hash, result, &block)
+  private def assemble_openai_chat_tool_results(app, session, tool_calls, result, &block)
     session[:call_depth_per_turn] += 1
 
-    if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
       # Send notice fragment
       res = {
         "type" => "fragment",
@@ -1793,28 +1767,15 @@ module OpenAIHelper
     previous_returns = session[:parameters] && session[:parameters]["function_returns"]
     context = previous_returns.is_a?(Array) ? previous_returns.dup : []
 
-    if result
-      merged = result["choices"][0]["message"].merge(tools_hash.first[1]["choices"][0]["message"])
-      context << merged
-    else
-      context << tools_hash.first[1].dig("choices", 0, "message")
-    end
+    # Every call of the round goes back with the text written before it.
+    call_message = { "role" => "assistant", "content" => nil, "tool_calls" => tool_calls }
+    context << (result ? result["choices"][0]["message"].merge(call_message.except("content")) : call_message)
 
-    tools = tools_hash.first[1].dig("choices", 0, "message", "tool_calls")
+    new_results = process_functions(app, session, tool_calls, context, session[:call_depth_per_turn], &block)
 
-    new_results = process_functions(app, session, tools, context, session[:call_depth_per_turn], &block)
-
-    # Check if we should stop retrying due to repeated errors
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      if result
-        result["choices"][0]["finish_reason"] = "stop"
-        return [result]
-      else
-        return [res]
-      end
-    end
+    # A turn stopped for repeated errors or a tool cycle ends with the stop
+    # reply process_functions returned (FunctionCallErrorHandler#stop_reply).
+    result["choices"][0]["finish_reason"] = "stop" if result && should_stop_for_errors?(session)
 
     # return Array
     if result && new_results
@@ -1861,7 +1822,7 @@ module OpenAIHelper
       block&.call res
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }])
     end
 
     # Jupyter app but no successful result - check for errors
@@ -1882,7 +1843,7 @@ module OpenAIHelper
       block&.call res
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
     end
 
     nil  # No fallback triggered
@@ -1897,6 +1858,8 @@ module OpenAIHelper
       lines.join("\n")
     }
 
+    Monadic::Utils::TrialLog.tool_calls(tools, app: obj["app_name"], depth: call_depth)
+    called = tools
     tools = filter_openai_duplicate_tools(tools)
 
     pending_tool_images = nil
@@ -1904,8 +1867,24 @@ module OpenAIHelper
       function_return, function_name, argument_hash, pending_tool_images = invoke_openai_tool_function(
         app, session, obj, tool_call, context, pending_tool_images, &block
       )
+      # An image was put on the workbench: the reply's work is done. The
+      # turn's other calls are not run (each the model made gets a result,
+      # those dropped as duplicates too), and the reply ends without asking
+      # the model.
+      next unless function_return.is_a?(Monadic::Workbench::Offered) && function_return.for?(session)
+
+      answered = context.map { |c| c[:tool_call_id] || c["tool_call_id"] }
+      called.each do |skipped|
+        next if answered.include?(skipped["id"])
+
+        context << { tool_call_id: skipped["id"], role: "tool", name: skipped.dig("function", "name"),
+                     content: Monadic::Workbench::Offered.not_executed }
+      end
+      obj["function_returns"] = context
+      return Monadic::Workbench::Offer.end_reply(function_return, &block)
     end
 
+    answer_openai_duplicate_calls(called, tools, context)
     inject_openai_vision_images(context, session, pending_tool_images)
 
     obj["function_returns"] = context
@@ -1914,36 +1893,35 @@ module OpenAIHelper
     intercepted = intercept_openai_media_generation(context, session, &block)
     return intercepted if intercepted
 
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
   end
 
-  # Remove duplicate tool calls and suppress repeated local PDF DB tool calls.
+  # Remove duplicate tool calls (the same function with the same arguments).
   private def filter_openai_duplicate_tools(tools)
-    local_pdf_tools = %w[find_closest_text get_text_snippet list_titles find_closest_doc get_text_snippets]
-    seen_functions = {}
-    seen_local_group = false
-
+    seen = {}
     tools.select do |tc|
-      fname = tc.dig('function', 'name').to_s
-      args_sig = tc.dig('function', 'arguments').to_s
-      sig = fname + '|' + args_sig
-      next false if seen_functions[sig]
-      seen_functions[sig] = true
+      sig = tc.dig('function', 'name').to_s + '|' + tc.dig('function', 'arguments').to_s
+      next false if seen[sig]
+      seen[sig] = true
+    end
+  end
 
-      if local_pdf_tools.include?(fname)
-        if seen_local_group
-          DebugHelper.debug("Suppressing repeated local PDF tool call: #{fname}", category: :api, level: :info) rescue nil
-          next false
-        end
-        seen_local_group = true
-      end
-      true
+  # A call dropped as a duplicate is answered with the result of the call it
+  # repeats: the next request answers every call the model made.
+  private def answer_openai_duplicate_calls(called, run, context)
+    results = context.each_with_object({}) { |c, h| h[c[:tool_call_id] || c["tool_call_id"]] = c }
+    called.each do |call|
+      next if results.key?(call["id"])
+
+      same = run.find { |r| r["function"] == call["function"] }
+      source = same && results[same["id"]]
+      context << source.merge(tool_call_id: call["id"]) if source
     end
   end
 
@@ -1966,25 +1944,12 @@ module OpenAIHelper
       memo
     end
 
-    skip_function_execution = false
-    function_return = nil
+    # Monadic Help's documentation search: its arguments kept within bounds,
+    # and a repeated query or a third search of a request answered without
+    # running it.
+    help_search_limit = lambda {
+      next unless function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
 
-    # Run only the tools offered to the model in the latest request.
-    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name))
-      function_return = refusal
-      skip_function_execution = true
-    end
-
-    # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
-    # Unlock the requested skill so its tools become visible on the next round.
-    if !skip_function_execution && function_name == "request_tool"
-      function_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-        session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-      )
-      skip_function_execution = true
-    end
-
-    if !skip_function_execution && function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
       obj["help_topics_call_count"] = obj["help_topics_call_count"].to_i + 1
       call_count = obj["help_topics_call_count"]
 
@@ -2006,53 +1971,23 @@ module OpenAIHelper
       duplicate_query = !downcased_query.empty? && obj["help_topics_prev_queries"].include?(downcased_query)
       obj["help_topics_prev_queries"] << downcased_query unless downcased_query.empty?
 
-      if duplicate_query || call_count > 2
-        skip_function_execution = true
-        notice_key = call_count > 2 ? "search_limit_reached" : "duplicate_query_skipped"
-        notice_msg = call_count > 2 ? "Documentation search limited to two calls per request." : "Duplicate documentation search skipped."
-        function_return = JSON.generate({ "results" => [], "notice" => notice_key, "message" => notice_msg })
-      end
-    end
+      next unless duplicate_query || call_count > 2
 
-    unless skip_function_execution
-      begin
-        # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) to real paths before the
-        # tool runs. Done before :session injection so the session object is
-        # never walked. No-op when the app declares no vocabulary.
-        argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
-
-        method_obj = APPS[app].method(function_name.to_sym) rescue nil
-        if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-          argument_hash[:session] = session
-        end
-
-        if argument_hash.empty?
-          function_return = APPS[app].public_send(function_name.to_sym)
-        else
-          function_return = APPS[app].public_send(function_name.to_sym, **argument_hash)
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session
-        )
-      rescue StandardError => e
+      notice_key = call_count > 2 ? "search_limit_reached" : "duplicate_query_skipped"
+      notice_msg = call_count > 2 ? "Documentation search limited to two calls per request." : "Duplicate documentation search skipped."
+      JSON.generate({ "results" => [], "notice" => notice_key, "message" => notice_msg })
+    }
+    result = run_tool_call(
+      app, session, function_name, argument_hash, call_id: tool_call["id"], refuse: help_search_limit,
+      error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "[OpenAI Tools] Error in #{function_name}: #{e.message}\n[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }
-        function_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "OpenAI",
-          tool_name: function_name,
-          message: e.message
-        )
-      end
-    end
+        Monadic::Utils::ErrorFormatter.tool_error(provider: "OpenAI", tool_name: function_name, message: e.message)
+      }, &block
+    )
+    function_return = result.value
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{workbench_loggable(function_return).to_s[0..500]}" }
 
-    if handle_function_error(session, function_return, function_name, &block)
+    if result.stop
       context << {
         tool_call_id: tool_call["id"],
         role: "tool",
@@ -2062,17 +1997,11 @@ module OpenAIHelper
       return [function_return, function_name, argument_hash, pending_tool_images]
     end
 
-    if function_return.is_a?(Hash) && function_return[:_image]
-      pending_tool_images = Array(function_return[:_image])
-      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-      serialized = JSON.generate(clean_return)
+    if result.images
+      pending_tool_images = Array(pending_tool_images) + result.images
+      serialized = JSON.generate(result.without_private_keys)
     else
       serialized = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-    end
-
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
     end
 
     context << {
@@ -2147,7 +2076,7 @@ module OpenAIHelper
 
             block&.call({ "type" => "fragment", "content" => image_html, "is_first" => true })
             block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }])
           elsif parsed["success"] && parsed["filename"]
             filename = parsed["filename"]
             prompt = parsed["prompt"] || "Media generation"
@@ -2177,7 +2106,7 @@ module OpenAIHelper
 
             block&.call({ "type" => "fragment", "content" => media_html, "is_first" => true })
             block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => media_html } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => media_html } }] }])
           end
         rescue JSON::ParserError
           # Continue to normal flow
@@ -2203,7 +2132,7 @@ module OpenAIHelper
 
           block&.call({ "type" => "fragment", "content" => video_html, "is_first" => true })
           block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-          return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+          return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }])
         end
       end
 
@@ -2214,7 +2143,7 @@ module OpenAIHelper
 
           block&.call({ "type" => "fragment", "content" => error_msg, "is_first" => true })
           block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-          return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+          return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
         rescue JSON::ParserError
           # Continue to normal flow
         end
@@ -2246,10 +2175,21 @@ module OpenAIHelper
     normalized
   end
 
+  # A tool call's arguments as a Hash. Arguments that are JSON as given are
+  # taken as they are: typographic quotes and full-width punctuation inside
+  # a string are the model's text, not JSON syntax. Only arguments that do
+  # not parse are normalized (and then repaired).
   def parse_function_call_arguments(raw_arguments, function_name: nil)
-    normalized = normalize_function_call_arguments(raw_arguments)
-    return {} if normalized.strip.empty?
+    return {} if raw_arguments.to_s.strip.empty?
 
+    begin
+      given = JSON.parse(raw_arguments)
+      return given if given.is_a?(Hash)
+    rescue JSON::ParserError
+      # normalized below
+    end
+
+    normalized = normalize_function_call_arguments(raw_arguments)
     JSON.parse(normalized)
   rescue JSON::ParserError => e
     repaired = JSONRepair.attempt_repair(normalized)
@@ -2277,10 +2217,10 @@ module OpenAIHelper
   end
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing responses API query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing responses API query (Call depth: #{call_depth})", workbench_loggable(query))
 
     obj = session[:parameters]
-    buffer = String.new
+    records = StreamRecords.new(:sse)
     chunk_count = 0
 
     state = {
@@ -2302,87 +2242,46 @@ module OpenAIHelper
       fragment_sequence: 0,  # Sequence number for fragments to ensure ordering
       streaming_model: nil
     }
-    res.each do |chunk|
-      event_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    early = catch(:openai_responses_end) do
+      read = lambda do |data, event|
+        throw :openai_responses_end if data.strip == "[DONE]" || event == "done"
 
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
-      chunk_count += 1
-      
+        event_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        json = JSON.parse(data)
 
-      if buffer.valid_encoding? == false
-        next
-      end
+        Monadic::Utils::ExtraLogger.log_json("Responses API chunk", json)
 
-      begin
-        # Check for completion patterns
-        if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
-          break
+        # Check if response model differs from requested model
+        response_model = json["model"]
+        requested_model = query["original_user_model"] || query["model"]
+        check_model_switch(response_model, requested_model, session, &block)
+
+        # Store the model for use throughout streaming
+        state[:streaming_model] = response_model || requested_model
+
+        # Dispatch event to handler; returns nil (continue), :skip (next), or Array (early return)
+        event_type = json["type"]
+        result = dispatch_openai_response_event(json, event_type, state, query, obj, &block)
+        throw :openai_responses_end, result if result.is_a?(Array)
+
+        if CONFIG["EXTRA_LOGGING"]
+          duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
+          DebugHelper.debug("[ResponsesTiming] app=#{app} event=#{event_type.inspect} duration_ms=#{duration_ms}", category: :metrics, level: :info)
         end
-      rescue StandardError
-        next
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error: #{e.message}\n[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       end
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      scanner = StringScanner.new(buffer)
-      # Responses API uses different event format
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
-      
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = matched.match(pattern)[1]
-          begin
-            # Log raw JSON data before parsing (for debugging delta issues)
-            if Monadic::Utils::ExtraLogger.enabled?
-              if json_data.include?("output_text.delta") && (json_data.include?("き") || json_data.include?("れ"))
-                Monadic::Utils::ExtraLogger.log { "[RAW JSON BEFORE PARSE] #{json_data}" }
-              end
-            end
-
-            json = JSON.parse(json_data)
-
-            Monadic::Utils::ExtraLogger.log_json("Responses API chunk", json)
-
-            # Check if response model differs from requested model
-            response_model = json["model"]
-            requested_model = query["original_user_model"] || query["model"]
-            check_model_switch(response_model, requested_model, session, &block)
-
-            # Store the model for use throughout streaming
-            state[:streaming_model] = response_model || requested_model
-
-            # Dispatch event to handler; returns nil (continue), :skip (next), or Array (early return)
-            event_type = json["type"]
-            result = dispatch_openai_response_event(json, event_type, state, query, obj, &block)
-            if result == :skip
-              next
-            elsif result.is_a?(Array)
-              return result
-            end
-            
-          rescue JSON::ParserError => e
-            # JSON parsing error, continue to next iteration
-          rescue StandardError => e
-            Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error: #{e.message}\n[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
-          end
-          if CONFIG["EXTRA_LOGGING"]
-            duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
-            DebugHelper.debug("[ResponsesTiming] app=#{app} event=#{event_type.inspect} duration_ms=#{duration_ms}", category: :metrics, level: :info)
-          end
-        else
-          scanner.terminate
-        end
+      res.each do |chunk|
+        chunk_count += 1
+        records.feed(chunk, &read)
       end
-      
-      buffer = scanner.rest
+      records.finish(&read)
+      nil
     end
+    return early if early
 
     # Handle tool calls if any were collected
     tool_result = assemble_openai_tool_results_from_responses(app, session, state, &block)
@@ -2426,7 +2325,7 @@ module OpenAIHelper
                       response_data&.dig("metadata", "model") ||
                       response_data&.dig("model") ||
                       query["model"] ||
-                      obj["model"]
+                      Monadic::TurnSettings.current(obj).model
 
       Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.in_progress event\n  current_model: #{current_model}\n  streaming_model: #{state[:streaming_model]}\n  Will skip: #{current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)}" }
 
@@ -2463,7 +2362,7 @@ module OpenAIHelper
 
       # Debug logging for GPT-5 streaming issues
       if Monadic::Utils::ExtraLogger.enabled?
-        current_model = state[:streaming_model] || json["model"] || query["model"] || obj["model"]
+        current_model = state[:streaming_model] || json["model"] || query["model"] || Monadic::TurnSettings.current(obj).model
         if current_model && current_model.to_s.downcase.include?("gpt-5")
           Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}, sequence: #{state[:fragment_sequence]}" }
         end
@@ -2742,6 +2641,7 @@ module OpenAIHelper
       response_data = json["response"] || json  # Handle both nested and flat structures
       # Capture usage if present
       usage = response_data["usage"] || json["usage"]
+      Monadic::Utils::TrialLog.usage(usage, app: obj["app_name"])
       if usage.is_a?(Hash)
         state[:usage_input_tokens] = usage["input_tokens"] || usage["prompt_tokens"] || state[:usage_input_tokens]
         state[:usage_output_tokens] = usage["output_tokens"] || usage["completion_tokens"] || state[:usage_output_tokens]
@@ -2776,17 +2676,11 @@ module OpenAIHelper
       end
       state[:finish_reason] = "stop"
 
-    when "response.error"
-      # Error occurred
-      error_msg = json.dig("error", "message") || "Unknown error"
-      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-        provider: "OpenAI",
-        message: error_msg
-      )
-      res = { "type" => "error", "content" => formatted_error }
-      block&.call res
-
-      return [res]
+    when "response.error", "response.failed", "error"
+      # An error inside the stream ends the reply as that error.
+      error_msg = json.dig("error", "message") || json.dig("response", "error", "message") || json["message"] || "Unknown error"
+      Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error_msg.to_s)}" }
+      return StreamRecords.error_reply("OpenAI", error_msg, &block)
 
     else
       # Unknown event type
@@ -2803,7 +2697,7 @@ module OpenAIHelper
     obj = session[:parameters]
     session[:call_depth_per_turn] += 1
 
-    if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
       res = {
         "type" => "fragment",
         "content" => "NOTICE: Maximum function call depth exceeded"
@@ -2880,15 +2774,14 @@ module OpenAIHelper
 
     # Build reasoning entries using original structure when available
     reasoning_entries = state[:reasoning_segments].filter_map do |segment|
-      text = segment[:text].to_s.strip
-      next if text.empty?
+      # The original reasoning item goes back as it came, also when its
+      # summary is empty: what the model needs of it is not the summary.
+      original_item = segment[:id] && state[:reasoning_items_raw][segment[:id]]
+      next original_item.transform_keys(&:to_s) if original_item
 
-      # Use original reasoning item if available (preserves summary structure)
-      segment_id = segment[:id]
-      if segment_id && state[:reasoning_items_raw][segment_id]
-        original_item = state[:reasoning_items_raw][segment_id]
-        # Preserve original structure (may have summary or content)
-        original_item.transform_keys(&:to_s)
+      text = segment[:text].to_s.strip
+      if text.empty?
+        nil
       else
         # Fallback to content structure
         {

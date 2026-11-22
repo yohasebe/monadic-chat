@@ -15,9 +15,12 @@ require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
+require_relative "../../workbench/caller"
+require_relative "../../workbench/chat_output"
 
 module ClaudeHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
@@ -124,11 +127,6 @@ module ClaudeHelper
       (json["data"] || []).map { |m| m["id"] }.reject { |id| id.include?("claude-2") }
     end
 
-  def initialize
-    @thinking = nil
-    @signature = nil
-    super
-  end
 
   # (removed duplicate public send_query to keep a single SSOT-driven implementation)
 
@@ -197,8 +195,9 @@ module ClaudeHelper
     # "none" goes through configure_claude_thinking too: on models that always
     # think it becomes the lowest effort rather than the model's default.
     if options["reasoning_effort"]
-      # configure_claude_thinking reads obj["model"]; send_query's authoritative
-      # model is the keyword arg, so merge it in (options may omit "model").
+      # configure_claude_thinking reads the model of the parameters it is
+      # given; send_query's authoritative model is the keyword arg, so merge
+      # it in (options may omit "model").
       tc = configure_claude_thinking(options.merge("model" => model), model, max_tokens_value, nil)
       if tc[:thinking_enabled]
         if tc[:adaptive_effort]
@@ -211,16 +210,22 @@ module ClaudeHelper
     end
 
     # Extract system message - Claude API expects this as a top-level parameter
+    # (a system message among the messages is moved there too: the API takes
+    # only user and assistant turns in messages).
+    given = Array(options["messages"])
+    system_texts = given.select { |m| m["role"].to_s == "system" }.map { |m| m["content"].to_s }
     if options["system"]
       body["system"] = options["system"]
     elsif options["ai_user_system_message"]
       body["system"] = options["ai_user_system_message"]
+    elsif system_texts.any?
+      body["system"] = system_texts.join("\n\n")
     end
-    
+
     # Handle messages - check if custom messages are provided (e.g., from SecondOpinionAgent)
     if options["messages"]
       # Convert messages to Claude's expected format
-      body["messages"] = options["messages"].map do |msg|
+      body["messages"] = given.reject { |m| m["role"].to_s == "system" }.map do |msg|
         content = msg["content"]
         # Ensure content is in the expected format for Claude API
         if content.is_a?(String)
@@ -442,14 +447,12 @@ module ClaudeHelper
   # Configure thinking mode parameters (budget_tokens, adaptive effort, max_tokens).
   # Returns a config hash: { thinking_enabled, budget_tokens, adaptive_effort, max_tokens }.
   private def configure_claude_thinking(obj, model, user_max_tokens, app)
-    supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+    turn = Monadic::TurnSettings.current(obj)
+    supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(turn.model)
     use_adaptive = supports_thinking &&
-                   Monadic::Utils::ModelSpec.supports_adaptive_thinking?(obj["model"])
+                   Monadic::Utils::ModelSpec.supports_adaptive_thinking?(turn.model)
 
-    monadic_with_structured_outputs = obj["monadic"].to_s == "true" &&
-                                      Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
-
-    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none" && !monadic_with_structured_outputs
+    if supports_thinking && turn.reasoning_effort && turn.reasoning_effort != "none"
       thinking_enabled = true
 
       if use_adaptive
@@ -457,7 +460,7 @@ module ClaudeHelper
         # Opus 4.7 introduces xhigh and max effort levels; earlier adaptive
         # models (Opus 4.6, Sonnet 4.6) cap out at "high" and will get the
         # clamped value via the upstream reasoning_effort selector.
-        adaptive_effort = case obj["reasoning_effort"]
+        adaptive_effort = case turn.reasoning_effort
                           when "minimal" then "low"
                           when "low"     then "low"
                           when "medium"  then "medium"
@@ -469,7 +472,7 @@ module ClaudeHelper
         max_tokens = user_max_tokens
       else
         adaptive_effort = nil
-        case obj["reasoning_effort"]
+        case turn.reasoning_effort
         when "minimal"
           budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
           max_tokens = user_max_tokens
@@ -497,10 +500,6 @@ module ClaudeHelper
       adaptive_effort = nil
       max_tokens = user_max_tokens
 
-      if monadic_with_structured_outputs
-        Monadic::Utils::ExtraLogger.log { "Claude: Thinking mode disabled for monadic app with structured outputs\n  Model: #{obj["model"]}\n  App: #{app}" }
-      end
-
       # On models that think whenever `thinking` is omitted, leaving it out for
       # "none" ran the model's default effort (high on Sonnet 5.5, medium on
       # Opus 5.5) — more reasoning than "low". Opus 5.5 and Fable 5.1 cannot
@@ -508,14 +507,13 @@ module ClaudeHelper
       # block_binding that dynamically loaded skills need, so send the lowest
       # effort the model offers. Only an explicit request to switch reasoning
       # off does this; an unspecified effort still gets the model's default.
-      requested_off = obj["reasoning_effort"] == "none" || monadic_with_structured_outputs
-      if supports_thinking && use_adaptive && requested_off &&
-         Monadic::Utils::ModelSpec.thinking_on_by_default?(obj["model"])
-        lowest = Monadic::Utils::ModelSpec.get_reasoning_effort_options(obj["model"])&.dig(:options)&.first
+      if supports_thinking && use_adaptive && turn.reasoning_effort == "none" &&
+         Monadic::Utils::ModelSpec.thinking_on_by_default?(turn.model)
+        lowest = Monadic::Utils::ModelSpec.get_reasoning_effort_options(turn.model)&.dig(:options)&.first
         if lowest
           thinking_enabled = true
           adaptive_effort = lowest
-          Monadic::Utils::ExtraLogger.log { "Claude: reasoning off requested; #{obj["model"]} always thinks, sending effort #{lowest}" }
+          Monadic::Utils::ExtraLogger.log { "Claude: reasoning off requested; #{turn.model} always thinks, sending effort #{lowest}" }
         end
       end
     end
@@ -540,7 +538,7 @@ module ClaudeHelper
 
     # Determine if thinking display should be omitted (faster streaming)
     # Only supported on adaptive thinking models (Opus 4.6, Sonnet 4.6)
-    omit_display = thinking_enabled && use_adaptive && obj["show_thinking"].to_s == "false"
+    omit_display = thinking_enabled && use_adaptive && turn.show_thinking == false
 
     { thinking_enabled: thinking_enabled, budget_tokens: budget_tokens,
       adaptive_effort: adaptive_effort, max_tokens: max_tokens,
@@ -550,6 +548,7 @@ module ClaudeHelper
   # Build HTTP headers and base request body (model, stream, system, thinking, context management).
   # Returns [headers, body].
   private def build_claude_headers_and_body(model, obj, app, session, system_prompts, thinking_config, temperature, role)
+    turn = Monadic::TurnSettings.current(obj)
     spec_beta = Monadic::Utils::ModelSpec.get_model_property(model, "beta_flags")
     app_beta = APPS[app]&.settings&.[]("betas")
 
@@ -597,7 +596,7 @@ module ClaudeHelper
 
     body = {
       "system" => system_prompts,
-      "model" => obj["model"],
+      "model" => turn.model,
       "stream" => supports_streaming,
       "cache_control" => { "type" => "ephemeral" }
     }
@@ -609,7 +608,7 @@ module ClaudeHelper
     # `context_management false` — in that case only the context_size sliding
     # window (client-side) trims history, and the beta header is not sent.
     begin
-      supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
+      supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(turn.model)
       app_context_management = APPS[app]&.settings&.[]("context_management")
       app_context_management = APPS[app]&.settings&.[](:context_management) if app_context_management.nil?
       opted_out = (app_context_management == false)
@@ -764,6 +763,14 @@ module ClaudeHelper
     return unless advisor_cfg
 
     model_value  = advisor_cfg[:model]    || advisor_cfg["model"]    || "claude-opus-5-5"
+    # An executor takes only the advisors model_spec.js lists for it
+    # (advisor_models); any other is a 400, so the tool is left out.
+    accepted = Monadic::Utils::ModelSpec.get_model_property(body["model"].to_s, "advisor_models")
+    if accepted.is_a?(Array) && !accepted.include?(model_value)
+      Monadic::Utils::ExtraLogger.log { "Claude: advisor #{model_value} not accepted by #{body["model"]}; tool left out" }
+      note_advisor_unavailable(body)
+      return
+    end
     max_uses_val = advisor_cfg[:max_uses] || advisor_cfg["max_uses"]
     caching_val  = advisor_cfg[:caching]  || advisor_cfg["caching"]
 
@@ -785,13 +792,26 @@ module ClaudeHelper
     end
   end
 
+  ADVISOR_UNAVAILABLE = "The `advisor` tool is not available with the model in use: " \
+                        "ignore any instruction about calling it and work on your own."
+
+  # The app's prompt tells the model about the advisor; when the tool is left
+  # out, the model is told it is not there.
+  private def note_advisor_unavailable(body)
+    return unless body["system"].is_a?(Array)
+    return if body["system"].any? { |block| (block[:text] || block["text"]) == ADVISOR_UNAVAILABLE }
+
+    body["system"] << { type: "text", text: ADVISOR_UNAVAILABLE }
+  end
+
   # Configure tools on the request body for both user and tool roles.
   # Handles tool parsing, PTD filtering, websearch, Skills, and tool_choice.
   private def configure_claude_tools(body, obj, app, session, role, thinking_enabled, use_native_websearch)
+    turn = Monadic::TurnSettings.current(obj)
     app_settings = APPS[app]&.settings
     app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
     app_skills = APPS[app]&.settings&.[]("skills")
-    tool_capable, _tool_capable_source = resolve_tool_capability(obj["model"])
+    tool_capable, _tool_capable_source = resolve_tool_capability(turn.model)
 
     # Parse tools_param from JSON string
     tools_param = obj["tools"]
@@ -804,7 +824,7 @@ module ClaudeHelper
     end
 
     if role != "tool"
-      websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+      websearch_enabled = turn.websearch == true
       include_web_search_tool = websearch_enabled && use_native_websearch
       web_search_tool = { "type" => "web_search_20250305", "name" => "web_search", "max_uses" => 5 }
 
@@ -923,7 +943,7 @@ module ClaudeHelper
           # before every response, so "auto" plus the tool instructions in the
           # system prompt is the documented replacement. This branch is
           # reached on such a model only when the helper's own thinking flag
-          # is off (monadic structured outputs, effort "none"); the model
+          # is off (effort "none"); the model
           # thinks regardless.
           forced = Monadic::Utils::ModelSpec.rejects_forced_tool_choice?(body["model"]) ? "auto" : "any"
           tool_choice_value = { "type" => forced }
@@ -946,9 +966,15 @@ module ClaudeHelper
   # Build body["messages"] from context, handle images, PDFs, and initiate_from_assistant.
   # Returns true on success, or an Array (early return) on vision/PDF error.
   private def build_claude_messages(body, context, obj, model, role, session, &block)
+    # The greeting: the chat has no user message yet.
+    greeting = context.compact.none? { |msg| msg["role"] == "user" }
     messages = context.compact.map do |msg|
-      content = { "type" => "text", "text" => msg["text"] }
-      { "role" => msg["role"], "content" => [content] }
+      content = [{ "type" => "text", "text" => msg["text"] }]
+      # What the work screen shows, as a text element of its own.
+      if (observation = observation_for(session, msg))
+        content << { "type" => "text", "text" => observation }
+      end
+      { "role" => msg["role"], "content" => content }
     end
 
     if messages.empty? && obj["ai_user"] != "true"
@@ -1019,6 +1045,18 @@ module ClaudeHelper
       }
     end
 
+    # The turn's message takes the suffix in every request of the turn (the
+    # rounds of tool calls are added after it); the greeting takes none.
+    unless greeting
+      turn_message = body["messages"].reverse.find { |m| m["role"] == "user" }
+      own_text = Array(turn_message&.dig("content")).find { |c| c.is_a?(Hash) && c["type"] == "text" }
+      if own_text
+        own_text["text"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: own_text["text"], session: session, options: { prompt_suffix: obj["prompt_suffix"] }
+        )
+      end
+    end
+
     nil # success — messages set in body
   end
 
@@ -1033,16 +1071,12 @@ module ClaudeHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to Anthropic. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
-    # Claude content is always Array of {type, text|image|document} blocks;
-    # apply_privacy_to_messages skips non-text items.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-    end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged). The conversation as it was
+    # before is what a request to another model is made from again.
+    unhidden = body["messages"]
+    hiding = hide_words_in_request!(body, session, keys: %w[messages], item: method(:hide_words_in_claude_message))
 
     if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
       Monadic::Utils::ExtraLogger.log {
@@ -1060,9 +1094,12 @@ module ClaudeHelper
       }
     end
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
+    offer_tools!(body, session, app, provider: "claude", model: body["model"])
+    # Each post of the body is checked for what it holds of the work screen.
+    res = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                             looks: { session: session, provider: "claude", model: body["model"] })
+    end
 
     unless res.status.success?
       error_report = (JSON.parse(res.body)["error"] rescue nil) || {}
@@ -1088,6 +1125,7 @@ module ClaudeHelper
         Monadic::Utils::ExtraLogger.log { "[Claude] #{body["model"]} unavailable (404 not_found); falling back to #{fallback_model}" }
         (session[:_unavailable_models] ||= {})[body["model"]] = fallback_model
         body["model"] = fallback_model
+        body["messages"] = unhidden if hiding
         return execute_claude_api_call(headers, body, app, session, call_depth, websearch_enabled, use_native_websearch, &block)
       end
 
@@ -1134,19 +1172,23 @@ module ClaudeHelper
     current_call_depth = session[:call_depth_per_turn] || 0
     num_retrial = 0
 
-    Monadic::Utils::ExtraLogger.log { "\n=== Claude API Request Started ===\nRole: #{role}\nApp: #{session[:parameters]["app_name"]}\nSession parameters: #{session[:parameters].inspect}" }
+    Monadic::Utils::ExtraLogger.log { "\n=== Claude API Request Started ===\nRole: #{role}\nApp: #{session[:parameters]["app_name"]}\nSession parameters: #{workbench_loggable(session[:parameters]).inspect}" }
 
     api_key = CONFIG["ANTHROPIC_API_KEY"]
     obj = session[:parameters]
     app = obj["app_name"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A temperature the message does not name is not sent;
+    # an output limit it does not name is the model's.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
     session[:messages] ||= []
 
     # Check if web search is enabled
-    websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch = turn.websearch == true
 
-    Monadic::Utils::ExtraLogger.log { "Claude websearch parameter check:\nobj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})\nwebsearch enabled = #{websearch}" }
+    Monadic::Utils::ExtraLogger.log { "Claude websearch enabled = #{websearch}" }
 
     use_native_websearch = websearch &&
                           Monadic::Utils::ModelSpec.supports_web_search?(model) &&
@@ -1156,24 +1198,24 @@ module ClaudeHelper
     # Build system prompts
     system_prompts = build_claude_system_prompts(session, obj, use_native_websearch)
 
-    temperature = obj["temperature"]&.to_f
+    temperature = turn.temperature
 
-    # Handle max_tokens
-    max_tokens = obj["max_tokens"]&.to_i
-    if max_tokens.nil? || max_tokens == 0
+    max_tokens = turn.max_tokens
+    if max_tokens.nil?
       require_relative "../../utils/model_token_utils"
       max_tokens = ModelTokenUtils.get_max_tokens(model)
       DebugHelper.debug("Claude: Using default max_tokens #{max_tokens} for model #{model}", category: :api, level: :info)
     end
 
-    context_size = obj["context_size"].to_i
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
     message = obj["message"].to_s
 
     # Push the user message to the client as early as possible
     if user_turn_to_record?(role, message, session)
-      @thinking = nil
-      @signature = nil
+      # The turn's reasoning is the chat's: the app is shared by every chat.
+      session.delete(:claude_thinking)
+      session.delete(:claude_signature)
       res = { "type" => "user",
               "content" => {
                 "role" => role,
@@ -1234,20 +1276,20 @@ module ClaudeHelper
 
     # Handle tool role: add function_returns to messages
     if role == "tool"
-      body["messages"] += obj["function_returns"]
+      body["messages"] += claude_messages_with_looks(obj["function_returns"], session)
     end
 
     # Force text-only response when force-stop is active
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end
 
     # Capability audit (optional)
-    Monadic::Utils::ExtraLogger.log { "Claude SSOT capabilities for #{obj["model"]}: body_keys=#{body.keys.join(",")}" }
+    Monadic::Utils::ExtraLogger.log { "Claude SSOT capabilities for #{turn.model}: body_keys=#{body.keys.join(",")}" }
 
     # Execute API call
-    websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
+    websearch_enabled = turn.websearch == true
     # Only the request is retried, so nothing before it (such as the
     # user card) is sent again, and only until part of the reply has reached
     # the browser. Each attempt sends a copy of the request body, which the
@@ -1287,12 +1329,13 @@ module ClaudeHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", workbench_loggable(query))
 
     # Processing JSON data for app: #{app}, call depth: #{call_depth}
 
     obj = session[:parameters]
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = []
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     thinking = []
@@ -1308,291 +1351,257 @@ module ClaudeHelper
 
     content_type = "text"
 
-    res.each do |chunk|
-      chunk_count += 1
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream. A proc, not a lambda: its returns end the reply.
+    handle = proc do |json|
 
-      if buffer.valid_encoding? == false
-        next
+      Monadic::Utils::ExtraLogger.log_json("Claude stream chunk", json)
+
+      # An error inside the stream (content filtering, overload) ends the reply.
+      if json.dig("type") == "error"
+        stream_error = "#{json.dig("error", "type")}: #{json.dig("error", "message")}"
+        throw :claude_stream_end
       end
 
-      begin
-        break if /\Rdata: \[DONE\]\R/ =~ buffer
-      rescue StandardError
-        next
-      end
+      # Capture usage from message lifecycle events
+      if json.dig("type") == "message_start"
+        usage = json.dig("message", "usage")
+        if usage
+          usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
+          usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
+          usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
+        end
+        # Present only under the thinking-binding-controls beta. A
+        # non-empty array means the API dropped replayed thinking blocks:
+        # "prefix_binding_mismatch" says the history changed under them
+        # (a tools rewrite mid tool-loop, an edited turn), and
+        # "model_binding_mismatch" says the conversation switched models.
+        # Logged so the three-step migration check has something to read.
+        log_claude_input_transformations(json.dig("message", "input_transformations"))
+      elsif json.dig("type") == "message_delta"
+        usage = json["usage"]
+        if usage
+          usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
+          usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
+          usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      scanner = StringScanner.new(buffer)
-      # Use multiline mode (m flag) to allow . to match newlines within JSON
-      pattern = /data: (\{.*?\})(?=\n|\z)/m
-      until scanner.eos?
-        matched = scanner.scan_until(pattern)
-        if matched
-          json_data = matched.match(pattern)[1]
-          begin
-            json = JSON.parse(json_data)
-
-            Monadic::Utils::ExtraLogger.log_json("Claude stream chunk", json)
-
-            # Handle API errors (including content filtering)
-            if json.dig("type") == "error"
-              error_type = json.dig("error", "type")
-              error_message = json.dig("error", "message")
-
-              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-                provider: "Claude",
-                message: "#{error_type}: #{error_message}"
-              )
-
-              res = { "type" => "error", "content" => formatted_error }
-              block&.call res
-
-              # Return error result immediately
-              return [{
-                "choices" => [{
-                  "finish_reason" => "error",
-                  "message" => {
-                    "content" => formatted_error
-                  }
-                }]
-              }]
+          # Advisor Tool bills sub-inference under usage.iterations[] with
+          # type "advisor_message". Top-level usage already excludes advisor
+          # tokens (per Anthropic docs), so we only log the breakdown here
+          # rather than adjust the aggregate. This keeps token accounting
+          # consistent with non-advisor requests while making the cost of
+          # advisor calls visible in debug logs.
+          iterations = usage["iterations"]
+          if iterations.is_a?(Array) && !iterations.empty?
+            advisor_iters  = iterations.select { |it| it.is_a?(Hash) && it["type"] == "advisor_message" }
+            executor_iters = iterations.select { |it| it.is_a?(Hash) && it["type"] == "message" }
+            if advisor_iters.any?
+              advisor_in  = advisor_iters.sum { |it| it["input_tokens"].to_i }
+              advisor_out = advisor_iters.sum { |it| it["output_tokens"].to_i }
+              executor_in  = executor_iters.sum { |it| it["input_tokens"].to_i }
+              executor_out = executor_iters.sum { |it| it["output_tokens"].to_i }
+              Monadic::Utils::ExtraLogger.log {
+                "Claude: usage.iterations breakdown\n" \
+                "  advisor_calls: #{advisor_iters.length}\n" \
+                "  advisor  input: #{advisor_in}, output: #{advisor_out}\n" \
+                "  executor input: #{executor_in}, output: #{executor_out}\n" \
+                "  top-level reflects executor only"
+              }
             end
-
-            # Capture usage from message lifecycle events
-            if json.dig("type") == "message_start"
-              usage = json.dig("message", "usage")
-              if usage
-                usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
-                usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
-                usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
-              end
-              # Present only under the thinking-binding-controls beta. A
-              # non-empty array means the API dropped replayed thinking blocks:
-              # "prefix_binding_mismatch" says the history changed under them
-              # (a tools rewrite mid tool-loop, an edited turn), and
-              # "model_binding_mismatch" says the conversation switched models.
-              # Logged so the three-step migration check has something to read.
-              log_claude_input_transformations(json.dig("message", "input_transformations"))
-            elsif json.dig("type") == "message_delta"
-              usage = json["usage"]
-              if usage
-                usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
-                usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
-                usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
-
-                # Advisor Tool bills sub-inference under usage.iterations[] with
-                # type "advisor_message". Top-level usage already excludes advisor
-                # tokens (per Anthropic docs), so we only log the breakdown here
-                # rather than adjust the aggregate. This keeps token accounting
-                # consistent with non-advisor requests while making the cost of
-                # advisor calls visible in debug logs.
-                iterations = usage["iterations"]
-                if iterations.is_a?(Array) && !iterations.empty?
-                  advisor_iters  = iterations.select { |it| it.is_a?(Hash) && it["type"] == "advisor_message" }
-                  executor_iters = iterations.select { |it| it.is_a?(Hash) && it["type"] == "message" }
-                  if advisor_iters.any?
-                    advisor_in  = advisor_iters.sum { |it| it["input_tokens"].to_i }
-                    advisor_out = advisor_iters.sum { |it| it["output_tokens"].to_i }
-                    executor_in  = executor_iters.sum { |it| it["input_tokens"].to_i }
-                    executor_out = executor_iters.sum { |it| it["output_tokens"].to_i }
-                    Monadic::Utils::ExtraLogger.log {
-                      "Claude: usage.iterations breakdown\n" \
-                      "  advisor_calls: #{advisor_iters.length}\n" \
-                      "  advisor  input: #{advisor_in}, output: #{advisor_out}\n" \
-                      "  executor input: #{executor_in}, output: #{executor_out}\n" \
-                      "  top-level reflects executor only"
-                    }
-                  end
-                end
-              end
-            end
-
-            # Skip content_block_stop - it causes excessive line breaks with web search
-            # Web search returns multiple content blocks, each triggering this event
-            # if json.dig("type") == "content_block_stop"
-            #   res = { "type" => "fragment", "content" => "\n\n" }
-            #   block&.call res
-            # end
-
-            # Handle content type changes
-            new_content_type = json.dig("content_block", "type")
-            if new_content_type == "tool_use" || new_content_type == "server_tool_use"
-              # Prevent duplicate tool_use registration from repeated content_block_start events
-              tool_use_id = json["content_block"]["id"]
-              unless tool_calls.any? { |tc| tc["id"] == tool_use_id }
-                json["content_block"]["input"] = ""
-                tool_calls << json["content_block"]
-
-                Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} registered\n  id: #{json["content_block"]["id"]}\n  name: #{json["content_block"]["name"]}" }
-              else
-                Monadic::Utils::ExtraLogger.log { "Claude: Skipping duplicate #{new_content_type}\n  id: #{tool_use_id}" }
-              end
-
-              # Check for file_id in Skills output
-              if json["content_block"]["output"] && json["content_block"]["output"]["file_id"]
-                tool_calls.last["file_id"] = json["content_block"]["output"]["file_id"]
-              end
-            elsif new_content_type == "advisor_tool_result"
-              # Advisor Tool (advisor_20260301) server-side sub-inference result.
-              # Arrives fully formed in a single content_block_start event (no deltas).
-              # We surface the advice to the UI so users can see the planner's output,
-              # and we intentionally do NOT append to tool_calls — the advisor is a
-              # server-executed tool whose invocation is tracked by the paired
-              # server_tool_use block.
-              advisor_content = json.dig("content_block", "content")
-              advisor_result_type = advisor_content.is_a?(Hash) ? advisor_content["type"] : nil
-              tool_use_id = json.dig("content_block", "tool_use_id")
-
-              if advisor_result_type == "advisor_result"
-                advice_text = advisor_content["text"].to_s
-                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result received\n  tool_use_id: #{tool_use_id}\n  length: #{advice_text.length} chars" }
-                if advice_text.length > 0
-                  block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
-                end
-              elsif advisor_result_type == "advisor_redacted_result"
-                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result (redacted) received\n  tool_use_id: #{tool_use_id}" }
-                block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
-              elsif advisor_result_type == "advisor_tool_result_error"
-                error_code = advisor_content["error_code"]
-                Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result error\n  code: #{error_code}\n  tool_use_id: #{tool_use_id}" }
-              end
-            elsif new_content_type == "bash_code_execution_tool_result" || new_content_type == "text_editor_code_execution_tool_result"
-              # Handle Skills tool results (file_id can be in different locations depending on the tool type)
-              tool_use_id = json.dig("content_block", "tool_use_id")
-
-              # Try different paths for file_id based on the tool result type
-              file_id = nil
-              if new_content_type == "bash_code_execution_tool_result"
-                content_array = json.dig("content_block", "content", "content")
-                if content_array.is_a?(Array)
-                  content_array.each do |item|
-                    if item["type"] == "bash_code_execution_output" && item["file_id"]
-                      file_id = item["file_id"]
-                      break
-                    end
-                  end
-                end
-              elsif new_content_type == "text_editor_code_execution_tool_result"
-                # text_editor result may have file_id in content.file_ids array
-                file_ids = json.dig("content_block", "content", "file_ids")
-                file_id = file_ids.first if file_ids.is_a?(Array) && !file_ids.empty?
-              end
-
-              Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} received\n  tool_use_id: #{tool_use_id}\n  file_id found: #{file_id.inspect}" }
-
-              if file_id
-                # Find the matching tool call by tool_use_id
-                matching_tool = tool_calls.find { |tc| tc["id"] == tool_use_id }
-                if matching_tool
-                  matching_tool["file_id"] = file_id
-
-                  Monadic::Utils::ExtraLogger.log { "Claude: file_id extracted and attached\n  file_id: #{file_id}\n  tool_use_id: #{tool_use_id}\n  tool_name: #{matching_tool["name"]}" }
-                else
-                  Monadic::Utils::ExtraLogger.log { "Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}" }
-                end
-              end
-            end
-            content_type = new_content_type if new_content_type
-
-            if content_type == "tool_use"
-              if json.dig("delta", "partial_json")
-
-                fragment = json.dig("delta", "partial_json").to_s
-
-                tool_calls.last["input"] << fragment
-                
-                # Debug logging for tool input accumulation
-                Monadic::Utils::ExtraLogger.log { "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}\n[Tool Input Total] Length: #{tool_calls.last["input"].length}" }
-              end
-              if json.dig("delta", "stop_reason")
-                stop_reason = json.dig("delta", "stop_reason")
-                case stop_reason
-                when "tool_use"
-                  finish_reason = "tool_use"
-                  res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                  block&.call res1
-                when "pause_turn"
-                  finish_reason = "pause_turn"
-                when "refusal"
-                  finish_reason = "refusal"
-                when "stop_sequence"
-                  finish_reason = "stop_sequence"
-                when "model_context_window_exceeded"
-                  finish_reason = "model_context_window_exceeded"
-                end
-              end
-            else
-              # Handle text content
-              if json.dig("delta", "text")
-                fragment = json.dig("delta", "text").to_s
-                
-                if fragment.length > 0
-                  texts << fragment
-
-                  res = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res
-                end
-              elsif json.dig("delta", "thinking")
-                fragment = json.dig("delta", "thinking").to_s
-                thinking << fragment
-
-                res = {
-                  "type" => "thinking",
-                  "content" => fragment
-                }
-                block&.call res
-              elsif json.dig("delta", "signature")
-                fragment = json.dig("delta", "signature").to_s
-                thinking_signature = fragment
-              elsif json.dig("delta", "redacted_thinking")
-                fragment = json.dig("delta", "redacted_thinking").to_s
-                redacted_thinking << fragment
-              end
-
-              # Handle stop reasons
-              if json.dig("delta", "stop_reason")
-                stop_reason = json.dig("delta", "stop_reason")
-                case stop_reason
-                when "max_tokens"
-                  finish_reason = "length"
-                when "end_turn"
-                  finish_reason = "stop"
-                when "pause_turn"
-                  finish_reason = "pause_turn"
-                when "refusal"
-                  finish_reason = "refusal"
-                when "stop_sequence"
-                  finish_reason = "stop_sequence"
-                when "model_context_window_exceeded"
-                  finish_reason = "model_context_window_exceeded"
-                end
-              end
-            end
-          rescue JSON::ParserError
-            # if the JSON parsing fails, the next chunk should be appended to the buffer
-            # and the loop should continue to the next iteration
           end
-        else
-          buffer = scanner.rest
-          break
         end
       end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error: #{e.message}\n[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+
+      # Skip content_block_stop - it causes excessive line breaks with web search
+      # Web search returns multiple content blocks, each triggering this event
+      # if json.dig("type") == "content_block_stop"
+      #   res = { "type" => "fragment", "content" => "\n\n" }
+      #   block&.call res
+      # end
+
+      # Handle content type changes
+      new_content_type = json.dig("content_block", "type")
+      if new_content_type == "tool_use" || new_content_type == "server_tool_use"
+        # Prevent duplicate tool_use registration from repeated content_block_start events
+        tool_use_id = json["content_block"]["id"]
+        unless tool_calls.any? { |tc| tc["id"] == tool_use_id }
+          json["content_block"]["input"] = ""
+          tool_calls << json["content_block"]
+
+          Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} registered\n  id: #{json["content_block"]["id"]}\n  name: #{json["content_block"]["name"]}" }
+        else
+          Monadic::Utils::ExtraLogger.log { "Claude: Skipping duplicate #{new_content_type}\n  id: #{tool_use_id}" }
+        end
+
+        # Check for file_id in Skills output
+        if json["content_block"]["output"] && json["content_block"]["output"]["file_id"]
+          tool_calls.last["file_id"] = json["content_block"]["output"]["file_id"]
+        end
+      elsif new_content_type == "advisor_tool_result"
+        # Advisor Tool (advisor_20260301) server-side sub-inference result.
+        # Arrives fully formed in a single content_block_start event (no deltas).
+        # We surface the advice to the UI so users can see the planner's output,
+        # and we intentionally do NOT append to tool_calls — the advisor is a
+        # server-executed tool whose invocation is tracked by the paired
+        # server_tool_use block.
+        advisor_content = json.dig("content_block", "content")
+        advisor_result_type = advisor_content.is_a?(Hash) ? advisor_content["type"] : nil
+        tool_use_id = json.dig("content_block", "tool_use_id")
+
+        if advisor_result_type == "advisor_result"
+          advice_text = advisor_content["text"].to_s
+          Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result received\n  tool_use_id: #{tool_use_id}\n  length: #{advice_text.length} chars" }
+          if advice_text.length > 0
+            block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
+          end
+        elsif advisor_result_type == "advisor_redacted_result"
+          Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result (redacted) received\n  tool_use_id: #{tool_use_id}" }
+          block&.call({ "type" => "wait", "content" => "<i class='fas fa-user-tie'></i> ADVISOR CONSULTED" })
+        elsif advisor_result_type == "advisor_tool_result_error"
+          error_code = advisor_content["error_code"]
+          Monadic::Utils::ExtraLogger.log { "Claude: advisor_tool_result error\n  code: #{error_code}\n  tool_use_id: #{tool_use_id}" }
+        end
+      elsif new_content_type == "bash_code_execution_tool_result" || new_content_type == "text_editor_code_execution_tool_result"
+        # Handle Skills tool results (file_id can be in different locations depending on the tool type)
+        tool_use_id = json.dig("content_block", "tool_use_id")
+
+        # Try different paths for file_id based on the tool result type
+        file_id = nil
+        if new_content_type == "bash_code_execution_tool_result"
+          content_array = json.dig("content_block", "content", "content")
+          if content_array.is_a?(Array)
+            content_array.each do |item|
+              if item["type"] == "bash_code_execution_output" && item["file_id"]
+                file_id = item["file_id"]
+                break
+              end
+            end
+          end
+        elsif new_content_type == "text_editor_code_execution_tool_result"
+          # text_editor result may have file_id in content.file_ids array
+          file_ids = json.dig("content_block", "content", "file_ids")
+          file_id = file_ids.first if file_ids.is_a?(Array) && !file_ids.empty?
+        end
+
+        Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} received\n  tool_use_id: #{tool_use_id}\n  file_id found: #{file_id.inspect}" }
+
+        if file_id
+          # Find the matching tool call by tool_use_id
+          matching_tool = tool_calls.find { |tc| tc["id"] == tool_use_id }
+          if matching_tool
+            matching_tool["file_id"] = file_id
+
+            Monadic::Utils::ExtraLogger.log { "Claude: file_id extracted and attached\n  file_id: #{file_id}\n  tool_use_id: #{tool_use_id}\n  tool_name: #{matching_tool["name"]}" }
+          else
+            Monadic::Utils::ExtraLogger.log { "Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}" }
+          end
+        end
+      end
+      content_type = new_content_type if new_content_type
+
+      if content_type == "tool_use"
+        if json.dig("delta", "partial_json")
+
+          fragment = json.dig("delta", "partial_json").to_s
+
+          tool_calls.last["input"] << fragment
+          
+          # Debug logging for tool input accumulation
+          Monadic::Utils::ExtraLogger.log { "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}\n[Tool Input Total] Length: #{tool_calls.last["input"].length}" }
+        end
+        if json.dig("delta", "stop_reason")
+          stop_reason = json.dig("delta", "stop_reason")
+          case stop_reason
+          when "tool_use"
+            finish_reason = "tool_use"
+            res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+            block&.call res1
+          when "pause_turn"
+            finish_reason = "pause_turn"
+          when "refusal"
+            finish_reason = "refusal"
+          when "stop_sequence"
+            finish_reason = "stop_sequence"
+          when "model_context_window_exceeded"
+            finish_reason = "model_context_window_exceeded"
+          end
+        end
+      else
+        # Handle text content
+        if json.dig("delta", "text")
+          fragment = json.dig("delta", "text").to_s
+          
+          if fragment.length > 0
+            texts << fragment
+
+            res = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res
+          end
+        elsif json.dig("delta", "thinking")
+          fragment = json.dig("delta", "thinking").to_s
+          thinking << fragment
+
+          res = {
+            "type" => "thinking",
+            "content" => fragment
+          }
+          block&.call res
+        elsif json.dig("delta", "signature")
+          fragment = json.dig("delta", "signature").to_s
+          thinking_signature = fragment
+        elsif json.dig("delta", "redacted_thinking")
+          fragment = json.dig("delta", "redacted_thinking").to_s
+          redacted_thinking << fragment
+        end
+
+        # Handle stop reasons
+        if json.dig("delta", "stop_reason")
+          stop_reason = json.dig("delta", "stop_reason")
+          case stop_reason
+          when "max_tokens"
+            finish_reason = "length"
+          when "end_turn"
+            finish_reason = "stop"
+          when "pause_turn"
+            finish_reason = "pause_turn"
+          when "refusal"
+            finish_reason = "refusal"
+          when "stop_sequence"
+            finish_reason = "stop_sequence"
+          when "model_context_window_exceeded"
+            finish_reason = "model_context_window_exceeded"
+          end
+        end
+      end
+    end
+
+    catch(:claude_stream_end) do
+      read = lambda do |data, _event|
+        throw :claude_stream_end if data.strip == "[DONE]"
+
+        handle.call(JSON.parse(data))
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error: #{e.message}\n[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+      end
+
+      res.each do |chunk|
+        chunk_count += 1
+        records.feed(chunk, &read)
+      end
+      records.finish(&read)
+    end
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error)}" }
+      return StreamRecords.error_reply("Claude", stream_error, &block)
     end
 
     thinking_result = if thinking.empty?
@@ -1607,8 +1616,8 @@ module ClaudeHelper
                                  redacted_thinking.join("")
                                end
 
-    @thinking = @thinking.to_s + thinking_result if thinking_result
-    @signature = thinking_signature if thinking_signature
+    session[:claude_thinking] = session[:claude_thinking].to_s + thinking_result if thinking_result
+    session[:claude_signature] = thinking_signature if thinking_signature
 
     text_result = if texts.empty?
                nil
@@ -1617,7 +1626,7 @@ module ClaudeHelper
              end
 
     # Process tool calls if any exist
-    if tool_calls.any? && session[:call_depth_per_turn] <= MAX_FUNC_CALLS
+    if tool_calls.any? && session[:call_depth_per_turn] <= tool_round_limit(session, MAX_FUNC_CALLS)
       # Preserve pre-tool text so it can be prepended to the final response.
       # Without this, streamed text from Round 1 (e.g. mathematical explanation)
       # is lost when Round 2 (post-tool) replaces the temp-card content.
@@ -1630,7 +1639,8 @@ module ClaudeHelper
         if result.is_a?(Array) && result.first.is_a?(Hash)
           msg = result.first.dig("choices", 0, "message") || result.first["message"]
           if msg && msg["content"]
-            msg["content"] = pre_tool_text + "\n\n" + msg["content"]
+            # Each part put back with the words its own request was sent with.
+            msg["content"] = join_put_back(pre_tool_text, result.first, msg["content"])
           end
         end
       end
@@ -1638,7 +1648,7 @@ module ClaudeHelper
     end
 
     if text_result || tool_calls.any?
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS && tool_calls.any?
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS) && tool_calls.any?
         res = { "type" => "fragment", "content" => "NOTICE: Maximum function call depth exceeded" }
         block&.call res
 
@@ -1662,7 +1672,7 @@ module ClaudeHelper
       result = [{
         "choices" => [{
           "finish_reason" => finish_reason,
-          "message" => { "thinking" => @thinking, "content" => text_result }
+          "message" => { "thinking" => session[:claude_thinking], "content" => text_result }
         }]
       }]
 
@@ -1695,6 +1705,55 @@ module ClaudeHelper
     end
   end
 
+  # One message of a Claude conversation, as sent to a chat with a word
+  # table (hide_words_in_request!). Text blocks are what the user and the
+  # app wrote, and replies as the chat keeps them (put back), except in an
+  # assistant message with a tool_use block: what the model wrote in a
+  # round of tool calls. A tool_use's input is the model's; a tool_result
+  # is data (its text, or the text blocks in it). Thinking blocks are
+  # signed and left as they are, like images, documents and the blocks of
+  # Anthropic's own tools (a word in them stops the request).
+  def hide_words_in_claude_message(message, snapshot, budget)
+    return message unless message.is_a?(Hash)
+
+    key = ->(name) { message.key?(name.to_sym) ? name.to_sym : name }
+    content = message[key.("content")]
+    return message unless %w[user assistant].include?((message[:role] || message["role"]).to_s)
+    return message.merge(key.("content") => snapshot.raw(content, budget)) if content.is_a?(String)
+    return message unless content.is_a?(Array)
+
+    type_of = ->(block) { block.is_a?(Hash) ? (block[:type] || block["type"]).to_s : "" }
+    from_model = (message[:role] || message["role"]).to_s == "assistant" && content.any? { |b| type_of.(b) == "tool_use" }
+    blocks = content.map do |block|
+      field = ->(name) { block.key?(name.to_sym) ? name.to_sym : name }
+      case type_of.(block)
+      when "text"
+        text = block[field.("text")]
+        next block unless text.is_a?(String)
+
+        block.merge(field.("text") => from_model ? snapshot.from_model(text, budget) : snapshot.raw(text, budget))
+      when "tool_use"
+        block.merge(field.("input") => snapshot.data(block[field.("input")], origin: :model, budget: budget))
+      when "tool_result"
+        result = block[field.("content")]
+        result = if result.is_a?(Array)
+                   result.map do |part|
+                     next part unless type_of.(part) == "text"
+
+                     text_key = part.key?(:text) ? :text : "text"
+                     part.merge(text_key => snapshot.data(part[text_key], budget: budget))
+                   end
+                 else
+                   snapshot.data(result, budget: budget)
+                 end
+        block.merge(field.("content") => result)
+      else
+        block
+      end
+    end
+    message.merge(key.("content") => blocks)
+  end
+
   # Assemble tool call context from streaming results, parse inputs, and invoke process_functions.
   # Returns result Array if tools were processed, nil/empty to continue.
   private def assemble_claude_tool_context(app, session, tool_calls, text_result, thinking_result,
@@ -1710,9 +1769,9 @@ module ClaudeHelper
     context = previous_returns.is_a?(Array) ? previous_returns.dup : []
     context << { "role" => "assistant", "content" => [] }
 
-    if thinking_result || @thinking.to_s != ""
-      thinking = thinking_result || @thinking.to_s
-      signature = thinking_signature || @signature
+    if thinking_result || session[:claude_thinking].to_s != ""
+      thinking = thinking_result || session[:claude_thinking].to_s
+      signature = thinking_signature || session[:claude_signature]
       context.last["content"] << {
         "type" => "thinking",
         "thinking" => thinking,
@@ -1772,7 +1831,7 @@ module ClaudeHelper
   # Handle server_tool_use tool calls (executed by Anthropic, not by us).
   # Downloads any associated file_id and notifies the user.
   # Returns true if the tool was a server_tool_use (caller should skip to next).
-  private def handle_claude_server_tool(tool_call, tool_name, &block)
+  private def handle_claude_server_tool(session, tool_call, tool_name, &block)
     return false unless tool_call["type"] == "server_tool_use"
 
     Monadic::Utils::ExtraLogger.log { "\n=== Skipping Server Tool (executed by Anthropic) ===\nTool name: #{tool_name}\nTool ID: #{tool_call["id"]}\nHas file_id: #{!tool_call["file_id"].nil?}" }
@@ -1783,15 +1842,20 @@ module ClaudeHelper
       file_result = download_file_from_api(file_id)
 
       if file_result
-        save_result = save_to_documents(file_result[:data], file_result[:filename])
+        save_result = keep_provider_file(session, file_result[:data], file_result[:filename])
 
-        Monadic::Utils::ExtraLogger.log { "File downloaded and saved successfully\n  Path: #{save_result[:relative]}\n  Size: #{save_result[:size]} bytes" }
+        if save_result
+          Monadic::Utils::ExtraLogger.log { "File downloaded and saved successfully\n  Path: #{save_result[:relative]}\n  Size: #{save_result[:size]} bytes" }
 
-        # Notify user about the file
-        block&.call({
-          "type" => "fragment",
-          "content" => "\n\n✅ **File saved:** `#{save_result[:relative]}` (#{(save_result[:size] / 1024.0).round(2)} KB)\n\n"
-        })
+          # Notify user about the file
+          where = save_result[:shown] ? " (on the work screen)" : ""
+          block&.call({
+            "type" => "fragment",
+            "content" => "\n\n✅ **File saved:** `#{save_result[:relative]}` (#{(save_result[:size] / 1024.0).round(2)} KB)#{where}\n\n"
+          })
+        else
+          block&.call({ "type" => "fragment", "content" => "\n\n⚠️ #{NO_CHAT_FOLDER_FOR_FILE}\n\n" })
+        end
       else
         Monadic::Utils::ExtraLogger.log { "ERROR: Failed to download file from API\n  file_id: #{file_id}" }
       end
@@ -1820,61 +1884,19 @@ module ClaudeHelper
 
     Monadic::Utils::ExtraLogger.log { "Argument hash after conversion: #{argument_hash.inspect}\nApp instance class: #{APPS[app].class}\nMethod exists?: #{APPS[app].respond_to?(tool_name.to_sym)}" }
 
-    app_instance = APPS[app]
-
-    # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
-    # :session injection so the session object is never walked. No-op without
-    # a vocabulary block.
-    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, app_instance&.settings)
-
-    # Inject session for tools that need it (e.g., monadic state tools)
-    method_obj = app_instance.method(tool_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-      argument_hash[:session] = session
-    end
-
-    if (refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, tool_name))
-      # Run only the tools offered to the model in the latest request.
-      tool_return = refusal
-    elsif tool_name == "request_tool"
-      # request_tool has no Ruby method: it is the progressive-disclosure meta-tool.
-      tool_return = Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-        session: session, app_name: app, app_settings: (app_instance&.settings || {}), argument_hash: argument_hash
-      )
-    else
-      begin
-        if argument_hash.empty?
-          tool_return = app_instance.public_send(tool_name.to_sym)
-        else
-          tool_return = app_instance.public_send(tool_name.to_sym, **argument_hash)
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }
-
-        send_verification_notification(session, &block) if tool_name == "report_verification"
-
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: tool_name,
-          argument_hash: argument_hash,
-          session: session
-        )
-      rescue => e
+    result = run_tool_call(
+      app, session, tool_name, argument_hash, call_id: tool_call["id"],
+      amend: ->(value) { value || "Empty result" },
+      error_text: lambda { |e|
         Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }
-        tool_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "Claude",
-          tool_name: tool_name,
-          message: e.message
-        )
-      end
-    end
+        Monadic::Utils::ErrorFormatter.tool_error(provider: "Claude", tool_name: tool_name, message: e.message)
+      }, &block
+    )
+    tool_return = result.value
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{workbench_loggable(tool_return).to_s[0..500]}" }
 
-    unless tool_return
-      tool_return = "Empty result"
-    end
-
-    # Check for repeated errors (same pattern as OpenAI helper)
-    if handle_function_error(session, tool_return, tool_name, &block)
+    # The same error too often: the round ends with what the tool said.
+    if result.stop
       # Return [entry, true] to signal error stop to orchestrator
       entry = {
         type: "tool_result",
@@ -1890,14 +1912,18 @@ module ClaudeHelper
       file_result = download_file_from_api(file_id)
 
       if file_result
-        save_result = save_to_documents(file_result[:data], file_result[:filename])
-        tool_return = tool_return.to_s + "\n\n✅ File saved to #{save_result[:relative]} (#{save_result[:size]} bytes)"
+        save_result = keep_provider_file(session, file_result[:data], file_result[:filename])
+        if save_result
+          tool_return = tool_return.to_s + "\n\n✅ File saved to #{save_result[:relative]} (#{save_result[:size]} bytes)"
+          tool_return += " and shown on the work screen beside the chat" if save_result[:shown]
+        else
+          tool_return = tool_return.to_s + "\n\n⚠️ #{NO_CHAT_FOLDER_FOR_FILE}"
+        end
       else
         tool_return = tool_return.to_s + "\n\n⚠️ Error downloading file from Skills API"
       end
     end
 
-    Monadic::Utils::ExtraLogger.log { "Tool return: #{tool_return.to_s[0..200]}..." }
 
     tool_result_entry = {
       type: "tool_result",
@@ -1927,13 +1953,39 @@ module ClaudeHelper
       tool_result_entry[:content] = tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
     end
 
-    # Store gallery_html for server-side injection (bypasses LLM text reproduction)
-    if tool_return.is_a?(Hash) && tool_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << tool_return[:gallery_html]
-    end
-
     [tool_result_entry, false]
+  end
+
+  # The tool results of the reply (function_returns), with the image of
+  # each look placed in the tool_result it answers, after its text. Copies:
+  # function_returns keeps the text only.
+  private def claude_messages_with_looks(messages, session)
+    ids = []
+    copied = messages.map do |message|
+      content = message[:content] || message["content"]
+      next message unless content.is_a?(Array)
+
+      blocks = content.map do |block|
+        type = block[:type] || block["type"]
+        id = block[:tool_use_id] || block["tool_use_id"]
+        ids << id.to_s if type.to_s == "tool_result" && id
+        looks = type.to_s == "tool_result" && id ? workbench_looks_to_place(session, [id.to_s]) : []
+        next block if looks.empty?
+
+        text = block[:content] || block["content"]
+        parts = text.is_a?(Array) ? text.dup : [{ type: "text", text: text.to_s }]
+        looks.each do |look|
+          parts << { type: "text", text: look.caption.to_s }
+          parts << { type: "image",
+                     source: { type: "base64", media_type: look.image.content_type, data: look.image.base64 } }
+        end
+        block.merge((block.key?(:content) ? :content : "content") => parts)
+      end
+      message.merge((message.key?(:content) ? :content : "content") => blocks)
+    end
+    ledger = workbench_look_ledger
+    workbench_looks_prepared(ledger.answering(ids)) if ledger
+    copied
   end
 
   private def handle_claude_jupyter_fallback(obj, session, &block)
@@ -1966,7 +2018,7 @@ module ClaudeHelper
 
       block&.call({ "type" => "fragment", "content" => success_msg })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }])
     end
 
     notebook_error_result = tool_results.find do |r|
@@ -1984,7 +2036,7 @@ module ClaudeHelper
       error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}"
       block&.call({ "type" => "fragment", "content" => error_msg })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+      return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
     end
 
     nil
@@ -2001,21 +2053,31 @@ module ClaudeHelper
       msg
     }
 
-    tools.each do |tool_call|
+    tools.each_with_index do |tool_call, index|
       tool_name = tool_call["name"]
       record_tool_call(session, tool_name)
       block&.call({ "type" => "tool_executing", "content" => tool_name })
 
       # Skip server_tool_use (executed by Anthropic, not by us)
-      next if handle_claude_server_tool(tool_call, tool_name, &block)
+      next if handle_claude_server_tool(session, tool_call, tool_name, &block)
 
       # Invoke the tool function and build the result entry
       # Returns [tool_result_entry, error_stop]
       tool_result_entry, error_stop = invoke_claude_tool_function(app, session, tool_call, tool_name, &block)
-      if tool_result_entry
-        content << tool_result_entry
-        next if error_stop # stop_retrying flag is set
+      content << tool_result_entry if tool_result_entry
+
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      next unless (offered = take_offer(session))
+
+      tools.drop(index + 1).each do |skipped|
+        next if skipped["type"] == "server_tool_use"
+
+        content << { type: "tool_result", tool_use_id: skipped["id"], content: Monadic::Workbench::Offered.not_executed }
       end
+      context << { role: "user", content: content }
+      obj["function_returns"] = context
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
     end
 
     # Only add tool results message if there are actual results to send
@@ -2024,11 +2086,11 @@ module ClaudeHelper
       obj["function_returns"] = context
 
       # Stop if repeated errors detected (set by handle_function_error above)
-      if should_stop_for_errors?(session)
-        res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-        block&.call res
-        return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
-      end
+      return stop_reply(session, &block) if should_stop_for_errors?(session)
+
+      # The tool that takes the reply's text ended the reply.
+      ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+      return ended if ended
 
       api_request("tool", session, call_depth: call_depth, &block)
     else
@@ -2159,41 +2221,30 @@ module ClaudeHelper
     end
   end
 
-  # Save file to documents directory
-  def save_to_documents(file_data, filename)
-    # Use the correct base path depending on environment
-    base_path = if Monadic::Utils::Environment.in_container?
-                  MonadicApp::SHARED_VOL
-                else
-                  MonadicApp::LOCAL_SHARED_VOL
-                end
+  NO_CHAT_FOLDER_FOR_FILE = "The file the provider made was not saved: there is no chat folder to keep it in."
 
-    docs_dir = File.join(base_path, "documents")
-    Monadic::Utils::SharedPathGuard.mkdir_p!(docs_dir)
+  # Keeps a file the provider made for the reply in a run folder of the
+  # chat's folder and shows it on the work screen when the work screen can
+  # show it (a PDF, not an Office file). Returns { relative:, size:, shown: },
+  # or nil without a chat folder (nothing is saved elsewhere).
+  def keep_provider_file(session, file_data, filename)
+    workbench = Monadic::Workbench::Caller.current(session)
+    app_name = session.respond_to?(:[]) ? session.dig(:parameters, "app_name") : nil
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name || "Chat")
+    return nil unless job
 
-    # The name comes from the provider's response: only its last part is
-    # used, and the file is written never through a link.
-    filename = File.basename(filename.to_s.tr("\\", "/"))
-    filename = "claude_file" if filename.empty? || %w[. ..].include?(filename)
-    file_path = File.join(docs_dir, filename)
-    Monadic::Utils::SharedPathGuard.write_file!(file_path, file_data, mode: "wb")
+    path = Monadic::Workbench::ChatOutput.keep(job, document_file_name(filename), file_data)
+    { relative: path, size: file_data.bytesize, shown: Monadic::Workbench::ChatOutput.show(path, workbench) }
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    Monadic::Workbench::ChatOutput.drop_if_empty(job)
+    raise
+  end
 
-    # Create platform-independent relative path display
-    home_display = if RUBY_PLATFORM =~ /mingw|mswin|cygwin/
-                     # Windows: use %USERPROFILE% or actual username
-                     ENV['USERPROFILE'] ? File.basename(ENV['USERPROFILE']) : Dir.home
-                   else
-                     # Unix-like: use ~
-                     "~"
-                   end
-
-    relative_path = File.join(home_display, "monadic", "data", "documents", filename)
-
-    {
-      path: file_path,
-      relative: relative_path,
-      size: file_data.bytesize
-    }
+  # The name comes from the provider's response: only its last part is
+  # used.
+  def document_file_name(filename)
+    name = File.basename(filename.to_s.tr("\\", "/"))
+    name.empty? || %w[. ..].include?(name) ? "claude_file" : name
   end
 
   # Ensure send_query is publicly callable by external agents (e.g., AIUserAgent)

@@ -1,28 +1,18 @@
 # frozen_string_literal: true
 
-require 'json'
-
 module Monadic
   module Utils
-    # Extractors for Expressive Speech instruction-mode payloads.
+    # Takes the Expressive Speech directive off a reply (see
+    # `docs_dev/expressive_speech_instruction_mode.md`): the LLM begins the
+    # reply with a `<<TTS:...>>` block, and the rest of the text is the
+    # reply.
     #
-    # Two encodings coexist (see `docs_dev/expressive_speech_instruction_mode.md`):
-    #
-    #   * Monadic apps   → LLM emits JSON with a sibling `tts_instructions` key
-    #                      alongside `message` and `context`.
-    #   * Non-Monadic    → LLM prefixes the response with a `<<TTS:...>>`
-    #                      sentinel block; the rest of the text is the reply.
-    #
-    # This module provides nil-safe parsers for both encodings plus a helper
-    # to scrub `tts_instructions` from stored history so that replayed context
-    # does not waste tokens on per-turn ephemeral TTS metadata.
-    #
-    # All entry points are total: on parse failure or missing fields they
-    # return the original text with `nil` for instructions, never raising.
+    # All entry points are total: on a missing block they return the
+    # original text with `nil` for instructions, never raising.
     module TtsInstructionExtractor
       module_function
 
-      # Sentinel for the non-Monadic encoding. Matches at the absolute start
+      # The directive block. Matches at the absolute start
       # of the text (leading whitespace allowed) with a non-greedy body so
       # the first `>>` closes the block. Multi-line enabled for the `.`.
       SENTINEL_RE = /\A\s*<<TTS:(.*?)>>\s*/m
@@ -34,14 +24,9 @@ module Monadic
 
       # -- Extractors --------------------------------------------------------
 
-      # Unified entry point. Dispatches to the right parser by app state.
-      # Returns [message_text, instructions_or_nil]. Never raises.
-      def extract(text, app_is_monadic:)
-        app_is_monadic ? extract_json(text) : extract_sentinel(text)
-      end
-
-      # Non-Monadic encoding: peel the leading `<<TTS:...>>` block.
-      def extract_sentinel(text)
+      # Returns [message_text, instructions_or_nil]: the reply without its
+      # leading `<<TTS:...>>` block, and the block's text.
+      def extract(text)
         return [text, nil] if text.nil? || text.to_s.empty?
         m = text.match(SENTINEL_RE)
         return [text, nil] unless m
@@ -51,50 +36,13 @@ module Monadic
         [cleaned, instructions]
       end
 
-      # Monadic encoding: parse the JSON, pull `message` and `tts_instructions`.
-      # The full JSON text is returned as-is when parsing fails so downstream
-      # display code can still try the normal Monadic-mode render path.
-      def extract_json(text)
-        return [text, nil] if text.nil? || text.to_s.empty?
-        parsed = safe_parse_json(text)
-        return [text, nil] unless parsed.is_a?(Hash)
-        return [text, nil] unless parsed["message"].is_a?(String)
-        instructions = parsed["tts_instructions"]
-        instructions = nil unless instructions.is_a?(String) && !instructions.empty?
-        # Note: we return ONLY the message text (not a reshaped JSON). The
-        # caller that needs the full structure for display should still work
-        # off the original `text`; display-side suppression
-        # (MONADIC_SUPPRESSED_KEYS in markdown-renderer.js) keeps the
-        # `tts_instructions` field out of the rendered UI.
-        [parsed["message"], instructions]
-      end
-
-      # Strip `tts_instructions` from a stored-history JSON string so that
-      # next-turn LLM context does not carry per-turn ephemeral metadata.
-      # Preserves everything else (including `context`). Returns the input
-      # unchanged when it is not a valid `{ ...tts_instructions... }` object.
-      def strip_from_history_json(json_text)
-        return json_text unless json_text.is_a?(String)
-        parsed = safe_parse_json(json_text)
-        return json_text unless parsed.is_a?(Hash) && parsed.key?("tts_instructions")
-        parsed.delete("tts_instructions")
-        JSON.generate(parsed)
-      end
-
-      # Strip a leading `<<TTS:...>>` sentinel block from a stored-history
-      # plain-text string so the next-turn LLM context starts from the
-      # user-facing reply. No-op when the sentinel is absent.
-      def strip_from_history_sentinel(text)
+      # Strip a leading `<<TTS:...>>` block from a reply being stored, so
+      # the next-turn LLM context starts from the user-facing reply. No-op
+      # when the block is absent.
+      def strip_from_history(text)
         return text unless text.is_a?(String)
-        text.sub(SENTINEL_RE, '')
-      end
 
-      # Unified history-write-time stripper. Pass `app_is_monadic` the same
-      # way `extract` does: the JSON path runs for Monadic apps (removes the
-      # `tts_instructions` field), the sentinel path for non-Monadic apps
-      # (removes the leading `<<TTS:...>>` block). Always nil-safe.
-      def strip_from_history(text, app_is_monadic:)
-        app_is_monadic ? strip_from_history_json(text) : strip_from_history_sentinel(text)
+        text.sub(SENTINEL_RE, '')
       end
 
       # -- Streaming helpers -------------------------------------------------
@@ -119,13 +67,6 @@ module Monadic
         [instructions, remainder]
       end
 
-      # -- Internal ---------------------------------------------------------
-
-      def safe_parse_json(text)
-        JSON.parse(text.to_s)
-      rescue JSON::ParserError
-        nil
-      end
     end
   end
 end

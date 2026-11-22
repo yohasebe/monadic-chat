@@ -48,7 +48,7 @@ RSpec.describe 'App Switching Integration', type: :integration do
         boolean_flags = %w[
           auto_speech easy_submit initiate_from_assistant
           math mermaid abc monadic
-          pdf_vector_storage websearch
+          websearch
           jupyter video
         ]
 
@@ -173,22 +173,22 @@ RSpec.describe 'App Switching Integration', type: :integration do
 
         apps_data = prepare_apps_data
 
-        # Find apps with different pdf_vector_storage configurations
-        app_with_pdf = apps_data.find { |_, settings| settings['pdf_vector_storage'] == true }
-        app_without_pdf = apps_data.find { |_, settings| settings['pdf_vector_storage'] == false || settings['pdf_vector_storage'].nil? }
+        # Find apps with different math configurations
+        app_with_math = apps_data.find { |_, settings| settings['math'] == true }
+        app_without_math = apps_data.find { |_, settings| settings['math'] == false || settings['math'].nil? }
 
-        if app_with_pdf && app_without_pdf
-          _, settings_with = app_with_pdf
-          _, settings_without = app_without_pdf
+        if app_with_math && app_without_math
+          _, settings_with = app_with_math
+          _, settings_without = app_without_math
 
-          # App with pdf_vector_storage should have true
-          expect(settings_with['pdf_vector_storage']).to be true
-          expect(settings_with['pdf_vector_storage']).to be_a(TrueClass)
+          # App with math should have true
+          expect(settings_with['math']).to be true
+          expect(settings_with['math']).to be_a(TrueClass)
 
-          # App without pdf_vector_storage should have false or nil
-          expect([false, nil]).to include(settings_without['pdf_vector_storage'])
+          # App without math should have false or nil
+          expect([false, nil]).to include(settings_without['math'])
         else
-          skip 'Could not find apps with different pdf_vector_storage configurations'
+          skip 'Could not find apps with different math configurations'
         end
       end
     end
@@ -207,7 +207,7 @@ RSpec.describe 'App Switching Integration', type: :integration do
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
         math mermaid abc monadic
-        pdf_vector_storage websearch
+        websearch
         jupyter video
       ]
 
@@ -239,7 +239,7 @@ RSpec.describe 'App Switching Integration', type: :integration do
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
         math mermaid abc monadic
-        pdf_vector_storage websearch
+        websearch
         jupyter video
       ]
 

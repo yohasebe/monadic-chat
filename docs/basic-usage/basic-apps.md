@@ -14,7 +14,6 @@ The table below shows which apps are available for which AI model providers.
 | App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Ollama |
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Live Conversation | ✅ | | | | ✅ | ✅ | | |
 | Wikipedia | ✅ | | | | | | | |
@@ -22,7 +21,6 @@ The table below shows which apps are available for which AI model providers.
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | ✅ | | | | | | |
 | Translate | ✅ | | ✅ | ✅ | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | |
 | Novel Writer | ✅ | | | ✅ | | | ✅ | |
@@ -41,53 +39,15 @@ The table below shows which apps are available for which AI model providers.
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | |
-| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Music Tutor | ✅ | ✅ | | | ✅ | ✅ | | |
 | Music Analyst | | | | | ✅ | | | |
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## Privacy Filter and Knowledge Base by App :id=privacy-kb-by-app
+## Knowledge Base in Apps :id=kb-by-app
 
-An app supports either the Privacy Filter (PF) or saving to the Knowledge Base (KB), not both. Apps that create images, videos, diagrams, music or documents support neither: their output is saved in the shared folder (`~/monadic/data`).
+Every app can save its conversation to the Knowledge Base and search it. An app searches only after you turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel. The switch is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation searches through its own **Search and compute** switch. A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation as a file, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
 
-To keep a conversation that used the Privacy Filter, click the Privacy indicator in the top bar and use **Export this conversation** (it can be encrypted, and masked). To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
-
-| App | Privacy Filter | Knowledge Base Save |
-|-----|:--:|:--:|
-| Chat | | ✅ |
-| Chat Plus | ✅ | |
-| Voice Chat | | ✅ |
-| Live Conversation | | ✅ |
-| Wikipedia | | ✅ |
-| Math Tutor | | ✅ |
-| Second Opinion | ✅ | |
-| Research Assistant | | ✅ |
-| Language Practice | | ✅ |
-| Language Practice Plus | | ✅ |
-| Translate | ✅ | |
-| Voice Interpreter | | ✅ |
-| Novel Writer | | ✅ |
-| Image Generator | | |
-| Video Generator | | |
-| Music Generator | | |
-| Mail Composer | ✅ | |
-| Mermaid Grapher | | |
-| DrawIO Grapher | | |
-| Syntax Tree | | |
-| Concept Visualizer | | |
-| Speech Draft Helper | | ✅ |
-| Web Insight | | ✅ |
-| Video Describer | | ✅ |
-| Code Interpreter | | ✅ |
-| Coding Assistant | | ✅ |
-| Jupyter Notebook | | ✅ |
-| Auto Forge | | |
-| Music Lab | | |
-| Music Analyst | | |
-| Document Generator | | |
-| Monadic Chat Help | | ✅ |
-
-A blank cell in **both** columns marks an app whose output (image, video, diagram, document, etc.) is saved as a file. Keep it with the controls on the message or from the shared folder.
 
 ## Provider Capabilities Overview :id=provider-capabilities
 
@@ -111,7 +71,6 @@ Each app is documented in detail on its own page. Follow the links below for des
 General-purpose conversation apps, from standard and voice chat to math tutoring, second opinions, web-based research, and the built-in documentation assistant. See [Chat & Assistant Apps](../apps/chat-apps.md).
 
 - Chat
-- Chat Plus
 - Voice Chat
 - Live Conversation
 - Wikipedia
@@ -125,7 +84,6 @@ General-purpose conversation apps, from standard and voice chat to math tutoring
 Apps for practicing languages in spoken conversation, translating text, and interpreting speech into another language. See [Language Learning Apps](../apps/language-apps.md).
 
 - Language Practice
-- Language Practice Plus
 - Translate
 - Voice Interpreter
 
@@ -152,7 +110,7 @@ Generate music from text descriptions — full songs with vocals and lyrics, or 
 
 ### Diagram & Visualization Apps
 
-Create diagrams from natural-language descriptions using Mermaid.js, Draw.io, and LaTeX/TikZ, with live browser previews and visual self-verification. See [Diagram & Visualization Apps](../apps/diagram-apps.md).
+Create diagrams from natural-language descriptions using Mermaid.js, Draw.io, RSyntaxTree, and LaTeX/TikZ, with live browser previews and visual self-verification. See [Diagram & Visualization Apps](../apps/diagram-apps.md).
 
 - Mermaid Grapher
 - DrawIO Grapher
@@ -168,7 +126,7 @@ Capture and interact with web pages through a controlled browser, and analyze th
 
 ### Knowledge Base
 
-A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or, once it is scoped `Global`, from the other apps that search the Knowledge Base (with **Use Knowledge Base for retrieval (this session)** on). See [Knowledge Base](../apps/knowledge-base.md).
+A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or, once it is scoped `Global`, from the other apps (with **Use Knowledge Base for retrieval (this session)** on). See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Coding & Notebook Apps
 
@@ -178,11 +136,11 @@ Write and execute code in a sandboxed Docker environment, manage files in the sh
 - Coding Assistant
 - Jupyter Notebook
 
-### Music Lab & Music Analyst
+### Music Tutor & Music Analyst
 
-Learn music theory hands-on with playable examples and backing tracks, and evaluate recorded performances with measured features and interpretive critique. See [Music Lab & Music Analyst](../apps/music-apps.md).
+Learn music theory hands-on with playable examples and backing tracks, and evaluate recorded performances with measured features and interpretive critique. See [Music Tutor & Music Analyst](../apps/music-apps.md).
 
-- Music Lab
+- Music Tutor
 - Music Analyst
 
 ### Auto Forge

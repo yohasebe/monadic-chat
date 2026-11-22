@@ -10,8 +10,117 @@ function isTrustedOrigin() {
   }
 }
 
+// This window kept hidden by the app (closing it hides it), and answers
+// that finish meanwhile (public/js/monadic/background-reply.js). The page
+// reports what is running
+// and how each answer ended; the app tells the page when it is held in the
+// background and when it is shown again. Each page load gets a generation
+// from the app (sent back with every report, so an older page's reports are
+// ignored) and the current hold, which applies also to a handler that is
+// registered later. One handler of each kind: a newer one replaces the older.
+let backgroundHeld = false;
+let backgroundGeneration = null;
+let preloadStream = null;
+let lastPageReport = { running: 0, pending: 0 };
+const backgroundHandlers = { hold: null, release: null };
+const OUTCOMES = new Set(['done', 'no_reply', 'lost']);
+
+function clampCount(value) {
+  return Number.isInteger(value) ? Math.max(0, Math.min(value, 1000)) : 0;
+}
+
+function stopPreloadStream() {
+  if (preloadStream) preloadStream.getTracks().forEach(track => track.stop());
+  preloadStream = null;
+}
+
+// The page's last report.
+function sendBackgroundReport() {
+  if (backgroundGeneration === null) return;
+  ipcRenderer.send('background-reply:report', {
+    generation: backgroundGeneration,
+    running: lastPageReport.running,
+    pending: lastPageReport.pending
+  });
+}
+
+// True when the microphone and audio are stopped. A page whose handler is
+// not registered yet has opened neither (it gets the hold on registering).
+function applyHold() {
+  backgroundHeld = true;
+  stopPreloadStream();
+  if (!backgroundHandlers.hold) return true;
+  try {
+    backgroundHandlers.hold();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+ipcRenderer.on('background-reply:hello', (_event, info) => {
+  backgroundGeneration = info && Number.isInteger(info.generation) ? info.generation : null;
+  if (info && info.held) applyHold();
+  sendBackgroundReport();
+});
+// Each hold and release names the operation it belongs to; the reply names
+// it too, so the app can tell it from an older one.
+function operationOf(info) {
+  return info && Number.isInteger(info.op) ? info.op : null;
+}
+
+ipcRenderer.on('background-reply:hold', (_event, info) => {
+  const op = operationOf(info);
+  // Stopped: the window may be hidden now. Not stopped: no reply, and the
+  // app keeps the window shown.
+  if (applyHold() && op !== null && backgroundGeneration !== null) {
+    ipcRenderer.send('background-reply:held', { generation: backgroundGeneration, op });
+  }
+});
+ipcRenderer.on('background-reply:release', (_event, info) => {
+  const op = operationOf(info);
+  if (backgroundHandlers.release) {
+    try {
+      backgroundHandlers.release();
+    } catch (_) {
+      // Not cleaned up: no reply, and the window stays muted.
+      return;
+    }
+  }
+  backgroundHeld = false;
+  // What was queued is dropped: the app may unmute the window now.
+  if (op !== null && backgroundGeneration !== null) {
+    ipcRenderer.send('background-reply:released', { generation: backgroundGeneration, op });
+  }
+});
+// Once the document is there (its URL is the app's), ask for a generation.
+window.addEventListener('DOMContentLoaded', () => ipcRenderer.send('background-reply:ready'));
+
+const backgroundReply = {
+  report: (state) => {
+    lastPageReport = {
+      running: clampCount(state && state.running),
+      pending: clampCount(state && state.pending)
+    };
+    sendBackgroundReport();
+  },
+  finished: (info) => {
+    const requestId = String((info && info.requestId) || '').slice(0, 64);
+    const outcome = info && OUTCOMES.has(info.outcome) ? info.outcome : 'no_reply';
+    if (requestId && backgroundGeneration !== null) {
+      ipcRenderer.send('background-reply:finished', { generation: backgroundGeneration, requestId, outcome });
+    }
+  },
+  onHold: (fn) => {
+    backgroundHandlers.hold = typeof fn === 'function' ? () => fn() : null;
+    if (backgroundHeld && backgroundHandlers.hold) backgroundHandlers.hold();
+  },
+  onRelease: (fn) => { backgroundHandlers.release = typeof fn === 'function' ? () => fn() : null; }
+};
+
 // Expose API to focus the main Electron window from the webview
 contextBridge.exposeInMainWorld('electronAPI', {
+  backgroundReply,
   focusMainWindow: () => ipcRenderer.send('focus-main-window'),
   // Zoom controls
   zoomIn: () => ipcRenderer.send('zoom-in'),
@@ -69,6 +178,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     if (window.__mediaPermissionGranted) {
       return true;
     }
+    // Not while the window is held in the background.
+    if (backgroundHeld) return false;
     // This helps trigger the permission request explicitly for the webview
     try {
       // Be quiet unless we're actually requesting for the first time
@@ -83,6 +194,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       };
       
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // Held while it was being opened: close it at once.
+      if (backgroundHeld) {
+        if (stream) stream.getTracks().forEach(track => track.stop());
+        return false;
+      }
+      // Kept until it is stopped below (or by a hold).
+      preloadStream = stream;
       
       // Clean up the stream after permissions are granted
       if (stream) {
@@ -100,6 +218,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
             if (verbose) console.log('Stopping track:', track.label);
             track.stop();
           });
+          if (preloadStream === stream) preloadStream = null;
         }, 500);
       }
       console.log('Media permissions granted!');

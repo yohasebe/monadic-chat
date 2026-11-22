@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="900" height="622" viewBox="0 0 900 622" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Web インターフェース</title>
+  <defs>
+    <symbol id="i-solid-bars" viewBox="0 -448 448 512"><path transform="scale(1 -1)" d="M0 352Q0 366 9 375Q18 384 32 384H416Q430 384 439 375Q448 366 448 352Q448 338 439 329Q430 320 416 320H32Q18 320 9 329Q0 338 0 352ZM0 192Q0 206 9 215Q18 224 32 224H416Q430 224 439 215Q448 206 448 192Q448 178 439 169Q430 160 416 160H32Q18 160 9 169Q0 178 0 192ZM448 32Q448 18 439 9Q430 0 416 0H32Q18 0 9 9Q0 18 0 32Q0 46 9 55Q18 64 32 64H416Q430 64 439 55Q448 46 448 32Z"/></symbol>
+    <symbol id="i-solid-circle-check" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M256 -64Q326 -63 384 -30Q442 4 478 64Q512 125 512 192Q512 259 478 320Q442 380 384 414Q326 447 256 448Q186 447 128 414Q70 380 34 320Q0 259 0 192Q0 125 34 64Q70 4 128 -30Q186 -63 256 -64ZM369 239 241 111 369 239 241 111Q224 97 207 111L143 175Q129 192 143 209Q160 223 177 209L224 162L335 273Q352 287 369 273Q383 256 369 239Z"/></symbol>
+    <symbol id="i-solid-comment" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M512 208Q511 150 477 103Q443 56 385 28Q328 1 256 0Q200 0 152 18Q133 4 98 -13Q60 -30 16 -32Q6 -32 1 -22Q-2 -12 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5Q5 -5 5 -5V-4Q5 -4 5 -4Q5 -4 6 -3Q8 -1 11 3Q18 10 26 24Q43 50 48 87Q1 139 0 208Q1 266 35 313Q69 360 127 388Q184 415 256 416Q328 415 385 388Q443 360 477 313Q511 266 512 208Z"/></symbol>
+    <symbol id="i-solid-comments" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M208 96Q296 98 355 148Q414 197 416 272Q414 347 355 396Q296 446 208 448Q120 446 61 396Q2 347 0 272Q1 213 40 169Q34 154 25 144Q18 135 12 130Q9 127 8 126Q7 125 7 125H6Q6 125 6 125Q6 125 6 125Q-2 118 1 107Q5 97 16 96Q50 97 78 108Q92 114 103 120Q150 97 208 96ZM448 272Q445 186 384 130Q322 74 232 65Q251 8 305 -27Q359 -63 432 -64Q490 -63 537 -40Q548 -46 562 -52Q590 -63 624 -64Q635 -63 639 -53Q642 -42 633 -35Q633 -35 633 -35Q633 -35 633 -35Q633 -35 633 -35Q633 -35 633 -35Q633 -35 633 -34Q632 -34 632 -34Q631 -33 628 -30Q622 -25 615 -16Q606 -5 600 9Q639 53 640 112Q638 183 584 232Q530 281 447 288Q448 280 448 272Z"/></symbol>
+    <symbol id="i-solid-face-smile" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M256 -64Q326 -63 384 -30Q442 4 478 64Q512 125 512 192Q512 259 478 320Q442 380 384 414Q326 447 256 448Q186 447 128 414Q70 380 34 320Q0 259 0 192Q0 125 34 64Q70 4 128 -30Q186 -63 256 -64ZM164 122Q178 106 200 93Q223 81 256 80Q289 81 312 93Q334 106 348 122Q359 133 371 124Q381 113 372 101Q355 81 326 65Q297 49 256 48Q215 49 186 65Q157 81 140 101Q131 113 142 124Q153 133 164 122ZM144 240Q145 254 154 263Q163 272 176 272Q190 272 199 263Q208 254 208 240Q208 226 199 217Q190 208 176 208Q163 208 154 217Q145 226 144 240ZM336 272Q350 272 359 263Q368 254 368 240Q368 226 359 217Q350 208 336 208Q323 208 314 217Q305 226 304 240Q305 254 314 263Q323 272 336 272Z"/></symbol>
+    <symbol id="i-solid-robot" viewBox="0 -448 640 512"><path transform="scale(1 -1)" d="M320 448Q334 448 343 439Q352 430 352 416V352H472Q503 351 523 331Q543 311 544 280V8Q543 -23 523 -43Q503 -63 472 -64H168Q137 -63 117 -43Q97 -23 96 8V280Q97 311 117 331Q137 351 168 352H288V416Q288 430 297 439Q306 448 320 448ZM208 64Q193 63 192 48Q193 33 208 32H240Q255 33 256 48Q255 63 240 64H208ZM304 64Q289 63 288 48Q289 33 304 32H336Q351 33 352 48Q351 63 336 64H304ZM400 64Q385 63 384 48Q385 33 400 32H432Q447 33 448 48Q447 63 432 64H400ZM264 192Q263 215 244 227Q224 237 204 227Q185 215 184 192Q185 169 204 157Q224 147 244 157Q263 169 264 192ZM416 152Q439 153 451 172Q461 192 451 212Q439 231 416 232Q393 231 381 212Q371 192 381 172Q393 153 416 152ZM48 224H64H48H64V32H48Q28 33 14 46Q1 60 0 80V176Q1 196 14 210Q28 223 48 224ZM592 224Q612 223 626 210Q639 196 640 176V80Q639 60 626 46Q612 33 592 32H576V224H592Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="899" height="621" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="34" width="860" height="46" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="34" y="45" width="24" height="24" rx="5" fill="#ecc04f"/>
+  <text x="68.0" y="63.0" font-size="17" fill="#2a2e33" font-weight="600">Monadic</text>
+  <text x="152.7" y="63.0" font-size="17" fill="#b3862a" font-weight="700">Chat</text>
+  <circle cx="90.0" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="90.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <rect x="722.0" y="45" width="98.0" height="24" rx="4" fill="#eef0f2" stroke="#dadee2"/>
+  <use href="#i-solid-circle-check" x="732.0" y="51.0" width="12.0" height="12" fill="#3a7a58"/>
+  <text x="750.0" y="62.0" font-size="13" fill="#2a2e33">入力可能</text>
+  <circle cx="771.0" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="771.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <rect x="832" y="45" width="36" height="24" rx="4" fill="#ffffff" stroke="#3a68a6"/>
+  <use href="#i-solid-bars" x="844.0" y="51.0" width="10.5" height="12" fill="#3a68a6"/>
+  <circle cx="850.0" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="850.0" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <rect x="20" y="106" width="520" height="40" rx="6" fill="#dadee2"/>
+  <text x="68.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">現在の設定</text>
+  <rect x="112.0" y="112" width="80.0" height="28" rx="5" fill="#ffffff"/>
+  <text x="152.0" y="131.0" font-size="12" fill="#2a2e33" font-weight="600" text-anchor="middle">セッション</text>
+  <use href="#i-solid-comment" x="206.0" y="119.0" width="13.0" height="13" fill="#2a2e33"/>
+  <text x="225.0" y="131.0" font-size="13" fill="#2a2e33" font-weight="700">Chat</text>
+  <rect x="269.8" y="122" width="90" height="8" rx="4" fill="#8b939b"/>
+  <circle cx="520.0" cy="93.0" r="9" fill="#2a2e33"/>
+  <text x="520.0" y="97.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <rect x="20" y="158" width="520" height="300" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-comments" x="36.0" y="172.0" width="17.5" height="14" fill="#ecc04f"/>
+  <text x="61.5" y="184.0" font-size="14" fill="#2a2e33" font-weight="600">会話</text>
+  <circle cx="520.0" cy="172.0" r="9" fill="#2a2e33"/>
+  <text x="520.0" y="176.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+  <rect x="36" y="198" width="488" height="96" rx="6" fill="#f6f8ff" stroke="#dadee2"/>
+  <path d="M42 198 H518 A6 6 0 0 1 524 204 V230 H36 V204 A6 6 0 0 1 42 198 Z" fill="#ffffff"/>
+  <rect x="36" y="198" width="488" height="96" rx="6" fill="none" stroke="#dadee2"/>
+  <use href="#i-solid-face-smile" x="48.0" y="207.0" width="14.0" height="14" fill="#6a92c8"/>
+  <text x="70.0" y="219.0" font-size="13" fill="#6a92c8" font-weight="700">User</text>
+  <rect x="50.0" y="246.0" width="430.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="50.0" y="262.0" width="330.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36" y="310" width="488" height="96" rx="6" fill="#fcedee" stroke="#dadee2"/>
+  <path d="M42 310 H518 A6 6 0 0 1 524 316 V342 H36 V316 A6 6 0 0 1 42 310 Z" fill="#ffffff"/>
+  <rect x="36" y="310" width="488" height="96" rx="6" fill="none" stroke="#dadee2"/>
+  <use href="#i-solid-robot" x="48.0" y="319.0" width="17.5" height="14" fill="#c45a66"/>
+  <text x="73.5" y="331.0" font-size="13" fill="#c45a66" font-weight="700">Assistant</text>
+  <rect x="50.0" y="358.0" width="440.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="50.0" y="374.0" width="380.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="20.0" y="470.0" width="520.0" height="56.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <circle cx="520.0" cy="484.0" r="9" fill="#2a2e33"/>
+  <text x="520.0" y="488.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+  <rect x="20" y="538" width="70" height="26" rx="4" fill="#ecc04f"/>
+  <rect x="98" y="538" width="130" height="26" rx="4" fill="#ecc04f"/>
+  <rect x="236" y="538" width="92" height="26" rx="4" fill="#ecc04f"/>
+  <rect x="336" y="538" width="84" height="26" rx="4" fill="#ecc04f"/>
+  <rect x="428" y="538" width="92" height="26" rx="4" fill="#ecc04f"/>
+  <rect x="20" y="576" width="70" height="26" rx="4" fill="#3a68a6"/>
+  <rect x="98" y="576" width="76" height="26" rx="4" fill="#6e7781"/>
+  <rect x="560" y="106" width="320" height="40" rx="6" fill="#dadee2"/>
+  <rect x="568.0" y="112" width="68.0" height="28" rx="5" fill="#ffffff"/>
+  <text x="602.0" y="131.0" font-size="12" fill="#2a2e33" font-weight="600" text-anchor="middle">メニュー</text>
+  <text x="674.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">作業画面</text>
+  <text x="746.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">ファイル</text>
+  <text x="806.0" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">履歴</text>
+  <circle cx="860.0" cy="93.0" r="9" fill="#2a2e33"/>
+  <text x="860.0" y="97.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
+  <rect x="560" y="158" width="320" height="150" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="576" y="174" width="120" height="10" rx="5" fill="#8b939b"/>
+  <rect x="576.0" y="200.0" width="270.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="576.0" y="216.0" width="220.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="576.0" y="232.0" width="250.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="560" y="320" width="320" height="110" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="576" y="336" width="120" height="10" rx="5" fill="#8b939b"/>
+  <rect x="576.0" y="362.0" width="270.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="576.0" y="378.0" width="220.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="560" y="442" width="320" height="160" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="576" y="458" width="120" height="10" rx="5" fill="#8b939b"/>
+  <rect x="576.0" y="484.0" width="270.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="576.0" y="500.0" width="220.0" height="8" rx="4" fill="#dadee2"/>
+  <rect x="576.0" y="516.0" width="250.0" height="8" rx="4" fill="#dadee2"/>
+  <circle cx="860.0" cy="172.0" r="9" fill="#2a2e33"/>
+  <text x="860.0" y="176.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">8</text>
+</svg>

@@ -14,7 +14,7 @@ module Monadic
     # @example
     #   settings = {
     #     imported_tool_groups: [...],
-    #     features: { monadic: true, pdf_vector_storage: true },
+    #     features: { math: true, pdf_upload: true },
     #     agents: { code_generator: "gpt-5-codex" }
     #   }
     #   badges = BadgeBuilder.build_all_badges(settings)
@@ -262,11 +262,6 @@ module Monadic
       def self.normalize_feature_names(features)
         normalized = features.dup
 
-        # Map PDF storage variants to canonical 'pdf' name
-        if features[:pdf_vector_storage]
-          normalized[:pdf] = features[:pdf_vector_storage]
-        end
-
         if features[:pdf_upload]
           normalized[:pdf] = features[:pdf_upload]
         end
@@ -305,11 +300,6 @@ module Monadic
 
       # Configuration for badge-worthy features
       BADGE_WORTHY_FEATURES = {
-        monadic: {
-          icon: "fa-project-diagram",
-          label: "monadic",
-          description: "Structured context management"
-        },
         math: {
           icon: "fa-square-root-alt",
           label: "math",

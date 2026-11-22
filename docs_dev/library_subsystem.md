@@ -6,8 +6,7 @@ Front ends:
 
 - **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename, scope, delete and the "Use Knowledge Base" toggle, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
 - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): retrieval from inside a chat turn.
-
-The per-app PDF store (`pdf_docs` / `pdf_items`) is a separate store; see [Per-App PDF Store](#per-app-pdf-store).
+- **MCP server** (`lib/monadic/mcp/conduit.rb`): search, list and import for MCP clients; see [MCP Server](#mcp-server).
 
 ## Collections
 
@@ -102,7 +101,7 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 
 `verify` fields are removed from the messages. When `conversation_id` is given, the conversation is ingested again under the same id, so `mc:conv:<id>` links keep working, and then the points of the prior version are deleted by id (`Store#point_ids` before the ingest, `Store#delete_point_ids` after it, the summary last). A failed ingest leaves the prior version in place (the ingest removes what it wrote, as above). Once the ingest has succeeded, the new version is kept: when deleting the prior points fails (a failed delete may still have been applied), the reply is a success with `warning: "prior_version_left"`, which the panel shows as a warning, and both versions' points may be listed. Two saves of one conversation at the same time are not serialized. The panel keeps the id until Reset, a new session, an app change, or deletion of that entry in Browse.
 
-`LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, sent through the session's Privacy pipeline when there is one. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
+`LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, with the chat's words hidden when it has a word table. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
 
 `Manager.list_conversations` (behind `LIBRARY_LIST`) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
 
@@ -114,7 +113,6 @@ Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LI
 
 - Default: both true.
 - MDSL `features` can set them to false. `library_search true` with `library_save false` is a configuration error.
-- Apps with `privacy do; enabled true; end` get both false; declaring either as true is a configuration error.
 
 Apps with `library_search` true get the `library_search` tool group (`visibility: "conditional"`) unless they import it themselves.
 
@@ -138,9 +136,9 @@ The `library_rag` rule in `SystemPromptInjector` (priority 70) applies when the 
 
 1. Reads `app_name` from the session for the scope filter; a session without one searches the `Global` entries only.
 2. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
-3. Checks each hit for words the user marked (`Privacy::Outbound`); a hit with a marked word withholds the whole result.
-4. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
-5. When the session has an enabled Privacy pipeline, masks the text through it. If masking fails, the result is withheld and the failure is reported.
+3. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
+
+In a chat with a word table, the result is hidden with the rest of the request when it is sent (`hide_words_in_request!`).
 
 The tool group counts as available when the embeddings service answers its health check.
 
@@ -155,15 +153,9 @@ The tool group counts as available when the embeddings service answers its healt
 
 The frontend opens the Conversation Viewer when an `mc:conv:` link is clicked.
 
-## Per-App PDF Store
+## MCP Server
 
-`Monadic::Pdf::Store` (`lib/monadic/pdf/store.rb`) keeps PDFs uploaded through `POST /pdf` in `pdf_docs` (one point per document) and `pdf_items` (one point per chunk). Every query filters on the store's `app_key`:
-
-- `POST /pdf` uses `pdf_app_key_for(appName or session)`: the app class's `APP_KEY` constant if defined, otherwise its class name in lower case; `global` without an app.
-- PDF text is split by `PDF2Text` into 800-token chunks with 2 overlapping lines. `PDF2Text#pdf2text` copies the file into the shared folder as `pdf2text_<random hex>.pdf` for the Python container, deletes the copy when the extraction ends, and stops the extraction after `PDF2Text::EXTRACT_TIMEOUT` (600 s). Pages are joined in page order.
-- `Pdf::Store` creates its collections before any read and, once per process, adds the schema's payload indexes (`doc_id` as keyword, `app_key`) to collections made earlier, through `VectorStore::Bootstrap` as the Library store does.
-- Apps with `pdf_vector_storage true` get the tools in `Pdf::Store::TOOLS` (`find_closest_text`, `find_closest_doc`, `list_titles`, `get_text_snippet`, `get_text_snippets`; `doc_id` is a UUID string), which read the store for the app's class name.
-- The MCP server's Knowledge Base tools read the store named by their `knowledge_base` argument (default `global`).
+The MCP server's `monadic_search_kb`, `monadic_list_kb` and `monadic_import_kb` (`lib/monadic/mcp/conduit.rb`) use the same store: search through `Retriever.cascade_search`, the list through `Manager.list_conversations`, and import through `Importers::Markdown` (text) or `FileImporter` (a file in the shared folder) and `Manager.import_conversation`, always into the Global scope. Their `knowledge_base` argument, and that of the chat tools' grounding, is the `app_name` passed to the scope filter; empty or `all` passes nil (every entry).
 
 ## Files
 
@@ -183,9 +175,7 @@ lib/monadic/library/
   schema.rb, version.rb
 lib/monadic/vector_store/schema.rb
 lib/monadic/embeddings/client.rb
-lib/monadic/pdf/store.rb
 lib/monadic/routes/library_import_routes.rb
-lib/monadic/routes/pdf_routes.rb
 lib/monadic/shared_tools/library_search.rb
 lib/monadic/utils/websocket/library_handler.rb
 lib/monadic/utils/system_prompt_injector.rb

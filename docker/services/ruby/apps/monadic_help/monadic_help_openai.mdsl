@@ -5,7 +5,7 @@ app "MonadicHelpOpenAI" do
     TEXT
     
     ja <<~TEXT
-    Monadic Chatの使用方法とガイダンス。 <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Monadic Chatの使用方法とガイダンス。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
@@ -39,9 +39,8 @@ app "MonadicHelpOpenAI" do
   end
   
   features do
-    library_search false
+    max_tool_rounds 10
     disabled !CONFIG["OPENAI_API_KEY"]
-    monadic false
     auto_speech false
     websearch false
     initiate_from_assistant true
@@ -210,7 +209,7 @@ app "MonadicHelpOpenAI" do
        - Text-to-speech: Speech Draft Helper app
        - Graphs/Charts: Math Tutor (mathematical), Mermaid Grapher (diagrams)
        - PDF / document handling: Knowledge Base (import the file via the Browse modal's "Import file" button)
-       - Voice interaction: Voice Chat apps AND Language Practice/Language Practice Plus (has Enter key support)
+       - Voice interaction: Voice Chat apps AND Language Practice (has Enter key support)
        - Writing assistance (NON-CODE): Mail Composer (emails), Novel Writer (creative writing)
        - Research: Research Assistant (general research), Wikipedia (encyclopedia lookups)
        - IMPORTANT: Match the app purpose to the user's need - don't suggest unrelated apps

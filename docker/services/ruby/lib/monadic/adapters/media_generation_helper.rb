@@ -2,6 +2,7 @@ require 'shellwords'
 require_relative '../utils/progress_broadcaster'
 require_relative '../utils/tool_image_utils'
 require_relative '../utils/environment'
+require_relative '../workbench/chat_output'
 
 module MonadicHelper
   # Adapter for OpenAI function generate_image
@@ -9,7 +10,7 @@ module MonadicHelper
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, mask: nil,
                      n: 1, size: "1024x1024", quality: nil,
                      output_format: nil, background: nil, output_compression: nil, input_fidelity: nil,
-                     session: nil)
+                     session: nil, out_dir: nil, job_inputs: [])
     # If images/mask are omitted (e.g., "edit the previous image"), fall back to last stored references
     begin
       refs = session && session[:openai_last_image_generation]
@@ -20,6 +21,8 @@ module MonadicHelper
     rescue StandardError
       # Ignore session lookup issues
     end
+    return JSON.generate({ success: false, message: "There is no chat folder to keep the image in." }) unless out_dir
+
     # Build CLI command
     parts = []
     parts << "image_generator_openai.rb"
@@ -33,6 +36,10 @@ module MonadicHelper
     parts << "-b #{Shellwords.shellescape(background)}" if background
     parts << "--compression #{output_compression.to_i}" if output_compression && output_compression.to_i > 0
     parts << "--fidelity #{Shellwords.shellescape(input_fidelity)}" if input_fidelity
+    # The run writes in the job folder the server made
+    # (Monadic::Workbench::JobOutput), never at the top of the shared folder.
+    parts << "--out-dir #{Shellwords.shellescape(out_dir)}"
+    Array(job_inputs).each { |path| parts << "--job-input #{Shellwords.shellescape(path)}" }
 
     # Process image parameters
     if images
@@ -90,8 +97,10 @@ module MonadicHelper
   end
 
 
-  def generate_image_with_grok(prompt: "", aspect_ratio: nil, quality: nil, operation: "generate", images: nil, image_model: nil)
+  def generate_image_with_grok(prompt: "", aspect_ratio: nil, quality: nil, operation: "generate", images: nil, image_model: nil,
+                              out_dir: nil, job_inputs: [])
     require 'json'
+    return JSON.generate({ success: false, message: "There is no chat folder to keep the image in." }) unless out_dir
 
     parts = ["image_generator_grok.rb", "-p", Shellwords.shellescape(prompt)]
     parts << "-o" << Shellwords.shellescape(operation) if operation && operation != "generate"
@@ -101,6 +110,10 @@ module MonadicHelper
     if images.is_a?(Array)
       images.each { |img| parts << "-i" << Shellwords.shellescape(img) }
     end
+    # The run writes in the job folder the server made
+    # (Monadic::Workbench::JobOutput), never at the top of the shared folder.
+    parts << "--out-dir" << Shellwords.shellescape(out_dir)
+    Array(job_inputs).each { |path| parts << "--job-input" << Shellwords.shellescape(path) }
     command = parts.join(' ')
 
     # Use block form to get detailed stdout/stderr/status for better error reporting
@@ -146,18 +159,23 @@ module MonadicHelper
 
   # Adapter for xAI Grok Imagine video generation
   # Accepts keyword args: prompt, duration, aspect_ratio, resolution, image_path
+  # In a chat, the video is saved in a run folder of the chat's folder and
+  # shown on the work screen; without one, none is made.
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil,
-                                       image_path: nil, max_wait: 420, session: nil)
+                                       image_path: nil, max_wait: 420, session: nil, workbench: nil)
     # Resolve the source image for image-to-video. Uploaded images live in the
     # session as a data URL and must be materialized to a file on the shared
     # volume for the CLI generator. Shared with the Veo path via ToolImageUtils.
     # If an upload exists but can't be materialized, surface the error instead
     # of silently downgrading to text-to-video.
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGrok")
+    return JSON.generate({ success: false, message: "There is no chat folder to keep the video in." }) unless job
+
     begin
-      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-        session, image_path: image_path, last_image_key: :grok_last_video_image
-      )
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       return JSON.generate({ success: false, message: e.message })
     end
 
@@ -170,10 +188,11 @@ module MonadicHelper
     parts << "-a" << Shellwords.shellescape(aspect_ratio) if aspect_ratio
     parts << "-r" << Shellwords.shellescape(resolution) if resolution
     parts << "--max-wait" << max_wait.to_i.to_s
+    parts << "--out-dir" << Shellwords.shellescape(job[:path])
 
     if image_path && !image_path.to_s.strip.empty?
       parts << "-i" << Shellwords.shellescape(image_path)
-      session[:grok_last_video_image] = File.basename(image_path) if session
+      Monadic::Utils::ToolImageUtils.remember_image(self, session, image_path)
     end
 
     cmd = parts.join(' ')
@@ -203,6 +222,8 @@ module MonadicHelper
           session[:grok_last_video_request_id] = parsed["request_id"] if parsed["request_id"]
           session[:grok_last_video_filename] = parsed["filename"] if parsed["filename"]
         end
+        taken = parsed["success"] && Monadic::Workbench::ChatOutput.take(job, parsed["filename"], workbench, "The video")
+        parsed["path"], parsed["notice"] = taken.values_at(:path, :notice) if taken
 
         return JSON.generate(parsed)
       else
@@ -224,6 +245,7 @@ module MonadicHelper
       # Only the file this process wrote from an upload is removed; a name
       # the model or the session gave is never deleted.
       Monadic::Utils::ToolImageUtils.discard_materialized(image_path) if image_path
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
     end
   end
 

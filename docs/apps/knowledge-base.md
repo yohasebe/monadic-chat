@@ -4,7 +4,11 @@ Save chat sessions and import documents into one searchable library.
 
 The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base browser shows all of it, and apps can search it as described under the scope model below.
 
-?> The Knowledge Base is separate from the [PDF Database](../basic-usage/pdf_storage.md), which stores PDFs for the OpenAI versions of Chat Plus and Research Assistant. Content imported into one is not visible in the other.
+![Knowledge Base panel](../assets/images/figures/knowledge-base.svg)
+
+1. **Save**: saves the current conversation to the Knowledge Base.
+2. **Browse**: opens the Knowledge Base browser.
+3. **Use Knowledge Base for retrieval (this session)**: lets the model search the Knowledge Base while answering.
 
 **Two ways to add content:**
 
@@ -22,7 +26,7 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 
 The text and tables of PDFs are extracted. With the Knowledge Base Quality Pack installed, layout analysis and OCR are used; without it, no text is extracted from image-only PDFs.
 
-Apps that use the Privacy Filter (such as Translate and Mail Composer) do not save to or search the Knowledge Base, and some other apps do not either; in those apps the Save button and the retrieval switch are not available.
+A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, but it can still search the Knowledge Base.
 
 **Scope model:**
 
@@ -35,7 +39,7 @@ Each entry belongs either to the app and provider it was saved in (for example `
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
 - **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched, filtered by scope, and sorted.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default, and your last choice is remembered. Live Conversation uses its own **Tools** switch instead.
+- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
 - **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

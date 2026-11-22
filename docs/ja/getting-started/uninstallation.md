@@ -38,7 +38,7 @@ $ rm monadic-chat_*.AppImage
 
 <!-- tabs:end -->
 
-<!-- SCREENSHOT: Monadic Chatメニュー - FileメニューにRemove Images/Containers/Dataがある様子 -->
+![ファイル メニュー](../assets/images/figures/menu-file.svg)
 
 ## ユーザーデータ :id=user-data
 
@@ -74,7 +74,7 @@ Docker Desktopのメニューから `Troubleshoot` → `Clean/Purge data`を使�
 - `monadic-chat-qdrant-container`
 - `monadic-chat-embeddings-container`
 - `monadic-chat-privacy-container`（`PRIVACY_FILTER=false` にしていなければ存在します）
-- `monadic-chat-extractor-container`（Knowledge Base Quality Pack をインストールしている場合のみ）
+- `monadic-chat-extractor-container`（Knowledge Base 品質パックをインストールしている場合のみ）
 
 #### イメージ
 
@@ -84,7 +84,7 @@ Docker Desktopのメニューから `Troubleshoot` → `Clean/Purge data`を使�
 - `ghcr.io/yohasebe/monadic-qdrant`
 - `ghcr.io/yohasebe/monadic-selenium`
 - `ghcr.io/yohasebe/monadic-privacy`（`PRIVACY_FILTER=false` にしていない場合）
-- `ghcr.io/yohasebe/monadic-extractor`（Knowledge Base Quality Pack インストール時のみ）
+- `ghcr.io/yohasebe/monadic-extractor`（Knowledge Base 品質パックインストール時のみ）
 - `ghcr.io/yohasebe/monadic-python`（Python コンテナのビルドのキャッシュとしてダウンロード）
 
 #### ボリューム

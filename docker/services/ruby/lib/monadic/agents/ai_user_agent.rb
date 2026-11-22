@@ -2,7 +2,9 @@
 
 require_relative "../utils/system_defaults"
 require_relative "../utils/privacy/outbound"
+require_relative "../utils/privacy/words"
 require_relative "../utils/error_formatter"
+require_relative "../workspace/stopped_replies"
 
 # AI User Agent
 # Handles the generation of simulated user responses in conversations
@@ -12,6 +14,9 @@ module AIUserAgent
   # @param params [Hash] Parameters for AI User generation
   # @return [Hash] The result of AI User generation
   def process_ai_user(session, params)
+    # Replies stopped before (a new connection of the tab too) are marked
+    # on their messages first.
+    Monadic::Workspace::StoppedReplies.apply!(session)
     # Check for required parameters and provide fallback
     provider = params["ai_user_provider"]
     if provider.nil? || provider.empty?
@@ -20,26 +25,30 @@ module AIUserAgent
     
     # Provider details are logged to dedicated log files
     
-    # The provider writing the suggestion is another model: with the Privacy
-    # Filter on, it gets the conversation masked as the chat's model did (and
-    # the suggestion is restored for the input box), or nothing at all.
-    begin
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
-    rescue Monadic::Utils::Privacy::Outbound::Refused => e
-      return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
-    end
-
     # Get conversation history
     max_history = 5
     conversation_messages = session[:messages].reject { |m| m["role"] == "system" }.last(max_history)
-    if pipeline
-      conversation_messages = conversation_messages.map do |m|
-        m.merge("text" => Monadic::Utils::Privacy::Outbound.mask(m["text"], pipeline, m["role"]))
+
+    # The provider writing the suggestion is another model. A chat that hides
+    # its words with a word table sends the conversation (as the chat keeps
+    # it, with the words) hidden with one snapshot of the table, and the
+    # suggestion is put back with it for the input box.
+    words = Monadic::Utils::Privacy::Words
+    snapshot = nil
+    begin
+      table = words.table(session)
+      if table
+        snapshot, texts = words.hide_texts(table, conversation_messages.map { |m| m["text"].to_s })
+        conversation_messages = conversation_messages.zip(texts).map { |m, text| m.merge("text" => text) }
+      else
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
       end
+    rescue Monadic::Utils::Privacy::Outbound::Refused => e
+      return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
     end
     
     # Format conversation history as text
-    conversation_text = format_conversation(conversation_messages, params["monadic"])
+    conversation_text = format_conversation(conversation_messages)
     
     # Create system message with instruction
     instruction = "Based on the conversation history above, generate the next natural response from the user."
@@ -138,7 +147,7 @@ module AIUserAgent
       end
       # Send query to get AI user response with explicit model parameter
       begin
-        result = app_instance.send_query(options, model: model)
+        result = words.sending(table, snapshot) { app_instance.send_query(options, model: model) }
       rescue Monadic::Utils::Privacy::Outbound::Refused => e
         return { "type" => "error", "content" => "AI User error: no suggestion was requested: #{e.message}." }
       end
@@ -154,7 +163,7 @@ module AIUserAgent
       
       # Process result
       if result.is_a?(String) && !result.empty?
-        result = pipeline.after_receive_from_llm(result).text if pipeline
+        result = snapshot.restore(result) if snapshot
         # Success
         return {
           "type" => "ai_user",
@@ -181,31 +190,16 @@ module AIUserAgent
   
   # Format conversation history as text
   # @param messages [Array] The messages to format
-  # @param monadic [Boolean] Whether monadic mode is enabled
   # @return [String] Formatted conversation text
-  def format_conversation(messages, monadic)
+  def format_conversation(messages)
     text = ""
     messages.each do |m|
       role = m["role"] == "user" ? "User" : "Assistant"
-      content = extract_content(m["text"], monadic)
+      # A message whose reply was stopped says so (StoppedReplies).
+      content = Monadic::Workspace::StoppedReplies.with_note(m, m["text"])
       text = text.dup << "#{role}: #{content}\n\n"
     end
     text
-  end
-  
-  # Extract content from message, handling monadic mode
-  # @param text [String] The message text
-  # @param monadic [Boolean] Whether monadic mode is enabled
-  # @return [String] The extracted content
-  def extract_content(text, monadic)
-    return text unless monadic
-
-    begin
-      parsed = JSON.parse(text)
-      parsed["message"] || parsed["response"] || text
-    rescue JSON::ParserError
-      text
-    end
   end
   
   # Find a Chat app that matches the provider

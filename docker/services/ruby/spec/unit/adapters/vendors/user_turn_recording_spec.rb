@@ -85,5 +85,19 @@ RSpec.describe "Recording the user turn in each provider helper" do
       expect(sent).to include(line)
       expect(current["text"]).to eq("")
     end
+
+    it "#{mod.name} tells the model of an earlier message whose reply was stopped, keeping its text" do
+      stopped = { "mid" => "s1", "request_id" => "q_earlier", "role" => "user", "text" => "Search the web", "active" => true,
+                  "reply_stopped" => true }
+      current = { "mid" => "s2", "request_id" => "q_current", "role" => "user", "text" => "Hello", "active" => true }
+      messages = [{ "role" => "system", "text" => "S", "active" => true }, stopped, current]
+
+      _, sent, = run_turn(mod, prov, key, "Hello", messages)
+
+      expect(sent).to include("Search the web")
+      expect(sent).to include(Monadic::Workspace::StoppedReplies::NOTE)
+      expect(stopped["text"]).to eq("Search the web")
+      expect(current).not_to have_key("reply_stopped")
+    end
   end
 end

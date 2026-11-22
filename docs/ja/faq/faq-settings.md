@@ -2,7 +2,7 @@
 
 ##### Q: Monadic Chatを使うのにOpenAIのAPIトークンは必要ですか？ :id=openai-api-token-requirement
 
-**A**: 必要ありません。対応するどのプロバイダーでも使えます：OpenAI、Anthropic Claude、Google Gemini、Cohere、Mistral AI、DeepSeek、xAI Grok。音声認識と音声合成も OpenAI 以外のプロバイダーで使え（**Speech** パネルを参照）、ブラウザー内蔵の声はキーが要りません。Knowledge Base の埋め込みは、お使いのコンピューターの上で計算されます。
+**A**: 必要ありません。対応するどのプロバイダーでも使えます：OpenAI、Anthropic Claude、Google Gemini、Cohere、Mistral AI、DeepSeek、xAI Grok。音声認識と音声合成も OpenAI 以外のプロバイダーで使え（音声パネルを参照）、ブラウザー内蔵の声はキーが要りません。Knowledge Base の埋め込みは、お使いのコンピューターの上で計算されます。
 
 商用のAPIを使いたくない場合は、Ollamaを使用してローカル言語モデルを実行できます：
 1. [https://ollama.com/download](https://ollama.com/download) からOllamaをインストール
@@ -19,7 +19,7 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 追加アプリの開発や、既存アプリの変更などを行っている場合は、ログフォルダ内の `server.log` の内容を確認してください。エラーメッセージが表示されている場合は、その内容に基づいて、アプリのコードの修正を行ってください。
 
-`pysetup.sh` を使ってPythonコンテナにライブラリを追加している場合は、そのエラーは `docker_build_python.log`（**Build All** を実行したときは `docker_build.log`）に出ます。エラーメッセージを確認して、スクリプトを修正してください。
+`pysetup.sh` を使ってPythonコンテナにライブラリを追加している場合は、そのエラーは `docker_build_python.log`（**すべてビルド** を実行したときは `docker_build.log`）に出ます。エラーメッセージを確認して、スクリプトを修正してください。
 
 ---
 
@@ -39,9 +39,9 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 ---
 
-##### Q: LaTeXを使うアプリ（Concept Visualizer / Syntax Tree）を有効にするにはどうすればよいですか？ :id=enable-latex
+##### Q: LaTeXを使うConcept Visualizerを有効にするにはどうすればよいですか？ :id=enable-latex
 
-**A**: **Actions → Install Options** を開いて **Install LaTeX (minimal set for diagrams)** をオンにし、Pythonコンテナを再構築してください。再構築時にTeX Liveのパッケージの組（XeLaTeX/LuaLaTeX）、dvisvgm/pdf2svg、Ghostscript、CJKフォントパッケージがインストールされ、Concept VisualizerやSyntax Treeで日本語・中国語・韓国語を含む図が描画できるようになります。これらのアプリはOpenAIとAnthropic Claude向けに提供されており、LaTeX のオプションがオンで、どちらかのAPIキーが設定されているときに使えます。
+**A**: **アクション → インストールオプション** を開いて **Install LaTeX (minimal set for diagrams)** をオンにし、Pythonコンテナを再構築してください。再構築時にTeX Liveのパッケージの組（XeLaTeX/LuaLaTeX）、dvisvgm/pdf2svg、Ghostscript、CJKフォントパッケージがインストールされ、Concept Visualizerで日本語・中国語・韓国語を含む図が描画できるようになります。このアプリはOpenAIとAnthropic Claude向けに提供されており、LaTeX のオプションがオンで、どちらかのAPIキーが設定されているときに使えます。
 
 ---
 
@@ -58,7 +58,7 @@ Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](..
 
 ##### Q: 再構築のログやヘルスチェックの結果はどこで確認できますか？ :id=rebuild-logs
 
-**A**: Install Optionsの保存は設定の更新のみを行います。再構築自体は、次回のStart時（「Rebuild and Start」を選べるダイアログが表示されます）または `Actions → Build Python Container` の実行時に行われます。ビルド関連のファイルは `~/monadic/log/` に保存されます：
+**A**: インストールオプションの保存は設定の更新のみを行います。再構築自体は、次回の開始時（「再ビルドして起動」を選べるダイアログが表示されます）または `アクション → Pythonコンテナをビルド` の実行時に行われます。ビルド関連のファイルは `~/monadic/log/` に保存されます：
 
 - `docker_build_python.log` — Dockerビルドの出力（`pysetup.sh` の出力も含みます）
 - `python_health.json` — ビルド後のヘルスチェック結果

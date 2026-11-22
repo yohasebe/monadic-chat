@@ -9,7 +9,7 @@ RSpec.describe Monadic::Utils::ModelSpec do
           .to eq([%w[low medium high xhigh], "low"])
         expect(described_class.vision_capability?(model)).to be true
       end
-      expect(described_class.get_provider_models("xai", "chat").first(2)).to eq(%w[grok-4.7 grok-4.6])
+      expect(described_class.get_provider_models("xai", "chat").first(3)).to eq(%w[grok-4.3 grok-4.7 grok-4.6])
     end
 
     it "exposes Gemini medium and disable support with application budget limits" do

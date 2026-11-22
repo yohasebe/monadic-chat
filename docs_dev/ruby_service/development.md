@@ -12,6 +12,15 @@ bundle install
 
 Run specs from `docker/services/ruby` with its own bundle; the root `Gemfile` lacks gems the specs need.
 
+The gems come from `docker/services/ruby/Gemfile.lock`, which is tracked: the host, CI and the Ruby image (`BUNDLE_FROZEN=true` in the Dockerfile) install the same versions, each checked against its checksum. To change a gem, edit `monadic.gemspec` and make the lock file again in the image's Ruby, so the Linux and macOS variants and their checksums are written:
+
+```bash
+cd docker/services/ruby
+docker run --rm -v "$PWD":/w -w /w ruby:3.4.7-slim-bookworm sh -c \
+  'bundle lock --update <gem> && bundle lock --add-checksums'
+bundle install
+```
+
 ## Running Tests
 
 ```bash

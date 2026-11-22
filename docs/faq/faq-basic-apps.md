@@ -12,7 +12,7 @@
 
 The `Coding Assistant` app provides features to assist in creating various programs (Python, Ruby, JavaScript, etc.). It does not run code, but it can read, write and list files in the shared folder, so you can give it source code and ask for bug fixes or new features. The Claude version uses prompt caching for repeated changes.
 
-The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook cells. In addition to asking the AI agent to think about the code to enter in the cell, you can create a notebook (`ipynb` file) in a shared folder and add and execute cells one after another. It can be used as a support tool for creating library tutorials or notebooks for programming education.
+The `Jupyter Notebook` app writes and runs Jupyter Notebook cells in the Python container, without starting JupyterLab. Besides asking the AI agent for the code of a cell, you can have it create a notebook (`ipynb` file), kept in the chat's work folder, and add and run cells one after another; [JupyterLab](../docker-integration/jupyterlab.md) opens it when you want to work in it yourself. It can be used as a support tool for creating library tutorials or notebooks for programming education.
 
 ---
 
@@ -27,7 +27,7 @@ The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (4567, 3100, 8889, 4444, 5900, 7900) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 3100, 8889, 7900) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application, or rebuild the containers from the **Actions** menu (for example **Build All**).
 

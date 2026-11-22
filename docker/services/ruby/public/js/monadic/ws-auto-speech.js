@@ -60,7 +60,7 @@
         : '(Text exceeds audio output limit)';
     } else if (content.notice_type === 'privacy_withheld') {
       // The reply is shown; only its speech was not made (it would have
-      // carried a word marked for the Privacy Filter).
+      // carried a word the chat hides).
       message = typeof webUIi18n !== 'undefined'
         ? webUIi18n.t('ui.tts.privacyWithheld')
         : 'Audio output skipped';

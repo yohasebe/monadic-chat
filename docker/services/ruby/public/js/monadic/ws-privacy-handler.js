@@ -1,296 +1,59 @@
-// Privacy Filter UI handler.
-// Listens for "privacy_state" WebSocket messages from the server and updates
-// the indicator in the chat header. Four visual states:
-//   OFF        — privacy not enabled for this app (indicator hidden)
-//   ready      — enabled, registry empty (gray unlock icon)
-//   active(N)  — enabled, N entries in registry (green lock + count)
-//   error      — backend reachable failure (red triangle)
-
+// The export dialog.
 (function () {
-  // Last enabled state observed from a server-pushed `privacy_state` message.
-  // Tracks the *toggle* state (Privacy ON regardless of registry count), not
-  // the *active* state (registry has entries). Save-button hiding (CSS rule
-  // `body.app-privacy-on #library-save`) needs the toggle, not the activity.
-  var _lastEnabled = false;
-
-  function findIndicator() {
-    return document.getElementById('privacy-indicator');
-  }
-
-  function setVisualState(el, kind, label, title) {
-    el.style.display = '';
-    el.className = 'privacy-indicator privacy-' + kind;
-    el.innerHTML = label;
-    if (title) {
-      el.setAttribute('title', title);
-    } else {
-      el.removeAttribute('title');
-    }
-  }
-
-  // When the server has auto-detected a conversation language and locked
-  // the session to it, surface the language code so the user can see what
-  // the privacy backend is actually using. We only render the badge when
-  // a lock is in effect — for sidebar-selected languages the value is
-  // already explicit in the dropdown and adding it here would be noise.
-  function detectionBadge(detection) {
-    if (!detection || detection.locked !== true) return '';
-    var code = detection.language;
-    if (!code) return '';
-    var safe = escapeHtml(String(code));
-    return ' <span class="privacy-lang-badge" title="Auto-detected language">'
-      + '<i class="fas fa-language"></i> ' + safe
-      + '</span>';
-  }
-
-  // Notify document-level listeners when the privacy state flips. Other
-  // panels (e.g. library-panel.js) hide their controls when Privacy is
-  // active, so they need a hook independent of SessionState events. The
-  // current toggle state is carried in `event.detail.enabled` so listeners
-  // can react without a second WsPrivacyHandler.isEnabled() call.
-  function emitStateChanged() {
-    try {
-      document.dispatchEvent(new CustomEvent('privacy:state-changed', {
-        detail: { enabled: _lastEnabled }
-      }));
-    } catch (_) { /* CustomEvent unavailable in some test envs */ }
-  }
-
-  function handleState(data) {
-    notePrivate(data);
-    _lastEnabled = !!(data && data.enabled);
-    const el = findIndicator();
-    if (!el) {
-      emitStateChanged();
-      return;
-    }
-
-    // A chat restored after a reload: the toggle shows the chat's state,
-    // locked as it was once the chat began (not re-negotiated).
-    if (data && data.restored) {
-      const restoredToggle = document.getElementById('check-privacy-session');
-      if (restoredToggle) {
-        restoredToggle.checked = !!data.enabled;
-        restoredToggle.disabled = true;
-        window.privacyToggleLocked = true;
-      }
-    }
-
-    if (!data || !data.enabled) {
-      // Reconciliation: the backend resets privacy to OFF on app change /
-      // reset and pushes this privacy_state. If the user's toggle is still
-      // ON (and editable), the intended state is ON — but the toggle was
-      // restored programmatically (no `change` event) so it never re-armed
-      // the backend. Without this the user must manually toggle off/on.
-      // Re-assert ON once here. This fires *after* the backend reset, so it
-      // is immune to the app-setup vs reset ordering race. Health-failure
-      // rejections come back via privacy_toggle_ack (which unchecks the
-      // toggle), so this cannot loop.
-      const toggleEl = document.getElementById('check-privacy-session');
-      if (toggleEl && toggleEl.checked && !toggleEl.disabled &&
-          typeof window.safeWsSend === 'function') {
-        noteRequested(true);
-        window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: true });
-      }
-      el.style.display = 'none';
-      el.removeAttribute('title');
-      el.innerHTML = '';
-      el.style.cursor = 'default';
-      emitStateChanged();
-      return;
-    }
-
-    if (data.error) {
-      setVisualState(
-        el,
-        'error',
-        '<i class="fas fa-exclamation-triangle"></i> Privacy error',
-        String(data.error).substring(0, 200)
-      );
-      return;
-    }
-
-    const langBadge = detectionBadge(data.detection);
-    const count = Number(data.registry_count) || 0;
-    if (count === 0) {
-      setVisualState(
-        el,
-        'ready',
-        '<i class="fas fa-unlock"></i> Privacy ready' + langBadge,
-        'Privacy Filter is enabled. Click to view registry (currently empty).'
-      );
-    } else {
-      setVisualState(
-        el,
-        'active',
-        '<i class="fas fa-lock"></i> Privacy ON (' + count + ')' + langBadge,
-        'Click to view ' + count + ' masked placeholder' + (count === 1 ? '' : 's')
-      );
-    }
-    el.style.cursor = 'pointer';
-    emitStateChanged();
-  }
-
-  function openRegistryModal() {
-    if (typeof window.ws === 'undefined' || !window.ws) {
-      console.warn('[Privacy] WebSocket not available');
-      return;
-    }
-    // Show modal first so the user gets immediate feedback; populate on response.
-    const modalEl = document.getElementById('privacyRegistryModal');
-    if (!modalEl) return;
-    if (window.bootstrap && window.bootstrap.Modal) {
-      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    }
-    // PRIVACY_REGISTRY is a pure read (idempotent, in default set);
-    // user just clicked to open the registry modal so default failure
-    // behavior — show "Reconnecting..." toast and queue, or alert on
-    // hard failure — matches their intent to see the data.
-    window.safeWsSend({ message: 'PRIVACY_REGISTRY' });
-  }
-
-  // Delegates to the canonical implementation in text-utils.js
-  // (window.escapeHtml). The String() coercion preserves the previous
-  // null/undefined → "null"/"undefined" stringification behavior of the
-  // former local copy (registry fields should not silently render "").
-  function escapeHtml(s) {
-    return window.escapeHtml(String(s));
-  }
-
-  // Dedicated reply for PRIVACY_TOGGLE round-trips. Carries the
-  // backend-confirmed enabled state plus an error code on rejection
-  // (e.g., privacy_container_unreachable). A separate event from
-  // privacy_state means we never confuse a toggle reply with an
-  // unrelated indicator update from app-change / reset / import.
-  function privacyMessage(key, fallback) {
-    return typeof window.getTranslation === 'function' ? window.getTranslation(key, fallback) : fallback;
-  }
-
-  // The status line said the filter is starting; the next confirmation
-  // replaces it, so the notice does not stay once the filter is on.
-  let _startingShown = false;
-
-  // Whether the chat in this tab is Private (nothing of it is written to
-  // disk). The server says so in its privacy replies; asking for the filter
-  // counts as Private until it answers, so a doubt errs to Private.
-  let _chatPrivate = false;
-
-  // The page hides what would make files of a Private chat (see
-  // body.chat-private in monadic.css); the server refuses it as well.
-  function setPrivate(value) {
-    _chatPrivate = !!value;
-    if (document.body) document.body.classList.toggle('chat-private', _chatPrivate);
-  }
-
-  function noteRequested(enabled) {
-    if (enabled) setPrivate(true);
-  }
-
-  function notePrivate(data) {
-    if (data && typeof data.private === 'boolean') setPrivate(data.private);
-  }
-
-  function isChatPrivate() {
-    return _chatPrivate;
-  }
-
-  function handleToggleAck(data) {
-    notePrivate(data);
-    const toggleEl = document.getElementById('check-privacy-session');
-    const desired = !!(data && data.enabled);
-    const afterStarting = _startingShown;
-    _startingShown = false;
-
-    if (data && data.error) {
-      // Backend rejected — sync visual state to "off" and surface the
-      // reason so the user understands why their toggle bounced back
-      // (and whether to wait or to look into it).
-      if (toggleEl) toggleEl.checked = false;
-
-      let msg;
-      let level = 'error';
-      if (data.error === 'privacy_container_starting') {
-        // Short: it is shown on the one-line status (docs explain more).
-        msg = privacyMessage('ui.messages.privacyStarting', 'Privacy Filter starting; retry soon');
-        level = 'warning';
-        _startingShown = true;
-      } else if (data.error === 'privacy_chat_started') {
-        msg = privacyMessage('ui.messages.privacyChatStarted', 'Privacy Filter is chosen before a session starts. Press Reset to start a new chat with it.');
-        level = 'warning';
-      } else if (data.error === 'privacy_container_unreachable') {
-        msg = privacyMessage('ui.messages.privacyNotRunning', 'The Privacy Filter could not be started. Try restarting the application.');
-      } else {
-        msg = 'Privacy Filter error: ' + String(data.error).substring(0, 200);
-      }
-      if (typeof window.setAlert === 'function') {
-        window.setAlert(
-          "<i class='fas fa-triangle-exclamation'></i> " + msg,
-          level
-        );
-      } else {
-        console.warn('[Privacy]', msg);
-      }
-      return;
-    }
-
-    if (toggleEl && toggleEl.checked !== desired) {
-      toggleEl.checked = desired;
-    }
-    if (afterStarting && desired && typeof window.setAlert === 'function') {
-      window.setAlert("<i class='fa-solid fa-circle-check'></i> " +
-        privacyMessage('ui.messages.privacyReady', 'Privacy Filter ready'), 'success');
-    }
-  }
-
-  function handleRegistry(data) {
-    const tbody = document.querySelector('#privacy-registry-table tbody');
-    const wrapper = document.getElementById('privacy-registry-table-wrapper');
-    const empty = document.getElementById('privacy-registry-empty');
-    if (!tbody || !wrapper || !empty) return;
-
-    const entries = (data && Array.isArray(data.entries)) ? data.entries : [];
-    if (entries.length === 0) {
-      wrapper.style.display = 'none';
-      empty.style.display = '';
-      tbody.innerHTML = '';
-      return;
-    }
-    empty.style.display = 'none';
-    wrapper.style.display = '';
-    tbody.innerHTML = entries.map(function (e) {
-      return '<tr>'
-        + '<td><code>' + escapeHtml(e.placeholder) + '</code></td>'
-        + '<td>' + escapeHtml(e.original) + '</td>'
-        + '<td><span class="mc-badge mc-badge--grey">' + escapeHtml(e.type) + '</span></td>'
-        + '</tr>';
-    }).join('');
-  }
-
-  // Wire indicator click → modal open. Document-level delegation so the
-  // listener survives re-renders of #privacy-indicator.
-  document.addEventListener('click', function (ev) {
-    const el = ev.target.closest && ev.target.closest('#privacy-indicator');
-    if (!el) return;
-    if (el.style.display === 'none') return;
-    openRegistryModal();
-  });
-
   // ---- Unified Export Dialog (2 orthogonal axes) ----------------------
   //
   // Encryption is always offered (encrypts the file at rest). The "content"
-  // axis (restored vs masked placeholders) is only shown when the Privacy
-  // Filter has produced registry entries in this session — otherwise there
-  // is nothing to mask.
-
-  // Privacy is "active" when the indicator is currently visible AND shows
-  // a non-zero registry count. The indicator label format is
-  // "Privacy ON (N)"; the regex extracts N.
+  // axis (restored or with the chat's words hidden) is shown only for a chat
+  // that hides words: otherwise there is nothing to hide.
   function isActive() {
-    const el = findIndicator();
-    if (!el || el.style.display === 'none') return false;
-    const m = (el.textContent || '').match(/\((\d+)\)/);
-    return !!(m && Number(m[1]) > 0);
+    return !!(window.WordTable && window.WordTable.hidesWords());
   }
+
+  function shownChat() {
+    return window.WordTable && window.WordTable.chat ? window.WordTable.chat() : null;
+  }
+
+  // Whether the user picked the content themselves, and the chat the dialog
+  // was opened for: the word table can arrive or change while it is open.
+  let _contentChosen = false;
+  let _chatShown = null;
+  // The export asked for and not answered yet: its id, so an answer to an
+  // earlier request (or after the dialog was opened again) is not taken
+  // for this one.
+  let _pendingExport = null;
+
+  function t(key, fallback) {
+    return typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : fallback;
+  }
+
+  // A chat that hides words defaults to "masked", so the words are not
+  // written to disk by accident; "restored" stays available. The content
+  // axis is shown only for such a chat.
+  function applyContentChoice() {
+    const hidesWords = isActive();
+    const restored = document.getElementById('privacyExportContentRestored');
+    const masked = document.getElementById('privacyExportContentMasked');
+    if (restored) restored.checked = !hidesWords;
+    if (masked) masked.checked = hidesWords;
+    const contentSection = document.getElementById('privacy-export-content-section');
+    if (contentSection) contentSection.style.display = hidesWords ? '' : 'none';
+  }
+
+  function followWordTable() {
+    const modalEl = document.getElementById('privacyExportModal');
+    if (!modalEl || !modalEl.classList.contains('show')) return;
+    const chat = shownChat();
+    if (_chatShown !== null && chat !== _chatShown) {
+      resetExportDialog();
+      return;
+    }
+    _chatShown = chat;
+    const section = document.getElementById('privacy-export-content-section');
+    if (_contentChosen && section && (section.style.display !== 'none') === isActive()) return;
+    applyContentChoice();
+    updateExportModeUI();
+  }
+  document.addEventListener('wordtable:changed', followWordTable);
 
   function openExportDialog() {
     const modalEl = document.getElementById('privacyExportModal');
@@ -302,25 +65,14 @@
   function resetExportDialog() {
     const encryptToggle = document.getElementById('export-encrypt-toggle');
     if (encryptToggle) encryptToggle.checked = false;
-    const restored = document.getElementById('privacyExportContentRestored');
-    const masked = document.getElementById('privacyExportContentMasked');
-    // When the Privacy Filter is active in this session, default to
-    // "masked" so the user does not accidentally write plaintext PII to
-    // disk. The "restored" radio is still available for users who do
-    // need the original values (e.g. backing up a personal notebook).
-    // When Privacy is OFF, default to "restored" — there are no
-    // placeholders to substitute anyway.
-    const privacyOn = isActive();
-    if (restored) restored.checked = !privacyOn;
-    if (masked) masked.checked = privacyOn;
+    _contentChosen = false;
+    _chatShown = shownChat();
+    _pendingExport = null;
     const pass = document.getElementById('privacy-export-passphrase');
     const conf = document.getElementById('privacy-export-passphrase-confirm');
     if (pass) pass.value = '';
     if (conf) conf.value = '';
-    // Show the content axis only when the privacy filter produced placeholders
-    // in this session. Without entries, there is nothing meaningful to mask.
-    const contentSection = document.getElementById('privacy-export-content-section');
-    if (contentSection) contentSection.style.display = privacyOn ? '' : 'none';
+    applyContentChoice();
     setExportStatus('');
     updateExportModeUI();
     updateStrengthMeter('');
@@ -329,8 +81,8 @@
   // Inline passphrase strength scoring: 0-4 based on length and the
   // diversity of character classes (lower / upper / digit / symbol).
   function scorePassphrase(pw) {
-    if (!pw) return { score: 0, label: 'Enter a passphrase' };
-    if (pw.length < 8) return { score: 0, label: 'Too short (need ≥ 8 chars)' };
+    if (!pw) return { score: 0, label: t('ui.exportStrengthEmpty', 'Enter a passphrase') };
+    if (pw.length < 8) return { score: 0, label: t('ui.exportStrengthShort', 'Too short (8 characters or more)') };
     let classes = 0;
     if (/[a-z]/.test(pw)) classes++;
     if (/[A-Z]/.test(pw)) classes++;
@@ -342,8 +94,8 @@
     else if (pw.length >= 12 || classes >= 3) score = 2;
     else if (pw.length >= 10 || classes >= 2) score = 1;
     else score = 0;
-    const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-    return { score: score, label: labels[score] };
+    const fallbacks = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    return { score: score, label: t('ui.exportStrength' + score, fallbacks[score]) };
   }
 
   function updateStrengthMeter(pw) {
@@ -369,12 +121,9 @@
     //   encrypt ON                        → no warning (file is sealed)
     //   encrypt OFF + masked content      → no warning (no original PII present)
     //   encrypt OFF + restored content    → WARNING:
-    //     - Privacy active:  red `alert-danger` ("PII export") because the
-    //       user is overriding the safer default; the file will contain
-    //       names, emails, phone numbers in plaintext.
-    //     - Privacy inactive: yellow `alert-warning` (no registry entries
-    //       so no tracked PII is being un-masked, but the file is still
-    //       cleartext content).
+    //     - the chat hides words: red `alert-danger`, because the user is
+    //       overriding the safer default and the file will hold the words.
+    //     - otherwise: yellow `alert-warning` (the file is still cleartext).
     if (encrypt) {
       restoredWarn.style.display = 'none';
       restoredWarn.classList.remove('alert-danger');
@@ -390,8 +139,7 @@
     const defaultBlock = document.getElementById('privacy-export-restored-warning-default');
     const strongBlock = document.getElementById('privacy-export-restored-warning-strong');
     if (isActive()) {
-      // Strong warning: user picked the high-risk combination explicitly
-      // (Privacy active + Restored + unencrypted).
+      // Strong warning: the words of the chat, restored and unencrypted.
       restoredWarn.classList.remove('alert-warning');
       restoredWarn.classList.add('alert-danger');
       if (defaultBlock) defaultBlock.style.display = 'none';
@@ -408,6 +156,10 @@
   function checkContinueEnabled() {
     const continueBtn = document.getElementById('privacy-export-continue');
     if (!continueBtn) return;
+    if (_pendingExport) {
+      continueBtn.disabled = true;
+      return;
+    }
     if (!isEncryptChecked()) {
       // Plain export: always allowed (user has been warned via the alert box).
       continueBtn.disabled = false;
@@ -450,18 +202,37 @@
     if (encrypt) {
       payload.passphrase = (document.getElementById('privacy-export-passphrase') || {}).value || '';
     }
-    setExportStatus('Preparing export...', 'text-muted');
+    if (_pendingExport) return;
+    _pendingExport = 'exp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    payload.request_id = _pendingExport;
+    setExportStatus(t('ui.exportPreparing', 'Preparing the export…'), 'text-muted');
+    checkContinueEnabled();
     // PRIVACY_EXPORT is non-idempotent (server re-runs encryption +
-    // streams a base64 blob; replay would re-do that work and emit a
-    // second response the UI wouldn't expect). Default safeWsSend
-    // behavior (fail-fast alert when WS is not OPEN) is the honest
-    // outcome — strictly better than the prior silent `return` that
-    // left "Preparing export..." stuck in the dialog.
-    window.safeWsSend(payload);
+    // streams a base64 blob), so it is not queued for replay: when it
+    // could not be sent, the dialog says so and the user tries again.
+    const sent = window.safeWsSend(payload);
+    if (sent && sent.sent === false && sent.queued === false) {
+      _pendingExport = null;
+      setExportStatus(t('ui.exportNotSent', 'The export could not be sent. Check the connection and try again.'), 'text-danger');
+      checkContinueEnabled();
+    }
+  }
+
+  // Whether an answer belongs to the export this dialog is waiting for;
+  // when it does, the dialog stops waiting.
+  function answersPending(data) {
+    if (!_pendingExport || !data || data.request_id !== _pendingExport) return false;
+    _pendingExport = null;
+    checkContinueEnabled();
+    return true;
   }
 
   function handleExportData(data) {
-    if (!data || !data.content_base64) return;
+    if (!answersPending(data)) return;
+    if (!data.content_base64) {
+      setExportStatus(t('ui.exportFailed', 'The export failed. Try again.'), 'text-danger');
+      return;
+    }
     try {
       const binary = atob(data.content_base64);
       const bytes = new Uint8Array(binary.length);
@@ -475,22 +246,20 @@
       a.click();
       document.body.removeChild(a);
       setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
-      setExportStatus('Downloaded: ' + a.download, 'text-success');
-      // Auto-close after a brief delay so the user sees the success message
-      setTimeout(function () {
-        const modalEl = document.getElementById('privacyExportModal');
-        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-          window.bootstrap.Modal.getInstance(modalEl)?.hide();
-        }
-      }, 800);
-    } catch (e) {
-      setExportStatus('Download failed: ' + e.message, 'text-danger');
+      // The browser was handed the file; whether it was saved (or the
+      // save was cancelled) is not known here.
+      setExportStatus(t('ui.exportStarted', 'Download started: {name}').replace('{name}', a.download), 'text-success');
+    } catch (_e) {
+      setExportStatus(t('ui.exportFailed', 'The export failed. Try again.'), 'text-danger');
     }
   }
 
   function handleExportError(data) {
-    const detail = (data && (data.detail || data.error)) || 'unknown error';
-    setExportStatus('Export error: ' + detail, 'text-danger');
+    if (!answersPending(data)) return;
+    const message = data.error === 'passphrase_required'
+      ? t('ui.exportPassphraseRequired', 'A passphrase is needed.')
+      : t('ui.exportFailed', 'The export failed. Try again.');
+    setExportStatus(message, 'text-danger');
   }
 
   // Wire dialog interactions (document-level delegation, idempotent).
@@ -501,9 +270,10 @@
       updateExportModeUI();
     }
     // Content radio drives both the warning style/text (Restored escalates
-    // to a red "PII export" alert when Privacy is active) and the
+    // to a red "PII export" alert for a chat that hides words) and the
     // continue-button enable state.
     if (ev.target.name === 'privacyExportContent') {
+      _contentChosen = true;
       updateExportModeUI();
     }
   });
@@ -519,163 +289,13 @@
     if (ev.target && ev.target.id === 'privacy-export-continue') {
       sendExport();
     }
-    if (ev.target && (ev.target.id === 'privacy-registry-export-btn' || ev.target.closest('#privacy-registry-export-btn'))) {
-      // Close registry modal first, then open export dialog.
-      const regEl = document.getElementById('privacyRegistryModal');
-      if (regEl && window.bootstrap && window.bootstrap.Modal) {
-        window.bootstrap.Modal.getInstance(regEl)?.hide();
-      }
-      setTimeout(openExportDialog, 250);
-    }
   });
 
-  // ---- Unmask highlight ------------------------------------------------
-  //
-  // After each turn the server ships the full registry as
-  // `privacy_known_entities`. We walk every card in #discourse (user and
-  // assistant alike) and wrap each occurrence of a tracked PII value in
-  // a marker span. The walker is idempotent so passing the whole list on
-  // every turn does not pile up wrappers — already-wrapped subtrees are
-  // skipped.
-  //
-  // Matching is done by text content rather than by character offsets:
-  // markdown rendering shifts offsets and computing them on the rendered
-  // HTML is brittle. Substring search is unambiguous because the LLM
-  // never saw the original — any occurrence in the rendered text traces
-  // back to user input or to a placeholder restoration.
-  //
-  // Skipped subtrees: <code>, <pre> — restored values inside those are
-  // literal/markup and highlighting them is just syntax noise. <script> and
-  // <style> are skipped for sanity. <a> is NOT skipped: markdown auto-links
-  // restored PII (e.g. an email becomes a mailto: link), and the user still
-  // needs to see that it is tracked. We wrap only the link's text node, so
-  // the href and click behavior stay intact.
-  //
-  // Color assignment: each placeholder hashes to one of UNMASK_PALETTE_SIZE
-  // slots (data-color="0..N-1"). The mapping is deterministic so the
-  // **same name keeps the same color across every card**, and the same
-  // hash also flows through any future references to the same placeholder.
-  // The actual color values live in CSS so dark theme can re-skin without
-  // rebuilding the bundle.
-
-  var UNMASK_PALETTE_SIZE = 8;
-
-  // djb2-style hash → palette slot. Tiny and deterministic; enough to
-  // distribute the small number of placeholders we typically see.
-  function unmaskColorIndex(placeholder) {
-    if (!placeholder) return 0;
-    var hash = 0;
-    for (var i = 0; i < placeholder.length; i++) {
-      hash = ((hash << 5) - hash) + placeholder.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash) % UNMASK_PALETTE_SIZE;
-  }
-
-  function isInsideSkippedAncestor(node, root) {
-    var p = node.parentNode;
-    while (p && p !== root) {
-      if (p.classList && p.classList.contains('privacy-unmasked')) return true;
-      var tag = p.nodeName;
-      if (tag === 'CODE' || tag === 'PRE' || tag === 'SCRIPT' || tag === 'STYLE') return true;
-      p = p.parentNode;
-    }
-    return false;
-  }
-
-  function splitAndWrap(textNode, needle, entityType, placeholder) {
-    var text = textNode.nodeValue;
-    var parent = textNode.parentNode;
-    if (!parent) return;
-
-    var doc = textNode.ownerDocument || document;
-    var fragment = doc.createDocumentFragment();
-    var pos = 0;
-    var idx;
-    var colorIdx = unmaskColorIndex(placeholder);
-
-    while ((idx = text.indexOf(needle, pos)) !== -1) {
-      if (idx > pos) {
-        fragment.appendChild(doc.createTextNode(text.substring(pos, idx)));
-      }
-      var span = doc.createElement('span');
-      span.className = 'privacy-unmasked';
-      // data-color drives the underline color via CSS palette rules so the
-      // SAME placeholder produces the SAME visual treatment in every card.
-      span.setAttribute('data-color', String(colorIdx));
-      if (entityType) span.setAttribute('data-entity-type', entityType);
-      if (placeholder) {
-        span.setAttribute('data-placeholder', placeholder);
-        // Title doubles as the native browser tooltip; the visible row is
-        // styled via CSS (gray background + colored underline).
-        span.setAttribute('title', 'Tracked as ' + placeholder);
-      }
-      span.textContent = needle;
-      fragment.appendChild(span);
-      pos = idx + needle.length;
-    }
-
-    if (pos === 0) return; // Nothing matched — leave the original node intact.
-    if (pos < text.length) {
-      fragment.appendChild(doc.createTextNode(text.substring(pos)));
-    }
-    parent.replaceChild(fragment, textNode);
-  }
-
-  function wrapAllOccurrences(root, needle, entityType, placeholder) {
-    if (!needle) return;
-    var doc = root.ownerDocument || document;
-    var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode: function (node) {
-        if (!node.nodeValue || node.nodeValue.indexOf(needle) === -1) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        if (isInsideSkippedAncestor(node, root)) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-
-    // Collect first; we mutate during the wrap step which would invalidate
-    // the walker mid-iteration.
-    var nodes = [];
-    var n;
-    while ((n = walker.nextNode())) nodes.push(n);
-
-    nodes.forEach(function (textNode) {
-      splitAndWrap(textNode, needle, entityType, placeholder);
-    });
-  }
-
-  function highlightUnmaskedSpans(root, spans) {
-    if (!root || !spans || !spans.length) return;
-    // Sort by length descending so multi-word originals ("Alice Smith")
-    // are wrapped before any shorter substring ("Alice") that would
-    // otherwise consume their text first and prevent the longer match.
-    var sorted = spans.slice().sort(function (a, b) {
-      var la = (a && a.original) ? a.original.length : 0;
-      var lb = (b && b.original) ? b.original.length : 0;
-      return lb - la;
-    });
-    sorted.forEach(function (span) {
-      if (!span || !span.original) return;
-      wrapAllOccurrences(root, span.original, span.entity_type, span.placeholder);
-    });
-  }
-
   window.WsPrivacyHandler = {
-    handleState: handleState,
-    handleToggleAck: handleToggleAck,
-    handleRegistry: handleRegistry,
-    openRegistryModal: openRegistryModal,
     isActive: isActive,
-    isEnabled: function () { return _lastEnabled; },
-    isChatPrivate: isChatPrivate,
-    noteRequested: noteRequested,
-    notePrivate: notePrivate,
     openExportDialog: openExportDialog,
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,
     handleExportError: handleExportError,
-    highlightUnmaskedSpans: highlightUnmaskedSpans
   };
 })();

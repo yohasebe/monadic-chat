@@ -42,7 +42,7 @@ function openMaskEditor(imageData) {
                     <i class="fas fa-undo"></i> Undo
                   </button>
                   <button type="button" id="clearMask" class="btn btn-outline-danger w-50">
-                    <i class="fas fa-trash"></i> Clear
+                    <i class="fa-regular fa-trash-can"></i> Clear
                   </button>
                 </div>
                 <div class="alert alert-info">
@@ -372,7 +372,7 @@ function openMaskEditor(imageData) {
               <div class="mask-overlay-label">MASK</div>
               <div class="mask-controls">
                 <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
-                  <i class="fas fa-times"></i> Remove Mask
+                  <i class="fa-regular fa-trash-can"></i> Remove Mask
                 </button>
                 <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
                   <i class="fas fa-eye-slash"></i> Toggle Mask
@@ -397,7 +397,7 @@ function openMaskEditor(imageData) {
               <div class="mask-overlay-label">MASK</div>
               <div class="mask-controls">
                 <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
-                  <i class="fas fa-times"></i> Remove Mask
+                  <i class="fa-regular fa-trash-can"></i> Remove Mask
                 </button>
                 <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
                   <i class="fas fa-eye-slash"></i> Toggle Mask

@@ -67,7 +67,8 @@ function adjustScrollButtons() {
     // When menu-hidden class is present, menu is hidden and main is showing
     // When menu-hidden class is absent, menu is showing and main is hidden
     const toggleBtn = $id('toggle-menu');
-    const isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
+    const isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
+      : (toggleBtn && toggleBtn.classList.contains('menu-hidden'));
 
     if (!isMenuHidden) {
       // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
@@ -154,6 +155,32 @@ function setupTooltips(container) {
   } catch (e) {
     console.warn('Tooltip initialization error:', e);
   }
+}
+
+/**
+ * Shows the tooltip of a card header's control when the pointer or the focus
+ * comes to it. The tooltip is made then, so a control added later, or one
+ * whose tooltip was removed, needs nothing done for it.
+ * @param {HTMLElement} container - Element the cards are added to
+ */
+function showCardTooltipsOnHover(container) {
+  if (!container || container._cardTooltipsOnHover) return;
+  container._cardTooltipsOnHover = true;
+  var show = function(event) {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    var target = event.target;
+    var el = target && target.closest
+      ? target.closest('.card-header [title], .card-header [data-bs-original-title]')
+      : null;
+    if (!el || !container.contains(el) || bootstrap.Tooltip.getInstance(el)) return;
+    try {
+      new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' }).show();
+    } catch (e) {
+      console.warn('Tooltip initialization error:', e);
+    }
+  };
+  container.addEventListener('mouseover', show);
+  container.addEventListener('focusin', show);
 }
 
 /**
@@ -380,6 +407,7 @@ window.uiUtils = {
   setupTextarea,
   adjustScrollButtons,
   setupTooltips,
+  showCardTooltipsOnHover,
   cleanupAllTooltips,
   adjustImageUploadButton,
   simulateEscapeKey,

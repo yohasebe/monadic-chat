@@ -20,7 +20,7 @@
 
 ##### Q: Can I adjust the speed of the AI agent's voice? :id=voice-speed-adjustment
 
-**A**: Yes, you can adjust the playback speed of the synthesized speech using the `TTS Speed` slider in the **Speech** panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). The Web Speech API also supports speed adjustment, though quality may vary. With Gemini, the Flash and Flash-Lite options change the speed at playback, so audio files saved with them through the Speech Draft Helper app are at the standard pace.
+**A**: Yes, you can adjust the playback speed of the synthesized speech using the `TTS Speed` slider in the **Speech** panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). The Web Speech API also supports speed adjustment; its quality depends on the browser and operating system. With Gemini, the Flash and Flash-Lite options change the speed at playback, so audio files saved with them through the Speech Draft Helper app are at the standard pace.
 
 ---
 
@@ -49,7 +49,7 @@
 - **OpenAI models**: Multiple models with varying accuracy and features. Advanced models support speaker identification (diarization) for multi-person audio.
 - **Google Gemini**: Provides advanced audio understanding with flexible language recognition and multilingual support.
 - **ElevenLabs Scribe**: High-accuracy speech recognition with word-level timestamps. Requires an ElevenLabs API key.
-- **Cohere**: Speech recognition with the Cohere Transcribe model. Requires a Cohere API key.
+- **Cohere**: Speech recognition with the Cohere Transcribe model. Requires a Cohere API key. The model does not detect the language: when **Conversation Language** is set to automatic, speech is recognized in the UI language.
 - **Mistral Voxtral**: Speech recognition with Mistral's Voxtral Transcribe model. Requires a Mistral API key.
 - **xAI**: Speech recognition powered by xAI. Requires an xAI API key.
 

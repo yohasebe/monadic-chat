@@ -79,8 +79,8 @@ describe('ReasoningLabels', () => {
     });
 
     test('returns custom labels for DeepSeek options', () => {
-      expect(ReasoningLabels.getOptionLabel('DeepSeek', 'minimal')).toBe('Off');
-      expect(ReasoningLabels.getOptionLabel('DeepSeek', 'medium')).toBe('On');
+      expect(ReasoningLabels.getOptionLabel('DeepSeek', 'none')).toBe('Off');
+      expect(ReasoningLabels.getOptionLabel('DeepSeek', 'high')).toBe('High');
     });
 
     test('returns default label for unknown provider', () => {

@@ -35,7 +35,7 @@ describe('Workflow Viewer blank-view protection', () => {
   });
 
   it('restoreViewState drops a stale state and reports failure for fit fallback', () => {
-    const restore = SOURCE.match(/function restoreViewState\(\)[\s\S]{0,700}?\n  \}/)[0];
+    const restore = SOURCE.match(/function restoreViewState\(\)[\s\S]{0,1100}?\n  \}/)[0];
     expect(restore).toMatch(/if \(!viewShowsContent\(\)\)/);
     expect(restore).toMatch(/delete viewStates\[currentApp\]/);
     expect(restore).toMatch(/return false/);
@@ -43,5 +43,15 @@ describe('Workflow Viewer blank-view protection', () => {
 
   it('the resize observer falls back to fit when restore fails', () => {
     expect(SOURCE).toMatch(/if \(!restoreViewState\(\)\) fitGraphToContainer\(\);/);
+  });
+
+  it('restores a kept view only in a container of the size it was kept for', () => {
+    const save = SOURCE.match(/function saveViewState\(\)[\s\S]{0,600}?\n  \}/)[0];
+    expect(save).toMatch(/cw: container\.clientWidth/);
+    expect(save).toMatch(/ch: container\.clientHeight/);
+    const restore = SOURCE.match(/function restoreViewState\(\)[\s\S]{0,1100}?\n  \}/)[0];
+    const sizeCheck = restore.indexOf('container.clientWidth - vs.cw');
+    expect(sizeCheck).toBeGreaterThan(-1);
+    expect(sizeCheck).toBeLessThan(restore.indexOf('scaleAndTranslate'));
   });
 });

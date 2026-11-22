@@ -41,6 +41,8 @@ module AutoForge
 
       @project_id = project_context[:project_id]
       @project_path = project_context[:path]
+      # A project an earlier turn made is kept as it is before it changes.
+      AutoForge::Utils::PathConfig.before_change(@project_path) if project_context[:existing]
 
       unless ensure_state_ready(project_context, spec)
         return { success: false, error: "Failed to prepare project state" }
@@ -140,7 +142,7 @@ module AutoForge
         name: project_info[:name],
         existing: false
       }
-    rescue AutoForgeUtils::ProjectCreationError => e
+    rescue AutoForgeUtils::ProjectCreationError, AutoForge::Utils::PathConfig::NoChat => e
       { success: false, error: e.message }
     end
 
@@ -156,11 +158,11 @@ module AutoForge
       true
     end
 
-    # Whether path, links followed, is a folder under AutoForge's projects.
+    # Whether path, links followed, is a folder under this chat's projects.
     def inside_project_base?(path)
       base = File.realpath(AutoForge::Utils::PathConfig.project_base_path)
       File.realpath(path).start_with?("#{base}/")
-    rescue SystemCallError
+    rescue SystemCallError, AutoForge::Utils::PathConfig::NoChat
       false
     end
 
@@ -175,9 +177,10 @@ module AutoForge
 
       return nil unless path && !path.to_s.strip.empty?
       return nil unless Dir.exist?(path)
-      # A project is written only inside AutoForge's own folder: the path
-      # comes from the model, and a folder elsewhere in the shared folder
-      # (custom apps and helpers among them) holds code the server loads.
+      # A project is written only inside this chat's AutoForge folder: the
+      # path comes from the model, and a folder elsewhere in the shared
+      # folder (custom apps and helpers among them, other chats' folders)
+      # holds code the server loads or work it does not own.
       return nil unless inside_project_base?(path)
 
       spec_name = value_from_spec(spec, :name)

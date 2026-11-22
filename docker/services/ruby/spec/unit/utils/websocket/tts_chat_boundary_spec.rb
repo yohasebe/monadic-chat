@@ -73,6 +73,8 @@ RSpec.describe "Speech across a chat change" do
       notices = []
       allow(host).to receive(:send_or_broadcast) { |msg, *_| notices << JSON.parse(msg) }
       suggest.join(5)
+      # The reply_state notices (reply_state_spec.rb) carry an id of their own.
+      notices.reject! { |n| n["type"] == "reply_state" }
       expect(notices.map { |n| n["type"] }).to include("ai_user", "ai_user_finished")
       expect(notices.map { |n| n["request_id"] }.uniq).to eq(["aiu_1"])
     end
@@ -113,6 +115,7 @@ RSpec.describe "Speech across a chat change" do
       allow(host).to receive(:send_or_broadcast) { |msg, *_| notices << JSON.parse(msg) }
       allow(host).to receive(:process_ai_user).and_return({ "type" => "error", "content" => "AI User error: quota" })
       host.send(:handle_ws_ai_user_query, nil, { "contents" => { "request_id" => "aiu_5" } }, session, nil).join(5)
+      notices.reject! { |n| n["type"] == "reply_state" }
       expect(notices.last).to eq("type" => "ai_user_error", "content" => "AI User error: quota", "request_id" => "aiu_5")
       expect(notices.map { |n| n["type"] }).not_to include("error", "wait")
     end

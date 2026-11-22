@@ -22,8 +22,11 @@ module MonadicSharedTools
     # @param tasks [Array<Hash>] Array of {id:, code:, description:?} objects (max 5)
     # @param timeout [Integer, nil] Per-task timeout in seconds (default: 60, max: 180)
     # @param session [Hash, nil] Injected by process_functions
+    # @param workbench [Monadic::Workbench::Caller, nil] The reply's chat
+    #   (given by the server): in an app that keeps what its code makes in
+    #   the chat's folder, each task runs in a run folder of its own there
     # @return [String] Formatted result for the model to present
-    def parallel_run_code(tasks:, timeout: nil, session: nil)
+    def parallel_run_code(tasks:, timeout: nil, session: nil, workbench: nil)
       # --- Input validation ---
       unless tasks.is_a?(Array) && !tasks.empty?
         return "ERROR: tasks parameter is required and must be a non-empty array"
@@ -66,7 +69,7 @@ module MonadicSharedTools
             Thread.current.report_on_exception = false
             begin
               output = Timeout.timeout(timeout_val) do
-                run_code(code: t["code"], command: "python", extension: "py")
+                run_code(code: t["code"], command: "python", extension: "py", session: session, workbench: workbench)
               end
 
               results_mutex.synchronize do
@@ -136,7 +139,7 @@ module MonadicSharedTools
         Results:
         #{results_json}
 
-        Present all results to the user. Generated images are automatically displayed in the chat.
+        Present all results to the user. Files a task made are named in its output: name them in one short line with their paths.
         Do NOT call any more tools. Do NOT include <img> tags in your response.
       RESULT
 

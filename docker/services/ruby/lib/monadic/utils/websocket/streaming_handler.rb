@@ -2,6 +2,8 @@
 
 require_relative '../../workspace'
 require_relative '../privacy/outbound'
+require_relative '../../workbench/channel'
+require_relative '../../workbench/observation'
 
 require_relative '../tts_provider'
 
@@ -150,36 +152,6 @@ module WebSocketHelper
     res
   end
 
-  # Calculate the turn number for an assistant message.
-  # Turn numbers are 1-indexed based on assistant message order.
-  # @param messages [Array] The messages array
-  # @param message_index [Integer] The index of the message
-  # @return [Integer, nil] The turn number or nil if not an assistant message
-  def calculate_turn_number(messages, message_index)
-    return nil unless messages && message_index
-
-    message = messages[message_index]
-    return nil unless message && message["role"] == "assistant"
-
-    # Count assistant messages up to and including this one
-    turn = 0
-    messages.each_with_index do |m, idx|
-      turn += 1 if m["role"] == "assistant"
-      return turn if idx == message_index
-    end
-    nil
-  end
-
-  # Get context schema from session.
-  # @param rack_session [Hash] The session
-  # @return [Hash, nil] The context schema or nil
-  def get_context_schema(rack_session)
-    monadic_state = rack_session[:monadic_state] || rack_session["monadic_state"]
-    return nil unless monadic_state
-
-    monadic_state[:context_schema] || monadic_state["context_schema"]
-  end
-
   # Main streaming handler — processes LLM API responses with realtime TTS,
   # fragment buffering, post-completion TTS, and context extraction.
   # @return [Thread] The streaming thread (returned for orchestrator control)
@@ -202,6 +174,21 @@ module WebSocketHelper
     fields
   end
 
+  # What the model is told of the work screen with a message the user sent
+  # from this connection (Workbench::Observation), or nil. A failure here
+  # never keeps the message from being sent.
+  private def workbench_observation(session, chat_id, request_id, reported)
+    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+    Monadic::Workbench::Observation.for_request(
+      chat_id: chat_id, tab: Thread.current[:websocket_session_id], generation: session[:_ws_generation],
+      request_id: request_id, reported: reported
+    )
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] No observation for the message: #{e.class}: #{e.message}" }
+    nil
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -212,15 +199,10 @@ module WebSocketHelper
     chat_at_start = session[Monadic::Workspace::Chats::SESSION_KEY]
     chat_changed = -> { session[Monadic::Workspace::Chats::SESSION_KEY] != chat_at_start }
 
-    # Words the user marked for the Privacy Filter are taken out of the
-    # message (and kept for the chat) before it is recorded or sent; a
-    # message that cannot be sent masked is not sent at all.
-    if obj.key?("message")
-      clean = take_privacy_marks(obj["message"], session, ws_session_id)
-      return nil if clean.nil?
-
-      obj["message"] = clean
-    end
+    # Replies of this chat stopped before (also for another connection of
+    # the tab) are marked on their messages before anything is built from
+    # them; they are kept with the chat as it is next saved.
+    Monadic::Workspace::StoppedReplies.apply!(session)
 
     # The attachments sent with this message, checked against the ledger,
     # and the request the answer runs under: which attachments its tools
@@ -241,9 +223,27 @@ module WebSocketHelper
     earlier_ids = Array(session[:messages]).flat_map do |m|
       m["role"] == "user" ? Array(m["attachments"]).map { |a| a["attachment_id"] } : []
     end
+    # What the page said it shows on the work screen comes with the message
+    # (workbench_range): it goes into what the model is told with a message
+    # the user sent, and is never kept with the chat's parameters.
+    reported_range = obj.delete("workbench_range")
+    # What a page from before "Show to the assistant" was taken out may
+    # still send with a message: dropped, never kept with the chat's
+    # parameters nor taken as part of the message.
+    obj.delete("workbench_shown")
+    obj.delete("workbench_made")
+    obj.delete("workbench_revisions")
+    obj.delete("state_changes")
+    request_id = Monadic::Workspace::Ids.generate(:request)
+    # The user's own message: text, or attached files only (video or audio
+    # as attachments, images and PDFs as images).
+    user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty? || !Array(obj["images"]).empty?
     request_context = Monadic::Workspace::RequestContext.new(
-      chat_id: chat_at_start,
-      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] }
+      chat_id: chat_at_start, request_id: request_id,
+      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
+      tab: ws_session_id, generation: session[:_ws_generation],
+      observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
+      settings: Monadic::TurnSettings.accepted(obj, session[:parameters]), parameters: session[:parameters]
     )
 
     session[:parameters].merge! obj
@@ -258,14 +258,15 @@ module WebSocketHelper
     # fails on any new direct read of the flag).
     if sts_session_capable?(session)
       send_error("This model is voice-only (speech-to-speech). " \
-                 "Please use the microphone to talk with it.", ws_session_id)
+                 "Please use the microphone to talk with it.", ws_session_id, { "not_accepted" => true })
       return nil
     end
 
     # Start background token counting for the user message immediately
     message_text = obj["message"].to_s
-    # A message of attached files only is recorded too.
-    if !message_text.empty? || !Array(attachment_refs).empty?
+    # A message of attached files only (video or audio, or images and
+    # PDFs) is recorded too, under its request.
+    if user_sent
       unless message_text.empty?
         # Use o200k_base encoding for most LLMs
         token_count_thread = initialize_token_counting(message_text, "o200k_base")
@@ -284,9 +285,12 @@ module WebSocketHelper
                                app_name: params["app_name"], attachment_refs: attachment_refs))
       session[:messages] << user_message_data
       sync_session_state!
+      # The model this request is sent with, for the notes kept after its
+      # reply (Monadic::TurnState::Keeper).
+      Monadic::TurnState::Keeper.sent_with(request_context.request_id, params["model"], message_text)
 
-      # Privacy Filter auto-detect: lock the session language from the
-      # user's actual typed text (pre-vendor, no placeholder contamination).
+      # Auto-detect: lock the session language (for finding words to hide)
+      # from the user's actual typed text.
       # No-op when conversation_language != "auto" or already locked.
       require_relative '../privacy/language_detector'
       Monadic::Utils::Privacy::LanguageDetector.detect_and_lock!(message_text, session)
@@ -313,7 +317,23 @@ module WebSocketHelper
       language = obj["conversation_language"] || "auto"
     end
 
+    # The page is told that this answer is running and, when no answer comes
+    # (an error, Cancel, Reset, a closed connection), that it ended without
+    # one. An answer that comes ends when it is recorded (html_handler).
+    request_id = request_context.request_id
+    # The answer's handle (who ends it, and how it is stopped) and the token
+    # its page can stop it with by HTTP while the read loop waits for it
+    # (ReplyCancelServer), sent to this connection only.
+    handle, token = Replies.open(request_id: request_id, chat_id: chat_at_start, tab: ws_session_id,
+                                 generation: session[:_ws_generation])
+    reply_running(request_id, ws_session_id)
+    give_reply_token(ws_session_id, session[:_ws_generation], chat_at_start, request_id, token) if token
+    replied = false
+
     thread = Thread.new do
+      # Nothing is done for an answer cancelled before it began.
+      next unless handle.begin!
+
       # Set thread type for identification
       Thread.current[:type] = :tts
       # The request this answer runs under, fixed for all of it.
@@ -345,10 +365,9 @@ module WebSocketHelper
       buffer = []
       cutoff = false
 
-      # Save original auto_speech and monadic values before they might be overwritten
-      # These will be used for final segment processing after streaming completes
+      # Save the original auto_speech value before it might be overwritten
+      # This will be used for final segment processing after streaming completes
       original_auto_speech = obj["auto_speech"]
-      original_monadic = obj["monadic"]
 
       app_name = obj["app_name"]
       app_obj = APPS[app_name]
@@ -361,7 +380,7 @@ module WebSocketHelper
       end
 
       # Expressive Speech instruction-mode streaming hold-back state.
-      # For non-Monadic apps using openai-tts-4o the LLM prefixes the reply
+      # With an instruction-capable TTS provider the LLM prefixes the reply
       # with a `<<TTS:...>>` directive block. We buffer fragments on the
       # server until either (a) a complete sentinel arrives — then forward
       # only the remainder, or (b) the accumulated prefix can no longer be
@@ -369,17 +388,24 @@ module WebSocketHelper
       # Once decided, subsequent fragments pass through unchanged.
       sentinel_hold_back_active =
         (original_auto_speech == true || original_auto_speech == "true") &&
-        (original_monadic.nil? || original_monadic.to_s.strip.empty?) &&
         Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(obj["tts_provider"])
       sentinel_state = sentinel_hold_back_active ? :scanning : :passthrough
       sentinel_held = +""
 
+      # Show Thinking off (the user's toggle, or the app's default where the
+      # model has no toggle): the model's thinking is not sent to the page
+      # as it streams, as it is not attached to the reply.
+      thinking_hidden = request_context.settings.show_thinking == false
+
       prev_texts_for_tts = []
+      ErrorPatternDetector.begin_turn(session)
       responses = app_obj.api_request("user", session) do |fragment|
+        next if thinking_hidden && %w[thinking reasoning].include?(fragment["type"])
+
         next if chat_changed.call
 
         # DEBUG: Log all fragment arrivals
-        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}" }
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}" }
 
         if fragment["type"] == "error"
           error_content = fragment["content"] || fragment.to_s
@@ -399,9 +425,8 @@ module WebSocketHelper
           text = fragment["content"]
           buffer << text unless text.empty? || text == "DONE"
 
-          segments = WebSocketHelper.segment_sentences(buffer.join)
-
           Monadic::Utils::ExtraLogger.log {
+            segments = WebSocketHelper.segment_sentences(buffer.join)
             msg = "[DEBUG] Fragment received: buffer_text='#{buffer.join[0..100]}...', segments=#{segments.size}"
             segments.each_with_index do |seg, i|
               msg += "\n[DEBUG]   segment[#{i}]: '#{seg[0..50]}...'"
@@ -472,17 +497,20 @@ module WebSocketHelper
       # arrive as boolean true or string "true" from the client.
       auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
-      # Check if monadic is nil or empty string (both should be treated as false/disabled)
-      monadic_disabled = original_monadic.nil? || original_monadic.to_s.strip.empty?
-
-      # Check for tts_target extracted text (for monadic apps like Voice Interpreter)
-      # This must be checked BEFORE the condition so monadic apps with tts_target can use TTS
-      tts_text_from_target = session[:tts_text]
+      # Check for tts_target extracted text (for apps like Voice Interpreter)
+      # Taken once: a text a reply left is not spoken, or shown, with a
+      # later one. The model may begin it with the speech directive, as it
+      # begins a reply: the directive is taken off what is spoken and shown.
+      tts_text_from_target, target_instructions =
+        Monadic::Utils::TtsInstructionExtractor.extract(session.delete(:tts_text))
+      tts_text_from_target = nil if tts_text_from_target.to_s.strip.empty?
+      # A mark that the tool ended the reply is the reply's own, too.
+      session.delete(:tts_reply_ended)
 
       # TTS is allowed if auto_speech is enabled, not cutoff, and not realtime mode
       # The actual text source is determined later:
       # - If tts_text_from_target exists (tool was called), use that
-      # - Otherwise, fall back to buffer.join (works for all apps including monadic)
+      # - Otherwise, fall back to buffer.join (works for all apps)
       #
       # NOTE: The server auto-triggers TTS here. The client should NOT also click
       # the Play button to avoid duplicate audio playback. The client-side code
@@ -490,7 +518,7 @@ module WebSocketHelper
       # is expected (server will send audio automatically).
       tts_allowed = auto_speech_enabled && !cutoff
 
-      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
 
       if tts_allowed
         # Stop any existing TTS thread first
@@ -503,28 +531,20 @@ module WebSocketHelper
         # This allows apps to specify a specific tool parameter for TTS instead of the full response
         text = tts_text_from_target || buffer.join
 
-        # Clear session tts_text after use to avoid reusing on next request
-        session.delete(:tts_text) if tts_text_from_target
-
-        # Privacy Filter: replace any "<<TYPE_N>>" placeholder with "TYPE N" so
-        # TTS reads a sanitized form instead of speaking the bracket symbols.
-        # Idempotent for non-privacy sessions (no-op when no placeholders).
-        if session[:_privacy_pipeline]
-          text = session[:_privacy_pipeline].sanitize_for_tts(text)
-        end
-        # Words the user marked: replaced by their type if the reply holds
-        # one, and nothing is spoken if one is still there.
-        if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
-          pipeline = session[:_privacy_pipeline]
-          text = pipeline.sanitize_restored_for_tts(text) if pipeline.respond_to?(:sanitize_restored_for_tts)
-          begin
+        # A chat that hides its words with a word table reads each word and
+        # each "<<TYPE_N>>" placeholder as "TYPE N" (Words.spoken).
+        words = Monadic::Utils::Privacy::Words
+        begin
+          if words.marked?(session)
+            text = words.spoken(words.table(session), text)
+            # A word still there is not spoken; checked as the TTS service
+            # would receive it too (dictionary, provider markers).
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, text)
-            # As the TTS service would receive it (dictionary, provider markers).
             Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, tts_text_as_sent(text, provider)) if respond_to?(:tts_text_as_sent, true)
-          rescue Monadic::Utils::Privacy::Outbound::Refused
-            text = ""
-            send_tts_withheld(ws_session_id)
           end
+        rescue Monadic::Utils::Privacy::Outbound::Refused
+          text = ""
+          send_tts_withheld(ws_session_id, request_id)
         end
 
         Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
@@ -537,39 +557,41 @@ module WebSocketHelper
         # conservative response) it returns [text, nil] and the TTS call
         # just runs in plain mode.
         #
-        # For tts_text_from_target path we skip extraction: the target text
-        # is a specific tool parameter (not the assistant's raw response),
-        # so it cannot contain the JSON wrapper or sentinel prefix.
+        # A text from a tool parameter had its directive taken off above;
+        # it is passed on when the provider takes one.
         tts_instructions = nil
-        if !tts_text_from_target && Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
-          app_is_monadic = !monadic_disabled
-          extracted_text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(
-            text,
-            app_is_monadic: app_is_monadic
-          )
-          text = extracted_text
+        capable = Monadic::Utils::TtsMarkerVocabulary.instruction_capable?(provider)
+        if tts_text_from_target
+          tts_instructions = target_instructions if capable
+        elsif capable
+          text, tts_instructions = Monadic::Utils::TtsInstructionExtractor.extract(text)
           if CONFIG["EXTRA_LOGGING"] && tts_instructions.nil?
-            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider}, monadic=#{app_is_monadic})" }
+            Monadic::Utils::ExtraLogger.log { "[ExpressiveSpeech] instruction-capable parse returned no directive; falling back to plain TTS (provider=#{provider})" }
           end
         end
 
         # Only process if there's actual text
         if text.strip != ""
-          start_tts_playback(
-            text: text,
-            provider: provider,
-            voice: voice,
-            speed: speed,
-            response_format: response_format,
-            language: language,
-            ws_session_id: ws_session_id,
-            instructions: tts_instructions
-          )
+          start_reply_speech(handle) do
+            start_tts_playback(
+              text: text,
+              provider: provider,
+              voice: voice,
+              speed: speed,
+              response_format: response_format,
+              language: language,
+              ws_session_id: ws_session_id,
+              instructions: tts_instructions,
+              reply_speech: request_id
+            )
+          end
         end
       end
 
       Monadic::Utils::ExtraLogger.log { "[DEBUG] Processing #{responses&.length || 0} responses\n[DEBUG] responses.nil?=#{responses.nil?}, responses.empty?=#{responses&.empty?}" }
 
+      # What the answer made, put in the queue all at once below.
+      answers = []
       responses.each do |response|
         # if response is not a hash, skip with error message
         unless response.is_a?(Hash)
@@ -628,39 +650,12 @@ module WebSocketHelper
             send_error("content_not_found", ws_session_id)
             break
           end
-          # Privacy Filter: restore <<TYPE_N>> placeholders before the message
-          # is finalized. Buffer remains masked so the post-completion TTS path
-          # above can still apply sanitize_for_tts independently.
-          known_entities = nil
-          if session[:_privacy_pipeline]
-            pipeline = session[:_privacy_pipeline]
-            restored_response = pipeline.after_receive_from_llm(raw_content)
-            raw_content = restored_response.text
-            # Ship the FULL registry rather than just spans substituted in
-            # this turn. The frontend walks every card in #discourse so a
-            # name registered in turn 1 still highlights in user input on
-            # turn 5. The walker is idempotent (re-wrap is rejected).
-            known_entities = pipeline.registry_entries
-            # Notify frontend of current privacy state so the indicator updates.
-            # Detection state lets the UI surface the locked auto-detected
-            # language as a small "ja" / "en" badge alongside the count;
-            # the frontend ignores the field when locked is false.
-            detection_state = nil
-            begin
-              require_relative '../privacy/language_detector'
-              detection_state = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
-            rescue StandardError => det_err
-              Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable: #{det_err.message}" }
-            end
-            state_payload = {
-              "type" => "privacy_state",
-              "enabled" => true,
-              "registry_count" => pipeline.registry_count,
-              "error" => nil,
-              "private" => true
-            }
-            state_payload["detection"] = detection_state if detection_state.is_a?(Hash)
-            send_or_broadcast(state_payload.to_json, ws_session_id)
+          # A reply that ended with the tool whose parameter is the text
+          # to speak, and no text of its own: that text is the reply.
+          raw_content = tts_text_from_target if raw_content.to_s.strip.empty? && tts_text_from_target
+          # A chat with a word table: its placeholders put back.
+          if Monadic::Utils::Privacy::Words.marked?(session)
+            raw_content = Monadic::Utils::Privacy::Words.restore_reply(response, raw_content)
           end
           # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
           content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
@@ -668,11 +663,6 @@ module WebSocketHelper
           content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
 
           response.dig("choices", 0, "message")["content"] = content
-          # Forward the known-entities list with the message so html_handler
-          # can broadcast it to the UI for the unmask-highlight layer.
-          if known_entities && !known_entities.empty?
-            response["choices"][0]["message"]["privacy_known_entities"] = known_entities
-          end
           # Vocabulary: ship the token -> resolved-path map so the frontend can
           # decorate ${TOKEN}s in the rendered card (incl. inside markdown code),
           # show the resolved path on hover, and open it in the file explorer on
@@ -703,7 +693,21 @@ module WebSocketHelper
           # The chat travels with the response: a Reset after this point but
           # before the page asks for it must not land it in the new chat.
           response["_chat_id"] = chat_at_start if response.is_a?(Hash)
-          queue.push(response) unless chat_changed.call
+          response["_request_id"] = request_id if response.is_a?(Hash)
+          # So do its settings: the reply is shown and counted with them.
+          response["_settings"] = request_context.settings if response.is_a?(Hash)
+          answers << response unless chat_changed.call
+        end
+      end
+
+      # All of what it made goes to the queue as one, unless the answer was
+      # cancelled first (then none of it). Nothing made: it ends without one.
+      unless answers.empty?
+        Thread.handle_interrupt(Object => :never) do
+          replied = handle.answer! do
+            queue.push({ "_answer" => true, "_request_id" => request_id, "_chat_id" => chat_at_start,
+                         "responses" => answers })
+          end
         end
       end
 
@@ -714,7 +718,88 @@ module WebSocketHelper
       streaming_complete = { "type" => "streaming_complete" }.to_json
       send_or_broadcast(streaming_complete, ws_session_id)
       Monadic::Utils::ExtraLogger.log { "[DEBUG] streaming_complete sent successfully" }
+
+      # The worker stays until its answer is taken to be recorded (the HTML
+      # handler ends it then) or is cancelled (it ends it itself, below).
+      handle.await_handoff if replied
+    ensure
+      # Whatever stopped it (an error, Cancel, a stop), the end is the
+      # worker's unless its answer was taken to be recorded; once begun,
+      # the end is given whole.
+      Thread.handle_interrupt(Object => :never) do
+        if handle.worker_owns_end!
+          # A stopped reply (noted when it was stopped): its message is
+          # marked in this connection's chat and saved if the connection is
+          # still the tab's; a failure here never keeps the end from coming.
+          ending_step("stopped") { mark_stopped_turn(session, ws_session_id) } if handle.cancelled?
+          finish_reply(request_id, "no_reply", ws_session_id)
+          handle.end!
+        end
+      end
     end
+    thread[:reply_request_id] = request_id
+    thread[:reply_handle] = handle
+    handle.attach(thread)
     thread  # return the thread for the orchestrator
+  ensure
+    # When the worker was not made (it ends the request otherwise), an
+    # answer accepted ends here without one.
+    if thread.nil? && handle
+      finish_reply(request_context.request_id, "no_reply", ws_session_id)
+      handle.end!
+    end
+    # A worker made and not yet attached (an error came between): the
+    # answer is cancelled first, so the worker ends at its gate and gives
+    # the end itself, never beginning.
+    if thread && handle && !handle.attached?
+      Replies.cancel(handle)
+      handle.attach(thread)
+    end
+  end
+
+  # The token the page stops an answer with by HTTP, given to the
+  # connection the answer runs for only (never another tab's or a later
+  # connection's).
+  private def give_reply_token(tab, generation, chat_id, request_id, token)
+    WebSocketHelper.send_to_connection(tab, generation,
+                                       { "type" => "reply_cancel", "request_id" => request_id, "token" => token }.to_json,
+                                       chat_id: chat_id)
+  rescue StandardError
+    nil
+  end
+
+  # Speech for an answer, started with the answer: held by its handle so a
+  # Cancel stops it, and not started at all once the answer was cancelled.
+  # The thread that starts it waits until it is held, and is never killed
+  # (it may be writing to the page) nor waited for: it keeps the speech it
+  # made where a stop finds it, then stops that speech itself when the
+  # answer was cancelled meanwhile. A thread takes the interrupt mask of the
+  # one that makes it, so the starter lifts it: the speech it makes can be
+  # stopped.
+  private def mark_stopped_turn(session, ws_session_id)
+    return unless Monadic::Workspace::StoppedReplies.apply!(session)
+
+    saved_as(session, ws_session_id) { sync_session_state! }
+  end
+
+  private def start_reply_speech(handle)
+    Thread.handle_interrupt(Object => :never) do
+      gate = Queue.new
+      starter = Thread.new do
+        Thread.handle_interrupt(Object => :immediate) do
+          next unless gate.pop
+          next if handle.cancelled?
+
+          Thread.current[:tts_thread] = yield
+          Replies.stop_speech(Thread.current[:tts_thread]) if handle.cancelled?
+        rescue StandardError => e
+          Monadic::Utils::ExtraLogger.log { "[TTS] speech for an answer was not started: #{e.class}" }
+        end
+      end
+      gate << handle.adopt(starter)
+    rescue StandardError => e
+      gate << false
+      Monadic::Utils::ExtraLogger.log { "[TTS] speech for an answer was not started: #{e.class}" }
+    end
   end
 end

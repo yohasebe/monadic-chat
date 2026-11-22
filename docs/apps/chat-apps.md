@@ -1,29 +1,24 @@
 # Chat & Assistant Apps
 
-General-purpose conversation and assistant apps: standard and metadata-enriched chat, voice conversation, and assistants for encyclopedic lookup, math, second opinions, research, and Monadic Chat itself.
+General-purpose conversation and assistant apps: chat, voice conversation, and assistants for encyclopedic lookup, math, second opinions, research, and Monadic Chat itself.
 
 ## Chat
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-Have a standard conversation with the AI, which responds with appropriate emojis. Web search is available for models that support tool calling; whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
+Have a conversation with the AI, which responds with appropriate emojis. Web search is available for models that support tool calling; whether a provider uses its built-in search or the Tavily API (requires a `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
-With the `Text from URL` button below the message box, you can read the text of a web page into your message, with any provider.
-
-Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
-
-
-## Chat Plus
-
-![Chat app icon](../assets/icons/chat-plus.png ':size=40')
-
-A chat that keeps track of the conversation. As the AI responds, it updates these lists in the side panel:
+<span id="chat-plus"></span>Chat keeps track of the conversation. After each reply, these lists are updated from that exchange and shown on the [work screen](../basic-usage/web-interface.md#work-screen) as the **Context** page; the reply does not wait for them, and the work screen's tab shows a mark while they are updated:
 
 - **Topics**: The topics discussed so far.
 - **People**: The people mentioned in the conversation.
 - **Notes**: Key facts and preferences to remember.
 
-Chat Plus also has web search and the Privacy Filter. The OpenAI version can search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md) and cite them.
+The lists are made with one more request per reply to the same provider and model. Ask the AI to forget or remove an item, or to clear the lists, and its reply removes it from the saved lists; the conversation itself keeps what was said. Deleting a turn takes back what that turn added to the lists. With an Ollama model without the `tools` capability, the lists are not kept.
+
+With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
+
+Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
 
 
 ## Voice Chat :id=voice-chat
@@ -47,6 +42,15 @@ Talk with the AI in a continuous, hands-free voice conversation. Unlike [Voice C
 
 Three variants are available, one per provider: OpenAI, xAI Grok, and Google Gemini. A variant can be selected only when its provider's API key is configured.
 
+![Live Conversation controls](../assets/images/figures/live-conversation.svg)
+
+1. **Voice**: the assistant's voice.
+2. **Speed**: the playback speed (OpenAI only).
+3. **Cards while talking**: shows the conversation as cards during the conversation.
+4. **Search and compute**: lets the assistant call tools during the conversation.
+5. **Turn detection**: how the end of your utterance is decided (OpenAI only).
+6. **Start**: opens the conversation; the same button ends it.
+
 **How it works**: Click `Start` to open the conversation, then speak naturally — the end of each utterance is detected automatically (voice activity detection) and the turn proceeds on its own. Click `End` to close the session. There is no text input in this app. Headphones are recommended: with speakers, the assistant's voice feeds back into the microphone and can trigger unintended turns.
 
 **Voice and speed**: Pick the assistant's voice from the selector in the app's control row (the text-to-speech settings in the Speech panel do not apply here). The number of available voices is 10 for OpenAI (default: alloy), 26 for xAI (default: eve), and 30 for Gemini (default: Kore). A playback speed slider (0.25–1.5) is available for OpenAI only. Your voice choice is remembered per provider.
@@ -57,9 +61,9 @@ Three variants are available, one per provider: OpenAI, xAI Grok, and Google Gem
 
 In the live view the sentence the assistant is currently speaking is highlighted, so you can follow the voice in the text — useful when the reply is long, since the text arrives well ahead of the audio. The highlight follows the audio itself, pauses while a tool is running, and stops where the speech stopped if you interrupt. It is not shown in the card display.
 
-**Tools** (off by default): Enable the `Tools` toggle to let the assistant call tools during the conversation: current time, Python code execution, Knowledge Base search, and web search (web search requires a `TAVILY_API_KEY`). Python and Knowledge Base are available only while their respective containers are running. A turn that used tools stays on a single card, with a 🛠 badge naming the tool at the paragraph boundary where it was called (red on failure); the status line shows "Using ..." while a call runs.
+**Search and compute** (off by default): Enable the `Search and compute` toggle to let the assistant call tools during the conversation: current time, Python code execution, Knowledge Base search, and web search (web search requires a `TAVILY_API_KEY`). Python and Knowledge Base are available only while their respective containers are running. A turn that used tools stays on a single card, with a 🛠 badge naming the tool at the paragraph boundary where it was called (red on failure); the status line shows "Using ..." while a call runs.
 
-**Session behavior**: The conversation stops automatically after a period of silence (default: 3 minutes). Gemini sessions have a 15-minute connection limit; when it is reached, the app reconnects automatically and the conversation continues. The Privacy Filter does not apply — audio reaches the provider directly. The conversation can be saved to the Knowledge Base like other conversations. Thinking-process display is not available, because realtime models do not emit a reasoning trace.
+**Session behavior**: The conversation stops automatically after a period of silence (default: 3 minutes). Gemini sessions have a 15-minute connection limit; when it is reached, the app reconnects automatically and the conversation continues. It is not available in a chat that [hides words](../advanced-topics/anonymization.md), since audio reaches the provider directly. The conversation can be saved to the Knowledge Base like other conversations. Thinking-process display is not available, because realtime models do not emit a reasoning trace.
 
 **Cost**: While connected, billing accrues during silent time as well, and the rate differs considerably between providers — check each provider's pricing page before a long session. A running cost estimate based on actual usage is shown at the top of the window.
 
@@ -77,7 +81,7 @@ Ask questions about recent events or topics outside the AI's knowledge. This app
 
 Explore math-related questions and answers. The app uses [KaTeX](https://katex.org/) to render beautiful mathematical notation in its responses.
 
-Math Tutor can run Python code to calculate, and keeps the concepts, formulas, and tips of the session in the side panel.
+Math Tutor can run Python code to calculate, and keeps the problems solved, the concepts covered, the areas to practice, and notes of the session, shown on the work screen as the **Learning notes** page. The graphs and diagrams its code draws are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the math itself stays in the chat.
 
 !> **Caution:** LLMs can make mistakes in calculations with many steps or complex logic. Check the results, and ask the app to calculate with Python when accuracy matters.
 
@@ -95,9 +99,9 @@ Second Opinion is available wherever the [availability table](../basic-usage/bas
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-An assistant for academic and scientific research. It searches the web, reads and analyzes the sources, and keeps the topics, findings, and sources of the session in the side panel. Use it to find current information, check facts, and summarize a topic.
+An assistant for academic and scientific research. It searches the web, reads and analyzes the sources, and keeps the topics, findings, sources, and searches of the session, shown on the work screen as the **Research notes** page. Use it to find current information, check facts, and summarize a topic. Charts and other files its Python code makes are saved in the chat's folder and shown on the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat; the reply names them with their paths.
 
-Research Assistant availability matches the [availability table](../basic-usage/basic-apps.md#app-availability). Whether web search uses the provider's own search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). The OpenAI version can also search the PDFs in the [PDF Database](../basic-usage/pdf_storage.md). To read a web page into your message, see [Reading Text from URLs](../basic-usage/message-input.md#reading-text-from-urls).
+Research Assistant availability matches the [availability table](../basic-usage/basic-apps.md#app-availability). Whether web search uses the provider's own search or the Tavily API (requires `TAVILY_API_KEY`) is shown in the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). To read a web page into your message, see [Reading Text from URLs](../basic-usage/message-input.md#reading-text-from-urls).
 
 
 ## Monadic Chat Help

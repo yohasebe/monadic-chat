@@ -218,7 +218,7 @@ end
 # source release go out of date.
 require_relative 'linux_libraries'
 
-# Untracked files in the payload (the vendor files, the two bundles) must
+# Untracked files in the payload (the vendor files, the bundles) must
 # carry the bytes the commit produces: the hashes assets_list.sh pins, and the
 # bundles built again in a clean checkout of the commit staging read. Only the
 # help database is left to its own gate (HelpDumpGuard).

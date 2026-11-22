@@ -81,10 +81,12 @@ module FunctionCallErrorHandler
     false
   end
 
-  # Get stop message (error suggestion or cycle warning)
-  def stop_message_for_session(session)
-    ErrorPatternDetector.tool_cycle_message(session) ||
-      ErrorPatternDetector.get_error_suggestion(session)
+  # Ends a turn stopped by should_stop_for_errors?. A cycle names its tools;
+  # repeated errors were explained by the suggestion sent when they stopped.
+  def stop_reply(session, &block)
+    block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+    text = ErrorPatternDetector.tool_cycle_message(session) || "Repeated errors detected. Stopping."
+    [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => text } }] }]
   end
 
   # Reset error tracking for a new conversation

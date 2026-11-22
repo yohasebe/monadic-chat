@@ -1,5 +1,6 @@
 # frozen_string_literal: false
 
+require_relative '../../utils/content_free_logging'
 require_relative "../../utils/request_retry"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/usage_normalizer"
@@ -9,9 +10,11 @@ require_relative "../base_vendor_helper"
 require_relative "../../shared_tools/tavily_definitions"
 require 'strscan'
 require 'securerandom'
+require_relative "../../workbench/caller"
 
 module DeepSeekHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
@@ -28,7 +31,7 @@ module DeepSeekHelper
   # this file.
   WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
 
-  # JSON format instruction for monadic mode (required by DeepSeek API)
+  # JSON format instruction for json mode (required by DeepSeek API)
   JSON_FORMAT_PROMPT = <<~TEXT
 
     IMPORTANT: You must respond in valid JSON format. Your response should be a properly formatted JSON object.
@@ -122,7 +125,9 @@ module DeepSeekHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     
     # Debug the full request body
-    DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+    unless Monadic::Utils::ContentFreeLogging.active?
+      DebugHelper.debug("DeepSeek API request body: #{JSON.pretty_generate(workbench_loggable(body))}", category: :api, level: :debug)
+    end
     
     http = HTTP.headers(headers)
     
@@ -170,8 +175,9 @@ module DeepSeekHelper
   def api_request(role, session, call_depth: 0, &block)
     Monadic::Utils::ExtraLogger.log { "[DeepSeek] api_request called: role=#{role}, call_depth=#{call_depth}" }
 
-    # Reset parallel dispatch guard and call depth for new user turn
-    if role == "user"
+    # Reset parallel dispatch guard and call depth for new user turn (not
+    # for a request made again within the turn, which has a call depth)
+    if role == "user" && call_depth.zero?
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
       # Reset the cross-round reasoning accumulator (see the tool branch and the
@@ -180,6 +186,11 @@ module DeepSeekHelper
       # reasoning survives into the displayed message and the persistent
       # thinking toggle disappears once tools are involved.
       session[:deepseek_reasoning] = nil
+      # The turn's tool rounds so far (each call with its results), and the
+      # texts written before them: every round goes back with the next
+      # request, so the model sees what it has already done.
+      session[:deepseek_round_text_mids] = nil
+      session[:parameters]&.delete("function_returns")
     end
 
     num_retrial = 0
@@ -199,14 +210,19 @@ module DeepSeekHelper
     app = obj["app_name"]
 
     prompt_suffix = obj["prompt_suffix"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer. A message that names no temperature is sent with 0; an
+    # output limit it does not name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
-    max_tokens = obj["max_tokens"]&.to_i
-    temperature = obj["temperature"].to_f
-    context_size = obj["context_size"].to_i
+    max_tokens = turn.max_tokens
+    temperature = turn.temperature || 0.0
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+    # A model the spec says cannot call tools is not given the search tools.
+    websearch = deepseek_web_search?(obj) && Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") != false
 
     if role != "tool"
       message = obj["message"].to_s
@@ -254,16 +270,15 @@ module DeepSeekHelper
 
     body["temperature"] = temperature
 
-    # Determine if we need to add JSON format instruction
-    # Handle both string "true" and boolean true values
-    # Note: monadic mode does NOT require JSON format - it uses tools for state management
-    # Only explicit json mode requires JSON format
-    is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
-    needs_json_prompt = is_json  # Only json mode needs JSON format, not monadic
 
     system_message_modified = false
     messages_containing_img = false
+    # The text the model wrote before a tool call of this turn goes in the
+    # message that carries the call (function_returns), not as a message of
+    # its own.
+    round_text_mids = role == "tool" ? Array(session[:deepseek_round_text_mids]) : []
+    context = context.reject { |msg| msg && round_text_mids.include?(msg["mid"]) }
     body["messages"] = context.compact.map do |msg|
       if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
@@ -277,8 +292,8 @@ module DeepSeekHelper
         )
         # Add websearch prompt if enabled
         content += "\n\n---\n\n" + WEBSEARCH_PROMPT if websearch
-        # Add JSON format prompt if monadic/json mode (required by DeepSeek API)
-        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if needs_json_prompt
+        # Add JSON format prompt in json mode (required by DeepSeek API)
+        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if is_json
         { "role" => msg["role"], "content" => content }
       else
         # Images are attached only to user messages: DeepSeek answers 400 for an
@@ -287,8 +302,16 @@ module DeepSeekHelper
         # PNG, GIF and WebP only. Everything else keeps the plain-string content
         # the text models have always been sent.
         images = msg["role"] == "user" ? deepseek_supported_images(msg["images"]) : []
+        # What the work screen shows follows the message's text.
+        observation = observation_for(session, msg)
         if images.empty?
-          { "role" => msg["role"], "content" => msg["text"] }
+          sent = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation) }
+          # Text written before a tool call goes back with the reasoning it
+          # came with, which thinking mode requires of a turn that used tools.
+          if msg["role"] == "assistant" && msg["reasoning_content"] && deepseek_thinking_on?(obj)
+            sent["reasoning_content"] = msg["reasoning_content"]
+          end
+          sent
         else
           messages_containing_img = true
           content = [{ "type" => "text", "text" => msg["text"] }]
@@ -298,13 +321,16 @@ module DeepSeekHelper
               "image_url" => { "url" => img["data"], "detail" => "high" }
             }
           end
+          content << { "type" => "text", "text" => observation } if observation
           { "role" => msg["role"], "content" => content }
         end
       end
     end
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    # Handle initiate_from_assistant case where only system message exists:
+    # the greeting, which takes no suffix.
+    is_initial_greeting = body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    if is_initial_greeting
       body["messages"] << {
         "role" => "user",
         "content" => "Please proceed according to your system instructions and introduce yourself."
@@ -315,18 +341,16 @@ module DeepSeekHelper
 
     configure_deepseek_tools(body, app, obj, websearch, session)
 
-    # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
-    is_initial_greeting = body["messages"].length == 2 &&
-                          body["messages"][0]["role"] == "system" &&
-                          body["messages"][1]["role"] == "user" &&
-                          session[:messages].length <= 2
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it.
+    unless is_initial_greeting
+      turn_message = body["messages"].reverse.find { |m| m["role"] == "user" }
+      append_deepseek_prompt_suffix(turn_message, obj["prompt_suffix"] || APPS[app].settings["prompt_suffix"])
+    end
 
     if role == "tool"
-      body["messages"] += obj["function_returns"]
-    elsif role == "user" && !is_initial_greeting
-      if (suffix = APPS[app].settings["prompt_suffix"])
-        append_deepseek_prompt_suffix(body["messages"].last, suffix)
-      end
+      body["messages"] += with_workbench_looks(obj["function_returns"], session,
+                                               tool_id: method(:chat_tool_call_id)) { |looks| chat_look_message(looks) }
     end
 
     configure_deepseek_reasoning(body, obj, is_json, role)
@@ -372,220 +396,182 @@ module DeepSeekHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})\n#{JSON.pretty_generate(query)}" }
+    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})\n#{JSON.pretty_generate(workbench_loggable(query))}" }
 
     obj = session[:parameters]
 
-    # Define monadic/json mode flags for consistent checking
-    is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
 
-    buffer = String.new.force_encoding("UTF-8")
     texts = {}
     tools = {}
+    tool_ids_by_index = {}
     finish_reason = nil
     fragment_sequence = 0
-    @dsml_abort_streaming = false  # Flag for early abort on malformed DSML
+    # Set when malformed DSML ends the stream early (this reply's, not the
+    # app's: the app is shared by every chat).
+    dsml_abort_streaming = false
 
     chunk_count = 0
-    res.each do |chunk|
-      # Check for early abort flag (set when malformed DSML detected)
-      break if @dsml_abort_streaming
+    stream_error = nil
+    records = StreamRecords.new(:sse)
 
-      begin
-        chunk_count += 1
-        chunk = chunk.force_encoding("UTF-8")
-        buffer << chunk
+    # Each record of the stream: one JSON object per data line.
+    handle = lambda do |json|
 
-        # Debug: Log first few chunks
-        if chunk_count <= 3
-          Monadic::Utils::ExtraLogger.log { "Chunk #{chunk_count}: #{chunk[0..100]}" }
-        end
+      Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
 
-        if buffer.valid_encoding? == false
-          next
-        end
+      # Process finish reason
+      finish_reason = json.dig("choices", 0, "finish_reason")
+      DebugHelper.debug("DeepSeek finish_reason: #{finish_reason}", category: :api, level: :verbose) if finish_reason
+      
+      case finish_reason
+      when "length"
+        finish_reason = "length"
+      when "stop"
+        finish_reason = "stop"
+      when "tool_calls"
+        finish_reason = "function_call"
+        DebugHelper.debug("DeepSeek detected tool_calls finish reason", category: :api, level: :debug)
+      else
+        finish_reason = nil
+      end
 
-        # Check for [DONE] message
-        begin
-          break if /\Rdata: \[DONE\]\R/ =~ buffer
-        rescue StandardError
-          next
-        end
-
-        buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-        buffer.encode!("UTF-8", "UTF-16")
-
-        scanner = StringScanner.new(buffer)
-        pattern = /data: (\{.*?\})(?=\n|\z)/
+      # Process text content
+      if json.dig("choices", 0, "delta")
+        delta = json["choices"][0]["delta"]
         
-        until scanner.eos?
-          matched = scanner.scan_until(pattern)
-          if matched
-            json_data = matched.match(pattern)[1]
-            begin
-              json = JSON.parse(json_data)
+        if delta["reasoning_content"]
+          id = json["id"]
+          texts[id] ||= json
+          choice = texts[id]["choices"][0]
+          choice["message"] ||= delta.except("content", "reasoning_content")
+          choice["message"]["reasoning_content"] ||= ""
+          choice["message"]["content"] ||= ""
 
-              Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
+          fragment = delta["reasoning_content"].to_s
+          choice["message"]["reasoning_content"] << fragment
 
-              # Process finish reason
-              finish_reason = json.dig("choices", 0, "finish_reason")
-              DebugHelper.debug("DeepSeek finish_reason: #{finish_reason}", category: :api, level: :verbose) if finish_reason
-              
-              case finish_reason
-              when "length"
-                finish_reason = "length"
-              when "stop"
-                finish_reason = "stop"
-              when "tool_calls"
-                finish_reason = "function_call"
-                DebugHelper.debug("DeepSeek detected tool_calls finish reason", category: :api, level: :debug)
-              else
-                finish_reason = nil
-              end
+          res = {
+            "type" => "thinking",
+            "content" => fragment
+          }
+          block&.call res
 
-              # Process text content
-              if json.dig("choices", 0, "delta")
-                delta = json["choices"][0]["delta"]
-                
-                if delta["reasoning_content"]
-                  id = json["id"]
-                  texts[id] ||= json
-                  choice = texts[id]["choices"][0]
-                  choice["message"] ||= delta.dup
-                  choice["message"]["reasoning_content"] ||= ""
-                  choice["message"]["content"] ||= ""
+          texts[id]["choices"][0].delete("delta")
+        elsif delta["content"]
+          id = json["id"]
+          texts[id] ||= json
+          choice = texts[id]["choices"][0]
+          choice["message"] ||= delta.except("content", "reasoning_content")
+          choice["message"]["content"] ||= ""
 
-                  fragment = delta["reasoning_content"].to_s
-                  choice["message"]["reasoning_content"] << fragment
+          fragment = delta["content"].to_s
+          choice["message"]["content"] << fragment
 
-                  res = {
-                    "type" => "thinking",
-                    "content" => fragment
-                  }
-                  block&.call res
+          # Check if DeepSeek is outputting function calls as text (DSML or JSON format)
+          if choice["message"]["content"].include?("<｜DSML｜") || choice["message"]["content"].include?("<|DSML|")
+            # DeepSeek is outputting function calls in DSML format, don't send fragments
+            # We'll handle this after the full message is received
 
-                  texts[id]["choices"][0].delete("delta")
-                elsif delta["content"]
-                  id = json["id"]
-                  texts[id] ||= json
-                  choice = texts[id]["choices"][0]
-                  choice["message"] ||= delta.dup
-                  choice["message"]["content"] ||= ""
+            # Early detection of malformed DSML loop pattern
+            # If we see multiple function_calls blocks, the model is stuck in a loop
+            dsml_fc_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]function_calls>/).length
+            dsml_invoke_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]invoke/).length
 
-                  fragment = delta["content"].to_s
-                  choice["message"]["content"] << fragment
+            # Abort early if we detect loop patterns:
+            # 1. More than 2 function_calls blocks (should only be 1)
+            # 2. More than 3 invoke tags without corresponding closing tags
+            content_so_far = choice["message"]["content"]
+            invoke_close_count = content_so_far.scan(/<[｜|]DSML[｜|]\/invoke>/).length +
+                                content_so_far.scan(/<\/[｜|]DSML[｜|]invoke>/).length
 
-                  # Check if DeepSeek is outputting function calls as text (DSML or JSON format)
-                  if choice["message"]["content"].include?("<｜DSML｜") || choice["message"]["content"].include?("<|DSML|")
-                    # DeepSeek is outputting function calls in DSML format, don't send fragments
-                    # We'll handle this after the full message is received
-
-                    # Early detection of malformed DSML loop pattern
-                    # If we see multiple function_calls blocks, the model is stuck in a loop
-                    dsml_fc_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]function_calls>/).length
-                    dsml_invoke_count = choice["message"]["content"].scan(/<[｜|]DSML[｜|]invoke/).length
-
-                    # Abort early if we detect loop patterns:
-                    # 1. More than 2 function_calls blocks (should only be 1)
-                    # 2. More than 3 invoke tags without corresponding closing tags
-                    content_so_far = choice["message"]["content"]
-                    invoke_close_count = content_so_far.scan(/<[｜|]DSML[｜|]\/invoke>/).length +
-                                        content_so_far.scan(/<\/[｜|]DSML[｜|]invoke>/).length
-
-                    if dsml_fc_count > 2 || (dsml_invoke_count > 3 && invoke_close_count == 0)
-                      # Abort streaming early - model is in infinite loop
-                      Monadic::Utils::ExtraLogger.log { "!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!\n  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}\n  Aborting stream to prevent long wait" }
-                      # Set a flag to break out of the streaming loop
-                      @dsml_abort_streaming = true
-                      break
-                    end
-                  elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
-                    # DeepSeek is outputting function calls as JSON text, don't send fragments
-                    # We'll handle this after the full message is received
-                  elsif is_json
-                    # Suppress fragments for json mode only - content will be processed after completion
-                    # The raw JSON fragments should not be shown to the user
-                    # Note: monadic mode uses normal streaming since responses are natural language
-                  elsif fragment.length > 0
-                    res = {
-                      "type" => "fragment",
-                      "content" => fragment,
-                      "sequence" => fragment_sequence,
-                      "timestamp" => Time.now.to_f,
-                      "is_first" => fragment_sequence == 0
-                    }
-                    fragment_sequence += 1
-                    block&.call res
-                  end
-
-                  texts[id]["choices"][0].delete("delta")
-                end
-
-                # Process tool calls
-                if delta["tool_calls"]
-                  DebugHelper.debug("DeepSeek tool call detected: #{delta["tool_calls"].inspect}", category: :api, level: :debug)
-                  DebugHelper.debug("Full JSON at tool call: #{json.inspect}", category: :api, level: :verbose)
-                  
-                  res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                  block&.call res
-
-                  tid = json.dig("choices", 0, "delta", "tool_calls", 0, "id")
-
-                  if tid
-                    # Clone the json object
-                    tools[tid] = JSON.parse(JSON.generate(json))
-                    tools[tid]["choices"][0]["message"] ||= {}
-                    tools[tid]["choices"][0]["message"]["role"] = "assistant"
-                    tools[tid]["choices"][0]["message"]["content"] = ""
-                    tools[tid]["choices"][0]["message"]["tool_calls"] ||= []
-                    
-                    # Copy the tool call info from delta
-                    tool_call_delta = json.dig("choices", 0, "delta", "tool_calls", 0)
-                    if tool_call_delta
-                      new_tool_call = {
-                        "id" => tool_call_delta["id"],
-                        "type" => tool_call_delta["type"] || "function",
-                        "function" => {
-                          "name" => tool_call_delta.dig("function", "name") || "",
-                          "arguments" => tool_call_delta.dig("function", "arguments") || ""
-                        }
-                      }
-                      tools[tid]["choices"][0]["message"]["tool_calls"] << new_tool_call
-                    end
-                    
-                    tools[tid]["choices"][0].delete("delta")
-                  else
-                    # Accumulate arguments for existing tool call
-                    new_tool_call = json.dig("choices", 0, "delta", "tool_calls", 0)
-                    if tools.values.any? && new_tool_call && new_tool_call.dig("function", "arguments")
-                      last_tool = tools.values.last
-                      if last_tool && last_tool.dig("choices", 0, "message", "tool_calls", 0)
-                        last_tool["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"] += new_tool_call["function"]["arguments"]
-                      end
-                    end
-                  end
-                end
-              end
-            rescue JSON::ParserError => e
-              Monadic::Utils::ExtraLogger.log { "[DeepSeek] JSON parse error: #{e.message}" }
+            if dsml_fc_count > 2 || (dsml_invoke_count > 3 && invoke_close_count == 0)
+              # Abort streaming early - model is in infinite loop
+              Monadic::Utils::ExtraLogger.log { "!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!\n  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}\n  Aborting stream to prevent long wait" }
+              # Set a flag to break out of the streaming loop
+              dsml_abort_streaming = true
+              throw :deepseek_stream_end
             end
-          else
-            scanner.pos += 1
+          elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
+            # DeepSeek is outputting function calls as JSON text, don't send fragments
+            # We'll handle this after the full message is received
+          elsif is_json
+            # Suppress fragments for json mode only - content will be processed after completion
+            # The raw JSON fragments should not be shown to the user
+          elsif fragment.length > 0
+            res = {
+              "type" => "fragment",
+              "content" => fragment,
+              "sequence" => fragment_sequence,
+              "timestamp" => Time.now.to_f,
+              "is_first" => fragment_sequence == 0
+            }
+            fragment_sequence += 1
+            block&.call res
+          end
+
+          texts[id]["choices"][0].delete("delta")
+        end
+
+        # Process tool calls
+        if delta["tool_calls"]
+          DebugHelper.debug("DeepSeek tool call detected: #{delta["tool_calls"].inspect}", category: :api, level: :debug)
+          DebugHelper.debug("Full JSON at tool call: #{json.inspect}", category: :api, level: :verbose)
+          
+          res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+          block&.call res
+
+          # Several calls can come in one delta; each has its index, and the
+          # later parts of its arguments come with the same index.
+          Array(delta["tool_calls"]).each_with_index do |tool_call_delta, position|
+            index = tool_call_delta["index"] || position
+            if (tid = tool_call_delta["id"])
+              tool_ids_by_index[index] = tid
+              tools[tid] = { "choices" => [{ "message" => {
+                "role" => "assistant", "content" => "",
+                "tool_calls" => [{ "id" => tid, "type" => tool_call_delta["type"] || "function",
+                                   "function" => { "name" => tool_call_delta.dig("function", "name") || "",
+                                                   "arguments" => tool_call_delta.dig("function", "arguments") || "" } }]
+              } }] }
+            elsif (more = tool_call_delta.dig("function", "arguments"))
+              call = tools[tool_ids_by_index[index]] || tools.values.last
+              call&.dig("choices", 0, "message", "tool_calls", 0, "function")&.then { |f| f["arguments"] += more }
+            end
           end
         end
-
-        buffer = scanner.rest
-
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[DeepSeek] Streaming error: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}" }
-        next
       end
     end
 
+    catch(:deepseek_stream_end) do
+      read = lambda do |data, _event|
+        throw :deepseek_stream_end if data.strip == "[DONE]"
+
+        json = JSON.parse(data)
+        if json["error"]
+          stream_error = json["error"].is_a?(Hash) ? json["error"]["message"] : json["error"]
+          Monadic::Utils::ExtraLogger.log { "[DeepSeek] streaming error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+          throw :deepseek_stream_end
+        end
+        handle.call(json)
+      rescue JSON::ParserError => e
+        Monadic::Utils::ExtraLogger.log { "[DeepSeek] JSON parse error: #{e.message}" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[DeepSeek] Streaming error: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}" }
+      end
+
+      res.each do |chunk|
+        chunk_count += 1
+        Monadic::Utils::ExtraLogger.log { "Chunk #{chunk_count}: #{chunk.to_s.byteslice(0, 100).scrub}" } if chunk_count <= 3
+        records.feed(chunk, &read)
+      end
+      records.finish(&read)
+    end
+
+    return StreamRecords.error_reply("DeepSeek", stream_error, &block) if stream_error
+
     Monadic::Utils::ExtraLogger.log do
       msg = "Total chunks received: #{chunk_count}"
-      msg += "\n!!! Streaming was ABORTED due to malformed DSML loop !!!" if @dsml_abort_streaming
+      msg += "\n!!! Streaming was ABORTED due to malformed DSML loop !!!" if dsml_abort_streaming
       msg
     end
 
@@ -599,8 +585,7 @@ module DeepSeekHelper
 
       parse_deepseek_json_function_call(content, text_result, tools) unless dsml_result
       
-      # Process JSON responses only for explicit json mode (not monadic mode)
-      # Monadic mode uses tools for state management and returns natural language
+      # Process JSON responses only for json mode
       if is_json
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop" || choice["finish_reason"].nil?
@@ -660,6 +645,9 @@ module DeepSeekHelper
         DebugHelper.debug("DeepSeek: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
       end
     end
+
+    # A model the spec says cannot call tools is offered none of the app's.
+    app_tools = [] if Monadic::Utils::ModelSpec.get_model_property(Monadic::TurnSettings.current(obj).model, "tool_capability") == false
 
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
@@ -774,23 +762,36 @@ module DeepSeekHelper
     Array(Monadic::Utils::ModelSpec.get_model_property(model.to_s, "reasoning_content")).map(&:to_s).include?("enabled")
   end
 
-  # True when this request runs with thinking on.
+  # True when this request runs with thinking on: reasoning_content
+  # "disabled" or effort "none" turns it off.
   def deepseek_thinking_on?(obj)
-    deepseek_thinking_switch?(obj["model"]) && obj["reasoning_content"].to_s != "disabled"
+    turn = Monadic::TurnSettings.current(obj)
+    deepseek_thinking_switch?(turn.model) && turn.reasoning_content != "disabled" && turn.reasoning_effort != "none"
+  end
+
+  # Whether the message being answered was sent with Web Search on (and the
+  # search key is set): the same for every request and tool call of its answer.
+  def deepseek_web_search?(obj)
+    Monadic::SharedTools::TavilyDefinitions.websearch_requested?(
+      { "websearch" => Monadic::TurnSettings.current(obj).websearch }
+    )
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)
-    model = obj["model"].to_s
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model.to_s
 
     if deepseek_thinking_switch?(model)
       # thinking.type follows the reasoning_content setting (API default: enabled).
       thinking_type = deepseek_thinking_on?(obj) ? "enabled" : "disabled"
       body["thinking"] = { "type" => thinking_type }
 
+      # The effort goes beside thinking, not in it, and only one the model
+      # takes (model_spec.js: [options, default]).
       if thinking_type == "enabled"
-        effort = obj["reasoning_effort"].to_s
-        levels = Array(Monadic::Utils::ModelSpec.get_model_property(model, "reasoning_effort")).map(&:to_s)
-        body["thinking"]["reasoning_effort"] = effort if levels.include?(effort)
+        effort = turn.reasoning_effort.to_s
+        levels = Array(Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)&.dig(:options)).map(&:to_s)
+        body["reasoning_effort"] = effort if effort != "none" && levels.include?(effort)
       end
     end
 
@@ -960,7 +961,7 @@ module DeepSeekHelper
     app_tools = APPS[app]&.settings&.[]("tools") || []
     all_tools = app_tools.dup
 
-    websearch_enabled = CONFIG["TAVILY_API_KEY"] && (obj["websearch"].to_s == "true" || obj["websearch"] == true)
+    websearch_enabled = deepseek_web_search?(obj)
     all_tools.concat(WEBSEARCH_TOOLS) if websearch_enabled
 
     valid_tool_names = all_tools.map { |t|
@@ -992,11 +993,13 @@ module DeepSeekHelper
     if clean_content && !clean_content.empty?
       request_id = SecureRandom.hex(4)
       app_name = session[:parameters]["app_name"] || obj["app_name"]
+      # Kept as a reply is: the chat's words put back.
+      kept = Monadic::Utils::Privacy::Words.put_back(clean_content)
       assistant_message = {
         "role" => "assistant",
-        "text" => clean_content,
-        "html" => markdown_to_html(clean_content, math: true),
-        "lang" => detect_language(clean_content),
+        "text" => kept,
+        "html" => markdown_to_html(kept, math: true),
+        "lang" => detect_language(kept),
         "mid" => request_id,
         "active" => true,
         "app_name" => app_name
@@ -1054,10 +1057,15 @@ module DeepSeekHelper
 
       DebugHelper.debug("DeepSeek tools before processing: #{tools.inspect}", category: :api, level: :verbose)
 
-      tools_data = tools.first[1].dig("choices", 0, "message", "tool_calls")
-      tools_data = [tools_data] if tools_data && !tools_data.is_a?(Array)
+      # Every call of the round: one entry per call from the stream, or one
+      # entry holding them all when they were written as text.
+      tools_data = tools.values.flat_map { |t| Array(t.dig("choices", 0, "message", "tool_calls")) }
 
       DebugHelper.debug("DeepSeek tools_data after processing: #{tools_data.inspect}", category: :api, level: :debug)
+
+      thinking_on = deepseek_thinking_on?(obj)
+      reasoning_content = thinking_on ? text_result&.dig("choices", 0, "message", "reasoning_content").to_s : ""
+      text_before_tools = nil
 
       # Save any content from text_result to session BEFORE processing tool calls
       if text_result
@@ -1065,11 +1073,13 @@ module DeepSeekHelper
         if content_before_tools && !content_before_tools.to_s.strip.empty?
           request_id = SecureRandom.hex(4)
           app_name = session[:parameters]["app_name"] || obj["app_name"]
+          # Kept as a reply is: the chat's words put back.
+          kept = Monadic::Utils::Privacy::Words.put_back(content_before_tools.to_s)
           assistant_message = {
             "role" => "assistant",
-            "text" => content_before_tools.to_s,
-            "html" => markdown_to_html(content_before_tools.to_s, math: true),
-            "lang" => detect_language(content_before_tools.to_s),
+            "text" => kept,
+            "html" => markdown_to_html(kept, math: true),
+            "lang" => detect_language(kept),
             "mid" => request_id,
             "active" => true,
             "app_name" => app_name
@@ -1084,14 +1094,21 @@ module DeepSeekHelper
 
           block&.call html_res
 
+          # For the requests after this round: the text goes with the call
+          # in this round's, and with its reasoning in the later ones.
+          text_before_tools = content_before_tools.to_s
+          (session[:deepseek_round_text_mids] ||= []) << request_id
+          assistant_message["reasoning_content"] = reasoning_content unless reasoning_content.empty?
+
           DebugHelper.debug("DeepSeek: Saved assistant message before native tool call (#{content_before_tools.length} chars)", category: :api, level: :debug)
         end
       end
 
-      context = []
+      # After the turn's earlier rounds.
+      context = Array(session[:parameters]&.[]("function_returns")).dup
       assistant_msg = {
         "role" => "assistant",
-        "content" => nil,
+        "content" => text_before_tools,
         "tool_calls" => tools_data.map do |tool|
           {
             "id" => tool["id"],
@@ -1101,9 +1118,8 @@ module DeepSeekHelper
         end
       }
 
-      if deepseek_thinking_on?(obj)
-        reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
-        if reasoning_content && !reasoning_content.empty?
+      if thinking_on
+        unless reasoning_content.empty?
           assistant_msg["reasoning_content"] = reasoning_content
           DebugHelper.debug("DeepSeek: Including reasoning_content in tool call context (#{reasoning_content.length} chars)", category: :api, level: :debug)
 
@@ -1122,7 +1138,7 @@ module DeepSeekHelper
       # helpers: at MAX_FUNC_CALLS the next request goes without tools, so
       # the model answers in text.
       session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "DeepSeek", message: "Maximum function call depth exceeded"
         ) }]
@@ -1163,30 +1179,29 @@ module DeepSeekHelper
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
 
-    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(workbench_loggable(body))}", category: :api, level: :debug)
 
     res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
     block&.call res
 
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to DeepSeek. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-    end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged).
+    hiding = hide_words_in_request!(body, session)
 
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
       body.delete("tools")
       body.delete("tool_choice")
     end
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-    res = post_json_with_retries(http, target_uri, body,
-                                 max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY)
+    offer_tools!(body, session, app, provider: "deepseek", model: body["model"])
+    # Each post of the body is checked for what it holds of the work screen.
+    res = Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      post_json_with_retries(http, target_uri, body, max_retries: MAX_RETRIES, retry_delay: RETRY_DELAY,
+                             looks: { session: session, provider: "deepseek", model: body["model"] })
+    end
 
     unless res.status.success?
       # A proxy or gateway can answer with a body that is not JSON.
@@ -1220,54 +1235,23 @@ module DeepSeekHelper
       memo[k.to_sym] = v
     end
 
-    # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-    # injection so the session object is never walked. No-op without vocabulary.
-    converted = expand_tool_args_for_vocabulary(converted, session, APPS[app]&.settings)
+    # The Web Search toggle, asked where every path of a call meets: the
+    # model can still write a call in its content (JSON or DSML) for a tool
+    # the request did not offer it.
+    web_search_off = lambda {
+      next unless Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
+                  !deepseek_web_search?(session[:parameters])
 
-    method_obj = APPS[app].method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
-      converted[:session] = session
-    end
-
-    # Consumption-point gate for the Web Search UI toggle. The schema gate hides
-    # web-search tools when the toggle is off, but DeepSeek's model can still
-    # surface a call via its content fallbacks (JSON or DSML). Block execution
-    # here — the single point every request path converges on — so a UI-disabled
-    # capability never runs regardless of how it was requested.
-    refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-    if refusal
-      # Run only the tools offered to the model in the latest request; this also
-      # covers calls written in the content (DSML or JSON).
-      function_return = refusal
-    elsif Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
-       !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(session[:parameters])
       Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
-      function_return = "❌ Web search is turned off for this conversation. " \
-                        "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
-                        "knowledge, and note that your information may not be up to date."
-    else
-      begin
-        function_return = if function_name == "request_tool"
-                            Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-                              session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
-                            )
-                          elsif converted.empty?
-                            APPS[app].public_send(function_name.to_sym)
-                          else
-                            APPS[app].public_send(function_name.to_sym, **converted)
-                          end
-      rescue StandardError => e
-        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
-      end
-    end
-
-    send_verification_notification(session, &block) if function_name == "report_verification"
-
-    # Store gallery_html for server-side injection
-    if function_return.is_a?(Hash) && function_return[:gallery_html]
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << function_return[:gallery_html]
-    end
+      "❌ Web search is turned off for this conversation. " \
+        "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
+        "knowledge, and note that your information may not be up to date."
+    }
+    result = run_tool_call(
+      app, session, function_name, converted, call_id: tool_call["id"], refuse: web_search_off,
+      error_text: ->(e) { "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }, &block
+    )
+    function_return = result.value
 
     content_value = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
     entry = {
@@ -1277,82 +1261,50 @@ module DeepSeekHelper
       "content" => content_value
     }
 
-    error_stop = handle_function_error(session, function_return, function_name, &block)
-    [entry, error_stop]
+    [entry, result.stop]
   end
-
-  # Terminal tools that signal the end of a tool-calling sequence
-  # After these tools are executed, the model should not call more tools
-  TERMINAL_TOOLS = %w[
-    save_learning_progress
-    save_conversation_analysis
-    save_diagnosis_progress
-    save_analysis_result
-  ].freeze
 
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
-    terminal_tool_called = false
 
-    tools.each do |tool_call|
+    tools.each_with_index do |tool_call, index|
       function_name = tool_call.dig("function", "name")
       next if function_name.nil?
 
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      if TERMINAL_TOOLS.include?(function_name)
-        terminal_tool_called = true
-        DebugHelper.debug("DeepSeek: Terminal tool '#{function_name}' called - will disable tools in next request", category: :api, level: :debug)
-      end
-
-      tool_entry, error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
+      tool_entry, _error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
       context << tool_entry if tool_entry
+
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      if (offered = take_offer(session))
+        tools.drop(index + 1).each do |skipped|
+          context << { "role" => "tool", "tool_call_id" => skipped["id"], "name" => skipped.dig("function", "name"),
+                       "content" => Monadic::Workbench::Offered.not_executed }
+        end
+        obj["function_returns"] = context
+        return Monadic::Workbench::Offer.end_reply(offered, &block)
+      end
 
       # A web-search call blocked by the Web Search toggle must not spiral into
       # repeated attempts with other web tools ("Repeated errors"). Force the
       # next request to omit tools so the model answers from its own knowledge.
       if Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
-         !Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+         !deepseek_web_search?(obj)
         obj["_skip_tools_next_request"] = true
       end
-
-      next if error_stop
     end
 
     obj["function_returns"] = context
 
     # Stop if repeated errors detected
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
 
-    # If terminal tool was called, do NOT make another api_request
-    # The terminal tool signals that the assistant's turn is complete
-    # Making another request would cause empty response and "content_not_found" error
-    if terminal_tool_called
-      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Terminal tool called - sending DONE and ending turn" }
-      # Send DONE message to signal completion to frontend
-      # This is necessary because previous html message may have had more_coming=true
-      done_res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call done_res
-
-      # Return a properly structured response that websocket.rb can process
-      # without triggering content_not_found error
-      # The response must have choices[0].message.content structure
-      final_response = {
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => ""  # Empty content is OK, will not trigger error
-          },
-          "finish_reason" => "stop"
-        }]
-      }
-      return [final_response]
-    end
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)

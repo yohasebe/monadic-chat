@@ -154,11 +154,34 @@ async function resolveReferences(refs, { op = locateOp(), runner = run, platform
   }
 
   for (const key of keys) {
-    const one = await runner(cmd, args, `{{ ${refs[key]} }}`);
-    if (one.code === 0 && one.stdout) values[key] = one.stdout;
-    else failures[key] = classify(one.stderr);
+    const one = await runner(cmd, args, `{{ ${refs[key]} }}\n`);
+    const value = one.code === 0 ? injected(one.stdout) : '';
+    if (value) values[key] = value;
+    else failures[key] = one.code === 0 ? 'failed' : classify(one.stderr);
   }
   return { values, failures };
+}
+
+// The value from `op inject` of a template that ends in a newline after the
+// expression: op ends its output with one newline (adding one only when the
+// output has none), so exactly that newline comes off and a value's own
+// newline or carriage return stays.
+function injected(stdout) {
+  return String(stdout || '').replace(/\n$/, '');
+}
+
+// Reads one reference for a one-off use (the Settings key check): a single
+// op call with no retry, so a cancelled prompt is not asked again. The
+// reference must be one line with no template braces, so the template holds
+// exactly one expression.
+async function resolveOne(ref, { op = locateOp(), runner = run, platform = process.platform } = {}) {
+  if (!isReference(ref) || /[\u0000-\u001f\u007f]/.test(ref) || /\{\{|\}\}/.test(ref)) return { failure: 'notFound' };
+  if (!op) return { failure: 'opMissing' };
+  const [cmd, args] = injectCall(op, platform);
+  const result = await runner(cmd, args, `{{ ${ref} }}\n`);
+  const value = result.code === 0 ? injected(result.stdout) : '';
+  if (value) return { value };
+  return { failure: result.code === 0 ? 'failed' : classify(result.stderr) };
 }
 
 // The Ruby container's start time from `monadic.sh ruby-started-at`, or null.
@@ -179,6 +202,7 @@ class SecretCache {
   constructor({ resolver = resolveReferences } = {}) {
     this.resolver = resolver;
     this.signature = null;
+    this.refs = {};
     this.values = {};
     this.failures = {};
     this.deliveredFor = null;
@@ -202,10 +226,18 @@ class SecretCache {
     }
     const { values, failures } = await this.resolver(refs);
     this.signature = signature;
+    this.refs = { ...refs };
     this.values = values;
     this.failures = failures;
     this.deliveredFor = null;
     return { values, failures, fresh: true };
+  }
+
+  // The value read for key, only when it was read from this same reference.
+  // Changes nothing.
+  lookup(key, ref) {
+    if (!Object.prototype.hasOwnProperty.call(this.refs, key) || this.refs[key] !== ref) return null;
+    return typeof this.values[key] === 'string' && this.values[key] ? this.values[key] : null;
   }
 
   hasValues() {
@@ -219,6 +251,7 @@ class SecretCache {
 
   clear() {
     this.signature = null;
+    this.refs = {};
     this.values = {};
     this.failures = {};
     this.deliveredFor = null;
@@ -236,5 +269,6 @@ module.exports = {
   classify,
   startedAtFrom,
   resolveReferences,
+  resolveOne,
   SecretCache
 };

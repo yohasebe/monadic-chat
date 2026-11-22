@@ -28,6 +28,7 @@ class ReasoningMapper {
         case 'Google':
           return this._mapGemini(spec, uiValue);
         case 'xAI':
+        case 'Mistral':
           return this._mapGrok(spec, uiValue);
         case 'DeepSeek':
           return this._mapDeepSeek(spec, uiValue);
@@ -63,9 +64,10 @@ class ReasoningMapper {
       case 'Google':
         return spec.hasOwnProperty('reasoning_effort') || spec.supports_thinking_level === true || spec.thinking_budget !== undefined;
       case 'xAI':
+      case 'Mistral':
         return spec.hasOwnProperty('reasoning_effort');
       case 'DeepSeek':
-        return spec.hasOwnProperty('reasoning_content');
+        return spec.hasOwnProperty('reasoning_effort');
       case 'Cohere':
         return spec.reasoning_model === true || spec.supports_thinking === true;
       default:
@@ -116,14 +118,15 @@ class ReasoningMapper {
           break;
 
         case 'xAI':
+        case 'Mistral':
           if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
             options = spec.reasoning_effort[0];
           }
           break;
 
         case 'DeepSeek':
-          if (spec.reasoning_content) {
-            options = ['minimal', 'medium']; // Only these two options
+          if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
+            options = spec.reasoning_effort[0];
           }
           break;
 
@@ -196,26 +199,9 @@ class ReasoningMapper {
         return null;
       }
       
-      if (!spec.thinking_budget) {
-        console.warn('ReasoningMapper: Claude model missing thinking_budget specification');
-        return null;
-      }
-      
-      // Map UI values to thinking budget tokens
-      const budgetMap = {
-        'minimal': spec.thinking_budget.min || 1024,
-        'low': 5000,
-        'medium': spec.thinking_budget.default || 10000,
-        'high': 25000
-      };
-      
-      const budgetValue = budgetMap[uiValue];
-      if (budgetValue !== undefined) {
-        return { thinking_budget: budgetValue };
-      }
-      
-      console.warn(`ReasoningMapper: Invalid UI value '${uiValue}' for Claude`);
-      return null;
+      // The server works out the thinking (adaptive effort, or a budget on
+      // models without it) from the effort chosen.
+      return { reasoning_effort: uiValue };
     } catch (error) {
       console.error('ReasoningMapper: Error in _mapClaude:', error);
       return null;
@@ -225,8 +211,10 @@ class ReasoningMapper {
   static _mapGemini(spec, uiValue) {
     // Gemini 3: thinking level
     if (spec.supports_thinking_level) {
+      // Both keys carry the choice: the server reads reasoning_effort
+      // first, and the app's default would otherwise stay in it.
       if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) && spec.reasoning_effort[0].includes(uiValue)) {
-        return { thinking_level: uiValue };
+        return { thinking_level: uiValue, reasoning_effort: uiValue };
       }
       return null;
     }
@@ -258,16 +246,24 @@ class ReasoningMapper {
     return null;
   }
   
+  /**
+   * The reasoning choice a saved chat holds. A DeepSeek chat saved with
+   * thinking off may still carry the app's effort beside it.
+   */
+  static savedChoice(provider, params) {
+    if (!params) return null;
+    if (provider === 'DeepSeek' && params.reasoning_content === 'disabled') return 'none';
+    return params.reasoning_effort || null;
+  }
+
   static _mapDeepSeek(spec, uiValue) {
-    if (!spec.reasoning_content) return null;
-    
-    // DeepSeek: medium -> "enabled", minimal -> "disabled"
-    if (uiValue === 'medium' || uiValue === 'high') {
-      return { reasoning_content: 'enabled' };
-    } else if (uiValue === 'minimal' || uiValue === 'low') {
-      return { reasoning_content: 'disabled' };
-    }
-    return null;
+    if (!spec.reasoning_effort || !Array.isArray(spec.reasoning_effort[0])) return null;
+    if (!spec.reasoning_effort[0].includes(uiValue)) return null;
+
+    // "none" turns thinking off; any other level turns it on at that level.
+    // reasoning_effort carries the choice too, so a saved chat restores it.
+    if (uiValue === 'none') return { reasoning_content: 'disabled', reasoning_effort: 'none' };
+    return { reasoning_content: 'enabled', reasoning_effort: uiValue };
   }
   
   static _mapCohere(spec, uiValue) {
@@ -303,13 +299,17 @@ class ReasoningMapper {
         return spec.thinking_budget && spec.thinking_budget.can_disable ? 'low' : 'medium';
         
       case 'xAI':
+      case 'Mistral':
         if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort) && spec.reasoning_effort.length >= 2) {
           return spec.reasoning_effort[1]; // Default value
         }
         return 'low';
         
       case 'DeepSeek':
-        return 'medium'; // Maps to "enabled"
+        if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort) && spec.reasoning_effort.length >= 2) {
+          return spec.reasoning_effort[1];
+        }
+        return null;
 
       case 'Cohere':
         // Cohere reasoning models default to "enabled"

@@ -124,6 +124,8 @@ function attachEventListeners(card) {
         document.querySelectorAll('.tooltip').forEach(el => el.remove());
       }
 
+      if (window.WordTable && window.WordTable.holdSpeech()) return;
+
       // Stop any current TTS playback
       if (typeof ttsStop === 'function') {
         ttsStop();
@@ -140,12 +142,14 @@ function attachEventListeners(card) {
       const content = currentCard ? currentCard.querySelector(".card-text") : null;
       let text = '';
       try {
-        text = content ? content.textContent : '';
+        text = content ? (window.ShortPaths ? window.ShortPaths.textOf(content) : content.textContent) : '';
 
         // Clone to process
         if (content) {
           const contentClone = content.cloneNode(true);
           contentClone.querySelectorAll("style, script").forEach(el => el.remove());
+          // Paths shown by their file name are read with their whole path.
+          if (window.ShortPaths) window.ShortPaths.restore(contentClone);
 
           const hrElement = contentClone.querySelector("hr");
           if (hrElement) {
@@ -163,7 +167,7 @@ function attachEventListeners(card) {
         }
       } catch (e) {
         console.error("Error extracting text for TTS:", e);
-        text = content ? content.textContent : '';
+        text = content ? (window.ShortPaths ? window.ShortPaths.textOf(content) : content.textContent) : '';
       }
 
       text = removeCode(text);
@@ -306,6 +310,7 @@ function attachEventListeners(card) {
           if (content) {
             const contentClone = content.cloneNode(true);
             contentClone.querySelectorAll("style, script").forEach(el => el.remove());
+            if (window.ShortPaths) window.ShortPaths.restore(contentClone);
             text = contentClone.textContent;
           }
         }
@@ -393,6 +398,7 @@ function attachEventListeners(card) {
         }
         return;
       }
+      if (window.WordTable && window.WordTable.holdSend(() => { verifyBtn.click(); })) return;
       const mid = card.id;
       // Backend derives the question + answer from the session by mid, so we
       // only send the message id (server-side history is the source of truth).
@@ -445,20 +451,6 @@ function attachEventListeners(card) {
       }
 
       const text = currentMessage.text;
-
-      // Check if message is JSON (which can't be edited)
-      let json = false;
-      try {
-        JSON.parse(text);
-        json = true;
-      } catch (e) {
-        // Not JSON, continue
-      }
-
-      if (json) {
-        alert("The current app is monadic. You can't edit JSON messages");
-        return;
-      }
 
       // Check if this is the last message
       const isLastMessage = messageIndex === messages.length - 1;

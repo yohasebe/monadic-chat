@@ -49,6 +49,8 @@ RSpec.describe 'the app payload allow list' do
       expect(source).to include('*PINNED_VENDOR.keys')
       expect(source).to include('BuildProducts::JS_BUNDLE')
       expect(source).to include('BuildProducts::MAXGRAPH')
+      expect(source).to include('BuildProducts::VEGA_WORKER')
+      expect(source).to include('BuildProducts::VEGA_LICENSES')
       expect(source).to include("'docker/services/ruby/help_data/help_db.json'")
       # A glob over the vendor directory shipped whatever an old fetch left
       # there, including an HTML error page saved as a stylesheet.
@@ -155,6 +157,11 @@ RSpec.describe 'the app payload allow list' do
     it 'builds maxGraph before staging it' do
       setup = build_rake[build_rake.index('def setup_build_environment')..]
       expect(setup.index('sh "npm run build:maxgraph"')).to be < setup.index('sh "ruby scripts/stage_docker_payload.rb"')
+    end
+
+    it 'builds the chart worker before staging it' do
+      setup = build_rake[build_rake.index('def setup_build_environment')..]
+      expect(setup.index('sh "npm run build:vega"')).to be < setup.index('sh "ruby scripts/stage_docker_payload.rb"')
     end
 
     it 'checks the archives after packaging' do
@@ -298,7 +305,10 @@ RSpec.describe 'the app payload allow list' do
     PINNED_CSS = 'docker/services/ruby/public/vendor/css/a.css'
     JS_BUNDLE = 'docker/services/ruby/public/js/monadic.bundle.min.js'
     MAXGRAPH = 'docker/services/ruby/public/vendor/js/maxgraph.bundle.js'
-    GOOD_PRODUCTS = { PINNED_CSS => 'pinned', JS_BUNDLE => 'bundle', MAXGRAPH => 'graph' }.freeze
+    VEGA_WORKER = 'docker/services/ruby/public/vendor/vega/vega-worker.mjs'
+    VEGA_LICENSES = 'docker/services/ruby/public/vendor/vega/LICENSES.txt'
+    GOOD_PRODUCTS = { PINNED_CSS => 'pinned', JS_BUNDLE => 'bundle', MAXGRAPH => 'graph', VEGA_WORKER => 'chart',
+                      VEGA_LICENSES => 'licenses' }.freeze
 
     def commit_products_source(dir, build)
       sha = Digest::SHA256.hexdigest('pinned')
@@ -306,11 +316,17 @@ RSpec.describe 'the app payload allow list' do
         'docker/services/ruby/bin/assets_list.sh' => "vendor_manifest() { printf 'css/a.css\\t%s\\n' #{sha}; }\n",
         'build.js' => <<~JS,
           const fs = require('fs'), path = require('path');
-          const [out, body] = { js: ['#{JS_BUNDLE}', 'bundle'], graph: ['#{MAXGRAPH}', 'graph'] }[process.argv[2]];
-          fs.mkdirSync(path.dirname(out), { recursive: true });
-          fs.writeFileSync(out, body);
+          const made = {
+            js: [['#{JS_BUNDLE}', 'bundle']], graph: [['#{MAXGRAPH}', 'graph']],
+            vega: [['#{VEGA_WORKER}', 'chart'], ['#{VEGA_LICENSES}', 'licenses']]
+          }[process.argv[2]];
+          made.forEach(([out, body]) => {
+            fs.mkdirSync(path.dirname(out), { recursive: true });
+            fs.writeFileSync(out, body);
+          });
         JS
-        'package.json' => '{"scripts":{"build:js":"node build.js js","build:maxgraph":"node build.js graph"}}'
+        'package.json' => '{"scripts":{"build:js":"node build.js js","build:maxgraph":"node build.js graph",' \
+                          '"build:vega":"node build.js vega"}}'
       }
       files.each do |path, body|
         full = File.join(dir, path)
@@ -475,7 +491,7 @@ RSpec.describe 'the app payload allow list' do
         stdout, stderr, status = run_verifier(dir, dist)
 
         expect(stderr).not_to include('FAILED'), stderr
-        expect(stdout).to include('3 build products with their pins and rebuilds')
+        expect(stdout).to include('5 build products with their pins and rebuilds')
         expect(status.exitstatus).to eq(0)
       end
     end

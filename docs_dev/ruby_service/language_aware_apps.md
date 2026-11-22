@@ -22,4 +22,4 @@ The conversation language selector (`#conversation-language`) sets the language 
 
 ## Translation and Language-Learning Apps
 
-Translate, Voice Interpreter, Language Practice and Language Practice Plus receive the same instruction. Their system prompts tell the model which languages to use for the translation or the practice itself, so the selected language applies to greetings, setup questions and explanations.
+Translate, Voice Interpreter and Language Practice receive the same instruction. Their system prompts tell the model which languages to use for the translation or the practice itself, so the selected language applies to greetings, setup questions and explanations.

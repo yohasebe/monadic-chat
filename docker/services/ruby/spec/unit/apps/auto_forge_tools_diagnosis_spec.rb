@@ -12,6 +12,10 @@ RSpec.describe AutoForgeTools do
   subject(:tool) do
     Class.new do
       include AutoForgeTools
+
+      def forge_agent
+        :openai
+      end
     end.new
   end
 

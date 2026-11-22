@@ -14,7 +14,6 @@
 | アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Ollama |
 |-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Live Conversation | ✅ | | | | ✅ | ✅ | | |
 | Wikipedia | ✅ | | | | | | | |
@@ -22,7 +21,6 @@
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Language Practice Plus | ✅ | ✅ | | | | | | |
 | Translate | ✅ | | ✅ | ✅ | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | |
 | Novel Writer | ✅ | | | ✅ | | | ✅ | |
@@ -41,53 +39,15 @@
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | |
-| Music Lab | ✅ | ✅ | | | ✅ | ✅ | | |
+| Music Tutor | ✅ | ✅ | | | ✅ | ✅ | | |
 | Music Analyst | | | | | ✅ | | | |
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## アプリ別の Privacy Filter / Knowledge Base 対応 :id=privacy-kb-by-app
+## アプリと Knowledge Base :id=kb-by-app
 
-アプリは、Privacy Filter (PF) と Knowledge Base への保存 (KB) のどちらか一方に対応し、両方には対応しません。画像・動画・図・音楽・文書を作るアプリはどちらにも対応せず、その出力は共有フォルダ（`~/monadic/data`）に保存されます。
+どのアプリでも、会話を Knowledge Base に保存し、検索できます。検索するのは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** をオンにしたときだけです。このスイッチはアプリごとに記憶されます。あるアプリでオンにしても、ほかのアプリではオフのままです。Live Conversation は、アプリの **検索と計算** のスイッチで検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
 
-Privacy Filter を使った会話を残すには、上部のバーの Privacy の表示をクリックし、**Export this conversation** を使います（暗号化も、伏せた形での書き出しもできます）。Knowledge Base に保存したものを見るには、Knowledge Base パネルの **Browse** をクリックします。
-
-| アプリ | Privacy Filter | Knowledge Base 保存 |
-|-----|:--:|:--:|
-| Chat | | ✅ |
-| Chat Plus | ✅ | |
-| Voice Chat | | ✅ |
-| Live Conversation | | ✅ |
-| Wikipedia | | ✅ |
-| Math Tutor | | ✅ |
-| Second Opinion | ✅ | |
-| Research Assistant | | ✅ |
-| Language Practice | | ✅ |
-| Language Practice Plus | | ✅ |
-| Translate | ✅ | |
-| Voice Interpreter | | ✅ |
-| Novel Writer | | ✅ |
-| Image Generator | | |
-| Video Generator | | |
-| Music Generator | | |
-| Mail Composer | ✅ | |
-| Mermaid Grapher | | |
-| DrawIO Grapher | | |
-| Syntax Tree | | |
-| Concept Visualizer | | |
-| Speech Draft Helper | | ✅ |
-| Web Insight | | ✅ |
-| Video Describer | | ✅ |
-| Code Interpreter | | ✅ |
-| Coding Assistant | | ✅ |
-| Jupyter Notebook | | ✅ |
-| Auto Forge | | |
-| Music Lab | | |
-| Music Analyst | | |
-| Document Generator | | |
-| Monadic Chat Help | | ✅ |
-
-両列とも空欄のアプリは、出力（画像・動画・図・文書など）をファイルとして保存するアプリです。メッセージの操作か共有フォルダから残してください。
 
 ## プロバイダー機能概要 :id=provider-capabilities
 
@@ -111,7 +71,6 @@ Privacy Filter を使った会話を残すには、上部のバーの Privacy �
 標準チャットや音声チャットから、数学の学習支援、セカンドオピニオン、Web検索を使ったリサーチ、組み込みのドキュメントアシスタントまでを含む汎用会話アプリです。詳細は[チャット・アシスタントアプリ](../apps/chat-apps.md)を参照してください。
 
 - Chat
-- Chat Plus
 - Voice Chat
 - Live Conversation
 - Wikipedia
@@ -125,7 +84,6 @@ Privacy Filter を使った会話を残すには、上部のバーの Privacy �
 音声での会話練習、テキストの翻訳、音声の通訳を行う語学学習向けアプリです。詳細は[語学学習アプリ](../apps/language-apps.md)を参照してください。
 
 - Language Practice
-- Language Practice Plus
 - Translate
 - Voice Interpreter
 
@@ -152,7 +110,7 @@ Privacy Filter を使った会話を残すには、上部のバーの Privacy �
 
 ### 図解・可視化アプリ
 
-Mermaid.js、Draw.io、LaTeX/TikZ を使って自然言語の説明から図を作成するアプリです。ライブブラウザプレビューと視覚的な自己検証に対応しています。詳細は[図解・可視化アプリ](../apps/diagram-apps.md)を参照してください。
+Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説明から図を作成するアプリです。ライブブラウザプレビューと視覚的な自己検証に対応しています。詳細は[図解・可視化アプリ](../apps/diagram-apps.md)を参照してください。
 
 - Mermaid Grapher
 - DrawIO Grapher
@@ -168,7 +126,7 @@ Mermaid.js、Draw.io、LaTeX/TikZ を使って自然言語の説明から図を�
 
 ### Knowledge Base
 
-保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、Knowledge Base を検索するほかのアプリからも（**Use Knowledge Base for retrieval (this session)** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
+保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、ほかのアプリからも（**このセッションでナレッジベース検索を使う** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
 
 ### コーディング・ノートブックアプリ
 
@@ -178,11 +136,11 @@ Mermaid.js、Draw.io、LaTeX/TikZ を使って自然言語の説明から図を�
 - Coding Assistant
 - Jupyter Notebook
 
-### Music Lab と Music Analyst
+### Music Tutor と Music Analyst
 
-演奏可能なサンプルとバッキングトラックで音楽理論を実践的に学び、録音された演奏を計測された特徴量と解釈的な批評の両面から評価できます。詳細は[Music Lab と Music Analyst](../apps/music-apps.md)を参照してください。
+演奏可能なサンプルとバッキングトラックで音楽理論を実践的に学び、録音された演奏を計測された特徴量と解釈的な批評の両面から評価できます。詳細は[Music Tutor と Music Analyst](../apps/music-apps.md)を参照してください。
 
-- Music Lab
+- Music Tutor
 - Music Analyst
 
 ### Auto Forge

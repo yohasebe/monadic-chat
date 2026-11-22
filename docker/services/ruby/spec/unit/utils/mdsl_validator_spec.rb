@@ -25,9 +25,9 @@ RSpec.describe Monadic::Utils::MDSLValidator do
   end
 
   it 'warns, without an error, about a level the model does not take' do
-    result = validate({ reasoning_effort: 'low' }, 'deepseek-v4-flash')
+    result = validate({ reasoning_effort: 'medium' }, 'deepseek-v4-flash')
     expect(result[:errors]).to be_empty
-    expect(result[:warnings]).to eq(["reasoning_effort 'low' is not a level deepseek-v4-flash takes (high, max); it is not sent"])
+    expect(result[:warnings]).to eq(["reasoning_effort 'medium' is not a level deepseek-v4-flash takes (none, low, high, max); it is not sent"])
     expect(validate({ reasoning_content: 'maybe' }, 'deepseek-v4-pro')[:warnings].first).to include("reasoning_content 'maybe'")
   end
 

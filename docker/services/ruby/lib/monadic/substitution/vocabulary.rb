@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../utils/environment'
+require_relative '../workbench/record'
 require "date"
 
 module Monadic
@@ -242,10 +243,11 @@ module Monadic
       end
 
       # @param session [Hash]
-      # @return [String, nil] basename of the most recently generated image in
-      #   this session, or nil. Reads the unified monadic_state "last_images"
-      #   slot for the active app first (where all image generators save), then
-      #   falls back to the provider-specific legacy single-image keys.
+      # @return [String, nil] the most recently generated image in this
+      #   session, or nil. An image a reply made comes first, by its path in the
+      #   shared folder as the messages' records say (Monadic::Workbench::Record);
+      #   then the basename in the monadic_state "last_images" slot for the
+      #   active app, which chats made before the workbench carry.
       #
       # Scope (decision): `${LAST_GENERATED_IMAGE}` is opted into (MDSL `use :last_generated_image`)
       # only by the dedicated Image Generator apps, which have the iterative
@@ -257,19 +259,12 @@ module Monadic
       # the semantics of fetch_last_images_from_session used by the edit flow.
       # The key contract here is locked by state_token_keys_contract_spec.rb.
       def last_generated_image(session)
-        params = session_params(session)
-        app_name = params && (params["app_name"] || params[:app_name])
-        ms = monadic_state(session)
-        if app_name
-          entry = ms[app_name] || ms[app_name.to_s]
-          slot = entry && (entry[:last_images] || entry["last_images"])
-          data = slot && (slot[:data] || slot["data"])
-          first = data.is_a?(Array) ? data.first : nil
-          return File.basename(first.to_s) if first && !first.to_s.empty?
-        end
-        legacy = session[:openai_last_image] || session[:grok_last_image] ||
-                 session[:gemini3_last_image]
-        legacy && !legacy.to_s.empty? ? File.basename(legacy.to_s) : nil
+        made = Monadic::Workbench::Record.last_path(session[:messages] || session["messages"])
+        return made if made
+
+        data = app_state(session, "last_images")
+        first = data.is_a?(Array) ? data.first : nil
+        first && !first.to_s.empty? ? File.basename(first.to_s) : nil
       end
 
       # @param session [Hash]
@@ -301,25 +296,21 @@ module Monadic
 
       # @param session [Hash]
       # @return [String, nil] filename of the current Jupyter notebook, or nil.
-      #   Reads the active app's monadic_state "context" slot, where the Jupyter
+      #   Reads the active app's state "context" (however the app keeps it), where the Jupyter
       #   tools persist "notebook_filename" on create/open.
       def current_notebook(session)
-        params = session_params(session)
-        app_name = params && (params["app_name"] || params[:app_name])
-        return nil unless app_name
-        ms = monadic_state(session)
-        entry = ms[app_name] || ms[app_name.to_s]
-        slot = entry && (entry[:context] || entry["context"])
-        data = slot && (slot[:data] || slot["data"])
-        return nil unless data
+        data = app_state(session, "context")
+        return nil unless data.is_a?(Hash)
         name = data["notebook_filename"] || data[:notebook_filename]
         name && !name.to_s.empty? ? name.to_s : nil
       end
 
-      # @return [Hash] the monadic_state namespace (symbol/string tolerant), or {}
-      def monadic_state(session)
-        return {} unless session.respond_to?(:[])
-        session[:monadic_state] || session["monadic_state"] || {}
+      # @return [Object, nil] the data of key in the active app's state, however
+      #   the app keeps it (Monadic::TurnState.data_of), or nil
+      def app_state(session, key)
+        return nil unless session.respond_to?(:[])
+        require_relative "../turn_state"
+        Monadic::TurnState.data_of(session, key)
       end
 
       # @return [Hash, nil]

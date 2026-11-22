@@ -17,17 +17,33 @@ require_relative '../../../../lib/monadic/utils/privacy/pipeline'
 require_relative '../../../../lib/monadic/utils/privacy/types'
 require_relative '../../../../lib/monadic/adapters/base_vendor_helper'
 require_relative '../../../../lib/monadic/utils/websocket'
-require_relative '../../../../lib/monadic/agents/context_extractor_agent'
 require_relative '../../../../lib/monadic/adapters/vendors/gemini_helper'
 require_relative '../../../../lib/monadic/agents/ai_user_agent'
 require_relative '../../../../lib/monadic/adapters/vendors/openai_helper'
 
-# Words the user marks for the Privacy Filter (⟦…⟧): taken out of what they
-# write, kept for the chat, masked wherever they occur, and never sent
-# unmasked (filter off, an old container, a failed detection, a message the
-# masking did not reach).
-RSpec.describe 'Words the user marks for the Privacy Filter' do
+# Words a chat hides: read from the marks of an imported file, hidden wherever
+# they occur, and never sent as written (an old container, a failed detection,
+# a part of a request that is not hidden).
+RSpec.describe 'Words a chat hides' do
   let(:marks) { Monadic::Utils::Privacy::Marks }
+
+  after do
+    words = Monadic::Utils::Privacy::Words
+    words::LOCK.synchronize { words::TABLES.clear }
+  end
+
+  # The chat's table holding the words, on a session that has its chat id
+  # or gets one.
+  def hide_in(session, *hidden)
+    chats = Monadic::Workspace::Chats
+    chats.start_new!(session) unless session[chats::SESSION_KEY]
+    Monadic::Utils::Privacy::Words.start!(session).confirm_all!(hidden.map { |word| [word, 'PERSON'] })
+    session
+  end
+
+  def hiding(*hidden, **values)
+    hide_in({ parameters: {}, messages: [] }.merge(values), *hidden)
+  end
 
   def real_session(values)
     made = nil
@@ -127,151 +143,21 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
 
   describe 'what is sent to a model' do
     let(:helper) { Class.new { include BaseVendorHelper }.new }
-    let(:session) { { _privacy_session_enabled: true, monadic_state: { privacy: { registry: {}, audit: [], terms: [{ text: 'Bob', type: 'PERSON' }] } } } }
-    # A pipeline that masks Bob and keeps it in its registry, as the real one
-    # does with a marked word.
-    let(:pipeline) do
-      registry = {}
-      double('Pipeline', registry_state: { registry: registry }).tap do |p|
-        allow(p).to receive(:before_send_to_llm) do |raw|
-          registry['<<PERSON_1>>'] = 'Bob' if raw.text.include?('Bob')
-          double('Masked', text: raw.text.gsub('Bob', '<<PERSON_1>>'))
-        end
-      end
-    end
+    let(:session) { hiding('Bob') }
 
-    it 'masks the messages, and the whole body puts the placeholder in app and tool text too' do
-      allow(helper).to receive(:privacy_pipeline_for).and_return(pipeline)
-      messages = helper.apply_privacy_to_messages(
-        [{ 'role' => 'system', 'content' => 'You help people.' }, { 'role' => 'tool', 'content' => 'Bob wrote back' },
-         { 'role' => 'user', 'content' => 'Ask Bob' }], session, { privacy: { enabled: true } }
-      )
-      body = helper.protect_marked_words!({ 'messages' => messages }, session, {})
+    it 'hides the conversation and tool results, and leaves the system prompt' do
+      body = { 'messages' => [{ 'role' => 'system', 'content' => 'You help people.' }, { 'role' => 'tool', 'content' => 'Bob wrote back' },
+                              { 'role' => 'user', 'content' => 'Ask Bob' }] }
+      helper.hide_words_in_request!(body, session)
       expect(body['messages'].map { |m| m['content'] }).to eq(['You help people.', '<<PERSON_1>> wrote back', 'Ask <<PERSON_1>>'])
     end
 
-    it 'is refused when a marked word has no placeholder to take its place' do
-      blind = double('Pipeline', registry_state: { registry: {} })
-      allow(blind).to receive(:before_send_to_llm) { |raw| double('Masked', text: raw.text) }
-      allow(helper).to receive(:privacy_pipeline_for).and_return(blind)
-      expect { helper.protect_marked_words!({ 'messages' => [{ 'role' => 'tool', 'content' => 'Bob' }] }, session, {}) }
-        .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
-    end
-
-    it 'is refused when the filter is off but words were marked (the messages step)' do
-      allow(helper).to receive(:privacy_pipeline_for).and_return(nil)
-      expect { helper.apply_privacy_to_messages([{ 'role' => 'user', 'content' => 'hi' }], session, {}) }
-        .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
-    end
-
-
-    it 'is refused for the helpers that send on the chat’s behalf when the filter is off' do
-      off = real_session(parameters: {}, monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } })
-      expect { Monadic::Utils::Privacy::Outbound.pipeline!(off) }.to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
-    end
-  end
-
-  # Where a person's text enters the chat: a message sent, a message edited.
-  describe 'taking the marks where the chat receives them' do
-    let(:host) do
-      Class.new { include WebSocketHelper }.new.tap do |h|
-        allow(h).to receive(:send_or_broadcast)
-        allow(h).to receive(:sync_session_state!)
-      end
-    end
-    let(:privacy_app) { double('App', settings: { privacy: { enabled: true } }) }
-
-    before { stub_const('APPS', { 'MailComposerOpenAI' => privacy_app }) }
-
-    it 'keeps the words and gives the text without the marks when the filter is on' do
-      session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true)
-      expect(host.take_privacy_marks('僕は⟦江戸川今太郎⟧です', session, 'tab')).to eq('僕は江戸川今太郎です')
-      expect(Monadic::Utils::Privacy::Registry.new(session).terms).to eq([{ text: '江戸川今太郎', type: 'PERSON' }])
-    end
-
-    it 'refuses marks, and messages after marks, when the filter is off' do
-      errors = []
-      allow(host).to receive(:send_error) { |msg, _| errors << msg }
-      session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' })
-      expect(host.take_privacy_marks('⟦Bob⟧', session, 'tab')).to be_nil
-
-      session[:monadic_state] = { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } }
-      expect(host.take_privacy_marks('plain text', session, 'tab')).to be_nil
-      expect(errors.size).to eq(2)
-      expect(errors.join).not_to include('Bob')
-    end
-
-    it 'says a refusal was not accepted, so the page keeps the cards it shows' do
-      extras = []
-      allow(host).to receive(:send_error) { |_msg, _id, extra = {}| extras << extra }
-      off = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' })
-      host.take_privacy_marks('⟦Bob⟧', off, 'tab')
-      on = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true)
-      host.take_privacy_marks('⟦Bob', on, 'tab')
-      expect(extras.size).to eq(2)
-      expect(extras).to all(eq('not_accepted' => true))
-    end
-
-    it 'takes the marks of a sample message too, and adds nothing when they are refused' do
-      allow(host).to receive(:send_error)
-      allow(host).to receive(:get_session_params).and_return({ 'app_name' => 'MailComposerOpenAI' })
-      on = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true, messages: [])
-      host.send(:handle_ws_sample, nil, { 'content' => 'I am ⟦Bob⟧', 'role' => 'assistant' }, on)
-      expect(on[:messages].map { |m| m['text'] }).to eq(['I am Bob'])
-      expect(Monadic::Utils::Privacy::Registry.new(on).terms).to eq([{ text: 'Bob', type: 'PERSON' }])
-
-      off = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, messages: [])
-      host.send(:handle_ws_sample, nil, { 'content' => 'I am ⟦Bob⟧', 'role' => 'user' }, off)
-      expect(off[:messages]).to be_empty
-    end
-
-    it 'does not record or send a message whose marks are refused' do
-      allow(host).to receive(:send_error)
-      session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, messages: [])
-      expect(host.send(:handle_ws_streaming, nil, { 'message' => '⟦Bob⟧ hi' }, session, Queue.new)).to be_nil
-      expect(session[:messages]).to be_empty
-      expect(session[:parameters]).not_to have_key('message')
-    end
-
-    it 'refuses words to mask in a system sample or a system edit, which are sent unmasked' do
-      errors = []
-      allow(host).to receive(:send_error) { |msg, _id, extra = {}| errors << extra.merge('message' => msg) }
-      allow(host).to receive(:get_session_params).and_return({ 'app_name' => 'MailComposerOpenAI' })
-      session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' }, _privacy_session_enabled: true,
-                             messages: [{ 'mid' => 's1', 'role' => 'system', 'text' => 'Be brief.' }])
-      host.send(:handle_ws_sample, nil, { 'content' => 'Call me ⟦Bob⟧', 'role' => 'system' }, session)
-      expect(Monadic::Utils::Privacy::Registry.new(session).terms).to be_empty
-
-      Monadic::Utils::Privacy::Registry.new(session).add_terms!([{ text: 'Alice', type: 'PERSON' }])
-      host.send(:handle_ws_sample, nil, { 'content' => 'Call me Alice', 'role' => 'system' }, session)
-      Thread.current[:rack_session] = session
-      host.handle_edit_message(nil, { 'mid' => 's1', 'content' => 'Call me Alice' })
-      host.handle_edit_message(nil, { 'mid' => 's1', 'content' => 'Call me ⟦Bob⟧' })
-
-      expect(session[:messages].map { |m| m['text'] }).to eq(['Be brief.'])
-      expect(Monadic::Utils::Privacy::Registry.new(session).terms.map { |t| t[:text] }).to eq(['Alice'])
-      expect(errors.size).to eq(4)
-      expect(errors).to all(include('not_accepted' => true, 'message' => a_string_including('system message')))
-      expect(errors.last).to include('edit_refused' => true, 'mid' => 's1')
-
-      host.send(:handle_ws_sample, nil, { 'content' => 'I am ⟦Bob⟧', 'role' => 'user' }, session)
-      expect(session[:messages].last['text']).to eq('I am Bob')
-    ensure
-      Thread.current[:rack_session] = nil
-    end
-
-    it 'keeps an edited message as it was when its marks are refused' do
-      allow(host).to receive(:send_error)
-      session = real_session(parameters: { 'app_name' => 'MailComposerOpenAI' },
-                             messages: [{ 'mid' => 'm1', 'role' => 'user', 'text' => 'old' }])
-      Thread.current[:rack_session] = session
-      extras = []
-      allow(host).to receive(:send_error) { |_msg, _id, extra = {}| extras << extra }
-      host.handle_edit_message(nil, { 'mid' => 'm1', 'content' => '⟦Bob⟧' })
-      expect(session[:messages].first['text']).to eq('old')
-      expect(extras).to eq([{ 'not_accepted' => true, 'edit_refused' => true, 'mid' => 'm1' }])
-    ensure
-      Thread.current[:rack_session] = nil
+    it 'refuses a missing or unreadable session, and lets a caller that acts for no chat through' do
+      outbound = Monadic::Utils::Privacy::Outbound
+      expect { outbound.chat_session!(nil) }.to raise_error(outbound::Refused)
+      expect { outbound.chat_session!({}) }.to raise_error(outbound::Refused)
+      expect { outbound.chat_session!(outbound::NOT_FOR_A_CHAT) }.not_to raise_error
+      expect { outbound.chat_session!(real_session(parameters: {})) }.not_to raise_error
     end
   end
 
@@ -290,12 +176,10 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
         end
       end.new
     end
-    # No pipeline built (a tab that reconnected): the chat's own state is used.
     let(:session) do
-      { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => '江戸川今太郎です。Bob へ', 'app_name' => 'MailComposerOpenAI' }],
-        parameters: { 'app_name' => 'MailComposerOpenAI' },
-        monadic_state: { privacy: { registry: { '<<PERSON_1>>' => 'Bob' }, audit: [],
-                                    terms: [{ text: '江戸川今太郎', type: 'PERSON' }] } } }
+      hiding('江戸川今太郎', 'Bob',
+             messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => '江戸川今太郎です。Bob へ', 'app_name' => 'MailComposerOpenAI' }],
+             parameters: { 'app_name' => 'MailComposerOpenAI' })
     end
 
     def export(content)
@@ -303,17 +187,18 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
     end
 
-    it 'keeps the marked words in a restored file' do
+    it 'keeps the words and the table in a restored file' do
       file = export('restored')
-      expect(file['terms']).to eq([{ 'text' => '江戸川今太郎', 'type' => 'PERSON' }])
+      expect(file['word_table']).to be_a(Hash)
       expect(file['messages'].first['text']).to eq('江戸川今太郎です。Bob へ')
     end
 
-    it 'masks the marked words in a masked file, and holds none of them' do
+    it 'hides the words in a masked file, and holds no table or registry' do
       file = export('masked')
+      expect(file).not_to have_key('word_table')
       expect(file).not_to have_key('terms')
       expect(file).not_to have_key('registry')
-      expect(file['messages'].first['text']).to eq('<<PERSON_2>>です。<<PERSON_1>> へ')
+      expect(file['messages'].first['text']).to eq('<<PERSON_1>>です。<<PERSON_2>> へ')
       expect(JSON.generate(file)).not_to include('江戸川今太郎')
     end
   end
@@ -335,7 +220,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
                                               "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567")
         out = JSON.parse(res.body)
         staged = out["import_token"] && WebSocketHelper.take_import("tab-t", out["import_token"])
-        puts JSON.generate("response" => out, "terms" => staged && staged.dig(:monadic_state, :privacy, :terms),
+        puts JSON.generate("response" => out, "active" => staged && staged.dig(:word_table, "active"),
                            "enabled" => staged && staged[:_privacy_session_enabled])
       RUBY
       root = File.expand_path('../../../..', __dir__)
@@ -348,10 +233,10 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       end
     end
 
-    it 'brings the marked words back, with the Privacy Filter on' do
+    it 'brings the marked words back as words the chat hides' do
       out = probe([{ 'text' => '江戸川今太郎', 'type' => 'PERSON' }])
-      expect(out['terms']).to eq([{ 'text' => '江戸川今太郎', 'type' => 'PERSON' }])
-      expect(out['enabled']).to be true
+      expect(out['active'].map { |entry| entry.slice('word', 'type') }).to eq([{ 'word' => '江戸川今太郎', 'type' => 'PERSON' }])
+      expect(out['enabled']).to be_nil
     end
 
     it 'stops on marked words it cannot read' do
@@ -364,64 +249,48 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
   # words, marks in an imported file, the number of words.
   describe 'the whole request body' do
     let(:helper) { Class.new { include BaseVendorHelper }.new }
-    let(:session) { { _privacy_session_enabled: true, monadic_state: { privacy: { registry: {}, audit: [], terms: [{ text: 'Bob', type: 'PERSON' }] } } } }
-    # A pipeline that masks Bob and keeps it in its registry, as the real one
-    # does with a marked word.
-    let(:pipeline) do
-      registry = {}
-      double('Pipeline', registry_state: { registry: registry }).tap do |p|
-        allow(p).to receive(:before_send_to_llm) do |raw|
-          registry['<<PERSON_1>>'] = 'Bob' if raw.text.include?('Bob')
-          double('Masked', text: raw.text.gsub('Bob', '<<PERSON_1>>'))
-        end
-      end
+    let(:session) { hiding('Bob') }
+
+    it 'hides tool results with the messages' do
+      body = { 'input' => [{ 'type' => 'function_call_output', 'call_id' => 'c1', 'output' => 'Bob replied' },
+                           { 'role' => 'tool', 'content' => 'Bob wrote' },
+                           { 'role' => 'user', 'content' => [{ 'type' => 'input_text', 'text' => 'from Bob' }] }] }
+      helper.hide_words_in_request!(body, session)
+      hidden = body['input']
+      expect(hidden[0]['output']).to eq('<<PERSON_1>> replied')
+      expect(hidden[1]['content']).to eq('<<PERSON_1>> wrote')
+      expect(hidden[2]['content'][0]['text']).to eq('from <<PERSON_1>>')
+      expect(hidden[2].keys).to eq(%w[role content])
+      expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, body) }.not_to raise_error
     end
 
-    it 'masks tool results with the messages' do
-      allow(helper).to receive(:privacy_pipeline_for).and_return(pipeline)
-      masked = helper.apply_privacy_to_messages(
-        [{ 'type' => 'function_call_output', 'call_id' => 'c1', 'output' => 'Bob replied' },
-         { 'role' => 'tool', 'content' => 'Bob wrote' },
-         { 'role' => 'user', 'content' => [{ 'type' => 'tool_result', 'content' => 'from Bob' },
-                                            { 'type' => 'tool_result', 'content' => [{ 'type' => 'text', 'text' => 'Bob' }] }] }],
-        session, { privacy: { enabled: true } }
-      )
-      expect(masked[0]['output']).to eq('<<PERSON_1>> replied')
-      expect(masked[1]['content']).to eq('<<PERSON_1>> wrote')
-      expect(masked[2]['content'][0]['content']).to eq('from <<PERSON_1>>')
-      expect(masked[2].keys).to eq(%w[role content])
-      expect(masked[2]['content'][1]['content'][0]['text']).to eq('<<PERSON_1>>')
-      expect { helper.protect_marked_words!({ 'input' => masked }, session, {}) }.not_to raise_error
-    end
-
-    it 'sends nothing, and changes nothing, when a marked word is in a part that is not masked' do
-      allow(helper).to receive(:privacy_pipeline_for).and_return(pipeline)
+    it 'sends nothing, and changes nothing, when a word is in a part that is not hidden' do
       [{ 'system' => 'You write for Bob.' },
        { 'instructions' => (['Please ask Bob about this matter and report back to the team'] * 4).join(' ') },
        { 'tools' => [{ 'name' => 'Bob_lookup', 'parameters' => { 'required' => ['Bob'] } }] },
-       { 'contents' => [{ 'parts' => [{ 'functionCall' => { 'name' => 'lookup', 'args' => { 'id' => 'Bob', 'role' => 'Bob' } } }] }] },
-       { 'input' => [{ 'type' => 'function_call', 'arguments' => JSON.generate('person' => 'Bob') }] }].each do |body|
+       { 'contents' => [{ 'parts' => [{ 'functionCall' => { 'name' => 'lookup', 'args' => { 'id' => 'Bob', 'role' => 'Bob' } } }] }] }].each do |body|
         before = Marshal.load(Marshal.dump(body))
-        expect { helper.protect_marked_words!(body, session, {}) }.to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
+        expect { helper.hide_words_in_request!(body, session) }.to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
         expect(body).to eq(before)
       end
     end
 
     it 'finds a word written escaped in JSON arguments' do
-      quoted = { monadic_state: { privacy: { terms: [{ text: 'A"B', type: 'PERSON' }] } } }
+      quoted = hiding('A"B')
       body = { 'input' => [{ 'type' => 'function_call', 'arguments' => JSON.generate('person' => 'A"B') }] }
       expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(quoted, body) }
         .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
     end
 
-    it 'sends nothing for the chat when the filter is off' do
-      allow(helper).to receive(:privacy_pipeline_for).and_return(nil)
-      expect { helper.protect_marked_words!({ 'messages' => [] }, session, {}) }
+    it 'refuses JSON nested too deeply to be read, rather than reading it as text' do
+      words = hiding('Bob')
+      deep = "#{'[' * 101}\"\\u0042ob\"#{']' * 101}"
+      expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(words, { 'arguments' => deep }) }
         .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
     end
 
     it 'does not take a placeholder or image data for the word itself' do
-      words = { monadic_state: { privacy: { terms: [{ text: 'PERSON', type: 'PERSON' }, { text: 'QUJD', type: 'PERSON' }] } } }
+      words = hiding('PERSON', 'QUJD')
       body = { 'messages' => [{ 'role' => 'assistant', 'content' => [
         { 'type' => 'text', 'text' => '<<PERSON_1>>' },
         { 'type' => 'image', 'source' => { 'type' => 'base64', 'data' => 'QUJDQUJD' } },
@@ -429,22 +298,13 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       ] }], 'contents' => [{ 'parts' => [{ 'inline_data' => { 'mime_type' => 'image/png', 'data' => 'QUJD' } }] }] }
       expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(words, body) }.not_to raise_error
     end
-
-    it 'refuses a helper request whose masking left a marked word' do
-      state = { registry: {}, terms: [{ text: 'Bob', type: 'PERSON' }] }
-      leaky = double('Pipeline', registry_state: state)
-      allow(leaky).to receive(:before_send_to_llm) { |raw| double('Masked', text: raw.text) }
-      expect { Monadic::Utils::Privacy::Outbound.mask('Bob', leaky, 'user') }
-        .to raise_error(Monadic::Utils::Privacy::Outbound::Refused)
-    end
   end
 
   describe 'speech-to-speech' do
-    it 'stays closed in a chat with marked words, the filter on or off' do
+    it 'stays closed in a chat that hides words' do
       host = Class.new { include WebSocketHelper }.new
       allow(host).to receive(:sts_session_capable?).and_return(true)
-      session = real_session(parameters: { 'app_name' => 'ChatOpenAI' },
-                             monadic_state: { privacy: { terms: [{ text: 'Bob', type: 'PERSON' }] } })
+      session = hide_in(real_session(parameters: { 'app_name' => 'ChatOpenAI' }), 'Bob')
       expect(host.send(:route_audio_mode, session)).to eq(:privacy_blocked)
     end
   end
@@ -477,19 +337,20 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       end.new
     end
 
-    it 'holds the marked words nowhere: not in the app state, the Session Context or anything nested' do
+    it 'holds the marked words nowhere: not in the app state or anything nested' do
       session = {
         messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => 'SecretName', 'app_name' => 'X',
                      'verify' => { 'responses' => [{ 'text' => 'about SecretName' }] } }],
         parameters: { 'app_name' => 'X' },
-        monadic_state: { 'app' => { 'entry' => { data: 'SecretName', version: 1, updated_at: 't' } },
-                         conversation_context: { 'person' => 'SecretName' }, context_schema: { 'description' => 'SecretName' },
-                         privacy: { registry: {}, audit: [], terms: [{ text: 'SecretName', type: 'PERSON' }] } }
+        monadic_state: { 'app' => { 'entry' => { data: 'SecretName', version: 1, updated_at: 't' } } }
       }
+      Monadic::Workspace::Chats.start_new!(session)
+      hide_in(session, 'SecretName')
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       written = Base64.strict_decode64(harness.sent.last['content_base64'])
       expect(written).not_to include('SecretName')
       expect(written).to include('<<PERSON_1>>')
+      expect(JSON.parse(written).dig('monadic_state', 'app', 'entry', 'data')).to eq('<<PERSON_1>>')
     end
   end
 
@@ -504,41 +365,6 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       expect { registry.add_terms!([{ text: 'one more', type: 'PERSON' }]) }
         .to raise_error(Monadic::Utils::Privacy::Registry::TooManyTerms)
       expect(registry.terms.size).to eq(200)
-    end
-  end
-
-  describe 'the helpers that send for the chat' do
-    let(:registry) { {} }
-    let(:pipeline) do
-      reg = registry
-      double('Pipeline', registry_state: { registry: reg, terms: [{ text: 'SecretName', type: 'PERSON' }] }).tap do |p|
-        allow(p).to receive(:before_send_to_llm) do |raw|
-          reg['<<PERSON_1>>'] = 'SecretName' if raw.text.include?('SecretName')
-          double('Masked', text: raw.text.gsub('SecretName', '<<PERSON_1>>'))
-        end
-      end
-    end
-
-    def extract(schema)
-      session = real_session(parameters: {}, _privacy_pipeline: pipeline,
-                             monadic_state: { privacy: { registry: registry, terms: [{ text: 'SecretName', type: 'PERSON' }] } })
-      agent = Class.new { include ContextExtractorAgent }.new
-      allow(SystemDefaults).to receive(:get_default_model).and_return('test-model')
-      allow(agent).to receive(:get_api_key_for_provider).and_return('test-key-not-sent')
-      sent = nil
-      allow(agent).to receive(:call_provider_api) { |_p, _m, prompt, _k| (sent = prompt) && nil }
-      agent.extract_context(session, 'Hi SecretName', 'Hello', 'openai', schema)
-      sent
-    end
-
-    it 'sends the context extraction with the conversation masked' do
-      sent = extract(nil)
-      expect(sent).to include('<<PERSON_1>>')
-      expect(sent).not_to include('SecretName')
-    end
-
-    it 'sends no context extraction when the schema holds a marked word' do
-      expect(extract({ 'fields' => [{ 'name' => 'person', 'description' => 'Facts about SecretName' }] })).to be_nil
     end
   end
 
@@ -559,9 +385,8 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
     end
 
     def export_with(term, text)
-      session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => text, 'app_name' => 'X' }],
-                  parameters: { 'app_name' => 'X' },
-                  monadic_state: { privacy: { registry: {}, audit: [], terms: [{ text: term, type: 'PERSON' }] } } }
+      session = hiding(term, messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => text, 'app_name' => 'X' }],
+                       parameters: { 'app_name' => 'X' })
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
     end
@@ -581,7 +406,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
   end
 
   describe 'data in a request body' do
-    let(:session) { { monadic_state: { privacy: { terms: [{ text: 'SecretName', type: 'PERSON' }] } } } }
+    let(:session) { hiding('SecretName') }
     let(:outbound) { Monadic::Utils::Privacy::Outbound }
 
     it 'is passed over only at the places the APIs put images, audio and files' do
@@ -604,39 +429,26 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
 
   describe 'tool results of other vendors' do
     let(:helper) { Class.new { include BaseVendorHelper }.new }
-    let(:session) { { _privacy_session_enabled: true, monadic_state: { privacy: { registry: {}, audit: [], terms: [{ text: 'Bob', type: 'PERSON' }] } } } }
-    let(:pipeline) do
-      double('Pipeline').tap do |p|
-        allow(p).to receive(:before_send_to_llm) { |raw| double('Masked', text: raw.text.gsub('Bob', '<<PERSON_1>>')) }
-      end
-    end
+    let(:session) { hiding('Bob') }
 
-    it 'masks Cohere documents (JSON) and texts, keeping the parts and the JSON intact' do
-      allow(helper).to receive(:privacy_pipeline_for).and_return(pipeline)
-      masked = helper.apply_privacy_to_messages(
-        [{ 'role' => 'tool', 'tool_call_id' => 't1', 'content' => [
-          { 'type' => 'document', 'document' => { 'id' => 'doc1', 'data' => JSON.generate('result' => 'Bob "the" writer') } },
-          { 'type' => 'text', 'text' => 'error about Bob' }
-        ] }], session, { privacy: { enabled: true } }
-      )
-      parts = masked.first['content']
+    it 'hides Cohere documents (JSON) and texts, keeping the parts and the JSON intact' do
+      body = { 'messages' => [{ 'role' => 'tool', 'tool_call_id' => 't1', 'content' => [
+        { 'type' => 'document', 'document' => { 'id' => 'doc1', 'data' => JSON.generate('result' => 'Bob "the" writer') } },
+        { 'type' => 'text', 'text' => 'error about Bob' }
+      ] }] }
+      helper.hide_words_in_request!(body, session)
+      parts = body['messages'].first['content']
       expect(parts[0]['type']).to eq('document')
       expect(JSON.parse(parts[0]['document']['data'])).to eq('result' => '<<PERSON_1>> "the" writer')
       expect(parts[1]['text']).to eq('error about <<PERSON_1>>')
-      expect { helper.protect_marked_words!({ 'messages' => masked }, session, {}) }.not_to raise_error
+      expect { Monadic::Utils::Privacy::Outbound.check_no_marked_words!(session, body) }.not_to raise_error
     end
+  end
 
-    it 'masks Gemini function responses' do
-      gemini = Class.new do
-        include BaseVendorHelper
-        include GeminiHelper if defined?(GeminiHelper)
-      end.new
-      skip 'GeminiHelper is not loaded here' unless gemini.respond_to?(:apply_privacy_to_gemini_contents, true)
-      allow(gemini).to receive(:privacy_pipeline_for).and_return(pipeline)
-      contents = [{ 'role' => 'user', 'parts' => [{ 'functionResponse' => { 'name' => 'lookup', 'response' => { 'content' => 'Bob wrote' } } }] }]
-      masked = gemini.send(:apply_privacy_to_gemini_contents, contents, session, { privacy: { enabled: true } })
-      expect(masked[0]['parts'][0]['functionResponse']).to eq('name' => 'lookup', 'response' => { 'content' => '<<PERSON_1>> wrote' })
-    end
+  # A chat whose app state holds data as given (a value that is JSON text).
+  def with_state(session, data)
+    Monadic::Workspace::Chats.start_new!(session)
+    session[:monadic_state] = { 'X' => { 'entry' => { data: data, version: 1, updated_at: 't' } } }
   end
 
   describe 'a masked file with JSON in it' do
@@ -658,12 +470,12 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
     it 'masks a word written escaped in a JSON value, and keeps the JSON valid' do
       word = 'A"B'
       session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => word, 'app_name' => 'X' }],
-                  parameters: { 'app_name' => 'X' },
-                  monadic_state: { conversation_context: { 'json' => JSON.generate('person' => word) },
-                                   privacy: { registry: {}, audit: [], terms: [{ text: word, type: 'PERSON' }] } } }
+                  parameters: { 'app_name' => 'X' } }
+      with_state(session, 'json' => JSON.generate('person' => word))
+      hide_in(session, word)
       harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
       file = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
-      json_value = file.dig('session_context', 'json') || file.dig('monadic_state', 'conversation_context', 'json')
+      json_value = file.dig('monadic_state', 'X', 'entry', 'data', 'json')
       expect(JSON.parse(json_value)).to eq('person' => '<<PERSON_1>>')
       expect(JSON.generate(file)).not_to include('A\\"B')
     end
@@ -671,7 +483,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
 
   describe 'attachments and data, again' do
     let(:outbound) { Monadic::Utils::Privacy::Outbound }
-    let(:session) { { monadic_state: { privacy: { terms: [{ text: 'SecretName', type: 'PERSON' }] } } } }
+    let(:session) { hiding('SecretName') }
 
     it 'reads a tool argument shaped like an attachment' do
       [{ 'contents' => [{ 'parts' => [{ 'functionCall' => { 'name' => 'lookup', 'args' => { 'type' => 'input_file', 'file_data' => 'SecretName' } } }] }] },
@@ -691,7 +503,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
 
     it 'reads JSON string values, also inside JSON' do
       word = 'A"B'
-      quoted = { monadic_state: { privacy: { terms: [{ text: word, type: 'PERSON' }] } } }
+      quoted = hiding(word)
       [{ 'system' => JSON.generate(word) },
        { 'arguments' => JSON.generate('person' => JSON.generate(word)) }].each do |body|
         expect { outbound.check_no_marked_words!(quoted, body) }.to raise_error(outbound::Refused), body.inspect
@@ -719,12 +531,12 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       word = 'A"B'
       [JSON.generate(word), JSON.generate('person' => JSON.generate(word))].each do |json|
         session = { messages: [{ 'mid' => 'a', 'role' => 'user', 'text' => 'x', 'app_name' => 'X' }],
-                    parameters: { 'app_name' => 'X' },
-                    monadic_state: { conversation_context: { 'json' => json },
-                                     privacy: { registry: {}, audit: [], terms: [{ text: word, type: 'PERSON' }] } } }
+                    parameters: { 'app_name' => 'X' } }
+        with_state(session, 'json' => json)
+        hide_in(session, word)
         harness.send(:handle_ws_privacy_export, nil, session, { 'encrypt' => false, 'content' => 'masked' })
         file = JSON.parse(Base64.strict_decode64(harness.sent.last['content_base64']))
-        value = file.dig('session_context', 'json')
+        value = file.dig('monadic_state', 'X', 'entry', 'data', 'json')
         decoded = JSON.parse(value)
         decoded = JSON.parse(decoded['person']) if decoded.is_a?(Hash)
         expect(decoded).to eq('<<PERSON_1>>')
@@ -732,24 +544,11 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
     end
   end
 
-  describe 'AI User and the helpers that mask text' do
+  describe 'AI User' do
     let(:outbound) { Monadic::Utils::Privacy::Outbound }
 
-    def pipeline_with(word, registry = {})
-      double('Pipeline', registry_state: { registry: registry, terms: [{ text: word, type: 'PERSON' }] }).tap do |p|
-        allow(p).to receive(:before_send_to_llm) { |raw| double('Masked', text: raw.text.gsub(word, '<<PERSON_1>>')) }
-      end
-    end
-
-    it 'finds a word written as JSON in what the masking gave back' do
-      word = 'A"B'
-      expect { outbound.mask(JSON.generate(word), pipeline_with(word), 'user') }.to raise_error(outbound::Refused)
-    end
-
     it 'does not ask AI User when a marked word is in its own instructions' do
-      session = real_session(parameters: {}, messages: [{ 'role' => 'user', 'text' => 'Hello' }],
-                             _privacy_pipeline: pipeline_with('natural'),
-                             monadic_state: { privacy: { registry: {}, terms: [{ text: 'natural', type: 'PERSON' }] } })
+      session = hide_in(real_session(parameters: {}, messages: [{ 'role' => 'user', 'text' => 'Hello' }]), 'natural')
       agent = Class.new { include AIUserAgent }.new
       app = double('app')
       allow(app).to receive(:send_query)
@@ -767,8 +566,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
     let(:outbound) { Monadic::Utils::Privacy::Outbound }
 
     def marked(word)
-      { _privacy_session_enabled: true, parameters: {}, messages: [{ 'role' => 'user', 'text' => 'Hello' }],
-        monadic_state: { privacy: { registry: {}, terms: [{ text: word, type: 'PERSON' }] } } }
+      hiding(word, messages: [{ 'role' => 'user', 'text' => 'Hello' }])
     end
 
     it 'finds a word written escaped in the middle of a text' do
@@ -776,7 +574,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
     end
 
     it 'does not ask AI User when an instruction added for a provider holds a marked word' do
-      session = real_session(marked('explanations').merge(_privacy_pipeline: double('Pipeline', registry_state: { registry: {}, terms: [{ text: 'explanations', type: 'PERSON' }] }).tap { |p| allow(p).to receive(:before_send_to_llm) { |raw| double('M', text: raw.text) } }))
+      session = hide_in(real_session(parameters: {}, messages: [{ 'role' => 'user', 'text' => 'Hello' }]), 'explanations')
       agent = Class.new { include AIUserAgent }.new
       app = double('app')
       allow(app).to receive(:send_query)
@@ -787,22 +585,12 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       expect(result['type']).to eq('error')
     end
 
-    it 'checks the context extraction request at its HTTP boundary' do
-      agent = Class.new { include ContextExtractorAgent }.new
-      Thread.current[:monadic_extraction_session] = marked('JSON only')
-      expect(Net::HTTP).not_to receive(:new)
-      expect(agent.make_http_request(URI('https://example.invalid/'), { 'messages' => [{ 'content' => 'return JSON only' }] }, {})).to be_nil
-    ensure
-      Thread.current[:monadic_extraction_session] = nil
-    end
-
     it 'does not speak a marked word, however it is written' do
       host = Class.new { include WebSocketHelper }.new
       errors = []
       allow(host).to receive(:send_error) { |m, *| errors << m }
-      session = marked('A"B').merge(_privacy_pipeline: double('Pipeline', sanitize_restored_for_tts: JSON.generate('A"B')))
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:pipeline!).and_return(session[:_privacy_pipeline])
-      expect(host.send(:privacy_sanitize_tts_text, 'x', session)).to be_nil
+      session = marked('A"B')
+      expect(host.send(:privacy_sanitize_tts_text, JSON.generate('A"B'), session)).to be_nil
       expect(errors.size).to eq(1)
     end
 
@@ -830,17 +618,15 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
 
   describe 'speech as the TTS service receives it, and the parallel panel' do
     def marked(word)
-      { _privacy_session_enabled: true, parameters: {}, messages: [],
-        monadic_state: { privacy: { registry: {}, terms: [{ text: word, type: 'PERSON' }] } } }
+      hiding(word)
     end
 
     it 'does not speak a word that the provider conversion brings back' do
       host = Class.new { include WebSocketHelper }.new
       allow(host).to receive(:send_error)
-      session = marked('SecretName').merge(_privacy_pipeline: double('Pipeline', sanitize_restored_for_tts: 'Secret<loud>Name'))
-      allow(Monadic::Utils::Privacy::Outbound).to receive(:pipeline!).and_return(session[:_privacy_pipeline])
+      session = marked('SecretName')
       allow(host).to receive(:tts_text_as_sent).and_return('SecretName')
-      expect(host.send(:privacy_sanitize_tts_text, 'x', session, 'elevenlabs-v3')).to be_nil
+      expect(host.send(:privacy_sanitize_tts_text, 'Secret<loud>Name', session, 'elevenlabs-v3')).to be_nil
     end
 
     it 'checks each target of the parallel panel in the chat it runs for' do
@@ -849,7 +635,7 @@ RSpec.describe 'Words the user marks for the Privacy Filter' do
       skip 'Conduit has no run_in_parallel here' unless conduit.respond_to?(:run_in_parallel, true)
       Thread.current[:rack_session] = marked('SecretName')
       seen = conduit.send(:run_in_parallel, [{ provider: 'openai', model: 'm' }]) { |_t| Thread.current[:rack_session] }
-      expect(seen.first).to include(monadic_state: anything)
+      expect(seen.first).to include(Monadic::Utils::Privacy::Words::MARK_KEY => anything)
     ensure
       Thread.current[:rack_session] = nil
     end

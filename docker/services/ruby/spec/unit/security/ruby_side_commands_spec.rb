@@ -111,13 +111,21 @@ RSpec.describe "Ruby-side commands" do
 
     before do
       calls = recorded
-      allow(MonadicApp).to receive(:capture_command) do |command, timeout:, env:, chdir: nil|
+      allow(MonadicApp).to receive(:capture_command) do |command, timeout:, env:, chdir: nil, container: nil|
+        # Ruby-side commands run on this side, never in a container.
+        raise "a Ruby-side command was sent to #{container}" if container
+
         calls << [command, env, chdir]
         ["", "", OpenStruct.new(success?: true)]
       end
       allow(Monadic::Utils::ProgressBroadcaster).to receive(:with_progress) { |**_, &block| block.call }
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(shared)
       File.write(File.join(shared, "doc.txt"), "text")
+      # What the generators make goes in a run folder of a chat.
+      run = File.join(shared, "conversations", "c", "artifacts", "j_1")
+      FileUtils.mkdir_p(run)
+      allow(Monadic::Workbench::ChatOutput).to receive(:run_folder)
+        .and_return({ path: run, relative: "conversations/c/artifacts/j_1" })
       %w[tts_query.rb image_generator_openai.rb image_generator_grok.rb video_generator_gemini.rb
          video_generator_grok.rb content_fetcher.rb].each do |name|
         File.write(File.join(bundled, "cli_tools", name), "")
@@ -130,9 +138,9 @@ RSpec.describe "Ruby-side commands" do
     it "runs each with a safe PATH, the bundled script by this Ruby and its absolute path, and no keys" do
       callers = {
         list_providers_and_voices: -> { host.list_providers_and_voices },
-        text_to_speech: -> { host.text_to_speech(text: "hello") },
-        generate_image_with_openai: -> { host.generate_image_with_openai(operation: "generate", model: "gpt-image-1", prompt: "a; touch PWNED") },
-        generate_image_with_grok: -> { host.generate_image_with_grok(prompt: "a cat") },
+        text_to_speech: -> { host.text_to_speech(text: "hello", out_dir: File.join(shared, "conversations", "c", "artifacts", "j_1")) },
+        generate_image_with_openai: -> { host.generate_image_with_openai(operation: "generate", model: "gpt-image-1", prompt: "a; touch PWNED", out_dir: File.join(shared, "conversations", "c", "artifacts", "j_1")) },
+        generate_image_with_grok: -> { host.generate_image_with_grok(prompt: "a cat", out_dir: File.join(shared, "conversations", "c", "artifacts", "j_1")) },
         generate_video_with_grok_imagine: -> { host.generate_video_with_grok_imagine(prompt: "a cat") },
         generate_video_with_veo: -> { host.generate_video_with_veo(prompt: "a cat") },
         fetch_text_from_file: -> { host.fetch_text_from_file(file: "doc.txt") }

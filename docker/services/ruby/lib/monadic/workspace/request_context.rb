@@ -2,6 +2,7 @@
 
 require 'set'
 require_relative 'ids'
+require_relative '../turn_settings'
 
 module Monadic
   module Workspace
@@ -19,13 +20,34 @@ module Monadic
     class RequestContext
       THREAD_KEY = :monadic_request_context
 
-      attr_reader :request_id, :chat_id, :attachment_ids
+      # tab, generation: the tab and connection the message came from (the
+      # workbench selects there what the answer shows), or nil.
+      # observation: what the model is told of the work screen with this
+      # message (Workbench::Observation, frozen), or nil.
+      # settings: the settings the message is answered with
+      # (Monadic::TurnSettings), or nil. parameters: the kept parameters of
+      # the chat the message came in (the Hash itself): the settings are
+      # those of a request made with these parameters, and of no other (a
+      # tool that asks a model of its own makes its own).
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings
 
-      def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request))
+      def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil,
+                     observation: nil, settings: nil, parameters: nil)
         @request_id = request_id
+        @settings = settings
+        @parameters = parameters
         @chat_id = chat_id
+        @tab = tab&.to_s
+        @generation = generation
+        @observation = observation
         @attachment_ids = Set.new(attachment_ids).freeze
         freeze
+      end
+
+      # The message's settings for a request made with the given parameters,
+      # or nil when they are not the chat's own.
+      def settings_for(parameters)
+        @settings if @parameters.equal?(parameters)
       end
 
       def allows?(attachment_id)

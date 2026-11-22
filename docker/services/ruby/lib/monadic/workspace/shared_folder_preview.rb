@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../render_formats'
+
 module Monadic
   module Workspace
     # Files of the shared folder as the Shared Folder panel previews them.
@@ -15,6 +17,7 @@ module Monadic
       class Invalid < StandardError; end
       class NotText < StandardError; end
       class Unavailable < StandardError; end
+      class TooLarge < StandardError; end
 
       TEXT_LIMIT = 256 * 1024 # bytes of a text file shown
       CHUNK = 64 * 1024
@@ -29,9 +32,13 @@ module Monadic
         'pdf' => %w[pdf application/pdf]
       }.freeze
 
-      # Shown as text, never rendered: HTML, SVG and XML included.
-      TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg
-                rb py js ts sh r tex bib srt vtt css sql].freeze
+      # Shown as text. The work screen can also draw some of them
+      # (render_for); nothing here runs what a file holds.
+      TEXT = %w[txt md markdown csv tsv json jsonl log yml yaml toml ini xml html htm svg mmd mermaid drawio abc
+                rb py js ts sh r tex bib srt vtt css sql ipynb].freeze
+
+      # Bytes of a file the work screen draws: a larger one is shown as text.
+      RENDER_LIMIT = 8 * 1024 * 1024
 
       F_GETPATH = 50 # fcntl(2) on macOS
       MAXPATHLEN = 1024
@@ -40,6 +47,14 @@ module Monadic
 
       def extension(name)
         File.extname(name.to_s).delete_prefix('.').downcase
+      end
+
+      # What a text file is drawn as ("markdown", "diagram", "table", "svg",
+      # "html", "vega_lite", "notebook", "drawio", "abc"), or nil when it is shown as text
+      # only.
+      # (Monadic::RenderFormats, the table the page draws by.)
+      def render_for(name)
+        kind_for(name) == 'text' ? Monadic::RenderFormats.for_name(name) : nil
       end
 
       # "image", "audio", "video", "pdf", "text" or nil.
@@ -112,9 +127,8 @@ module Monadic
         raise Unavailable, 'this system cannot tell where an open file is'
       end
 
-      # The first TEXT_LIMIT bytes of a text file, as UTF-8 (bytes that are
-      # not UTF-8 become U+FFFD; a character cut at the limit is left out).
-      # NotText when what was read holds a NUL byte.
+      # The first TEXT_LIMIT bytes of a text file, as text_view shows them.
+      # NotText when what is shown holds a NUL byte.
       def read_text(relative)
         io, stat, = open_file(relative, kinds: %w[text])
         begin
@@ -122,14 +136,47 @@ module Monadic
         ensure
           io.close
         end
-        truncated = data.bytesize > TEXT_LIMIT
-        data = data.byteslice(0, TEXT_LIMIT) if truncated
+        text_view(data).merge(file_bytes: stat.size)
+      end
+
+      # Text as it is shown, from the bytes of a file: the first limit bytes
+      # (a UTF-8 character the limit cut short is left out), as UTF-8 (bytes
+      # that are not UTF-8 become U+FFFD), without a leading byte order
+      # mark, with every line end as "\n". NotText when the bytes shown hold
+      # a NUL byte. The file's version (its sha256) is of the raw bytes, not
+      # of this text. Returns { text:, truncated:, shown_bytes: } (the bytes
+      # of the file the text comes from).
+      def text_view(bytes, limit: TEXT_LIMIT)
+        truncated = bytes.bytesize > limit
+        data = (truncated ? bytes.byteslice(0, limit) : bytes).b
         raise NotText, 'the file is not text' if data.include?("\0")
 
         data = drop_cut_character(data) if truncated
-        shown = data.bytesize
-        { text: data.force_encoding('UTF-8').scrub("�"), truncated: truncated,
-          file_bytes: stat.size, shown_bytes: shown }
+        text = data.dup.force_encoding('UTF-8').scrub("\uFFFD").delete_prefix("\uFEFF").gsub(/\r\n?/, "\n")
+        { text: text, truncated: truncated, shown_bytes: data.bytesize }
+      end
+
+      # The whole of a file the work screen draws, as text: the bytes must
+      # be UTF-8 (a leading byte order mark is left out) without a NUL, at
+      # most RENDER_LIMIT; line ends become "\n". NotText otherwise; a
+      # larger file is TooLarge. Nothing is cut: what is drawn is the whole.
+      def render_text(bytes)
+        raise TooLarge, 'the file is too large to draw' if bytes.bytesize > RENDER_LIMIT
+
+        text = bytes.b.delete_prefix("\xEF\xBB\xBF".b).force_encoding('UTF-8')
+        raise NotText, 'the file is not text' if !text.valid_encoding? || text.include?("\0")
+
+        text.gsub(/\r\n?/, "\n")
+      end
+
+      # The lines of a text_view text, numbered from 1 by their place: no
+      # line in empty text; a "\n" ends the line before it, so a final "\n"
+      # adds no line. The page makes its lines the same way (workbench.js).
+      def text_lines(text)
+        return [] if text.empty?
+
+        body = text.end_with?("\n") ? text[0...-1] : text
+        body.empty? ? [''] : body.split("\n", -1)
       end
 
       # Leaves out a UTF-8 character the limit cut short at the end.

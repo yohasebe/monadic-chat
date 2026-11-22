@@ -6,8 +6,8 @@ require_relative '../../../apps/math_tutor/math_tutor_constants'
 
 RSpec.describe 'Opus 5.5 app selections' do
   {
-    'chat_plus' => ['ChatPlusClaude', :choice],
-    'language_practice_plus' => ['LanguagePracticePlusClaude', :choice],
+    'chat' => ['ChatClaude', :choice],
+    'language_practice' => ['LanguagePracticeClaude', :choice],
     'coding_assistant' => ['CodingAssistantClaude', :advisor],
     'code_interpreter' => ['CodeInterpreterClaude', :advisor],
     'jupyter_notebook' => ['JupyterNotebookClaude', :advisor],

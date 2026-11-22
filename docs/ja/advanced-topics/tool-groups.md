@@ -36,9 +36,11 @@
 **使っているアプリ**：Code Interpreter、Jupyter Notebook、Math Tutor、Research Assistant
 
 #### File Operations（3 ツール）
-- 共有フォルダのファイルを読む
-- 共有フォルダのファイルに書き込む・追記する
-- 共有フォルダのファイルの一覧を得る
+- 会話のファイルや、共有フォルダに置いたファイルを読む
+- 会話の作業フォルダ（`conversations/…/work/`）のファイルに書き込む・追記する（AI がほかの場所を指定しても作業フォルダに保存し、保存したパスを結果で返します）
+- 会話の作業フォルダや、共有フォルダに作ったフォルダの一覧を得る
+
+これらの道具は、ほかの会話のフォルダを読むことも書くことも一覧を得ることもしません。
 
 **使っているアプリ**：すべてのアプリに自動で加わります。
 
@@ -88,9 +90,9 @@
 #### Session Context（4 ツール）
 - 会話の文脈（話題、人物、メモ）を取得・更新・消去する
 - 文脈から特定の項目を取り除く
-- 文脈はサイドバーのパネルに表示される
+- 文脈は作業画面のページとして表示される。[状態ノート](./monadic-mode.md#state-notes)を参照
 
-**使っているアプリ**：Chat Plus
+**使っているアプリ**：Chat
 
 ### 条件のあるグループ
 
@@ -104,7 +106,11 @@
 
 **使っているアプリ**：Web Insight、AutoForge、Research Assistant（OpenAI、Claude、Gemini、Grok）
 
-Selenium のコンテナは Monadic Chat とともに起動します。グループが表示されないときは、起動が終わるまで待ってください。Selenium のイメージがないときは、**Actions → Build All** でダウンロードします。
+Selenium のコンテナは Monadic Chat とともに起動します。グループが表示されないときは、起動が終わるまで待ってください。Selenium のイメージがないときは、**アクション → すべてビルド** でダウンロードします。
+
+ブラウザーのセッションは、同時に 3 つまで開けます（たとえば、会話のブラウザーと図のプレビュー）。すべて使われているときは、新しいセッションを待たずに、数秒で断ります。
+
+操作できるブラウザーのセッションは会話ごとに一つで、同時に持てるのは二つの会話までです。会話のブラウザーは、**Reset** を押したとき、ほかのアプリに切り替えたとき、会話をインポートしたとき、履歴からほかの会話を続けたとき、そして 5 分使われなかったときに閉じます。
 
 #### Video Analysis（1 ツール）
 **必要なもの**：OpenAI、Anthropic、Gemini、xAI のどれかで動くアプリと、そのプロバイダーの API キー
@@ -161,7 +167,7 @@ Selenium のコンテナは Monadic Chat とともに起動します。グルー
 
 ### エラーメッセージ
 
-ツールを実行できないときは、エラーのメッセージに、何が足りないか（たとえば "Selenium container is not running"）と、どう直すか（たとえば、コンテナの起動を待つ、Selenium のイメージがなければ **Actions → Build All** を実行する）が書かれます。
+ツールを実行できないときは、エラーのメッセージに、何が足りないか（たとえば "Selenium container is not running"）と、どう直すか（たとえば、コンテナの起動を待つ、Selenium のイメージがなければ **アクション → すべてビルド** を実行する）が書かれます。
 
 ## ツールグループを使ったアプリの作成
 
@@ -206,12 +212,12 @@ app "MyAssistantOpenAI" do
   # Groups the app can reach for when the conversation calls for them.
   reachable_skills :web_search_tools, :image_analysis
 
-  # Or reach for the curated pool of read-only safe groups in one line:
+  # Or reach for the curated pool of safe groups in one line:
   # reachable_skills :safe
 end
 ```
 
-`reachable_skills :group_a, :group_b` は、それぞれのグループを `import_shared_tools :group_a, visibility: "conditional"` で取り込むのと同じです。`reachable_skills :safe` は、読み取り専用のグループに展開されます：Web Search、File Reading、Image Analysis、Video Analysis、Audio Transcription、Session Context、Verification、Planning。
+`reachable_skills :group_a, :group_b` は、それぞれのグループを `import_shared_tools :group_a, visibility: "conditional"` で取り込むのと同じです。`reachable_skills :safe` は、Web Search、File Reading、Image Analysis、Video Analysis、Audio Transcription、Session Context、Verification、Planning に展開されます。どれもファイルを書きません。Session Context は会話自身のメモを変えます。
 
 使えるようになったスキルは、セッションを書き出すと保存され、読み込むと元に戻るので、保存した会話は同じツールで続けられます。
 

@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Nécessaire pour Concept Visualizer / Syntax Tree",
+        "help": "Nécessaire pour Concept Visualizer",
         "items": { "install": "Installer LaTeX (ensemble minimal pour les diagrammes)" }
       },
       "python": {
@@ -71,12 +71,13 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU uniquement)",
-          "transformers": "transformers (CPU uniquement)"
+          "transformers": "transformers (CPU uniquement)",
+          "plotlyStatic": "Images statiques Plotly (kaleido + Chromium)"
         }
       },
       "music": {
         "title": "Analyse musicale",
-        "help": "Requis pour Music Lab. Installe les bibliothèques d'analyse audio (détection d'accords, estimation du tempo/tonalité, etc.).",
+        "help": "Requis pour Music Tutor et Music Analyst. Installe les bibliothèques d'analyse audio (détection d'accords, estimation du tempo/tonalité, etc.).",
         "items": {
           "librosa": "librosa + madmom"
         }
@@ -97,6 +98,8 @@
     "restart": "Redémarrer",
     "openConsole": "Ouvrir la console",
     "openBrowser": "Ouvrir le navigateur",
+    "showWebUI": "Afficher la Web UI",
+    "closeWebUI": "Fermer la Web UI",
     "openNoVNC": "Ouvrir noVNC",
     "openSharedFolder": "Ouvrir le dossier partagé",
     "openConfigFolder": "Ouvrir le dossier config",
@@ -117,28 +120,37 @@
     "updateUserContainers": "Mettre à jour conteneurs utilisateur",
     "startSeleniumContainer": "Démarrer conteneur Selenium",
     "stopSeleniumContainer": "Arrêter conteneur Selenium",
-    "startJupyterLab": "Démarrer JupyterLab",
+    "openJupyterLab": "Ouvrir JupyterLab",
     "stopJupyterLab": "Arrêter JupyterLab",
     "importDocumentDB": "Importer Document DB",
     "exportDocumentDB": "Exporter Document DB",
-    "open": "Ouvrir",
-    "openConsole": "Ouvrir la console"
+    "open": "Ouvrir"
   },
   "tray": {
     "show": "Afficher",
     "quit": "Quitter"
   },
   "messages": {
-    "dockerNotRunning": "Docker Desktop n'est pas en cours d'exécution. Veuillez démarrer Docker Desktop et réessayer.",
+    "dockerNotRunning": "Docker n'est pas en cours d'exécution. Démarrez Docker Desktop (ou l'environnement compatible Docker que vous utilisez) et réessayez.",
     "dockerPermissionDenied": "Docker est en cours d'exécution, mais cet utilisateur n'est pas autorisé à l'utiliser. Ajoutez votre utilisateur au groupe docker (sudo usermod -aG docker $USER), puis déconnectez-vous et reconnectez-vous. Sous Omarchy, exécutez plutôt omarchy-setup-security-sudoless-docker. L'appartenance au groupe docker équivaut à des droits root.",
     "dockerEngineNotRunning": "Docker n'est pas en cours d'exécution. Démarrez le service Docker (sudo systemctl start docker) ou Docker Desktop, puis réessayez.",
     "noInternetAtStartup": "Aucune connexion Internet n'a été trouvée au démarrage. Les modèles locaux, les paramètres et les fichiers restent utilisables ; les fournisseurs d'IA dans le cloud, le téléchargement des images de conteneurs et la recherche de mises à jour nécessitent une connexion. Redémarrez Monadic Chat une fois en ligne.",
-    "dockerNotRunningStart": "Docker Desktop n'est pas en cours d'exécution. Veuillez démarrer Docker Desktop et appuyer sur le bouton <b>démarrer</b>.",
+    "dockerNotRunningStart": "Docker n'est pas en cours d'exécution. Démarrez Docker Desktop (ou l'environnement compatible Docker que vous utilisez) et appuyez sur le bouton <b>démarrer</b>.",
+    "dockerRefused": "Docker ne peut pas être utilisé : {{reason}}.",
+    "dockerEngine": "Moteur de conteneurs : {{engine}}",
+    "dockerEngineContext": "Moteur de conteneurs : {{engine}} (contexte Docker : {{context}})",
+    "pullProgress": "Téléchargement des images de conteneurs… {{size}}",
+    "pullDone": "Images de conteneurs téléchargées ({{size}})",
+    "pullProgressNoSize": "Téléchargement des images de conteneurs…",
+    "pullDoneNoSize": "Images de conteneurs téléchargées",
+    "containerNotBuilt": "pas encore créée",
     "systemInitComplete": "Initialisation du système terminée",
     "openingBrowser": "Ouverture du navigateur.",
     "openBrowserManually": "Veuillez ouvrir le navigateur manuellement à http://localhost:4567",
     "browserOpenFailed": "Échec de l'ouverture automatique du navigateur. Veuillez ouvrir manuellement en naviguant vers : http://localhost:4567",
     "serverVerifyFailed": "Impossible de vérifier que le serveur est en cours d'exécution. Veuillez vérifier l'état de Docker et essayer de redémarrer.",
+    "rubyNotStarted": "Le conteneur Ruby n'a pas démarré, Monadic Chat n'est donc pas en cours d'exécution.",
+    "fixAndStartAgain": "Corrigez la cause, puis appuyez à nouveau sur <b>Démarrer</b>.",
     "errorConnecting": "Erreur de connexion au serveur. Veuillez vérifier l'état de Docker et essayer de redémarrer.",
     "newVersionAvailable": "Une nouvelle version ({{version}}) est disponible (actuelle : {{current}}).",
     "downloadAndInstall": "Télécharger et installer",
@@ -152,6 +164,9 @@
     "serverNotRunning": "Le serveur n'est pas en cours d'exécution. Veuillez d'abord démarrer le serveur.",
     "serverStoppedAfterSleep": "Le serveur s'est arrêté après la mise en veille/reprise du système. Veuillez redémarrer le serveur.",
     "quittingMonadicChat": "Fermeture de Monadic Chat . . .",
+    "backgroundReplyDone": "La réponse est arrivée.",
+    "backgroundReplyFailed": "La réponse n'est pas arrivée. Vérifiez la Web UI.",
+    "backgroundReplyLost": "La connexion a été perdue. Vérifiez la Web UI.",
     "monadicChatPreparing": "Préparation de Monadic Chat . . .",
     "dockerNotInstalled": {
       "darwin": "Docker est introuvable. Installez Docker Desktop for Mac, lancez-le, puis appuyez sur <b>Start</b>.",
@@ -185,8 +200,6 @@
     "importingDocumentDB": "Importation de Document DB . . .",
     "exportingDocumentDB": "Exportation de Document DB . . .",
     "stoppingDockerServices": "Arrêt des services Docker . . .",
-    "standaloneModeTip": "Veuillez vous assurer que Docker Desktop est en cours d'exécution lors de l'utilisation de Monadic Chat.",
-    "standaloneModeTipLinux": "Assurez-vous que Docker est en cours d'exécution pendant l'utilisation de Monadic Chat.",
     "pressStartButton": "Appuyez sur le bouton <b>démarrer</b> pour initialiser le serveur.",
     "checkingForUpdates": "Vérification des mises à jour...",
     "serverRunningOnPort": "Le serveur fonctionne sur le port 4567. Ouverture du navigateur.",
@@ -241,7 +254,7 @@
     "cancel": "Annuler",
     "yes": "Oui",
     "no": "Non",
-    "dockerNotRunning": "Docker n'est pas en cours d'exécution. Veuillez d'abord démarrer Docker Desktop.",
+    "dockerNotRunning": "Docker n'est pas en cours d'exécution. Démarrez d'abord Docker Desktop (ou l'environnement compatible Docker que vous utilisez).",
     "dockerStarting": "Démarrage de Docker Desktop...",
     "dockerStartFailed": "Échec du démarrage de Docker Desktop. Veuillez le démarrer manuellement et réessayer.",
     "containersStarting": "Démarrage des conteneurs Docker...",
@@ -250,6 +263,8 @@
     "containersUpdating": "Mise à jour des conteneurs Docker...",
     "quitConfirmTitle": "Quitter Monadic Chat",
     "quitConfirmMessage": "Les conteneurs Docker sont actuellement en cours d'exécution. Voulez-vous les arrêter avant de quitter ?",
+    "backgroundHoldFailedTitle": "Impossible de confirmer l'arrêt du microphone",
+    "backgroundHoldFailedMessage": "Monadic Chat n'a pas pu confirmer l'arrêt du microphone et de l'audio, la Web UI reste donc ouverte. La fermer maintenant ? La conversation qu'elle contient sera perdue.",
     "stopContainers": "Arrêter les conteneurs",
     "quitDirectly": "Quitter directement",
     "confirmRemoveDockerData": "Confirmer la suppression",
@@ -260,7 +275,7 @@
     "seleniumWillNotStartOnNextLaunch": "Le conteneur Selenium NE démarrera PAS au prochain lancement de Monadic Chat.",
     "exportDbConfirmTitle": "Exporter la base de données de documents",
     "exportDbConfirmMessage": "Exporter toute la base de données de documents ?",
-    "exportDbConfirmDetail": "L'export contient toutes les conversations enregistrées et les documents PDF. Le chiffrement de la sortie est fortement recommandé — sans chiffrement, toutes les informations personnelles stockées sont écrites en texte clair dans le fichier.",
+    "exportDbConfirmDetail": "L'export contient toutes les conversations enregistrées dans la base de connaissances et tous les documents PDF. L'historique des conversations n'est pas inclus. Le chiffrement de la sortie est fortement recommandé — sans chiffrement, toutes les informations personnelles stockées sont écrites en texte clair dans le fichier.",
     "exportDbEncrypted": "Chiffrer et exporter",
     "exportDbPlain": "Exporter en clair",
     "exportDbPassphraseTitle": "Définir la phrase de passe pour l'export chiffré",
@@ -270,7 +285,7 @@
     "exportDbEncryptedFailed": "Échec du chiffrement. Le tarball en clair (monadic-qdrant.tar.gz) reste en place.",
     "importDbConfirmTitle": "Importer la base de données de documents",
     "importDbConfirmMessage": "Remplacer la base de données actuelle par le fichier importé ?",
-    "importDbConfirmDetail": "L'importation ÉCRASE toutes les conversations, PDF et entrées Knowledge Base actuellement enregistrés. Les données actuelles ne peuvent pas être récupérées après l'importation. Assurez-vous que le fichier (~/monadic/data/monadic-qdrant.tar.gz ou monadic-qdrant.tar.gz.enc) provient d'une source de confiance.",
+    "importDbConfirmDetail": "L'importation ÉCRASE toutes les conversations enregistrées dans la base de connaissances, les PDF et les autres entrées Knowledge Base. L'historique des conversations n'est pas modifié. Les données actuelles ne peuvent pas être récupérées après l'importation. Assurez-vous que le fichier (~/monadic/data/monadic-qdrant.tar.gz ou monadic-qdrant.tar.gz.enc) provient d'une source de confiance.",
     "importDbContinue": "Remplacer et importer",
     "importDbPassphraseTitle": "Déchiffrer la base de données de documents",
     "importDbPassphraseHint": "Entrez la phrase de passe utilisée lors de l'export.",
@@ -328,6 +343,7 @@
       "notBuilt": "pas encore construit",
       "optionsChanged": "options modifiées ({{options}})",
       "pythonContainer": "Conteneur Python",
+      "privacyContainer": "Conteneur Privacy (détection des noms)",
       "minutes": "{{range}} min"
     }
   }

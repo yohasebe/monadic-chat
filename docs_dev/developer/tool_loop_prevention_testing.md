@@ -116,7 +116,6 @@ The Initial Message Matrix (`describe 'Initial Message Matrix (initiate_from_ass
 - `save_learning_progress`
 - `save_novel_context`
 - `save_response`
-- `save_context`
 - `add_finding`
 - `add_research_topics`
 - `add_sources`

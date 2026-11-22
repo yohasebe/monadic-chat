@@ -2,13 +2,13 @@
 
 Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents execute Python code inside this container and return the results.
 
-## Install Options
+## Install Options :id=install-options
 
 **Actions → Install Options** in the console lets you add optional components to the Python container:
 
-- **LaTeX**: Install LaTeX (minimal set for diagrams). TeX Live with CJK support, needed by Concept Visualizer and Syntax Tree. These two apps are available only when LaTeX is installed and an OpenAI or Anthropic API key is set
-- **Python Libraries (CPU)**: nltk, spaCy (3.7.5), gensim, mediapipe (CPU), transformers (CPU only). `scikit-learn` is always included
-- **Music Analysis**: librosa + madmom, used by Music Lab
+- **LaTeX**: Install LaTeX (minimal set for diagrams). TeX Live with CJK support, needed by Concept Visualizer. The app is available only when LaTeX is installed and an OpenAI or Anthropic API key is set
+- **Python Libraries (CPU)**: nltk, spaCy (3.7.5), gensim, mediapipe (CPU), transformers (CPU only), Plotly static images (kaleido + Chromium: a Plotly chart in a notebook is saved with a PNG beside it, which the work screen shows). `scikit-learn` is always included
+- **Music Analysis**: librosa + madmom, used by Music Tutor and Music Analyst
 - **System Tools (CLI)**: ImageMagick (`convert`/`mogrify`)
 
 Saving the options does not rebuild the container. At the next Start, Monadic Chat offers **Rebuild and Start**; **Actions → Build Python Container** rebuilds right away. The new image replaces the current one only when the build succeeds. Progress is shown in the console, and these files are written to `~/monadic/log/`:
@@ -134,7 +134,7 @@ The tools that come with Monadic Chat are in `/monadic/scripts/` and are on the 
 ├── utilities/          # System utilities (e.g., sysinfo.sh, run_jupyter.sh)
 ├── cli_tools/          # CLI tools (e.g., content_fetcher.py)
 ├── converters/         # Converters (pdf2txt.py, office2txt.py, etc.)
-├── music/              # Music Lab tools (music_analyzer.py, etc.)
+├── music/              # Music Tutor tools (music_analyzer.py, etc.)
 └── services/           # Services (jupyter_controller.py)
 ```
 

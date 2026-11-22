@@ -4,12 +4,13 @@
  * Libraries are loaded on first use instead of at page startup.
  * Each loader returns a Promise that resolves when the library is ready.
  *
- * Savings: ~3.6 MB deferred from initial page load
- *   - Mermaid:  2.5 MB (diagram rendering)
+ * Savings: ~1.1 MB deferred from initial page load
  *   - ABCjs:    472 KB (music notation)
- *   - maxgraph: 608 KB (DrawIO diagrams)
+ *   - maxgraph: 608 KB (workflow graphs)
+ *
+ * Mermaid is read by the work screen's drawing frame (workbench-render.js).
  */
-/* global mermaid, ABCJS */
+/* global ABCJS */
 
 window.LazyLoader = (function () {
   "use strict";
@@ -54,20 +55,6 @@ window.LazyLoader = (function () {
   }
 
   return {
-    /**
-     * Ensure Mermaid is loaded and initialized.
-     * @returns {Promise<void>}
-     */
-    mermaid: function () {
-      if (typeof window.mermaid !== "undefined") {
-        return Promise.resolve();
-      }
-      return _load(
-        "mermaid",
-        "vendor/js/mermaid.min.js",
-        "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
-      );
-    },
 
     /**
      * Ensure ABCjs is loaded.
@@ -106,7 +93,6 @@ window.LazyLoader = (function () {
      */
     isLoaded: function (key) {
       switch (key) {
-        case "mermaid": return typeof window.mermaid !== "undefined";
         case "abcjs": return typeof window.ABCJS !== "undefined";
         case "maxgraph": return typeof window.maxgraph !== "undefined";
         default: return false;

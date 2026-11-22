@@ -1,31 +1,31 @@
 app "VideoGeneratorGemini" do
   description do
     en <<~TEXT
-    Generate videos from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generate videos from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    テキスト説明からビデオ生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    テキスト説明からビデオ生成。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    从文本描述生成视频。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    从文本描述生成视频。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    텍스트 설명에서 비디오 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    텍스트 설명에서 비디오 생성. <a href="https://yohasebe.github.io/monadic-chat/#/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Generar videos desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generar videos desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Générer des vidéos à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Générer des vidéos à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Videos aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Videos aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/apps/video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   
@@ -35,7 +35,7 @@ app "VideoGeneratorGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-3.1-pro-preview", "gemini-3.6-flash"]
+    model ["gemini-3.1-pro-preview", "gemini-3.8-flash"]
     context_size 10
   end
 
@@ -81,6 +81,9 @@ app "VideoGeneratorGemini" do
     <div class="prompt" style="margin-bottom: 15px;">
       <b>Prompt</b>: [user's prompt]
     </div>
+    In a chat the result has a path and a notice: the video is on the work
+    screen beside the chat. Add one line saying so, with the path, and no
+    video player. Without a path (no chat folder), add instead:
     <div class="generated_video">
       <video controls width="600">
         <source src="/data/[filename]" type="video/mp4" />
@@ -120,22 +123,14 @@ app "VideoGeneratorGemini" do
   TEXT
 
   features do
-    library_save false
-    library_search false
+    max_tool_rounds 10
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
     image_generation "upload_only"
     video_generation true
-    monadic true  # Uses Session State for tracking last used images
     group "Google"
-  end
-
-  context_schema do
-    field :styles, icon: "fa-palette", label: "Styles", description: "Visual styles and preferences"
-    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key video descriptions used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
   end
 
   tools do

@@ -2,26 +2,74 @@
 
 require 'base64'
 require 'fileutils'
+require 'securerandom'
 require_relative 'environment'
 require_relative 'shared_path_guard'
+require_relative '../turn_state'
 
 module Monadic
   module Utils
     module ToolImageUtils
+      # An image a tool makes only for the model to look at (a diagram's
+      # preview) is named with this prefix: it is removed once it is read.
+      FOR_MODEL_PREFIX = "model_view_"
+      # One not read (a model that takes no images, a reply that failed) is
+      # removed when it is older than this, in seconds.
+      FOR_MODEL_MAX_AGE = 600
+
+      # A new name for such an image (suffix: what tells several of one call
+      # apart, such as "_tile1").
+      def self.for_model_name(suffix = nil)
+        "#{FOR_MODEL_PREFIX}#{Time.now.to_i}_#{SecureRandom.hex(4)}#{suffix}.png"
+      end
+
+      # Where a tool's image for the model may be, besides a name directly in
+      # the shared folder: a chat's browser folder or a run folder (of a chat
+      # or of the MCP server). Paths come from the tools' own output.
+      TOOL_IMAGE_DIR = %r{\A(?:conversations/[^/]+/(?:work/\.browser|artifacts/j_[a-z0-9]+)|mcp/artifacts/j_[a-z0-9]+)\z}
+
+      # Gives a tool's image (a name directly in the shared folder, or a path
+      # in one of the folders above) such a name, in the same folder; returns
+      # the new path, or nil when it could not be renamed.
+      def self.for_model!(name)
+        return nil unless tool_image_path?(name)
+
+        dir = File.dirname(name)
+        view = dir == "." ? for_model_name : File.join(dir, for_model_name)
+        SharedPathGuard.rename_file!(File.join(Environment.data_path, name), File.join(Environment.data_path, view))
+        view
+      rescue SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      # Removes the images for the model that were never read.
+      def self.sweep_for_model
+        patterns = ["#{FOR_MODEL_PREFIX}*.png", "conversations/*/work/.browser/#{FOR_MODEL_PREFIX}*.png"]
+        Dir.glob(patterns.map { |pattern| File.join(Environment.data_path, pattern) }).each do |path|
+          next if Time.now - File.lstat(path).mtime < FOR_MODEL_MAX_AGE
+
+          SharedPathGuard.delete_file!(path)
+        rescue SharedPathGuard::InvalidPath, SystemCallError
+          next
+        end
+      end
+
       # Read an image file from the shared data directory and return base64-encoded data.
       # @param filename [String] image filename relative to data_path
       # @param max_base64_size [Integer] maximum allowed size of base64 string in bytes (default 5 MB)
       # @return [Hash, nil] { media_type: "image/png", base64_data: "..." } or nil
       def self.encode_image_for_api(filename, max_base64_size: 5 * 1024 * 1024)
         # The name comes from a tool's output: one name directly in the shared
-        # folder, nothing above it or below it.
-        return nil unless single_name?(filename)
+        # folder, or one in a chat's browser folder or a run folder.
+        return nil unless tool_image_path?(filename)
 
         image_path = File.join(Environment.data_path, filename)
 
         # A plain file of the shared folder, never through a link.
-        raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4)
+        raw_data = SharedPathGuard.read_bytes!(image_path, limit: max_base64_size * 3 / 4, strict: true)
         return nil unless raw_data
+
+        SharedPathGuard.delete_file!(image_path) if File.basename(filename).start_with?(FOR_MODEL_PREFIX)
 
         # Sent only when the bytes start with an image signature, typed by it
         # and not by the name: text such as the config env file is not sent.
@@ -34,6 +82,31 @@ module Monadic
 
         { media_type: media_type, base64_data: base64_data }
       rescue SharedPathGuard::InvalidPath, SystemCallError
+        nil
+      end
+
+      # A path in a chat's folder must be in the folder of the chat the
+      # request answers, so no name can reach another chat's images.
+      def self.tool_image_path?(path)
+        return single_name?(path) unless path.is_a?(String) && path.include?("/")
+        return false unless single_name?(File.basename(path)) && !path.split("/").include?("..")
+
+        dir = File.dirname(path)
+        return false unless dir.match?(TOOL_IMAGE_DIR)
+        return true unless dir.start_with?("conversations/")
+
+        folder = current_chat_folder
+        !folder.nil? && dir.start_with?("#{folder}/")
+      end
+
+      # The folder (relative to the shared folder) of the chat the current
+      # request answers, or nil.
+      def self.current_chat_folder
+        require_relative "../workspace/request_context"
+        require_relative "../workspace/ledger"
+        chat_id = Monadic::Workspace::RequestContext.current&.chat_id
+        chat_id && Monadic::Workspace::Ledger.default.workspace_for_chat(chat_id)&.dig(:relative_dir)
+      rescue StandardError
         nil
       end
 
@@ -79,14 +152,16 @@ module Monadic
       #   1. The most recent uploaded image in the session (data URL → file).
       #   2. An explicit image_path argument (a real filename), ignoring the
       #      literal placeholder "image_path" that models sometimes emit.
-      #   3. last_image_key in the session (a previously materialized filename).
+      #   3. The image the app used last: its state's "last_images" (a
+      #      deleted turn's image is not used again).
       #
       # @param session [Hash] the WebSocket session (provides :messages and fallbacks)
       # @param image_path [String, nil] filename passed by the tool call, if any
-      # @param last_image_key [Symbol, nil] session key holding a prior filename
-      # @return [String, nil] the bare filename on the shared volume, or nil
+      # @param into [Hash, nil] the run folder (Workspace::Jobs) an upload is
+      #   written in; without one an upload is not written
+      # @return [String, nil] the image's path in the shared folder, or nil
       # @raise [ImageMaterializationError] if an upload exists but cannot be written
-      def self.materialize_session_image(session, image_path: nil, last_image_key: nil)
+      def self.materialize_session_image(session, image_path: nil, into: nil)
         materialized = nil
 
         # A freshly uploaded image always wins. Resolve it first regardless of
@@ -102,7 +177,7 @@ module Monadic
             if data_url.is_a?(String) && data_url.start_with?("data:image/")
               # An upload is present: a failure here is an error to surface, not
               # a reason to silently downgrade to text-to-video.
-              materialized = write_data_url_to_shared(data_url, first_image["type"])
+              materialized = write_data_url_to_shared(data_url, first_image["type"], into: into)
             elsif first_image["filename"]
               materialized = first_image["filename"]
             elsif first_image["title"]
@@ -116,12 +191,23 @@ module Monadic
           materialized = image_path
         end
 
-        # Fall back to a previously materialized image for this app.
-        if materialized.nil? && last_image_key && session && session[last_image_key]
-          materialized = session[last_image_key]
+        if materialized.nil? && session
+          materialized = Array(Monadic::TurnState.data_of(session, "last_images")).first&.to_s
         end
 
         materialized
+      end
+
+      # Names the image a tool used in the app's state ("last_images"), for
+      # the next call to use again; not kept when the app has no state tools
+      # or the change is refused.
+      def self.remember_image(app, session, image_path)
+        return unless session && app.respond_to?(:monadic_save_state)
+
+        name = File.basename(image_path.to_s)
+        return if Array(Monadic::TurnState.data_of(session, "last_images")) == [name]
+
+        app.monadic_save_state(key: "last_images", payload: [name], session: session)
       end
 
       # Names this process wrote with write_data_url_to_shared and has not
@@ -139,10 +225,13 @@ module Monadic
         false
       end
 
-      # Decode a "data:image/...;base64,..." URL and write it to the shared data
-      # directory. Returns the bare filename.
-      # @raise [ImageMaterializationError] on oversize payload or write failure
-      def self.write_data_url_to_shared(data_url, declared_mime = nil)
+      # Decode a "data:image/...;base64,..." URL and write it in the run
+      # folder into (Workspace::Jobs). Returns its path in the shared folder.
+      # @raise [ImageMaterializationError] on oversize payload, no run folder
+      #   or write failure
+      def self.write_data_url_to_shared(data_url, declared_mime = nil, into: nil)
+        raise ImageMaterializationError, "There is no chat folder to keep the uploaded image in." unless into
+
         require "securerandom"
         base64_data = data_url.split(",", 2).last
         binary = Base64.decode64(base64_data)
@@ -166,14 +255,11 @@ module Monadic
                 end
               end
 
-        dir = Environment.data_path
-        raise ImageMaterializationError, "Shared data directory is unavailable." unless dir
-
-        FileUtils.mkdir_p(dir) unless Dir.exist?(dir)
         filename = "video_gen_temp_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{ext}"
-        SharedPathGuard.write_file!(File.join(dir, filename), binary, replace: false)
-        @materialized_mutex.synchronize { @materialized[filename] = true }
-        filename
+        SharedPathGuard.write_file!(File.join(into[:path], filename), binary, replace: false, strict: true)
+        relative = File.join(into[:relative], filename)
+        @materialized_mutex.synchronize { @materialized[relative] = true }
+        relative
       rescue ImageMaterializationError
         raise
       rescue StandardError => e

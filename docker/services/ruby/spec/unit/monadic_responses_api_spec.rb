@@ -26,8 +26,8 @@ RSpec.describe "Monadic Responses API JSON Handling" do
       expect(parsed["context"]).to have_key("language_advice")
     end
     
-    it "handles Language Practice Plus JSON format" do
-      # Actual format from Language Practice Plus
+    it "handles Language Practice JSON format" do
+      # Actual format from Language Practice
       language_practice_json = {
         "message" => "いいですね！初級で、目的は趣味、そしてアニメが好きなんですね😊📺",
         "context" => {
@@ -49,8 +49,8 @@ RSpec.describe "Monadic Responses API JSON Handling" do
       expect(parsed["context"]["language_advice"].length).to eq(2)
     end
     
-    it "handles Chat Plus JSON format with nested context" do
-      chat_plus_json = {
+    it "handles JSON with nested context" do
+      nested_json = {
         "message" => "I can help you with that",
         "context" => {
           "reasoning" => "The user asked about learning Japanese",
@@ -60,7 +60,7 @@ RSpec.describe "Monadic Responses API JSON Handling" do
         }
       }
       
-      json_string = JSON.generate(chat_plus_json)
+      json_string = JSON.generate(nested_json)
       parsed = JSON.parse(json_string)
       
       # Verify nested structure is preserved

@@ -95,76 +95,6 @@ module MonadicDSL
     end
   end
 
-  # Privacy Filter Configuration DSL.
-  # User-facing reference: docs/advanced-topics/privacy-filter.md.
-  # Usage:
-  #   privacy do
-  #     enabled true
-  #     languages ["ja", "en"]
-  #     mask_types [:person, :organization, :email, :phone, :credit_card]
-  #     score_threshold 0.4
-  #     honorific_trim true
-  #     on_failure :block
-  #   end
-  class PrivacyFilterConfiguration
-    # Symbols allowed in `mask_types`. DATE_TIME and `:address` (Presidio
-    # LOCATION) are intentionally excluded from the default whitelist because
-    # dates and city names rarely identify individuals and create noise in
-    # the registry.
-    ALLOWED_TYPES = %i[person organization email url address postal_code
-                       phone credit_card ip iban us_ssn medical_license].freeze
-    # Default whitelist excludes :address (Presidio LOCATION). DATE_TIME is
-    # not in ALLOWED_TYPES at all because dates rarely identify individuals.
-    DEFAULT_MASK_TYPES = %i[person organization email url postal_code
-                            phone credit_card ip iban us_ssn medical_license].freeze
-    ALLOWED_FAILURE_MODES = %i[block pass].freeze
-
-    def initialize
-      @config = {
-        enabled: false,
-        languages: ['en'],
-        mask_types: DEFAULT_MASK_TYPES.dup,
-        score_threshold: 0.4,
-        honorific_trim: true,
-        on_failure: :block
-      }
-    end
-
-    def enabled(value)
-      @config[:enabled] = !!value
-    end
-
-    def languages(value)
-      @config[:languages] = Array(value).map(&:to_s)
-    end
-
-    def mask_types(value)
-      types = Array(value).map(&:to_sym)
-      invalid = types - ALLOWED_TYPES
-      raise ArgumentError, "Unknown mask_types: #{invalid}" unless invalid.empty?
-      @config[:mask_types] = types
-    end
-
-    def score_threshold(value)
-      raise ArgumentError, "score_threshold must be between 0 and 1" unless (0..1).cover?(value)
-      @config[:score_threshold] = value.to_f
-    end
-
-    def honorific_trim(value)
-      @config[:honorific_trim] = !!value
-    end
-
-    def on_failure(value)
-      sym = value.to_sym
-      raise ArgumentError, "on_failure must be one of #{ALLOWED_FAILURE_MODES}" unless ALLOWED_FAILURE_MODES.include?(sym)
-      @config[:on_failure] = sym
-    end
-
-    def to_hash
-      @config
-    end
-  end
-
   # Vocabulary Configuration DSL (built-in opt-in, MVP).
   #
   # Declares which built-in `${TOKEN}` variables an app exposes. Behaviour
@@ -207,84 +137,6 @@ module MonadicDSL
 
     def to_hash
       { tokens: @tokens, enabled: @enabled }
-    end
-  end
-
-  # Context Schema Configuration DSL
-  # Defines what context fields should be tracked for monadic apps
-  # Each field represents a category of information to extract from conversations
-  class ContextSchemaConfiguration
-    attr_reader :fields
-
-    def initialize
-      @fields = []
-    end
-
-    # Define a context field to track
-    # @param name [Symbol] The field identifier (e.g., :topics, :people)
-    # @param options [Hash] Field options
-    # @option options [String] :icon FontAwesome icon name (e.g., "fa-tags")
-    # @option options [String] :label Display label for the field
-    # @option options [String] :description Description for AI extraction prompt
-    def field(name, icon: nil, label: nil, description: nil)
-      @fields << {
-        name: name.to_s,
-        icon: icon || default_icon_for(name),
-        label: label || name.to_s.capitalize.tr("_", " "),
-        description: description || default_description_for(name)
-      }
-    end
-
-    def to_hash
-      {
-        fields: @fields
-      }
-    end
-
-    private
-
-    def default_icon_for(name)
-      case name.to_sym
-      when :topics then "fa-tags"
-      when :people then "fa-users"
-      when :notes then "fa-sticky-note"
-      when :images, :generated_images, :uploaded_images then "fa-image"
-      when :files then "fa-file"
-      when :code then "fa-code"
-      when :links, :urls then "fa-link"
-      when :dates then "fa-calendar"
-      when :locations then "fa-map-marker"
-      when :tasks then "fa-tasks"
-      when :questions then "fa-question"
-      when :ideas then "fa-lightbulb"
-      when :decisions then "fa-check-circle"
-      when :styles, :style_preferences then "fa-palette"
-      when :prompts, :prompt_history then "fa-history"
-      else "fa-circle"
-      end
-    end
-
-    def default_description_for(name)
-      case name.to_sym
-      when :topics then "Main subjects discussed"
-      when :people then "Names of people mentioned"
-      when :notes then "Important facts to remember"
-      when :images then "Images referenced in conversation"
-      when :generated_images then "Images generated in this session"
-      when :uploaded_images then "Images uploaded by user"
-      when :files then "Files mentioned or processed"
-      when :code then "Code snippets discussed"
-      when :links, :urls then "URLs and web links"
-      when :dates then "Important dates mentioned"
-      when :locations then "Places or locations discussed"
-      when :tasks then "Action items or tasks"
-      when :questions then "Questions raised"
-      when :ideas then "Ideas proposed"
-      when :decisions then "Decisions made"
-      when :styles, :style_preferences then "Visual or stylistic preferences"
-      when :prompts, :prompt_history then "Key prompts or requests"
-      else "#{name.to_s.tr('_', ' ').capitalize} information"
-      end
     end
   end
 
@@ -453,11 +305,16 @@ module MonadicDSL
 
   # Simplified Feature Configuration
   class SimplifiedFeatureConfiguration
+    # Settings of earlier versions: read and not used.
+    RETIRED = %i[monadic turn_state].freeze
+
     def initialize(state)
       @state = state
     end
 
     def method_missing(method_name, *args)
+      return if RETIRED.include?(method_name)
+
       # Default all called methods to true, handle special cases
       # For multi-argument settings like tts_target, store as array
       value = if args.empty?

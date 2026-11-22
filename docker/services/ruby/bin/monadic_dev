@@ -84,101 +84,43 @@ end
 
 DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
 
-# Docker checks (prefer existing sockets; avoid probing non-existent sockets that can crash Desktop)
-def probe_docker(context:, host:)
-  env = {}
-  env['DOCKER_CONTEXT'] = context if context
-  env.delete('DOCKER_CONTEXT') unless context
-  env['DOCKER_HOST'] = host if host
-  env.delete('DOCKER_HOST') unless host
-  output, status = Open3.capture2e(env, "#{DOCKER_CMD} info")
-  [status.success?, output]
-end
+MONADIC_SH = File.expand_path(File.join(DOCKER_HOME, "..", "monadic.sh"))
 
-def preferred_docker_host
-  return ENV['DOCKER_HOST'] if ENV['DOCKER_HOST'] && !ENV['DOCKER_HOST'].empty?
-
-  run_sock = File.expand_path("~/.docker/run/docker.sock")
-  return "unix://#{run_sock}" if File.exist?(run_sock) || File.socket?(run_sock)
-
-  cli_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-  return "unix://#{cli_sock}" if File.exist?(cli_sock) || File.socket?(cli_sock)
-
-  colima_sock = File.expand_path("~/.colima/default/docker.sock")
-  return "unix://#{colima_sock}" if File.exist?(colima_sock) || File.socket?(colima_sock)
-
-  default_sock = "/var/run/docker.sock"
-  return "unix://#{default_sock}" if File.exist?(default_sock) || File.socket?(default_sock)
-
-  nil
-end
-
-def wait_for_socket(host, seconds = 90)
-  return true unless host && host.start_with?("unix://")
-  socket_path = host.sub("unix://", "")
-  seconds.times do
-    return true if File.socket?(socket_path)
-    sleep 1
+# The engine the Docker CLI chooses, as monadic.sh resolves it for the app
+# (the same rule): "origin", "context", "endpoint", "desktop", "answers",
+# "engine", "refused".
+def runtime_info
+  out, = Open3.capture2(MONADIC_SH, "runtime")
+  out.lines.each_with_object({}) do |line, info|
+    key, value = line.chomp.split("=", 2)
+    info[key] = value.to_s if key && value
   end
-  File.socket?(socket_path)
+rescue SystemCallError
+  {}
 end
 
+# [ok, what to say]. When the engine answers, this process keeps to it
+# (DOCKER_HOST) for the rest of the run.
 def ensure_docker_ready
-  # First check if Docker is already responsive
-  ctx = ENV['DOCKER_CONTEXT']
-  host = preferred_docker_host
-  desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-  host ||= "unix://#{desktop_sock}"
+  info = runtime_info
+  return [false, "Docker cannot be used: #{info['refused']}"] unless info["refused"].to_s.empty?
+  return [false, "The Docker engine (#{info['context'].to_s.empty? ? 'DOCKER_HOST' : info['context']}) is not running"] unless info["answers"] == "1"
 
-  ok, output = probe_docker(context: ctx, host: host)
-  if ok
-    ctx ? ENV['DOCKER_CONTEXT'] = ctx : ENV.delete('DOCKER_CONTEXT')
-    host ? ENV['DOCKER_HOST'] = host : ENV.delete('DOCKER_HOST')
-    return [true, output]
-  end
-
-  # On macOS, start Docker Desktop
-  # Clear Bundler environment variables that may interfere with open command
-  if is_mac?
-    STDERR.puts "[DEBUG] Starting Docker Desktop with clean environment" if ENV['EXTRA_LOGGING']
-    clean_env = ENV.to_h.reject { |k, _| k.start_with?('BUNDLE', 'RUBY') }
-    clean_env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
-    pid = Process.spawn(clean_env, '/usr/bin/open', '-a', 'Docker',
-                        unsetenv_others: true,
-                        [:out, :err] => '/dev/null')
-    Process.detach(pid)
-    sleep 3  # Give Docker time to start initializing
-  end
-
-  # Wait for Docker socket and daemon to be ready
-  if host&.start_with?("unix://")
-    socket_path = host.sub("unix://", "")
-    90.times do
-      break if File.socket?(socket_path)
-      sleep 1
-    end
-    return [false, "Docker socket #{socket_path} not available"] unless File.socket?(socket_path)
-  end
-
-  ok, output = probe_docker(context: ctx, host: host)
-
-  if ok
-    ctx ? ENV['DOCKER_CONTEXT'] = ctx : ENV.delete('DOCKER_CONTEXT')
-    host ? ENV['DOCKER_HOST'] = host : ENV.delete('DOCKER_HOST')
-    return [true, output]
-  end
-
-  [false, output]
+  ENV["DOCKER_HOST"] = info["endpoint"]
+  ENV.delete("DOCKER_CONTEXT")
+  [true, info["engine"]]
 end
 
+# Starts Docker Desktop, on macOS, when the engine chosen is Docker
+# Desktop's; another engine is started by its owner.
 def try_start_docker
-  return false unless is_mac?
-  script_path = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
-  return false unless File.exist?(script_path)
-  STDERR.puts "[DEBUG] Attempting to start Docker Desktop via script content" if ENV['EXTRA_LOGGING']
-  # Execute shell script content directly - more reliable than system(script_path)
-  script_content = File.read(script_path)
-  system(script_content)
+  return false unless is_mac? && runtime_info["desktop"] == "1"
+
+  clean_env = ENV.to_h.reject { |k, _| k.start_with?('BUNDLE', 'RUBY') }
+  clean_env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
+  pid = Process.spawn(clean_env, '/usr/bin/open', '-a', 'Docker', unsetenv_others: true, [:out, :err] => '/dev/null')
+  Process.detach(pid)
+  true
 end
 
 # Helper methods for container management
@@ -205,22 +147,14 @@ def start_server(opts)
   # Check if Docker daemon is running, with auto-start capability
   if ENV["SKIP_DOCKER_CHECK"]
     puts "⏭️  Skipping Docker daemon check (SKIP_DOCKER_CHECK is set)"
-    desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-    host = preferred_docker_host || "unix://#{desktop_sock}"
-    unless wait_for_socket(host)
-      puts "⚠️  Docker socket not available yet (host=#{host || 'default'})"
-      exit 1
-    end
     docker_ok = true
   else
-    60.times do
+    90.times do
       docker_ok, docker_output = ensure_docker_ready
       break if docker_ok
+      break if docker_output.start_with?("Docker cannot be used")
 
-      unless started
-        started = try_start_docker
-      end
-
+      started ||= try_start_docker
       sleep 1
     end
   end
@@ -228,18 +162,10 @@ def start_server(opts)
   unless docker_ok
     STDERR.puts "[DEBUG] Docker info full output:\n#{docker_output}" if ENV['EXTRA_LOGGING']
     puts "\n" + "=" * 70
-    puts "⚠️  Docker daemon is not responding"
+    puts "⚠️  #{docker_output}"
     puts "=" * 70
-    puts "\nDocker Desktop appears to be running but the daemon hasn't started."
-    puts "\nTO FIX THIS ISSUE:"
-    puts "  1. Quit Docker Desktop completely:"
-    puts "     - Click Docker whale icon in menu bar → Quit Docker Desktop"
-    puts "     - Or run: killall 'Docker Desktop'"
-    puts "  2. Wait 5 seconds"
-    puts "  3. Start Docker Desktop from Applications"
-    puts "  4. Wait for full initialization (whale icon stops animating)"
-    puts "  5. Run: rake server:debug\n"
-    puts "\nALTERNATIVE: Use 'electron .' which manages Docker automatically.\n"
+    puts "\nStart Docker Desktop, or the Docker-compatible engine the Docker CLI points to"
+    puts "(docker context show), then run: rake server:debug\n"
     puts "=" * 70 + "\n"
     exit 1
   else

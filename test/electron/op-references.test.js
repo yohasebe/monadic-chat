@@ -9,7 +9,7 @@ const path = require('path');
 
 const {
   isReference, injectCall, referencesIn, opCandidates, isRunnable, locateOp, run, classify, startedAtFrom,
-  resolveReferences, SecretCache
+  resolveReferences, resolveOne, SecretCache
 } = require('../../app/op_references');
 
 // A fake op: `inject` replaces each `{{ op://V/ITEM/f }}` in the template on
@@ -43,10 +43,11 @@ if (cmd === 'inject') {
       process.stderr.write('[ERROR] "' + ref + '" isn\\'t an item');
       process.exit(1);
     }
-    const special = { multiline: 'first\\nsecond', trailingcr: 'end\\r', cronly: '\\r' };
+    const special = { multiline: 'first\\nsecond', trailingcr: 'end\\r', cronly: '\\r', trailingnl: 'end\\n' };
     return special[item(ref)] !== undefined ? special[item(ref)] : 'value-' + item(ref);
   });
-  process.stdout.write(out);
+  // Like op, it ends its output with one newline.
+  process.stdout.write(out.endsWith('\\n') ? out : out + '\\n');
 } else {
   process.stderr.write('[ERROR] unexpected command ' + cmd);
   process.exit(1);
@@ -186,6 +187,15 @@ describe('reading references', () => {
     expect(together.values).toEqual({ A_PASSWORD: 'end\r', B_PASSWORD: '\r' });
     const oneByOne = await resolveReferences({ ...refs, XAI_API_KEY: 'op://Test/missing/credential' }, { op });
     expect(oneByOne.values).toEqual({ A_PASSWORD: 'end\r', B_PASSWORD: '\r' });
+  });
+
+  test('keeps no newline of op\'s own, and a value\'s own trailing newline, read together or one by one', async () => {
+    const refs = { OPENAI_API_KEY: 'op://Test/openai/credential', A_PASSWORD: 'op://Test/trailingnl/password' };
+    const together = await resolveReferences(refs, { op });
+    expect(together.values).toEqual({ OPENAI_API_KEY: 'value-openai', A_PASSWORD: 'end\n' });
+    const oneByOne = await resolveReferences({ ...refs, XAI_API_KEY: 'op://Test/missing/credential' }, { op });
+    expect(oneByOne.values).toEqual({ OPENAI_API_KEY: 'value-openai', A_PASSWORD: 'end\n' });
+    expect(await resolveOne('op://Test/openai/credential', { op })).toEqual({ value: 'value-openai' });
   });
 
   test('never puts a reference in argv', async () => {

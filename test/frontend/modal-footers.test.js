@@ -19,7 +19,7 @@ function footerOf(id) {
 describe('modal footers', () => {
   const CANCEL = '<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>';
 
-  test.each(['loadModal', 'fileModal', 'docModal', 'audioUploadModal', 'urlModal', 'pdfDeleteConfirmation'])(
+  test.each(['loadModal', 'docModal', 'audioUploadModal', 'urlModal'])(
     '%s has a Cancel that only closes it, before the action', (id) => {
       const footer = footerOf(id);
       expect(footer).toContain(CANCEL);
@@ -30,7 +30,6 @@ describe('modal footers', () => {
   test('deleting is a red outline, never yellow or blue', () => {
     expect(footerOf('deleteConfirmation')).not.toContain('btn-warning');
     expect(footerOf('deleteConfirmation').match(/btn-outline-danger/g)).toHaveLength(2);
-    expect(footerOf('pdfDeleteConfirmation')).toMatch(/id="pdfDeleteConfirmed" class="btn btn-sm btn-outline-danger"/);
   });
 });
 

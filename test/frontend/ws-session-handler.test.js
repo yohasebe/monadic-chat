@@ -31,11 +31,7 @@ beforeEach(() => {
     <button id="voice"></button>
     <div id="amplitude" style="display: none;"></div>
     <input type="checkbox" id="check-easy-submit" />
-    <div id="pdf-titles"></div>
     <div id="cancel_query"></div>
-    <div id="pdfDeleteConfirmation"></div>
-    <div id="pdfToDelete"></div>
-    <button id="pdfDeleteConfirmed"></button>
   `;
 
   // Mock bootstrap
@@ -59,11 +55,6 @@ beforeEach(() => {
   global.setInputFocus = jest.fn();
 
   // Mock global objects
-  global.ContextPanel = {
-    showLoading: jest.fn(),
-    hideLoading: jest.fn(),
-    updateContext: jest.fn()
-  };
   global.WorkflowViewer = {
     setStage: jest.fn()
   };
@@ -72,7 +63,6 @@ beforeEach(() => {
   window.autoScroll = true;
   window.debugWebSocket = false;
   window.ws = { send: jest.fn() };
-  window.sendPdfWsMessage = jest.fn();
   window.MarkdownRenderer = {
     render: jest.fn().mockReturnValue('<p>rendered</p>'),
     applyRenderers: jest.fn()
@@ -89,31 +79,6 @@ afterEach(() => {
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-session-handler');
 
 describe('ws-session-handler', () => {
-  describe('handleContextExtractionStarted', () => {
-    it('shows context panel loading state', () => {
-      handlers.handleContextExtractionStarted({});
-      expect(global.ContextPanel.showLoading).toHaveBeenCalled();
-    });
-  });
-
-  describe('handleContextUpdate', () => {
-    it('updates context panel with data and schema', () => {
-      const data = { context: { key: 'value' }, schema: { type: 'object' } };
-      handlers.handleContextUpdate(data);
-
-      expect(global.ContextPanel.hideLoading).toHaveBeenCalled();
-      expect(global.ContextPanel.updateContext).toHaveBeenCalledWith(
-        { key: 'value' },
-        { type: 'object' }
-      );
-    });
-
-    it('updates workflow viewer stage', () => {
-      handlers.handleContextUpdate({ context: {} });
-      expect(global.WorkflowViewer.setStage).toHaveBeenCalledWith('context');
-    });
-  });
-
   describe('handleLanguageUpdated', () => {
     it('shows success alert with language name', () => {
       handlers.handleLanguageUpdated({ language_name: 'Japanese', language: 'ja' });
@@ -489,50 +454,6 @@ describe('ws-session-handler', () => {
     });
   });
 
-  describe('handlePDFTitles', () => {
-    it('renders PDF titles as rows', () => {
-      handlers.handlePDFTitles({ content: ['doc1.pdf', 'doc2.pdf'] });
-
-      var pdfTitles = document.getElementById('pdf-titles');
-      expect(pdfTitles.innerHTML).toContain('doc1.pdf');
-    });
-
-    it('renders empty state when no PDFs', () => {
-      handlers.handlePDFTitles({ content: [] });
-
-      var pdfTitles = document.getElementById('pdf-titles');
-      expect(pdfTitles.innerHTML).toContain('No PDFs imported');
-    });
-
-    it('escapes HTML in titles', () => {
-      handlers.handlePDFTitles({ content: ['<script>xss</script>'] });
-
-      var pdfTitles = document.getElementById('pdf-titles');
-      expect(pdfTitles.innerHTML).toContain('&lt;script');
-      expect(pdfTitles.innerHTML).not.toContain('<script>xss');
-    });
-  });
-
-  describe('handlePDFDeleted', () => {
-    it('shows success alert and refreshes list', () => {
-      handlers.handlePDFDeleted({ res: 'success', content: 'Deleted doc.pdf' });
-
-      expect(global.setAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Deleted doc.pdf'),
-        'info'
-      );
-      expect(window.sendPdfWsMessage).toHaveBeenCalledWith(
-        { message: 'PDF_TITLES' }
-      );
-    });
-
-    it('shows error alert on failure', () => {
-      handlers.handlePDFDeleted({ res: 'error', content: 'Failed to delete' });
-
-      expect(global.setAlert).toHaveBeenCalledWith('Failed to delete', 'error');
-    });
-  });
-
   describe('handleChangeStatus', () => {
     it('adds active class for active messages', () => {
       var card = document.createElement('div');
@@ -601,10 +522,8 @@ describe('ws-session-handler', () => {
   describe('module exports', () => {
     it('exports all handlers', () => {
       const expectedHandlers = [
-        'handleContextExtractionStarted', 'handleContextUpdate',
         'handleLanguageUpdated', 'handleProcessingStatus', 'handleSystemInfo',
         'handleSTT', 'handleSTTPartial', 'clearSTTPartialOverlay',
-        'handlePDFTitles', 'handlePDFDeleted',
         'handleChangeStatus', 'handleSuccess', 'handleSampleSuccess'
       ];
       expectedHandlers.forEach(name => {

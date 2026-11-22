@@ -5,6 +5,7 @@
 # and progress broadcasting.
 
 require 'set'
+require_relative '../privacy/words'
 
 module WebSocketHelper
   # ============= Connection Tracking =============
@@ -117,12 +118,15 @@ module WebSocketHelper
   # last save as it closes cannot undo what the new one did (such as a Reset
   # that moved the tab to a new chat).
   def self.claim_session_state(session_id)
-    @@session_state_mutex.synchronize do
+    retired = []
+    generation = @@session_state_mutex.synchronize do
       state = (@@session_state[session_id] ||= {})
       state[:used_at] = monotonic_now
-      prune_session_state(keep: session_id)
+      retired = prune_session_state(keep: session_id)
       state[:generation] = state[:generation].to_i + 1
     end
+    retired.each { |chat_id, epoch| Monadic::Workspace::Chats.renew_epoch!(chat_id, from: epoch) }
+    generation
   end
 
   # chat_id and chat_state are kept as they are when not given, so callers
@@ -168,7 +172,7 @@ module WebSocketHelper
     end
   end
 
-  # HTTP checks need the chat's identity, privacy decision and marked words,
+  # HTTP checks need the chat's identity and the mark of its word table,
   # not its messages, tool results or the rest of its Session Context.
   def self.fetch_http_session_state(session_id)
     return nil unless session_id
@@ -179,14 +183,13 @@ module WebSocketHelper
 
       state[:used_at] = monotonic_now
       chat = (state[:chat_state] || {}).merge(Monadic::Workspace::Chats::SESSION_KEY => state[:chat_id])
-      policy = Monadic::History::Policy
-      private = policy.private?(chat) || policy.known_private?(state[:chat_id])
-      terms = Monadic::Utils::Privacy::Outbound.terms_of(chat).map { |text| { text: text.dup } }
+      words = Monadic::Utils::Privacy::Words
+      chat_state = {}
+      chat_state[words::MARK_KEY] = chat[words::MARK_KEY].dup if words.marked?(chat)
       {
         chat_id: state[:chat_id]&.dup,
         parameters: { 'app_name' => state.dig(:parameters, 'app_name')&.dup },
-        chat_state: { policy::SESSION_KEY => private ? policy::PRIVATE : nil,
-                      monadic_state: { privacy: { terms: terms } } }
+        chat_state: chat_state
       }
     end
   end
@@ -196,10 +199,13 @@ module WebSocketHelper
   # the cookie's session is shared by all tabs and is not the chat.
   @@live_sessions = {}
 
-  def self.register_live_session(session_id, session, generation)
+  def self.register_live_session(session_id, session, generation, connection: nil)
     @@session_state_mutex.synchronize do
-      @@live_sessions[session_id] = { session: session, generation: generation }
+      @@live_sessions[session_id] = { session: session, generation: generation, connection: connection }
     end
+    # What the work screen was asked through the tab's older connection is
+    # not answered now.
+    Monadic::Workbench::Capture.revoke_tab(session_id, except_generation: generation) if defined?(Monadic::Workbench::Capture)
   end
 
   # Only the connection that registered it removes it, so an old
@@ -242,6 +248,61 @@ module WebSocketHelper
     return nil if session_id.nil? || session_id.to_s.empty?
 
     @@session_state_mutex.synchronize { @@live_sessions[session_id.to_s]&.dig(:session) }
+  end
+
+  # The generation of the connection a tab has live now, or nil.
+  def self.live_generation(session_id)
+    return nil if session_id.nil? || session_id.to_s.empty?
+
+    @@session_state_mutex.synchronize { @@live_sessions[session_id.to_s]&.dig(:generation) }
+  end
+
+  # The tabs whose live session is in chat_id.
+  def self.live_tabs_for_chat(chat_id)
+    return [] unless chat_id
+
+    @@session_state_mutex.synchronize do
+      @@live_sessions.select { |_, entry| entry[:session][Monadic::Workspace::Chats::SESSION_KEY] == chat_id }.keys
+    end
+  end
+
+  # Sends message to the connection a tab has live now (not to one it is
+  # reconnecting from), only while the tab is in chat_id. True when written.
+  def self.send_to_live_connection(session_id, message_json, chat_id:)
+    ws = @@session_state_mutex.synchronize do
+      entry = @@live_sessions[session_id.to_s]
+      next nil unless entry && entry[:connection] && entry[:session][Monadic::Workspace::Chats::SESSION_KEY] == chat_id
+
+      entry[:connection]
+    end
+    return false unless ws
+
+    ws.write(message_json)
+    ws.flush
+    true
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to the live connection of #{session_id}: #{e.message}" }
+    false
+  end
+
+  # Sends message to the tab's connection of generation only (not to one
+  # that replaced it), while the tab is in chat_id. True when written.
+  def self.send_to_connection(session_id, generation, message_json, chat_id:)
+    ws = @@session_state_mutex.synchronize do
+      entry = @@live_sessions[session_id.to_s]
+      next nil unless entry && entry[:connection] && entry[:generation] == generation &&
+                      entry[:session][Monadic::Workspace::Chats::SESSION_KEY] == chat_id
+
+      entry[:connection]
+    end
+    return false unless ws
+
+    ws.write(message_json)
+    ws.flush
+    true
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to a connection of #{session_id}: #{e.class}" }
+    false
   end
 
   # A conversation read from a file waits here until the tab it was sent
@@ -287,17 +348,20 @@ module WebSocketHelper
     end
   end
 
-  # Called with the mutex held.
+  # Called with the mutex held. Returns the chats no tab keeps (or is
+  # taking from the history) any more, each with its epoch now: work begun
+  # for one changes nothing from then on (its epoch is renewed once the
+  # mutex is let go, and only for a chat still at that epoch).
   def self.prune_session_state(keep: nil)
     now = monotonic_now
     idle = @@session_state.reject { |id, _| id == keep || @@live_sessions.key?(id) }
     expired = idle.select { |_, state| now - state[:used_at].to_f > STATE_IDLE_TTL }.keys
-    expired.each { |id| @@session_state.delete(id) }
     rest = idle.reject { |id, _| expired.include?(id) }
     excess = rest.size - STATE_MAX_IDLE
-    return unless excess.positive?
-
-    rest.sort_by { |_, state| state[:used_at].to_f }.first(excess).each { |id, _| @@session_state.delete(id) }
+    dropped = expired + (excess.positive? ? rest.sort_by { |_, state| state[:used_at].to_f }.first(excess).map(&:first) : [])
+    chats = dropped.filter_map { |id| @@session_state.delete(id)&.dig(:chat_id) }
+    kept = @@session_state.values.map { |state| state[:chat_id] } + open_chat_ids_locked + @@reserved_chats.keys
+    (chats - kept).map { |chat_id| [chat_id, Monadic::Workspace::Chats.epoch(chat_id)] }
   end
 
   def self.prune_imports

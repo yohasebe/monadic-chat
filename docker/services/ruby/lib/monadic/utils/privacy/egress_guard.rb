@@ -5,6 +5,7 @@ require 'json'
 require 'stringio'
 require 'uri'
 require_relative 'outbound'
+require_relative 'words'
 require_relative '../../workspace/chats'
 
 module Monadic
@@ -12,8 +13,7 @@ module Monadic
     module Privacy
       # The one place every request leaves Monadic Chat's server for another
       # service: the clients themselves (the http gem, Net::HTTP and the
-      # WebSocket client). While a chat has words the user marked for the
-      # Privacy Filter, no request to a service outside this computer carries
+      # WebSocket client). While a chat hides words, no request to a service outside this computer carries
       # one of them, however the request was put together (a chat's model, a
       # helper, speech, a tool). Checking at each place a request is built
       # missed what was added after the check; this checks what is sent.
@@ -57,11 +57,16 @@ module Monadic
 
         CHAT_KEY = :monadic_chat_session
 
-        # The chat work is done for: the session and the chat it was in when
-        # the work began. Reset and switching apps start a new chat in the
-        # same session; work of the chat that ended (a second opinion still
-        # running) is still checked for that chat's words.
-        Scope = Struct.new(:session, :chat_id)
+        # The chat work is done for: the session, and the chat and its epoch
+        # (Chats.epoch) when the work began. Reset and switching apps start a
+        # new chat in the same session; work of the chat that ended (a second
+        # opinion still running) is still checked for that chat's words.
+        Scope = Struct.new(:session, :chat_id, :epoch) do
+          def self.of(session)
+            chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+            new(session, chat_id, Monadic::Workspace::Chats.epoch(chat_id))
+          end
+        end
 
         # The words of chats that have ended, by chat id (the newest kept).
         ENDED_LIMIT = 500
@@ -72,7 +77,7 @@ module Monadic
         # now (threads and fibers started later inherit it). Set when a
         # connection opens and whenever its session starts a chat.
         def for_chat(session)
-          Fiber[CHAT_KEY] = session ? Scope.new(session, session[Monadic::Workspace::Chats::SESSION_KEY]) : nil
+          Fiber[CHAT_KEY] = session ? Scope.of(session) : nil
         end
 
         # A chat's words, kept when it ends. Joined with what was kept before
@@ -81,7 +86,13 @@ module Monadic
           id = session[Monadic::Workspace::Chats::SESSION_KEY]
           return unless id
 
-          list = Outbound.terms_of(session)
+          list = begin
+            Outbound.terms_of(session)
+          rescue Outbound::Refused
+            # The chat's words are not known (its word table is not here):
+            # nothing is kept, so what is still sent for it is refused.
+            return
+          end
           @ended_lock.synchronize do
             @ended[id] = ((@ended.delete(id) || []) | list).freeze
             @ended.shift while @ended.size > ENDED_LIMIT
@@ -121,6 +132,8 @@ module Monadic
         # string that is JSON is read as what it decodes to.
         def check!(host, *parts)
           return if local_host?(host)
+
+          Words.check_sending!
 
           list = words
           return if list.empty?
@@ -347,7 +360,10 @@ module Monadic
           end
           install_websocket!
           Monadic::Workspace::Chats.on_change do |event, session|
-            event == :ending ? chat_ended(session) : for_chat(session)
+            case event
+            when :ending then chat_ended(session)
+            when :started then for_chat(session)
+            end
           end
           @installed = true
         end

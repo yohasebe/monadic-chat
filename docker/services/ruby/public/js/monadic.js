@@ -50,9 +50,6 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  // Privacy Filter session toggle is negotiated via the PRIVACY_TOGGLE
-  // round-trip; broadcasting it here would let stale param values
-  // override the health-checked backend state.
   const mathEl = $id("math");
   clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
@@ -136,25 +133,6 @@ function broadcastParamsUpdate(reason = null) {
 
 window.broadcastParamsUpdate = broadcastParamsUpdate;
 
-// Helper for WS messages that target the per-app PDF store. Injects the
-// currently-selected app name so the server can resolve the namespace
-// even when the session has not been hydrated yet (UPDATE_PARAMS race).
-function sendPdfWsMessage(payload) {
-  let appName = '';
-  try {
-    const apps = document.getElementById('apps');
-    if (apps && apps.value) appName = apps.value;
-  } catch (_) { /* no-op */ }
-  const merged = Object.assign({}, payload || {});
-  if (appName && !merged.app_name) merged.app_name = appName;
-  // PDF_TITLES / DELETE_PDF / DELETE_ALL_PDFS are all idempotent
-  // (added to the wrapper's default set in H7.7) so safeWsSend
-  // auto-classifies them. We delegate alert/queue policy to the
-  // wrapper instead of swallowing the error here.
-  window.safeWsSend(merged);
-}
-window.sendPdfWsMessage = sendPdfWsMessage;
-
 // Helper function to get formatted provider name from group
 function getProviderFromGroup(group) {
   if (!group) return "OpenAI";
@@ -166,7 +144,7 @@ function getProviderFromGroup(group) {
     return "Google";
   } else if (groupLower.includes("cohere")) {
     return "Cohere";
-  } else if (groupLower.includes("mistral")) {
+  } else if (["mistral", "pixtral", "ministral", "magistral", "devstral", "voxtral", "mixtral"].some((name) => groupLower.includes(name))) {
     return "Mistral";
   } else if (groupLower.includes("deepseek")) {
     return "DeepSeek";
@@ -182,24 +160,12 @@ function getProviderFromGroup(group) {
 // Make the function available globally
 window.getProviderFromGroup = getProviderFromGroup;
 
-// Refresh the Privacy Filter session toggle's enabled / disabled state and
-// tooltip based on the active app + container availability + sidebar
-// conversation_language. Called at app-setup time (`{initial:true}`, with
-// localStorage preference restoration and backend PRIVACY_TOGGLE sync) and
-// from the conversation_language change handler (no args, gate-only refresh).
-//
-// "lock" semantics: once a message has been sent in this session,
-// `window.privacyToggleLocked` is true and we do not touch the toggle's
-// disabled state — the privacy choice for the current conversation is final
-// per design. App change / Reset clears the lock by re-running with
-// `{initial:true}`.
 // Reflect per-app capabilities onto body classes for CSS-driven visibility
 // (MDSL SSOT, Phase 4). The CSS rules in `monadic.css` (search for
 // "App-capability declarative visibility gate") consume these classes:
-//   app-cap-pf       — app's `privacy_enabled` MDSL flag is true
 //   app-cap-kb-save  — app allows saving conversations to the Knowledge Base
 //   app-cap-kb-search — app allows the LLM to call library_search
-// Defaults: KB save / KB search ON, PF OFF — preserving legacy behavior for
+// Defaults: KB save / KB search ON — preserving legacy behavior for
 // custom or older apps that haven't declared the flags. Only an explicit
 // false / "false" disables, matching `CAPABILITY_DEFAULTS` on the Ruby side.
 //
@@ -221,22 +187,19 @@ function applyAppCapabilityClasses(appName) {
   // entry point safe to call without coordination.
   if (!settings) return;
 
-  const isPf       = String(settings.privacy_enabled || "").toLowerCase() === "true";
   const isKbSave   = settings.library_save !== false && settings.library_save !== "false";
   const isKbSearch = settings.library_search !== false && settings.library_search !== "false";
 
   const cl = document.body.classList;
-  cl.toggle("app-cap-pf", isPf);
   cl.toggle("app-cap-kb-save", isKbSave);
   cl.toggle("app-cap-kb-search", isKbSearch);
 
-  // Knowledge Base / Privacy controls stay visible on every app; JS owns the
-  // disabled state + tooltip so a control a user expects (KB retrieval toggle,
-  // Privacy Filter toggle) is shown disabled-with-reason rather than vanishing
+  // The Knowledge Base control stays visible on every app; JS owns the
+  // disabled state + tooltip so a control a user expects (KB retrieval toggle)
+  // is shown disabled-with-reason rather than vanishing
   // on apps that don't support it. The Save button is disabled independently in
-  // updateSaveButtonAvailability(). `.checked` is intentionally left untouched:
-  // the backend already gates RAG injection on capability, so clobbering it
-  // here would desync the toggle from the preserved preference on capable apps.
+  // updateSaveButtonAvailability(). The switch's state is the one remembered
+  // for the app (library-panel.js).
   const setControlAvailability = (el, available, reason) => {
     if (!el) return;
     el.disabled = !available;
@@ -246,128 +209,11 @@ function applyAppCapabilityClasses(appName) {
     document.getElementById("library-rag-toggle"), isKbSearch,
     "Knowledge Base retrieval is not available in this app."
   );
-  setControlAvailability(
-    document.getElementById("check-privacy-session"), isPf,
-    "Privacy Filter is not available in this app."
-  );
+  if (window.libraryPanel && typeof window.libraryPanel.applyRagForApp === "function") {
+    window.libraryPanel.applyRagForApp(appName);
+  }
 }
 window.applyAppCapabilityClasses = applyAppCapabilityClasses;
-
-// Privacy-on body class — session-scoped (not per-app). Toggled in
-// response to backend `privacy_state` pushes via the `privacy:state-changed`
-// CustomEvent (see ws-privacy-handler.js). The CSS rule
-// `body.app-privacy-on #library-save { display: none !important; }` hides
-// the Save button as soon as Privacy is enabled mid-session, since saving
-// would write masked placeholders to the Knowledge Base.
-function applyPrivacyOnClass(on) {
-  if (typeof document === "undefined") return;
-  document.body.classList.toggle("app-privacy-on", !!on);
-}
-window.applyPrivacyOnClass = applyPrivacyOnClass;
-
-function refreshPrivacyToggleGate(opts) {
-  opts = opts || {};
-  const apps = window.apps || {};
-  const appsEl = document.getElementById("apps");
-  const appValue = opts.appValue || (appsEl && appsEl.value);
-  if (!appValue || !apps[appValue]) return;
-
-  // Body-class capability gate — must run before any early-return below so
-  // visibility stays in sync even when the privacy toggle element itself
-  // isn't in the DOM (e.g., partial views in tests).
-  applyAppCapabilityClasses(appValue);
-
-  const privacyEl = document.getElementById("check-privacy-session");
-  const privacyLabel = document.getElementById("check-privacy-session-label");
-  if (!privacyEl) return;
-
-  // Lock semantics: once a message has been sent in this session,
-  // `window.privacyToggleLocked` is true. The lock prevents the user's
-  // privacy choice from flipping mid-conversation, but it does not
-  // prevent us from updating the disabled state and tooltip — those are
-  // observational hints that should still reflect the current
-  // conversation_language. Only the `checked` state and backend sync
-  // are guarded by the lock below.
-  const isLocked = !!window.privacyToggleLocked && !opts.initial;
-
-  const appSupportsPrivacy = String(apps[appValue]["privacy_enabled"] || "").toLowerCase() === "true";
-  const containerAvailable = (typeof window.MONADIC_PRIVACY_AVAILABLE !== "undefined")
-    ? !!window.MONADIC_PRIVACY_AVAILABLE
-    : true;
-  const convLangEl = document.getElementById("conversation-language");
-  const convLang = (convLangEl && convLangEl.value) || "auto";
-  const installedLangs = Array.isArray(window.MONADIC_PRIVACY_INSTALLED_LANGS)
-    ? window.MONADIC_PRIVACY_INSTALLED_LANGS : ["en"];
-  // "auto" and "en" always pass — backend maps "auto" to "en", and "en" is
-  // a required Privacy build language.
-  const languageSupported = (convLang === "auto" || convLang === "en")
-    ? true
-    : installedLangs.includes(convLang);
-  const usable = appSupportsPrivacy && containerAvailable && languageSupported;
-
-  // Pick the most informative tooltip in priority order. App-level lack of
-  // support is reported first because install instructions are misleading
-  // when the app cannot use Privacy at all.
-  let disabledKey = null;
-  let fallback = "";
-  if (!appSupportsPrivacy) {
-    disabledKey = "ui.privacyFilterUnsupported";
-    fallback = "This app does not support Privacy Filter.";
-  } else if (!containerAvailable) {
-    disabledKey = "ui.privacyFilterNotInstalled";
-    fallback = "Privacy Filter is disabled.";
-  } else if (!languageSupported) {
-    disabledKey = "ui.privacyFilterLanguageNotInstalled";
-    fallback = "Privacy Filter is not installed for this language. Install it from Actions → Install Options.";
-  }
-  const tooltip = (typeof webUIi18n !== "undefined" && disabledKey)
-    ? webUIi18n.t(disabledKey)
-    : fallback;
-
-  let nextChecked;
-  if (opts.initial) {
-    let remembered = false;
-    try {
-      remembered = localStorage.getItem("privacy_pref_" + appValue) === "on";
-    } catch (_) { /* localStorage unavailable; default false */ }
-    nextChecked = usable && remembered;
-  } else {
-    // Mid-session refresh (e.g. conversation_language change). Preserve
-    // current visual state when still usable; force OFF when the new
-    // language drops out of the supported set.
-    nextChecked = usable ? privacyEl.checked : false;
-  }
-
-  // disabled state & tooltip always reflect the current gate, even when
-  // locked — locked just means "user cannot toggle right now", but the
-  // reason should still be visible. checked is preserved through lock.
-  if (!isLocked) privacyEl.checked = nextChecked;
-  privacyEl.disabled = !usable || isLocked;
-  if (usable && !isLocked) privacyEl.removeAttribute("title");
-  else privacyEl.setAttribute("title", tooltip);
-  if (privacyLabel) {
-    if (usable && !isLocked) privacyLabel.removeAttribute("title");
-    else privacyLabel.setAttribute("title", tooltip);
-  }
-
-  // Backend sync: at initial setup, mirror the remembered preference so the
-  // backend health-checks and confirms via privacy_toggle_ack. On a
-  // mid-session language change that just dropped support, explicitly emit
-  // PRIVACY_TOGGLE:false to clear backend state (the masking pipeline must
-  // not stay armed when the language is unsupported). Skip backend sync
-  // entirely when locked — the backend pipeline is already bound to the
-  // pre-lock language and must not be retargeted mid-conversation.
-  if (typeof window.safeWsSend === "function" && !isLocked) {
-    if (opts.initial && nextChecked) {
-      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(true);
-      window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: true });
-    } else if (!opts.initial && !usable) {
-      window.safeWsSend({ message: "PRIVACY_TOGGLE", enabled: false });
-    }
-  }
-}
-
-window.refreshPrivacyToggleGate = refreshPrivacyToggleGate;
 
 document.addEventListener("DOMContentLoaded", async function () {
   // CRITICAL: Forcefully hide spinner and reset Auto Speech flags on page load
@@ -389,68 +235,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     console.error('[DOMContentLoaded] Failed to initialize tab state:', e);
   }
 
-  // Mirror Privacy ON state onto the <body> as a CSS hook (Phase 4).
-  // ws-privacy-handler.js dispatches `privacy:state-changed` with
-  // `detail.enabled` whenever the backend pushes a privacy_state update;
-  // the CSS rule `body.app-privacy-on #library-save { display: none }`
-  // then hides the Knowledge Base Save button without per-handler JS.
-  document.addEventListener("privacy:state-changed", function (ev) {
-    const enabled = !!(ev && ev.detail && ev.detail.enabled);
-    applyPrivacyOnClass(enabled);
-  });
-
-  // Restore menu visibility state from localStorage on page load
-  // This ensures the menu state persists across zoom operations and page reloads
-  try {
-    const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
-    if (savedMenuHidden !== null) {
-      // Use setTimeout to ensure DOM elements are ready
-      setTimeout(() => {
-        const toggleBtn = $id("toggle-menu");
-        const menuPanel = $id("menu");
-        const mainPanel = $id("main");
-
-        if (toggleBtn && menuPanel && mainPanel) {
-          const windowWidth = window.innerWidth;
-          const isMobile = windowWidth < 600;
-
-          if (savedMenuHidden === 'true') {
-            // Restore hidden state
-            toggleBtn.classList.add("menu-hidden");
-            toggleBtn.setAttribute("aria-expanded", "false");
-            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-
-            if (isMobile) {
-              $hide(menuPanel);
-              $show(mainPanel);
-              document.body.classList.remove("menu-visible");
-            } else {
-              mainPanel.classList.remove("col-md-8");
-              mainPanel.classList.add("col-md-12");
-              $hide(menuPanel);
-            }
-          } else {
-            // Restore visible state
-            toggleBtn.classList.remove("menu-hidden");
-            toggleBtn.setAttribute("aria-expanded", "true");
-            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-
-            if (isMobile) {
-              $show(menuPanel);
-              $hide(mainPanel);
-              document.body.classList.add("menu-visible");
-            } else {
-              mainPanel.classList.remove("col-md-12");
-              mainPanel.classList.add("col-md-8");
-              $show(menuPanel);
-            }
-          }
-        }
-      }, 50);
-    }
-  } catch (e) {
-    console.warn('Failed to restore menu state from localStorage on page load:', e);
-  }
+  // Put the columns in the state the user chose (layout-controller.js)
+  setTimeout(() => { if (window.LayoutController) window.LayoutController.apply(); }, 50);
 
   // Restore session state and render saved messages
   // Note: Using sessionStorage (not localStorage) for tab isolation
@@ -535,17 +321,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           }
         });
 
-        // Update START button label to "Continue Session" when messages exist
-        if (window.i18nReady) {
-          window.i18nReady.then(() => {
-            const continueText = webUIi18n.t('ui.session.continueSession') || 'Continue Session';
-            const startLabelEl = $id("start-label");
-            if (startLabelEl) startLabelEl.textContent = continueText;
-          });
-        } else {
-          const startLabelEl = $id("start-label");
-          if (startLabelEl) startLabelEl.textContent = 'Continue Session';
-        }
+        window.setStartButtonMode(true);
       }
 
       // Clear restoration flag after a delay to allow all UI updates and WebSocket initialization to complete
@@ -703,31 +479,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 // Fallback implementations are now in shims.js
 
-// ============================================================================
-// Screenshot Lightbox state
-// (file-level scope to ensure accessibility from all event handlers)
-// ============================================================================
-var lightboxImages = [];
-var lightboxIndex = 0;
-
-function updateLightbox() {
-  if (lightboxImages.length === 0) return;
-  const lightboxImage = $id("lightboxImage");
-  if (lightboxImage) lightboxImage.setAttribute("src", lightboxImages[lightboxIndex]);
-  const lightboxCounter = $id("lightboxCounter");
-  const lightboxPrev = $id("lightboxPrev");
-  const lightboxNext = $id("lightboxNext");
-  if (lightboxImages.length > 1) {
-    if (lightboxCounter) {
-      lightboxCounter.textContent = (lightboxIndex + 1) + " / " + lightboxImages.length;
-      $show(lightboxCounter);
-    }
-    $toggle(lightboxPrev, lightboxIndex > 0);
-    $toggle(lightboxNext, lightboxIndex < lightboxImages.length - 1);
-  } else {
-    $hide(lightboxCounter); $hide(lightboxPrev); $hide(lightboxNext); }
-}
-
 // --- Perceptual hash helpers for visual image dedup ---
 function imagePerceptualHash(imgEl, size) {
   size = size || 16;
@@ -830,77 +581,28 @@ document.addEventListener("DOMContentLoaded", function () {
     if (initiateEl) initiateEl.disabled = false;
   }
 
-  // Collapse settings and show conversation (used when starting/continuing session).
-  // #config-summary is always visible (it acts as the persistent toggle header
-  // for #config-body), so it is not part of this state machine — but its
-  // collapse TOGGLE is: before a session the settings are the whole screen
-  // (collapsing them reveals nothing), so the toggle is unlocked only here
-  // and re-locked in enterSettingsMode().
+  // Show the conversation (used when starting/continuing session).
   function enterConversationMode() {
-    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
-    bsCollapse.hide();
-    var summary = $id("config-summary");
-    if (summary) {
-      summary.setAttribute("data-bs-toggle", "collapse");
-      summary.classList.remove("config-summary-locked");
-    }
-    var configActions = $id("config-actions");
-    $hide(configActions);
     var mainPanelEl = $id("main-panel");
-    if (mainPanelEl) { mainPanelEl.classList.remove("d-none"); $show(mainPanelEl); }
+    if (mainPanelEl) mainPanelEl.classList.remove("d-none");
+    window.MainTabs.setMode("active");
+    window.MainTabs.show("session");
+    window.setStartButtonMode(true);
     lockSessionSettings();
     updateConfigSummary();
   }
 
-  // Expand settings and hide conversation (used when resetting).
+  // Show the settings alone (used when resetting).
   function enterSettingsMode() {
-    var bsCollapse = bootstrap.Collapse.getOrCreateInstance($id("config-body"), { toggle: false });
-    bsCollapse.show();
-    var summary = $id("config-summary");
-    if (summary) {
-      summary.removeAttribute("data-bs-toggle");
-      summary.classList.add("config-summary-locked");
-    }
+    window.MainTabs.setMode("none");
+    window.MainTabs.show("settings");
+    window.setStartButtonMode(false);
     var configActions = $id("config-actions");
     $show(configActions);
     var mainPanelEl = $id("main-panel");
     if (mainPanelEl) { mainPanelEl.classList.add("d-none"); $hide(mainPanelEl); }
     unlockSessionSettings();
   }
-
-  // Keep the summary-bar chevron in sync with #config-body. The rotation CSS
-  // keys off #config-summary[aria-expanded], but Bootstrap only maintains
-  // aria-expanded on togglers that carried data-bs-toggle when the Collapse
-  // instance was FIRST created — and #config-summary gains data-bs-toggle only
-  // once a session starts (enterConversationMode), after the instance already
-  // exists with an empty trigger list. So Bootstrap never updates it and the
-  // chevron would stay frozen. Drive aria-expanded from the collapse events
-  // instead (guarding against bubbled events from nested collapses).
-  (function () {
-    var configBody = $id("config-body");
-    if (!configBody) return;
-    configBody.addEventListener("show.bs.collapse", function (e) {
-      if (e.target !== configBody) return;
-      var summary = $id("config-summary");
-      if (summary) summary.setAttribute("aria-expanded", "true");
-    });
-    // Refit the Workflow Viewer once the expand ANIMATION completes: the
-    // viewer's ResizeObserver fires at intermediate heights mid-animation and
-    // can fit the graph to a partially-expanded container (chart appears
-    // shrunken). shown.bs.collapse fires at the final size.
-    configBody.addEventListener("shown.bs.collapse", function (e) {
-      if (e.target !== configBody) return;
-      if (typeof window.WorkflowViewer !== "undefined" &&
-          typeof window.WorkflowViewer.refit === "function") {
-        window.WorkflowViewer.refit();
-      }
-    });
-    configBody.addEventListener("hide.bs.collapse", function (e) {
-      if (e.target !== configBody) return;
-      var summary = $id("config-summary");
-      if (summary) summary.setAttribute("aria-expanded", "false");
-    });
-  })();
 
   // Expose for use in other modules
   window.updateConfigSummary = updateConfigSummary;
@@ -1235,32 +937,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (modelChangeEl) {
       modelChangeEl.addEventListener("change", function() {
         const selectedModel = this.value;
-        // Extract provider from params.group first (synced in proceedWithAppChange), fallback to current app group
-        let provider = "OpenAI";
+        // The provider of params.group (synced in proceedWithAppChange), or of the current app's group.
         var appsEl = $id("apps");
         const currentApp = appsEl ? appsEl.value : '';
         const grp = (typeof params !== 'undefined' && params && params["group"]) ? params["group"] : (apps[currentApp] && apps[currentApp].group ? apps[currentApp].group : null);
-        if (grp) {
-          const group = grp.toLowerCase();
-          if (group.includes("anthropic") || group.includes("claude")) {
-            provider = "Anthropic";
-          } else if (group.includes("gemini") || group.includes("google")) {
-            provider = "Google";
-          } else if (group.includes("cohere")) {
-            provider = "Cohere";
-          } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-            provider = "Mistral";
-          } else if (group.includes("deepseek")) {
-            provider = "DeepSeek";
-          } else if (group.includes("grok") || group.includes("xai")) {
-            provider = "xAI";
-          }
-        }
+        const provider = getProviderFromGroup(grp);
         // Update the badge in the AI User section with provider name and model
         const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
         var aiAssistantInfo = $id("ai-assistant-info");
         if (aiAssistantInfo) {
-          aiAssistantInfo.innerHTML = '<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>';
+          aiAssistantInfo.innerHTML = '<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>';
           aiAssistantInfo.setAttribute("data-model", selectedModel);
         }
 
@@ -1298,6 +984,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // One suggestion at a time: a second press while one is being
         // written does nothing (the server would refuse it too).
         if (aiUserHandler && typeof aiUserHandler.isWaiting === 'function' && aiUserHandler.isWaiting()) return;
+        if (window.WordTable && window.WordTable.holdSend(() => { aiUserButton.click(); })) return;
 
         // Force enable AI User
         params["ai_user"] = "true";
@@ -1324,7 +1011,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // explicitly non-idempotent — the wrapper will fail-fast with
         // an alert if the WS is not OPEN, which is the right outcome
         // for a button click that visibly disables the trigger.
-        const aiUserSent = window.safeWsSend(ai_user_query);
+        const aiUserSent = window.BackgroundReply ? window.BackgroundReply.sendReply(ai_user_query) : window.safeWsSend(ai_user_query);
         if (!(aiUserSent && aiUserSent.sent)) {
           // Not sent: nothing will answer this request.
           if (aiUserHandler && typeof aiUserHandler.abandonAIUser === 'function') aiUserHandler.abandonAIUser();
@@ -1373,7 +1060,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    // Add MutationObserver for handling image errors, dedup, and screenshot lightbox
+    // Add MutationObserver for handling image errors and dedup
     // Store the observer in the window object to ensure it can be accessed globally for cleanup
     window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -1433,27 +1120,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Handle already-cached images (browser may not fire load)
                 if (imgEl.complete && imgEl.naturalWidth > 0) {
                   $dispatch(imgEl, "load");
-                }
-
-                // Screenshot lightbox: add click handler directly to each image
-                // Skip images marked by image_generation apps (data-action="open")
-                if (!imgEl.getAttribute("data-action")) {
-                  imgEl.addEventListener("click", function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var cardEl = this.closest(".card");
-                    lightboxImages = [];
-                    if (cardEl) {
-                      cardEl.querySelectorAll(".generated_image img:not([data-action])").forEach(function(img) {
-                        lightboxImages.push(img.getAttribute("src"));
-                      });
-                    }
-                    lightboxIndex = lightboxImages.indexOf(this.getAttribute("src"));
-                    if (lightboxIndex < 0) lightboxIndex = 0;
-                    updateLightbox();
-                    var lightboxEl = $id("screenshotLightbox");
-                    if (lightboxEl) bootstrap.Modal.getOrCreateInstance(lightboxEl).show();
-                  });
                 }
               });
             }
@@ -1602,64 +1268,15 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // Restore menu state from localStorage to persist across zoom operations
-      // This ensures the menu visibility state is independent of zoom operations
-      try {
-        const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
-        if (savedMenuHidden === 'true') {
-          toggleBtn.classList.add("menu-hidden");
-        } else if (savedMenuHidden === 'false') {
-          toggleBtn.classList.remove("menu-hidden");
-        }
-        // If null (not set), keep current class state
-      } catch (e) {
-        console.warn('Failed to restore menu state from localStorage:', e);
+      window.LayoutController.apply();
+
+      if (isMobile) {
+        // Reset any inline styles that might have been applied
+        toggleBtn.style.position = "";
+        toggleBtn.style.top = "";
+        toggleBtn.style.right = "";
+        $show(toggleBtn);
       }
-
-    if (isMobile) {
-      // Mobile layout
-      const isMenuHidden = toggleBtn.classList.contains("menu-hidden");
-
-      if (isMenuHidden) {
-        // Menu should be hidden, main should be visible
-        $hide(menuPanel);
-        $show(mainPanel);
-        mainPanel.classList.remove("col-md-8");
-        mainPanel.classList.add("col-md-12");
-        document.body.classList.remove("menu-visible");
-        // icon stays the same; active style controlled by menu-hidden class
-      } else {
-        // Menu should be visible, main should be hidden
-        $show(menuPanel);
-        $hide(mainPanel);
-        document.body.classList.add("menu-visible");
-      }
-
-      // Reset any inline styles that might have been applied
-      toggleBtn.style.position = "";
-      toggleBtn.style.top = "";
-      toggleBtn.style.right = "";
-      $show(toggleBtn);
-    } else {
-      // Desktop layout
-      document.body.classList.remove("menu-visible");
-
-      if (menuPanel.style.display !== 'none') {
-        // Both panels visible
-        mainPanel.classList.remove("col-md-12");
-        mainPanel.classList.add("col-md-8");
-        $show(mainPanel);
-        $show(menuPanel);
-        toggleBtn.classList.remove("menu-hidden");
-      } else {
-        // Only main panel visible
-        mainPanel.classList.remove("col-md-8");
-        mainPanel.classList.add("col-md-12");
-        $show(mainPanel);
-        $hide(menuPanel);
-        toggleBtn.classList.add("menu-hidden");
-      }
-    }
 
     // Force reflow to ensure proper rendering
     document.body.offsetHeight;
@@ -1699,7 +1316,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (isMobile || isMedium) {
       // Check if toggle button has menu-hidden class
       const toggleBtn = $id("toggle-menu");
-      const isMenuHidden = toggleBtn && toggleBtn.classList.contains("menu-hidden");
+      const isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
+        : (toggleBtn && toggleBtn.classList.contains("menu-hidden"));
 
       if (!isMenuHidden) {
         // Menu is showing, hide scroll buttons
@@ -2059,12 +1677,11 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Don't override reasoning_effort if we're loading from params
         if (!window.isLoadingParams) {
-          // Map the app's reasoning_content default to a dropdown value. For
-          // DeepSeek the options are ['minimal'(=disabled), 'medium'(=enabled)].
+          // An app whose reasoning_content default is "disabled" starts
+          // DeepSeek's dropdown on "none" (thinking off).
           let appReasoningDefault = null;
-          if (pendingAppRc && provider === "DeepSeek") {
-            appReasoningDefault = (pendingAppRc === "disabled") ? "minimal" : "medium";
-            if (!availableOptions.includes(appReasoningDefault)) appReasoningDefault = null;
+          if (pendingAppRc === "disabled" && provider === "DeepSeek" && availableOptions.includes("none")) {
+            appReasoningDefault = "none";
           }
           // Set the value - app-change default wins, else preserve existing
           // value if valid, otherwise use the provider default.
@@ -2193,6 +1810,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('model_change');
     }
+    // The workflow diagram names the model chosen.
+    if (typeof window.WorkflowViewer !== 'undefined' && window.WorkflowViewer.refresh) {
+      window.WorkflowViewer.refresh();
+    }
     // Update collapsed summary bar if visible
     if (typeof updateConfigSummary === 'function' && ($id("config-summary") && $id("config-summary").offsetParent !== null)) {
       updateConfigSummary();
@@ -2218,6 +1839,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+
+  // Choosing another app shows the menu in the side column: its settings
+  // are what the user looks at next.
+  function showMenuPane() {
+    const lc = window.LayoutController;
+    if (lc && typeof lc.setPane === 'function' && lc.selectedPane() !== 'settings') lc.setPane('settings');
+  }
 
   $on($id("apps"), "change", function(event) {
     if (stop_apps_trigger) {
@@ -2289,11 +1917,16 @@ document.addEventListener("DOMContentLoaded", function () {
       if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
         window.WsAIUserHandler.abandonAIUser();
       }
+      // The answer the chat ends with is stopped by the RESET: its stop token goes.
+      if (window.BackgroundReply && typeof window.BackgroundReply.forgetStopToken === 'function') {
+        window.BackgroundReply.forgetStopToken();
+      }
       // Send server-side RESET to clear session
       window.safeWsSend({ message: "RESET" });
     }
 
     proceedWithAppChange(selectedAppValue);
+    if (selectedAppValue !== previousAppValue) showMenuPane();
   });
   
   // Handle cancellation of app change
@@ -2355,24 +1988,17 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
       window.WsAIUserHandler.abandonAIUser();
     }
+    // The answer the chat ends with is stopped by the RESET: its stop token goes.
+    if (window.BackgroundReply && typeof window.BackgroundReply.forgetStopToken === 'function') {
+      window.BackgroundReply.forgetStopToken();
+    }
     // Send server-side RESET to clear session
     window.safeWsSend({ message: "RESET" });
 
     // Reset to settings panel
     enterSettingsMode();
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        const startText = webUIi18n.t('ui.session.startSession');
-        { const el = $id("start-label"); if (el) el.textContent = startText; }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const el = $id("start-label"); if (el) el.textContent = startText; }
-    }
     proceedWithAppChange(newAppValue);
+    showMenuPane();
   });
   
   // Function to handle the actual app change
@@ -2403,6 +2029,9 @@ document.addEventListener("DOMContentLoaded", function () {
     if (selectedApp && selectedApp.group) {
       window.currentLLMProvider = getProviderFromGroup(selectedApp.group).toLowerCase();
     }
+
+    // An Ollama app shows the models installed now, not those of when the page loaded.
+    if (typeof window.refreshOllamaModels === 'function') window.refreshOllamaModels(appValue);
 
     // Always enable AI User button (error message will be shown if conversation not started)
     { const el = $id("ai_user"); if (el) el.disabled = false; }
@@ -2537,35 +2166,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return !!value;
     });
 
-    if (toBool(apps[appValue]["pdf_vector_storage"])) {
-      $show($id("pdf-panel"));
-      sendPdfWsMessage({ message: "PDF_TITLES" });
-    } else {
-      $hide($id("pdf-panel"));
-    }
-
     if (toBool(apps[appValue]["audio_upload"])) {
       $show($id("audio-upload"));
     } else {
       $hide($id("audio-upload"));
     }
 
-    // Privacy Filter session toggle: refresh the gate (3 conditions must
-    // all be true for the toggle to be editable):
-    //   1. App MDSL declares `privacy do; enabled true; end`
-    //   2. PRIVACY_FILTER env is not "false" on the server
-    //   3. Sidebar conversation_language is "auto"/"en" or one of the
-    //      languages enabled for the privacy container (PRIVACY_LANGS,
-    //      a runtime setting — all models are baked into the image)
-    // Initial setup: clears lock + restores remembered preference + emits
-    // PRIVACY_TOGGLE if the remembered state is "on". `setupPrivacyToggleGate`
-    // (defined at module scope) is the same function reused by the
-    // conversation_language change handler so language switches re-evaluate
-    // the gate without a full app re-setup.
-    window.privacyToggleLocked = false;
-    if (typeof window.refreshPrivacyToggleGate === "function") {
-      window.refreshPrivacyToggleGate({ initial: true, appValue: appValue });
-    }
+    if (typeof window.applyAppCapabilityClasses === "function") window.applyAppCapabilityClasses(appValue);
 
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
@@ -2701,12 +2308,6 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id("base-app-title"); if (el) el.textContent = displayText; }
     { const el = $id("base-app-icon"); if (el) el.innerHTML = apps[appValue]["icon"]; }
 
-    if (toBool(apps[appValue]["monadic"])) {
-      $show($id("monadic-badge"));
-    } else {
-      $hide($id("monadic-badge"));
-    }
-
     if (apps[appValue]["tools"]) {
       $show($id("tools-badge"));
     } else {
@@ -2828,34 +2429,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  $on($id("check-privacy-session"), "change", function() {
-    // Once locked (first message sent), the disabled attribute prevents
-    // further changes. This handler only fires while the toggle is editable.
-    const newState = !!this.checked;
-
-    // Backend is the source of truth for the toggle. PRIVACY_TOGGLE
-    // round-trips through a container health probe; the privacy_toggle_ack
-    // reply is what actually confirms the new state. ws-privacy-handler
-    // reverts the visual checkbox on backend rejection.
-    if (typeof window.safeWsSend === 'function') {
-      if (window.WsPrivacyHandler && window.WsPrivacyHandler.noteRequested) window.WsPrivacyHandler.noteRequested(newState);
-      window.safeWsSend({ message: 'PRIVACY_TOGGLE', enabled: newState });
-    }
-
-    // Persist the choice per app so re-selecting the same app restores it.
-    // Uninstalling the privacy container or app changes that drop support
-    // are handled at restore time (initialChecked = usable && remembered).
-    try {
-      const appEl = $id("apps");
-      if (appEl && appEl.value) {
-        localStorage.setItem("privacy_pref_" + appEl.value, this.checked ? "on" : "off");
-      }
-    } catch (_) { /* localStorage unavailable in private mode */ }
-    if (!isParamBroadcastSuppressed()) {
-      broadcastParamsUpdate('privacy_session_toggle');
-    }
-  })
-
   $on($id("math"), "change", function() {
     if (this.checked) {
       params["math"] = true;
@@ -2891,19 +2464,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
     
-    // On mobile, initialize with menu hidden on first load
-    if (window.innerWidth < 600) {
-      // Set proper classes and hide menu on mobile
-      { const el = $id("toggle-menu"); if (el) el.classList.add("menu-hidden"); }
-      $hide($id("menu"));
-      $show($id("main"));
-      document.body.classList.remove("menu-visible");
-      { const el = $id("main"); if (el) { el.classList.remove("col-md-8"); el.classList.add("col-md-12"); } }
-      // Note: Removed inline CSS injection for toggle-menu in document.ready
-    } else {
-      // On desktop, menu is visible by default, so set the appropriate icon and style
-      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
-    }
+    // Columns as the user chose, or the default for this width
+    if (window.LayoutController) window.LayoutController.apply();
     
     // Initialize scroll buttons state
     setTimeout(function() {
@@ -2970,20 +2532,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Listen for window resize events
   window.addEventListener("resize", function() {
-    const wasMenuVisible = ($id("menu") && $id("menu").offsetParent !== null);
-    const windowWidth = window.innerWidth;
-    // Check if user explicitly hid the menu (respect user preference)
-    const userHidMenu = StorageHelper.safeGetItem('monadic-menu-hidden') === 'true';
-
-    // Only reposition on mobile
-    if (windowWidth < 600) {
+    if (window.innerWidth < 600) {
       centerNavbarElements();
-    } else if (windowWidth >= 600 && !wasMenuVisible && !userHidMenu) {
-      // We've changed from mobile to desktop view with hidden menu
-      // Restore proper column layout and show menu ONLY if user didn't explicitly hide it
-      { const el = $id("main"); if (el) { el.classList.remove("col-md-12"); el.classList.add("col-md-8"); } }
-      $show($id("menu"));
-      { const el = $id("toggle-menu"); if (el) el.classList.remove("menu-hidden"); }
+    } else if (window.LayoutController) {
+      // Back to a wide window: the columns as the user chose
+      window.LayoutController.apply();
     }
   });
 
@@ -3010,55 +2563,8 @@ document.addEventListener("DOMContentLoaded", function () {
         window.UIConfig.isMobileView() :
         window.innerWidth < 600;
 
-      // Toggle menu visibility and change icon to indicate state
-      const menuVisible = ($menu.offsetParent !== null);
-
-      if (menuVisible) {
-        // Menu is visible, will be hidden
-        $toggleBtn.classList.add("menu-hidden");
-        $toggleBtn.setAttribute("aria-expanded", "false");
-
-        // Save menu state to localStorage to persist across zoom operations
-        if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'true')) {
-          console.warn('Failed to save menu state to localStorage');
-        }
-
-        if (isMobile) {
-          // On mobile: hide menu and show main
-          $hide($menu);
-          $show($main);
-          document.body.classList.remove("menu-visible");
-        } else {
-          // On desktop: normal column behavior
-          $main.classList.remove("col-md-8"); $main.classList.add("col-md-12");
-          $hide($menu);
-        }
-      } else {
-        // Menu is hidden, will be shown
-        $toggleBtn.classList.remove("menu-hidden");
-        $toggleBtn.setAttribute("aria-expanded", "true");
-
-        // Save menu state to localStorage to persist across zoom operations
-        if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'false')) {
-          console.warn('Failed to save menu state to localStorage');
-        }
-
-      if (isMobile) {
-        // On mobile: show menu and hide main completely
-        $show($menu);
-        $hide($main);
-        document.body.classList.add("menu-visible");
-        } else {
-          // On desktop: normal column behavior
-          $main.classList.remove("col-md-12"); $main.classList.add("col-md-8");
-          $show($menu);
-        }
-      }
-      
-      // Update UI state if available
-      if (window.UIConfig && window.UIConfig.STATE) {
-        window.UIConfig.STATE.isMenuVisible = !menuVisible;
-      }
+      // Show or hide the menu, and keep the choice (layout-controller.js)
+      window.LayoutController.toggleMenu();
       
       // Reset scroll position
       window.scrollTo({ top: 0 });
@@ -3131,6 +2637,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   $on($id("start"), "click", function() {
+    // In a session, the button under the settings goes back to the conversation.
+    if (window.MainTabs.mode() === "active") {
+      window.MainTabs.show("session");
+      return;
+    }
     audioInit();
     { const el = $id("asr-p-value"); if (el) { el.textContent = ""; $hide(el); } }
 
@@ -3149,22 +2660,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Whether the chat is Private is decided before it starts: from here
-    // on the chat can attach files and run tools, so the Privacy Filter
-    // toggle is locked (Reset or another app unlocks it, for a new chat).
-    {
-      const privacyEl = $id("check-privacy-session");
-      if (privacyEl) privacyEl.disabled = true;
-      window.privacyToggleLocked = true;
-    }
-
     const shouldSkipAssistant = (typeof window !== 'undefined') && window.skipAssistantInitiation === true;
     
 
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #audio-upload").forEach(function(_el) { _el.disabled = false; });
+      document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #audio-upload").forEach(function(_el) { _el.disabled = false; });
       { const el = $id("message"); if (el) el.disabled = false; }
       { const el = $id("select-role"); if (el) el.disabled = false; }
       $hide($id("monadic-spinner"));
@@ -3206,7 +2708,6 @@ document.addEventListener("DOMContentLoaded", function () {
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
         math: ($id("math") || {}).checked,
-        monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",
@@ -3244,7 +2745,11 @@ document.addEventListener("DOMContentLoaded", function () {
           // LLM call. Non-idempotent — fail-fast is the right
           // posture even though reconnect_websocket has already
           // re-established the socket above.
-          window.safeWsSend(params);
+          const startResult = window.BackgroundReply ? window.BackgroundReply.sendReply(params) : window.safeWsSend(params);
+          if (!(startResult && startResult.sent)) {
+            if (typeof window.restoreAfterUnsentMessage === 'function') window.restoreAfterUnsentMessage();
+            $show($id("user-panel"));
+          }
         });
       } else {
         $show($id("user-panel"));
@@ -3285,12 +2790,16 @@ document.addEventListener("DOMContentLoaded", function () {
       webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
     { const el = $id("message"); if (el) el.setAttribute("placeholder", placeholderText); }
     { const el = $id("message"); if (el) el.disabled = false; }
-    document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").forEach(function(_el) { _el.disabled = false; });
+    document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url").forEach(function(_el) { _el.disabled = false; });
     { const el = $id("ai_user_provider"); if (el) el.disabled = false; }
     { const el = $id("ai_user"); if (el) el.disabled = false; }
     { const el = $id("select-role"); if (el) el.disabled = false; }
 
-    // Send cancel message to server
+    // Stop the answer by HTTP first (the server reads the Cancel below only
+    // after an answer it waits for), then send the Cancel as always.
+    if (window.BackgroundReply && typeof window.BackgroundReply.stopAnswer === 'function') {
+      window.BackgroundReply.stopAnswer(window.ws);
+    }
     window.safeWsSend({ message: "CANCEL" });
     
     // Reset UI completely
@@ -3310,15 +2819,19 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
     }
-    const hasAttachment = typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments();
+    // A message of attached files only (video or audio, images or PDFs) is
+    // sent too.
+    const hasAttachment = (typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments()) ||
+      (typeof images !== 'undefined' && Array.isArray(images) && images.length > 0);
     if (message.value === "" && !hasAttachment) {
       return;
     }
-    // Auto-collapse settings when sending a message
-    var configBody = $id("config-body");
-    if (configBody && configBody.classList.contains("show")) {
-      bootstrap.Collapse.getOrCreateInstance(configBody, { toggle: false }).hide();
+    // Words decided on just now are taken before the message goes.
+    if (window.WordTable && window.WordTable.holdSend(() => { $id("send").click(); })) {
+      return;
     }
+    // A message sent from the settings view shows the conversation.
+    if (window.MainTabs.mode() === "active" && window.MainTabs.current() === "settings") window.MainTabs.show("session");
     audioInit();
 
     // Reset sequence tracking for realtime TTS (new message starts new sequence)
@@ -3425,7 +2938,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // queue, alert) is the only safe behavior; the user will see
         // their input still sitting in the message box and can retry
         // once the connection comes back.
-        const sendResult = window.safeWsSend(params);
+        // What the work screen shows now goes with the message only (the
+        // server checks it against this tab's selection); params, which
+        // the page keeps, does not take it.
+        const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
+        const outgoing = shown ? Object.assign({}, params, { workbench_range: shown }) : params;
+        const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
         // Not sent: the text, images and attachments stay for the retry.
         if (!(sendResult && sendResult.sent)) {
           restoreAfterUnsentMessage();
@@ -3433,18 +2951,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (typeof window.clearVideoAttachments === 'function') {
           window.clearVideoAttachments();
-        }
-        // Lock the Privacy Filter toggle once the first message of the
-        // session has been sent. The locked state is also enforced by the
-        // backend (Pipeline is cached in session[:_privacy_pipeline]).
-        // Reset / app change / new conversation re-enables editing. The lock
-        // is set even when the toggle is disabled for another reason (an
-        // unsupported language), so a later language change cannot unlock
-        // it mid-chat: whether a chat is Private is decided when it begins.
-        {
-          const privacyEl = $id("check-privacy-session");
-          if (privacyEl) privacyEl.disabled = true;
-          window.privacyToggleLocked = true;
         }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
@@ -3481,7 +2987,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setInputFocus()
   });
 
-  // #settings button removed — settings are now collapsible via #config-summary
 
 
   // Regular reset button - keeps current app
@@ -3490,18 +2995,6 @@ document.addEventListener("DOMContentLoaded", function () {
     audioInit();
     resetEvent(event, false); // false = keep current app
     { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        const startText = webUIi18n.t('ui.session.startSession');
-        { const el = $id("start-label"); if (el) el.textContent = startText; }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const el = $id("start-label"); if (el) el.textContent = startText; }
-    }
     { const el = $id("model"); if (el) el.disabled = false; }
   });
   
@@ -3514,25 +3007,13 @@ document.addEventListener("DOMContentLoaded", function () {
     audioInit();
     resetEvent(event, false); // false = keep current app
     { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        const startText = webUIi18n.t('ui.session.startSession');
-        { const el = $id("start-label"); if (el) el.textContent = startText; }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      { const el = $id("start-label"); if (el) el.textContent = startText; }
-    }
     { const el = $id("model"); if (el) el.disabled = false; }
   }); });
 
   $on($id("save"), "click", async function () {
     // Always route through the unified Export dialog. The dialog offers
-    // optional encryption (regardless of Privacy Filter state) plus a
-    // restored/masked content choice when the Privacy Filter is active.
+    // optional encryption plus a restored/masked content choice for a chat
+    // that hides words.
     if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.openExportDialog === 'function') {
       window.WsPrivacyHandler.openExportDialog();
       return;
@@ -3571,6 +3052,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (message.image) {
         message_obj.image = message.image;
       }
+      if (message.artifacts) {
+        message_obj.artifacts = message.artifacts;
+      }
+      if (message.workbench_looks) {
+        message_obj.workbench_looks = message.workbench_looks;
+      }
       allMessages.push(message_obj);
     });
 
@@ -3579,10 +3066,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const exportParams = setParams();
     delete exportParams.initiate_from_assistant;
 
-    // Fetch monadic_state and session_context from server
+    // Fetch monadic_state from server
     let monadicState = null;
-    let serverSessionContext = null;
-    let serverContextSchema = null;
     let progressiveTools = null;
     try {
       const response = await fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : ''));
@@ -3591,13 +3076,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (data.success) {
         if (data.monadic_state) {
           monadicState = data.monadic_state;
-        }
-        // Get session_context from server (more reliable than frontend state)
-        if (data.session_context) {
-          serverSessionContext = data.session_context;
-        }
-        if (data.context_schema) {
-          serverContextSchema = data.context_schema;
         }
         // Dynamic-skill unlock state, so the export restores acquired skills
         if (data.progressive_tools) {
@@ -3618,18 +3096,6 @@ document.addEventListener("DOMContentLoaded", function () {
       obj.monadic_state = monadicState;
     }
 
-    // Include session_context - prefer server-side, fallback to frontend ContextPanel
-    const sessionContext = serverSessionContext ||
-      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentContext : null);
-    const contextSchema = serverContextSchema ||
-      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentSchema : null);
-
-    if (sessionContext) {
-      obj.session_context = sessionContext;
-    }
-    if (contextSchema) {
-      obj.context_schema = contextSchema;
-    }
     if (progressiveTools) {
       obj.progressive_tools = progressiveTools;
     }
@@ -3682,90 +3148,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  $on($id("loadModal"), "shown.bs.modal", function () {
-    { const el = $id("file-title"); if (el) el.focus(); }
-  });
-  
   $on($id("loadModal"), "hidden.bs.modal", function () {
     // Reset form state when modal is closed
     { const el = $id('file-load'); if (el) el.value = ''; }
     { const el = $id('import-button'); if (el) el.disabled = true; }
     $hide($id("load-spinner"));
-  });
-
-  $on($id("pdf-import"), "click", function(event) {
-    event.preventDefault();
-    { const el = $id("file-title"); if (el) el.value = ""; }
-    { const el = $id("fileFile"); if (el) el.value = ""; }
-    bootstrap.Modal.getOrCreateInstance($id("fileModal")).show();
-
-    // Set a friendly placeholder for file title
-    try {
-      const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
-      { const el = $id("file-title"); if (el) el.setAttribute('placeholder', ph); }
-    } catch (_) { console.warn("[PDF Modal] Placeholder setup failed:", _); }
-  });
-
-  let fileTitle = "";
-
-  // Ensure event handler is properly attached when document is ready
-  document.addEventListener("click", async function (e) { const _delegateTarget = e.target.closest("#uploadFile"); if (!_delegateTarget) return;
-    e.preventDefault();
-    
-    const fileInput = $id("fileFile");
-    const file = fileInput.files[0];
-    
-    // Check if formHandlers is available
-    if (typeof formHandlers === 'undefined' || !formHandlers.uploadPdf) {
-      setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadNotAvailable') : 'Upload functionality not available', "error");
-      return;
-    }
-    
-    try {
-      // Disable UI elements during upload
-      document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = true; });
-      $show($id("file-spinner"));
-      
-      fileTitle = ($id("file-title") || {}).value;
-      
-      // Use the form handlers module if available, otherwise fallback
-      const response = await formHandlers.uploadPdf(file, fileTitle);
-      
-      // Process the response
-      if (response && response.success) {
-        // Clean up UI
-        $hide($id("file-spinner"));
-        document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-        sendPdfWsMessage({ message: "PDF_TITLES" });
-        const uploadedFilename = response.filename || "PDF file";
-        const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}`, "success");
-      } else {
-        // Show error message from API
-        const errorMessage = response && response.error ? response.error : "Failed to process PDF";
-        
-        // Clean up UI
-        $hide($id("file-spinner"));
-        document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-        
-        setAlert(`${errorMessage}`, "error");
-      }
-      
-    } catch (error) {
-      console.error("Error uploading PDF:", error);
-      
-      // Clean up UI on error
-      $hide($id("file-spinner"));
-      document.querySelectorAll("#fileModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance($id("fileModal")).hide();
-      
-      // Show appropriate error message
-      const errorMessage = error.statusText || error.message || "Unknown error";
-      const uploadErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadError') : 'Error uploading file';
-      setAlert(`${uploadErrorMsg}: ${errorMessage}`, "error");
-    }
   });
 
   $on($id("doc"), "click", function(event) {
@@ -3916,63 +3303,25 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Audio/MIDI upload submit
+  // Audio/MIDI upload submit: the file is attached to the chat, as with
+  // the attach button, and goes with the next message.
   $on($id("uploadAudioBtn"), "click", async function () {
     const file = $id("audioFile").files[0];
     if (!file) return;
     try {
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = true; });
       $show($id("audio-upload-spinner"));
-      const response = await formHandlers.uploadAudioFile(file);
-      if (response && response.success) {
-        const filename = response.filename;
-        const message = ($id("message") || {}).value.replace(/\n+$/, "");
-        const instruction = `Please analyze the file: ${filename}`;
-        { const el = $id("message"); if (el) el.value = message ? `${message}\n\n${instruction}` : instruction; }
-        if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize($id('message'), 100);
-        }
-        $hide($id("audio-upload-spinner"));
-        document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
-        { const el = $id("message"); if (el) el.focus(); }
-      } else {
-        const errorMsg = response && response.error ? response.error : "Upload failed";
-        $hide($id("audio-upload-spinner"));
-        document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
-        setAlert(errorMsg, "error");
-      }
+      await window.uploadVideoAttachment(file, 'audio');
+      $hide($id("audio-upload-spinner"));
+      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
+      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
+      { const el = $id("message"); if (el) el.focus(); }
     } catch (error) {
       $hide($id("audio-upload-spinner"));
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
       bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
       setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
     }
-  });
-
-  // Fetch and display local PDF storage presence
-  async function refreshPdfStorageStatus() {
-    try {
-      const statusResp = await fetch('/api/pdf_storage_status');
-      const res = statusResp.ok ? await statusResp.json() : null;
-      if (!res || !res.success) return;
-      { const el = $id("local-pdf-info"); if (el) el.textContent = res.local_present ? '(ready)' : ''; }
-      if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
-    } catch (_) { /* ignore */ }
-  }
-  setTimeout(refreshPdfStorageStatus, 700);
-
-  // Local PDF controls
-  document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-refresh')) return;
-    e.preventDefault();
-    if (window.ws) sendPdfWsMessage({ message: "PDF_TITLES" });
-  });
-  document.addEventListener('click', function(e) { if (!e.target.closest('#local-pdf-clear')) return;
-    e.preventDefault();
-    const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllLocalPdfs') : 'Clear all Local PDFs?';
-    if (!confirm(msg)) return;
-    if (window.ws) sendPdfWsMessage({ message: "DELETE_ALL_PDFS" });
   });
 
   $on($id("url"), "click", function(event) {
@@ -3985,6 +3334,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const cleanupFn = function() {
         { const el = $id('pageURL'); if (el) el.value = ''; }
         { const el = $id('fetchPage'); if (el) el.disabled = true; }
+        { const el = $id('openPageInWorkScreen'); if (el) el.disabled = true; }
       };
       formHandlers.showModalWithFocus('urlModal', 'pageURL', cleanupFn);
     } else {
@@ -4012,6 +3362,7 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("urlModal"), "hidden.bs.modal", function () {
     { const el = $id('pageURL'); if (el) el.value = ''; }
     { const el = $id('fetchPage'); if (el) el.disabled = true; }
+    { const el = $id('openPageInWorkScreen'); if (el) el.disabled = true; }
 
     // Ensure any remaining timers are cleared
     const modalEl = this;
@@ -4028,6 +3379,7 @@ document.addEventListener("DOMContentLoaded", function () {
       $id('pageURL'), 
       $id('fetchPage')
     );
+    formHandlers.setupUrlValidation($id('pageURL'), $id('openPageInWorkScreen'));
   } else {
     // Fallback to direct event handler
     var _urlEl = $id("pageURL");
@@ -4039,10 +3391,27 @@ document.addEventListener("DOMContentLoaded", function () {
           var validUrl = url.match(/^(http|https):\/\/[^ "]+$/);
           var _fetchEl = $id('fetchPage');
           if (_fetchEl) _fetchEl.disabled = !validUrl;
+          var _openEl = $id('openPageInWorkScreen');
+          if (_openEl) _openEl.disabled = !validUrl;
         });
       });
     }
   }
+
+  // The page opens in the chat's browser on the work screen, which is shown
+  // (the server answers with workbench_open_url when it could not).
+  $on($id("openPageInWorkScreen"), "click", function (event) {
+    event.preventDefault();
+    const url = (($id("pageURL") || {}).value || "").trim();
+    if (!/^(http|https):\/\/[^ "]+$/.test(url)) return;
+    if (typeof window.safeWsSend === "function") window.safeWsSend({ message: "WORKBENCH_OPEN_URL", url: url });
+    bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+    const lc = window.LayoutController;
+    if (lc) {
+      if (lc.isMenuHidden()) lc.setMenuHidden(false);
+      lc.setPane('work');
+    }
+  });
 
   $on($id("fetchPage"), "click", async function () {
     const url = ($id("pageURL") || {}).value;
@@ -4432,14 +3801,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('conversation_language_change');
     }
-
-    // Re-evaluate the Privacy Filter toggle gate now that the conversation
-    // language has changed. If the new language is unsupported by the
-    // installed Privacy build, the toggle is disabled (and forced OFF if it
-    // was previously ON, with a PRIVACY_TOGGLE:false sent to the backend).
-    if (typeof window.refreshPrivacyToggleGate === "function") {
-      window.refreshPrivacyToggleGate();
-    }
   });
 
   $on($id("tts-speed"), "input", function() {
@@ -4564,7 +3925,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (response && response.success) {
         // Clean up UI after successful import
         bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
+        if (response.older_words > 0 && window.WordTable) window.WordTable.noticeOlderFile(response.older_words);
+        const translate = typeof webUIi18n !== 'undefined' ? (key) => webUIi18n.t(key) : null;
+        const importedText = typeof formHandlers.importNotice === 'function'
+          ? formHandlers.importNotice(response, translate)
+          : (translate ? translate('ui.messages.sessionImported') : 'Session imported successfully');
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${importedText}`, response.state_dropped > 0 ? "warning" : "success");
 
         // Privacy import safety net: the WebSocket 'parameters' handler
         // schedules proceedWithAppChange via rAF, but if rAF is throttled
@@ -4646,44 +4012,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  const fileFile = $id('fileFile');
-  const fileButton = $id('uploadFile');
-
-  // Use the form handlers module for file upload validation
-  if (formHandlers && formHandlers.setupFileValidation) {
-    formHandlers.setupFileValidation(
-      $id('fileFile'),
-      $id('uploadFile')
-    );
-  } else {
-    // Fallback to direct event handler
-    fileFile.addEventListener('change', function () {
-      if (fileFile.files.length > 0) {
-        if (fileButton) fileButton.disabled = false;
-      } else {
-        if (fileButton) fileButton.disabled = true;
-      }
-    });
-  }
-
-  // Initialize tooltips with delegated observation for dynamically added elements
-  {
-    const discourseEl = $id("discourse");
-    if (discourseEl) {
-      // Initialize tooltips on existing elements
-      discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
-        new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
-      });
-      // Observe for new elements and initialize tooltips on them
-      const tooltipObserver = new MutationObserver(function() {
-        discourseEl.querySelectorAll('.card-header [title]').forEach(function(el) {
-          if (!bootstrap.Tooltip.getInstance(el)) {
-            new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' });
-          }
-        });
-      });
-      tooltipObserver.observe(discourseEl, { childList: true, subtree: true });
-    }
+  // The tooltips of the cards' controls, made when the pointer comes to one
+  if (window.uiUtils && window.uiUtils.showCardTooltipsOnHover) {
+    window.uiUtils.showCardTooltipsOnHover($id("discourse"));
   }
 
   // Add global function to clean up all tooltips
@@ -5155,28 +4486,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
       }
-    });
-
-    // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
-    $on($id("lightboxImage"), "click", function() {
-      bootstrap.Modal.getOrCreateInstance($id("screenshotLightbox")).hide();
-    });
-
-    $on($id("lightboxPrev"), "click", function(e) {
-      e.stopPropagation();
-      if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
-    });
-
-    $on($id("lightboxNext"), "click", function(e) {
-      e.stopPropagation();
-      if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
-    });
-
-    // Arrow key navigation for lightbox (Escape is handled by Bootstrap's keyboard: true default)
-    document.addEventListener("keydown", function(e) {
-      if (!($id("screenshotLightbox") && $id("screenshotLightbox").classList.contains("show"))) return;
-      if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
-      if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });
   })();
 });

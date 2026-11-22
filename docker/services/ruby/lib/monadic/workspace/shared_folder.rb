@@ -71,7 +71,7 @@ module Monadic
         /\A\d{10}\.json\z/,             # notebook cells sent in one go
         /\Ajupyter_cells_\d{8}_\d{6}_[0-9a-f]{8}\.json\z/, # the same, as it is named now
         /\A\d{10}\.pdf\z/,              # a PDF copied for text extraction
-        /\Apdf2text_[0-9a-f]{16}\.pdf\z/, # the same, as it is named now
+        /\Apdf2text_[0-9a-f]{16}\.pdf\z/, # the same, as it was named later
         /\.md\.json\z/,                 # text extraction output
         /\Asyntree_\d+\./,              # syntax tree drawing steps
         /\.part-\d+\z/                  # a copy that was not finished
@@ -96,6 +96,12 @@ module Monadic
         /\Aintegration_test_\d{10}\.txt\z/
       ].freeze
       TEST_CANDIDATE_PROJECT = /\ATestApp_\d{10}\z/ # under auto_forge/
+
+      # What the operating system or Jupyter leaves beside the user's files,
+      # in any folder (names compared in lower case). Not listed, nor are
+      # AppleDouble files (`._name`) and, at the top, the dot files of
+      # PROTECTED, which Monadic Chat keeps for itself.
+      SYSTEM_NAMES = %w[.ds_store .localized thumbs.db desktop.ini .ipynb_checkpoints].freeze
 
       PER_PAGE = 200
 
@@ -176,6 +182,7 @@ module Monadic
         names = []
         truncated = false
         Dir.each_child(dir) do |name|
+          next if Monadic::Utils::SharedFs.being_written?(name) || system_entry?(parts, name)
           if names.size >= MAX_NAMES
             truncated = true
             break
@@ -471,6 +478,12 @@ module Monadic
         end
 
         { classification: FOLDERS[top] || 'other', classification_source: FOLDERS.key?(top) ? 'name' : 'none' }
+      end
+
+      def system_entry?(parts, name)
+        lower = name.downcase
+        SYSTEM_NAMES.include?(lower) || name.start_with?('._') ||
+          (parts.empty? && name.start_with?('.') && PROTECTED.key?(lower))
       end
 
       def test_file?(parts, name)

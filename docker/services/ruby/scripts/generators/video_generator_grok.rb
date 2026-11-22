@@ -74,6 +74,10 @@ if __FILE__ == $PROGRAM_NAME
       options[:image_path] = image
     end
 
+    opts.on("--out-dir PATH", "A folder of the shared folder to save the video in (default: its top)") do |dir|
+      options[:out_dir] = dir
+    end
+
     opts.on("--max-wait SECONDS", Integer, "Maximum wait time in seconds (default: 420)") do |seconds|
       options[:max_wait] = seconds
     end
@@ -116,6 +120,11 @@ if __FILE__ == $PROGRAM_NAME
   end
 
   shared_folder = get_save_path
+  save_folder = options[:out_dir] ? Monadic::Utils::SharedPathGuard.shared_dir(options[:out_dir]) : shared_folder
+  unless save_folder
+    puts JSON.generate({ success: false, error: "The folder to save in is not a folder of the shared folder" })
+    exit 1
+  end
 
   has_image = options[:image_path] && !options[:image_path].strip.empty?
 
@@ -231,7 +240,7 @@ if __FILE__ == $PROGRAM_NAME
         # Save video to shared folder
         timestamp = Time.now.to_i
         filename = "grok_video_#{timestamp}.mp4"
-        output_path = File.join(shared_folder, filename)
+        output_path = File.join(save_folder, filename)
 
         Monadic::Utils::SharedPathGuard.write_file!(output_path, video_response.body.to_s)
 

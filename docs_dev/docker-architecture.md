@@ -12,7 +12,7 @@ included from `docker/services/compose.yml`):
 - **Embeddings** (`monadic-chat-embeddings-container`): Local embedding service (`multilingual-e5-base`)
 - **Python** (`monadic-chat-python-container`): JupyterLab, Python tools & script execution
 - **Selenium** (`monadic-chat-selenium-container`): Web automation for capture/search
-- **Privacy** (`monadic-chat-privacy-container`): PII masking service for the Privacy Filter
+- **Privacy** (`monadic-chat-privacy-container`): finds names for Anonymization (word tables)
 - **Extractor** (`monadic-chat-extractor-container`): Document extraction service (Docling + RapidOCR)
 
 Native Ollama is not a container: the Ruby service reaches the host's
@@ -24,7 +24,7 @@ Ollama via `host.docker.internal:11434`.
 `monadic-chat-embeddings-container` does inference only (Python and
 sentence-transformers, with the embedding model baked into the image).
 Both are base services. Stateless ML inference runs in its own container,
-as the Privacy Filter does.
+as the Privacy container does.
 
 ## Container Lifecycle
 
@@ -55,7 +55,7 @@ Start runs `docker compose … ${ALL_PROFILES_UP} up -d`. `ALL_PROFILES_UP` is
 
 When an app needs a service that is not running, it is started on demand.
 The `ContainerDependencies` module (`lib/monadic/utils/container_dependencies.rb`) determines
-which services each app needs based on MDSL settings (tool groups, jupyter flag, pdf_vector_storage).
+which services each app needs based on MDSL settings (tool groups, jupyter flag).
 
 Manual startup: `monadic.sh ensure-service <name>` (e.g. `python`, `selenium`, `privacy`)
 
@@ -153,6 +153,7 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 - `~/monadic/data` → `/monadic/data` (shared data)
 - `~/monadic/config` → `/monadic/config` (API keys, settings)
 - `~/monadic/log` → `/monadic/log` (logs)
+- The engine's socket → `/var/run/docker.sock` (Ruby only; `monadic.sh` sets `MONADIC_DOCKER_SOCK` from the engine). The Ruby service runs with `security_opt: label=disable` because an engine that applies SELinux labels (Podman) otherwise blocks it from that socket, and the socket already gives it the engine, so the label confines nothing more.
 
 ## Port Mappings (defaults)
 
@@ -160,7 +161,7 @@ Host-published ports (see each service's `compose.yml` for the authoritative lis
 
 - 4567: Ruby web server
 - 8889: JupyterLab (Python container)
-- 4444 / 5900 / 7900: Selenium Grid / VNC
+- 7900: noVNC (WebDriver 4444 and the VNC server are reached only inside the container network)
 - 11434: Ollama API (native on host, not a container)
 
 Qdrant, embeddings, Privacy, and Extractor expose no host ports; they are

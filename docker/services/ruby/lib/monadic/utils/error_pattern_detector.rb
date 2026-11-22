@@ -220,10 +220,27 @@ module ErrorPatternDetector
     end
   end
 
+  # Attaches a call's arguments to its entry (the latest one of that name
+  # without them), so that calls of one tool with different arguments, such
+  # as listing one folder after another, are not taken for a cycle.
+  def self.note_arguments(session, function_name, arguments)
+    seq = session[:tool_call_sequence]
+    return unless seq
+
+    entry = seq.reverse_each.find { |e| e.is_a?(Hash) && e[:name] == function_name.to_s && !e.key?(:args) }
+    entry[:args] = canonical(arguments) if entry
+  end
+
   # Return the function name for a sequence entry, accepting either Hash
   # form (current) or String form (legacy / direct array assignment).
   def self.entry_name(entry)
     entry.is_a?(Hash) ? entry[:name] : entry.to_s
+  end
+
+  # What two entries must share to count as the same call: the name, and the
+  # arguments where they were noted.
+  def self.entry_key(entry)
+    entry.is_a?(Hash) && entry.key?(:args) ? [entry[:name], entry[:args]] : entry_name(entry)
   end
 
   # Return whether a sequence entry was marked as errored.
@@ -258,24 +275,21 @@ module ErrorPatternDetector
       # Try permissive window first (larger). If it matches, we've hit the
       # all-success ceiling and should stop regardless of errors.
       if seq.length >= permissive_needed
-        recent       = seq.last(permissive_needed)
-        recent_names = recent.map { |e| entry_name(e) }
-        cycle        = recent_names.first(cycle_len)
-        if recent_names.each_slice(cycle_len).all? { |slice| slice == cycle }
-          return cycle
+        recent = seq.last(permissive_needed)
+        keys   = recent.map { |e| entry_key(e) }
+        if keys.each_slice(cycle_len).all? { |slice| slice == keys.first(cycle_len) }
+          return recent.first(cycle_len).map { |e| entry_name(e) }
         end
       end
 
       # Strict window: smaller, requires ≥1 errored call to fire.
       next if seq.length < strict_needed
-      recent       = seq.last(strict_needed)
-      recent_names = recent.map { |e| entry_name(e) }
-      cycle        = recent_names.first(cycle_len)
-      is_cycle     = recent_names.each_slice(cycle_len).all? { |slice| slice == cycle }
-      next unless is_cycle
+      recent = seq.last(strict_needed)
+      keys   = recent.map { |e| entry_key(e) }
+      next unless keys.each_slice(cycle_len).all? { |slice| slice == keys.first(cycle_len) }
       next unless recent.any? { |e| entry_errored?(e) }
 
-      return cycle
+      return recent.first(cycle_len).map { |e| entry_name(e) }
     end
 
     nil
@@ -287,6 +301,49 @@ module ErrorPatternDetector
 
   def self.reset_tool_tracking(session)
     session[:tool_call_sequence] = []
+  end
+
+  # The same call again: a tool called with the same arguments is not run a
+  # third time while the turn makes no call it has not made before. Returns
+  # what the model is told in place of a result, or nil when the call runs.
+  REPEAT_LIMIT = 3
+
+  def self.repeat_refusal(session, function_name, arguments)
+    return nil unless session.respond_to?(:[]=)
+
+    state = (session[:tool_call_repeats] ||= { seen: {}, counts: Hash.new(0) })
+    signature = [function_name.to_s, canonical(arguments)]
+    unless state[:seen][signature]
+      state[:seen][signature] = true
+      state[:counts].clear
+    end
+    return nil if (state[:counts][signature] += 1) < REPEAT_LIMIT
+
+    "❌ `#{function_name}` was already called #{REPEAT_LIMIT - 1} times in this reply with the same arguments, " \
+      "and nothing new was done in between, so it was not run again. " \
+      "Use the results you have and write your answer."
+  end
+
+  # Arguments in one form whatever the order or the kind of their keys.
+  def self.canonical(value)
+    case value
+    when Hash then value.map { |k, v| [k.to_s, canonical(v)] }.sort_by(&:first)
+    when Array then value.map { |v| canonical(v) }
+    else value
+    end
+  end
+
+  # A new user turn: the tool calls and errors of the turn before are not
+  # counted toward a cycle or a repeated error, and a turn stopped for one
+  # does not stop this one.
+  def self.begin_turn(session)
+    reset_tool_tracking(session)
+    if session.respond_to?(:delete)
+      session.delete(:tool_call_repeats)
+      session.delete(:error_patterns)
+    end
+    params = session[:parameters]
+    params.delete("stop_retrying") if params.respond_to?(:delete)
   end
 
   def self.tool_cycle_message(session)

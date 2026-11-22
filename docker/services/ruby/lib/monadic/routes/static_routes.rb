@@ -67,6 +67,14 @@ get "/" do
   end
 end
 
+# The work screen's socket: the page watches its chat's browser
+# (lib/monadic/work_screen.rb).
+get "/work-screen" do
+  halt 400 unless env["HTTP_UPGRADE"]&.downcase == "websocket"
+
+  Monadic::WorkScreen.serve(env)
+end
+
 # Serve local development documentation in debug mode (internal docs_dev)
 # NOTE: This MUST come before the /docs/?* route to avoid matching /docs_dev/ as /docs/_dev/
 get "/docs_dev/?*" do

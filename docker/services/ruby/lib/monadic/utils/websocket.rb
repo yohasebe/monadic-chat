@@ -12,12 +12,12 @@ require_relative 'privacy/egress_guard'
 require_relative '../workspace'
 require_relative '../history'
 require_relative '../agents/ai_user_agent'
-require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
 require_relative 'extra_logger'
 require_relative 'ssl_configuration'
 require_relative 'string_utils'
 require_relative '../shared_tools/monadic_session_state'
+require_relative '../work_screen'
 
 # Load WebSocket sub-modules
 require_relative 'websocket/connection_manager'
@@ -26,13 +26,18 @@ require_relative 'websocket/tts_handler'
 require_relative 'websocket/message_editor'
 require_relative 'websocket/audio_handler'
 require_relative 'websocket/audio_stream_handler'
-require_relative 'websocket/pdf_handler'
+require_relative 'websocket/workbench_handler'
+require_relative 'websocket/jupyter_handler'
 require_relative 'websocket/library_handler'
+require_relative 'websocket/reply_state'
+require_relative 'websocket/reply_handle'
 require_relative 'websocket/streaming_handler'
 require_relative 'websocket/html_handler'
 require_relative 'websocket/misc_handlers'
 require_relative 'websocket/privacy_handler'
+require_relative 'websocket/word_table_handler'
 require_relative 'websocket/verify_handler'
+require_relative 'websocket/notes_keeper'
 require_relative 'websocket/history_handler'
 require_relative 'websocket/sts_stream_handler'
 
@@ -40,7 +45,6 @@ Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfi
 
 module WebSocketHelper
   include AIUserAgent
-  include ContextExtractorAgent
   include Monadic::SharedTools::MonadicSessionState
 
   # Access Rack session from thread-local storage in WebSocket context
@@ -58,8 +62,6 @@ module WebSocketHelper
   def sync_session_state!
     session_id = Thread.current[:websocket_session_id]
     return unless session_id
-
-    Monadic::History::Policy.note_begun!(session)
 
     params = get_session_params || {}
     Monadic::Utils::ExtraLogger.log { "[sync_session_state!] Session synced: #{session_id}" }
@@ -191,7 +193,7 @@ module WebSocketHelper
       end
       Monadic::Workspace::Chats.resume!(session, saved_state && saved_state[:chat_id])
       sync_session_state!
-      WebSocketHelper.register_live_session(ws_session_id, session, session[:_ws_generation])
+      WebSocketHelper.register_live_session(ws_session_id, session, session[:_ws_generation], connection: connection)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})" }
 
@@ -203,6 +205,8 @@ module WebSocketHelper
 
       # Send initial load message immediately after connection
       handle_load_message(connection)
+      send_workbench_view(connection, session, initial: true)
+      send_word_table(connection, session) if chat_token(session)
 
       begin
         while message_data = connection.read
@@ -222,23 +226,22 @@ module WebSocketHelper
             Monadic::Utils::ExtraLogger.log { "WebSocket received UPDATE_LANGUAGE message\n  Full obj: #{obj.inspect}" }
           end
 
+      # The chat the tab is in before the message: when the message puts the
+      # tab in another one, the page is told the words of the chat it is in
+      # after it.
+      chat_before = chat_token(session)
+
       case msg
       when "TTS"
           handle_ws_tts(connection, obj, session)
         when "CANCEL"
-          thread&.kill
+          stop_reply_work(thread)
           thread = nil
-          suggestion&.kill
+          stop_reply_work(suggestion)
           suggestion = nil
-          queue.clear
+          drop_queued_replies(queue)
 
           handle_ws_cancel(Thread.current[:websocket_session_id])
-        when "PDF_TITLES"
-          handle_ws_pdf_titles(connection, obj, session)
-        when "DELETE_PDF"
-          handle_ws_delete_pdf(connection, obj, session)
-        when "DELETE_ALL_PDFS"
-          handle_ws_delete_all_pdfs(connection, obj, session)
         when "LIBRARY_LIST"
           handle_ws_library_list(connection, obj, session)
         when "LIBRARY_DELETE"
@@ -264,6 +267,32 @@ module WebSocketHelper
         when "PING"
           # Send PONG only to the connection that sent PING (connection-specific keepalive)
           send_to_client(connection, { "type" => "pong" })
+        when "WORK_SCREEN_TOKEN"
+          # The pass for this tab's work screen socket (Monadic::WorkScreen)
+          token = Monadic::WorkScreen::Tokens.issue(ws_session_id, session[:_ws_generation])
+          send_to_client(connection, { "type" => "work_screen_token", "token" => token })
+        when "WORKBENCH_VIEW"
+          send_workbench_view(connection, session)
+        when "WORKBENCH_ACTION"
+          handle_ws_workbench_action(connection, obj, session)
+        when "WORKBENCH_DOWNLOAD"
+          handle_ws_workbench_download(connection, obj, session)
+        when "WORKBENCH_OPEN"
+          handle_ws_workbench_open(connection, obj, session)
+        when "WORKBENCH_VERSIONS"
+          handle_ws_workbench_versions(connection, obj, session)
+        when "WORKBENCH_OPEN_ATTACHMENT"
+          handle_ws_workbench_open_attachment(connection, obj, session)
+        when "WORKBENCH_OPEN_URL"
+          handle_ws_workbench_open_url(connection, obj, session)
+        when "JUPYTER_OPEN"
+          handle_ws_jupyter_open(connection, obj, session)
+        when "WORKBENCH_SELECT"
+          handle_ws_workbench_select(connection, obj, session)
+        when "WORKBENCH_SHOW", "WORKBENCH_SHOW_REMOVE"
+          # Sent by a page from before "Show to the assistant" was taken
+          # out: dropped here, never taken as a message to answer.
+          next
         when "RESET"
           # A reply still being written belongs to the chat being reset. It
           # is stopped as Cancel stops it, before the session is cleared:
@@ -274,6 +303,8 @@ module WebSocketHelper
           stop_running_reply(suggestion, nil)
           suggestion = nil
           handle_ws_reset(session)
+          # The page's work screen follows the tab into its new chat.
+          send_workbench_view(connection, session)
         when "LOAD"
           # Store ui_language in session parameters if provided
           if obj["ui_language"]
@@ -293,8 +324,6 @@ module WebSocketHelper
           handle_edit_message(connection, obj)
         when "UPDATE_MCP_CONFIG"
           handle_mcp_config_update(connection, obj)
-        when "UPDATE_CONTEXT_FROM_CLIENT"
-          handle_context_update_from_client(connection, obj)
         when "AI_USER_QUERY"
           suggestion = handle_ws_ai_user_query(connection, obj, session, thread, suggestion) || suggestion
         when "HTML"
@@ -302,13 +331,15 @@ module WebSocketHelper
         when "UPDATE_PARAMS"
           # Another app starts a new chat: a reply still being written for
           # the previous one is stopped first, as on Reset.
-          if app_change?(obj, session)
+          new_chat = app_change?(obj, session)
+          if new_chat
             stop_running_reply(thread, queue)
             thread = nil
             stop_running_reply(suggestion, nil)
             suggestion = nil
           end
           handle_ws_update_params(connection, obj, session)
+          send_workbench_view(connection, session) if new_chat
         when "IMPORT_APPLY"
           # A conversation read from a file replaces this tab's chat: what
           # is running for the current one is stopped first, as on Reset,
@@ -322,8 +353,9 @@ module WebSocketHelper
             suggestion = nil
           end
           handle_ws_import_apply(connection, obj, session, imported)
+          send_workbench_view(connection, session) if imported
         when "HISTORY_LIST"
-          handle_ws_history_list(connection, obj)
+          handle_ws_history_list(connection, obj, session)
         when "HISTORY_RENAME"
           handle_ws_history_rename(connection, obj)
         when "HISTORY_DELETE"
@@ -341,6 +373,7 @@ module WebSocketHelper
               suggestion = nil
             end
             handle_ws_history_resume(connection, obj, session, refusal)
+            send_workbench_view(connection, session) if refusal.nil?
           ensure
             WebSocketHelper.release_chat(obj['chat_id'].to_s) if refusal.nil?
           end
@@ -380,19 +413,21 @@ module WebSocketHelper
           handle_ws_stop_tts(connection, obj, session)
         when "PLAY_TTS"
           handle_ws_play_tts(connection, obj, session, thread)
-        when "PRIVACY_REGISTRY"
-          handle_ws_privacy_registry(connection, session)
         when "PRIVACY_EXPORT"
           handle_ws_privacy_export(connection, session, obj)
-        when "PRIVACY_TOGGLE"
-          handle_ws_privacy_toggle(connection, session, obj)
+        when "WORDS_FIND"
+          handle_ws_words_find(connection, session, obj)
+        when "WORDS_CHANGE"
+          handle_ws_words_change(connection, session, obj)
+        when "PRIVACY_TOGGLE", "PRIVACY_REGISTRY"
+          handle_ws_page_out_of_date(connection)
         when "VERIFY_CONFIDENCE"
           handle_ws_verify_confidence(connection, obj, session)
         else # fragment
           # One answer at a time: a send that arrives while one is running
           # is not accepted (busy: the page gives the text and attachments
           # back and leaves the running answer as it is).
-          if thread&.alive?
+          if reply_busy?(thread)
             send_error("answer_still_running", ws_session_id, { "not_accepted" => true, "busy" => true })
             next
           end
@@ -403,8 +438,9 @@ module WebSocketHelper
           started = handle_ws_streaming(connection, obj, session, queue)
           thread = started if started
         end
-      end # end case
-    end # end while
+        send_word_table(connection, session) if chat_token(session) != chat_before
+      end # end while
+    end
 
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Error in message loop: #{e.class}: #{e.message}\n#{e.backtrace.first(5).join("\n")}" }
@@ -413,12 +449,23 @@ module WebSocketHelper
       # outlive the client connection (the STT bridge dies with its writer;
       # the STS bridge is long-lived by design, so it needs an explicit stop).
       teardown_sts_session(session) if session
+      # What the work screen was asked through this connection is not taken.
+      Monadic::Workbench::Capture.revoke_tab(ws_session_id, generation: session[:_ws_generation]) if session
 
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
       WebSocketHelper.unregister_live_session(ws_session_id, session[:_ws_generation]) if session
+      Monadic::Workbench::Channel.connection_closed(ws_session_id, session[:_ws_generation], session) if session
       # Nothing stays staged for a tab with no connection left (a newer
       # connection of the same tab keeps what was staged for it).
       WebSocketHelper.drop_imports(ws_session_id) unless WebSocketHelper.live_session(ws_session_id)
+
+      # What this connection was running ends before its session is saved:
+      # its tokens go, the answer is stopped and waited for until its worker
+      # ended it, then the suggestion, then answers it had not taken.
+      Replies.forget_tokens(ws_session_id, session[:_ws_generation]) if session
+      stop_reply_work(thread, ws_session_id)
+      stop_reply_work(suggestion, ws_session_id)
+      drop_queued_replies(queue, ws_session_id)
 
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
 
@@ -427,9 +474,6 @@ module WebSocketHelper
       Thread.current[:websocket_session_id] = nil
       Thread.current[:rack_session] = nil
       Monadic::Utils::Privacy::EgressGuard.for_chat(nil)
-
-      thread&.kill
-      suggestion&.kill
     end
   end
 
@@ -539,8 +583,8 @@ module WebSocketHelper
   # Returns one of:
   #   :sts             — current model has the supports_speech_to_speech
   #                      capability; audio goes to the STS bridge
-  #   :privacy_blocked — model is STS-capable but the Privacy Filter is on;
-  #                      raw audio must not be sent to the provider
+  #   :privacy_blocked — model is STS-capable but the chat hides words;
+  #                      the conversation would be sent as written
   #   :stt             — default realtime-STT transcription path
   # `obj` (the inbound audio message) may carry a `chat_model` routing hint.
   # Deciding from session parameters alone races the client's UPDATE_PARAMS
@@ -554,45 +598,26 @@ module WebSocketHelper
     sts_privacy_active?(session) ? :privacy_blocked : :sts
   end
 
-  # Privacy Filter "currently enabled" check for STS routing. Mirrors the
-  # two-gate activation in BaseVendorHelper#privacy_enabled_for?: the app
-  # must declare `privacy do; enabled true; end` in MDSL AND the user must
-  # have opted in via the session toggle (PRIVACY_TOGGLE sets
-  # session[:_privacy_session_enabled] only after a container health probe,
-  # so the key alone is backend-authoritative for the toggle half).
+  # Speech-to-speech gets the conversation as written, so a chat that hides
+  # its words keeps it closed.
   private def sts_privacy_active?(session)
     return false unless session.respond_to?(:[])
-    # Words the user marked keep speech-to-speech closed, on or off: the
-    # voice session would be given the conversation as written.
-    require_relative 'privacy/outbound'
-    return true if Monadic::Utils::Privacy::Outbound.marked_terms?(session)
-    return false unless session[:_privacy_session_enabled] == true
 
-    params = session[:parameters] || session["parameters"]
-    params = {} unless params.respond_to?(:[])
-    app_name = params["app_name"] || params[:app_name]
-    app_settings = (defined?(APPS) && app_name && APPS[app_name]) ? APPS[app_name].settings : nil
-    return false unless app_settings
-
-    privacy = app_settings[:privacy] || app_settings["privacy"]
-    return false unless privacy
-
-    (privacy[:enabled] || privacy["enabled"]) == true
+    Monadic::Utils::Privacy::Words.marked?(session)
   end
 
-  # Notify the user that STS is unavailable while the Privacy Filter is on.
+  # Notify the user that STS is unavailable in a chat that hides its words.
   # Sent only once per session (tracked via :_sts_privacy_notice_sent) so a
   # stream of AUDIO_CHUNKs does not spam one error per chunk.
   private def notify_sts_privacy_blocked(connection, session)
     return if session[:_sts_privacy_notice_sent]
 
     session[:_sts_privacy_notice_sent] = true
+    reason = "is unavailable in a conversation that hides its words. " \
+             "Start a new conversation or choose a model without speech-to-speech support to use voice input."
     send_to_client(connection, {
       "type" => "error",
-      "content" => "Speech-to-speech mode sends raw audio directly to the provider " \
-                   "and is unavailable while the Privacy Filter is on. " \
-                   "Disable the Privacy Filter or choose a model without " \
-                   "speech-to-speech support to use voice input."
+      "content" => "Speech-to-speech mode sends raw audio directly to the provider and #{reason}"
     })
   end
 
@@ -612,44 +637,5 @@ module WebSocketHelper
     end
 
     send_to_client(connection, { "type" => "info", "content" => "MCP configuration updated" })
-  end
-
-  # Handle context update from client sidebar panel
-  # This is called when user edits context directly in the sidebar
-  def handle_context_update_from_client(connection, obj)
-    current_session = session
-    context = obj["context"]
-
-    return unless context.is_a?(Hash)
-
-    # Save context to session state using MonadicSessionState
-    begin
-      # Use the same key as SessionContext module
-      context_key = :conversation_context
-
-      # Save to session state
-      result = JSON.parse(monadic_save_state(key: context_key, payload: context, session: current_session))
-
-      if result["success"]
-        # Broadcast the update back to confirm (session-specific)
-        ws_session_id = Thread.current[:websocket_session_id]
-        message = {
-          "type" => "context_update",
-          "context" => context,
-          "timestamp" => Time.now.to_f
-        }
-
-        if ws_session_id
-          WebSocketHelper.send_to_session(message.to_json, ws_session_id)
-        end
-
-        Monadic::Utils::ExtraLogger.log { "[WebSocket] Context updated from client: #{context.keys.join(', ')}" }
-      else
-        send_to_client(connection, { "type" => "error", "content" => "Failed to save context" })
-      end
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] Context update error: #{e.message}" }
-      send_to_client(connection, { "type" => "error", "content" => "Context update error: #{e.message}" })
-    end
   end
 end

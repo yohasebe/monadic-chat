@@ -47,12 +47,36 @@ set :bind, "0.0.0.0"
 # server. See lib/monadic/utils/local_origin_guard.rb.
 use Monadic::Utils::LocalOriginGuard
 
-# A Private chat makes no files: the requests that would make them are
-# refused before anything reads their body (Rack writes file parts to disk
-# while parsing). See lib/monadic/history/private_request_guard.rb.
-require_relative "lib/monadic/history/private_request_guard"
-use Monadic::History::PrivateRequestGuard,
-    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/pdf", "/document", "/upload_audio", "/fetch_webpage"],
+# A candidate's image on the workbench, served here so its address (which
+# holds the permission) is not written to the access log. See
+# lib/monadic/workbench/asset_server.rb.
+require_relative "lib/monadic/workbench/asset_server"
+use Monadic::Workbench::AssetServer,
+    live: ->(tab_id) { WebSocketHelper.live_generation(tab_id) }
+
+# The work screen's worker scripts load nothing and run no text as code.
+# See lib/monadic/workbench/worker_policy.rb.
+require_relative "lib/monadic/workbench/worker_policy"
+use Monadic::Workbench::WorkerPolicy
+
+# A page's answer to what the server asked its work screen (a look),
+# taken here so that its address (which holds the permission) is not
+# written to the access log. See lib/monadic/workbench/capture_server.rb.
+require_relative "lib/monadic/workbench/capture_server"
+use Monadic::Workbench::CaptureServer
+
+# A page stopping its answer while the tab's connection waits for it, taken
+# here so that its address (which holds the permission) is not written to
+# the access log. See lib/monadic/utils/reply_cancel_server.rb.
+require_relative "lib/monadic/utils/reply_cancel_server"
+use Monadic::Utils::ReplyCancelServer
+
+# The chat a page's request is for, fixed from its tab before anything reads
+# its body (Rack writes file parts to disk while parsing). See
+# lib/monadic/workspace/chat_request_scope.rb.
+require_relative "lib/monadic/workspace/chat_request_scope"
+use Monadic::Workspace::ChatRequestScope,
+    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/document", "/fetch_webpage"],
     session_lookup: ->(tab_id) { WebSocketHelper.live_session(tab_id) },
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 
@@ -61,21 +85,19 @@ use Monadic::History::PrivateRequestGuard,
 use Rack::TempfileReaper
 
 # A conversation to import is read in memory: no temporary file is made of
-# it (it may be one exported from a Private chat).
+# it.
 use Monadic::Workspace::UploadInMemory, paths: ["/load"]
 
-# Attachments: the chat fixed from the tab, then the size cap, both before
-# anything reads the request body.
+# Attachments and documents to convert: the chat fixed from the tab, then
+# the size cap, both before anything reads the request body.
 use Monadic::Workspace::UploadContext,
-    paths: [Monadic::Routes::AttachmentRoutes::PATH],
+    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/document"],
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 # Every upload, likewise capped before anything reads the body: Rack writes
 # file parts to disk while parsing, with no total limit of its own.
 use Monadic::Workspace::UploadLimit, limits: {
   Monadic::Routes::AttachmentRoutes::PATH => Monadic::Workspace::UploadLimit::DEFAULT_MAX_BYTES,
-  "/pdf" => PDF_UPLOAD_MAX_BYTES,
   "/document" => DOCUMENT_UPLOAD_MAX_BYTES,
-  "/upload_audio" => AUDIO_UPLOAD_MAX_BYTES,
   "/load" => SESSION_LOAD_MAX_BYTES,
   # The route checks the file itself; this stops the body first, with room
   # for the multipart framing around the file.

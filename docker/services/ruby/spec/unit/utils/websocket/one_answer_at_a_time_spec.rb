@@ -2,11 +2,6 @@
 
 require "spec_helper"
 require "json"
-require "open3"
-require "timeout"
-require "tmpdir"
-require "fileutils"
-require "rbconfig"
 
 # One answer runs at a time on a connection (a tab that reconnects gets a
 # new connection; this does not cover two at once). The app runs in a child
@@ -14,9 +9,7 @@ require "rbconfig"
 # second send arrives while the first answer runs, and Cancel and a closed
 # connection can be seen to stop it.
 RSpec.describe "WebSocket sends while an answer runs" do
-  def app_root
-    File.expand_path("../../../..", __dir__)
-  end
+  include AppProbe
 
   def probe_script
     <<~'RUBY'
@@ -123,48 +116,7 @@ RSpec.describe "WebSocket sends while an answer runs" do
     RUBY
   end
 
-  # The app in a child process of its own group, with its own HOME and a
-  # time limit; nothing of the group is left afterwards.
-  def probe
-    Dir.mktmpdir("one-answer-home") do |home|
-      tmp = File.join(home, "tmp")
-      Dir.mkdir(tmp)
-      FileUtils.mkdir_p(File.join(home, "monadic", "data"))
-      FileUtils.mkdir_p(File.join(home, "monadic", "config"))
-      File.write(File.join(home, "monadic", "config", "env"), "OPENAI_API_KEY=sk-test-not-used\n")
-      kept = ENV.to_h.select { |k, _| k == "PATH" || k == "LANG" || k.start_with?("BUNDLE", "GEM_", "RUBY", "RBENV") }
-      env = kept.merge("HOME" => home, "IN_CONTAINER" => "false", "TMPDIR" => tmp)
-      out = +""
-      status = nil
-      pgid = nil
-      Open3.popen2e(env, RbConfig.ruby, "-e", probe_script, chdir: app_root, unsetenv_others: true, pgroup: true) do |stdin, io, wait|
-        stdin.close
-        pgid = Process.getpgid(wait.pid)
-        begin
-          Timeout.timeout(180) { out << io.read }
-        rescue Timeout::Error
-          Process.kill("TERM", -pgid) rescue nil
-          sleep 1
-          Process.kill("KILL", -pgid) rescue nil
-          raise "probe timed out:\n#{out.lines.last(25).join}"
-        ensure
-          status = wait.value
-        end
-      end
-      @group_left = begin
-        Process.kill(0, -pgid)
-        true
-      rescue Errno::ESRCH
-        false
-      end
-      line = out.lines.find { |l| l.start_with?("PROBE ") }
-      raise "probe failed (#{status.exitstatus}):\n#{out.lines.last(25).join}" unless line
-
-      JSON.parse(line.delete_prefix("PROBE "))
-    end
-  end
-
-  before(:all) { @result = probe }
+  before(:all) { @result, @group_left = run_app_probe(probe_script) }
 
   it "runs every step" do
     expect(@result["stopped_at"]).to be_nil

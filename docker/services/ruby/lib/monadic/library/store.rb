@@ -2,6 +2,7 @@
 
 require_relative '../vector_store'
 require_relative '../embeddings'
+require_relative '../utils/app_names'
 
 module Monadic
   module Library
@@ -138,14 +139,14 @@ module Monadic
 
       # ─── Filter helpers ────────────────────────────────────────────────
 
-      # Returns a filter that matches scope_app == app_name OR
-      # scope_app == "Global". When app_name is nil/empty, returns nil so
-      # the caller's combine_filters skips the scope clause entirely
-      # (used by the KB UI to show every entry).
+      # Returns a filter that matches scope_app == app_name (or a name the
+      # app took the place of) OR scope_app == "Global". When app_name is
+      # nil/empty, returns nil so the caller's combine_filters skips the
+      # scope clause entirely (used by the KB UI to show every entry).
       def scope_filter(app_name)
         s = app_name.to_s.strip
         return nil if s.empty?
-        { must: [{ key: 'scope_app', match: { any: [s, SCOPE_GLOBAL] } }] }
+        { must: [{ key: 'scope_app', match: { any: [*Monadic::Utils::AppNames.with_former(s), SCOPE_GLOBAL] } }] }
       end
 
       def conversation_filter(conversation_id)

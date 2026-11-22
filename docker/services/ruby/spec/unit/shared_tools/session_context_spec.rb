@@ -1,209 +1,280 @@
 # frozen_string_literal: true
 
 require_relative "../../spec_helper"
-require_relative "../../../lib/monadic/shared_tools/session_context"
+require "tmpdir"
+require "json"
 
 # Mock MonadicHelper for testing
 module MonadicHelper
 end
 
-# Mock WebSocketHelper for testing
-module WebSocketHelper
-  def self.send_to_session(message, session_id)
-    # Mock implementation - just log for testing
-    true
-  end
-end
+require_relative "../../../lib/monadic/shared_tools/session_context"
+require_relative "../../../lib/monadic/turn_state/notes"
 
+# The context a conversational app keeps (topics, people, notes): items of
+# the app's state, changed by a running reply, taken back with its turn and
+# shown as a page on the work screen.
 RSpec.describe "MonadicSharedTools::SessionContext" do
-  let(:test_class) do
-    Class.new do
-      include MonadicSharedTools::SessionContext
-
-      attr_accessor :session
-
-      def initialize
-        @session = {
-          parameters: { "session_id" => "test-session-123", "app_name" => "TestApp" },
-          monadic_state: {}
-        }
-      end
+  around do |example|
+    Dir.mktmpdir("session-context") do |dir|
+      @data = File.join(dir, "data")
+      @state = File.join(dir, "state")
+      FileUtils.mkdir_p([@data, @state])
+      @data = File.realpath(@data)
+      example.run
     end
   end
 
-  let(:app) { test_class.new }
-  let(:session) { app.session }
+  let(:app_name) { "TestApp" }
+  let(:chat) { Monadic::Workspace::Ids.generate(:chat) }
+  let(:session) do
+    { Monadic::Workspace::Chats::SESSION_KEY => chat, messages: [], parameters: { "app_name" => app_name } }
+  end
+  let(:app) { Class.new { include MonadicSharedTools::SessionContext }.new }
+  let(:store) { Monadic::Workbench::Store.new(File.join(@state, "workbench")) }
+
+  before do
+    Monadic::TurnState.reset!
+    Monadic::Workbench::Board.reset!
+    stub_const("APPS", { app_name => app })
+    allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+    @reply = nil
+    allow(Monadic::Workbench::Caller).to receive(:current) { @reply }
+  end
+
+  after { Monadic::Workspace::Ledger.clear_unsettled! }
+
+  # A reply that runs the block and is saved with what it changed.
+  def run_reply
+    request_id = Monadic::Workspace::Ids.generate(:request)
+    @reply = Monadic::Workbench::Caller.new(chat_id: chat, epoch: Monadic::Workspace::Chats.epoch(chat),
+                                            request_id: request_id, session: session, tab: "tab-1", generation: 1)
+    result = yield
+    message = { "mid" => SecureRandom.hex(4), "role" => "assistant", "text" => "ok" }
+    changes = Monadic::TurnState.seal(request_id, session)
+    message["state_changes"] = changes if changes
+    session[:messages] << { "mid" => SecureRandom.hex(4), "role" => "user", "text" => "go" } << message
+    Monadic::TurnState.close(request_id)
+    @reply = nil
+    [result, message]
+  end
+
+  def context
+    app.get_context(session: session)[:context]
+  end
+
+  def delete_turn(message)
+    index = session[:messages].index(message)
+    session[:messages].slice!(index - 1, 2)
+    Monadic::TurnState.changed!(chat)
+  end
 
   describe "#get_context" do
-    context "when context is empty" do
-      it "returns default context with empty arrays" do
-        result = app.get_context(session: session)
+    it "returns empty lists when nothing is kept" do
+      result = app.get_context(session: session)
 
-        expect(result[:success]).to be true
-        expect(result[:context]["topics"]).to eq([])
-        expect(result[:context]["people"]).to eq([])
-        expect(result[:context]["notes"]).to eq([])
-      end
+      expect(result[:success]).to be true
+      expect(result[:context]).to eq("topics" => [], "people" => [], "notes" => [])
     end
 
-    context "when context has data" do
-      before do
-        app.update_context(topics: ["AI"], people: ["John"], notes: ["Important"], session: session)
+    it "returns what earlier replies kept" do
+      run_reply { app.update_context(topics: ["AI"], people: ["John"], notes: ["Important"], session: session) }
+
+      expect(context).to eq("topics" => ["AI"], "people" => ["John"], "notes" => ["Important"])
+    end
+
+    it "shows the running reply its own changes" do
+      result, = run_reply do
+        app.update_context(topics: ["AI"], session: session)
+        app.get_context(session: session)
       end
 
-      it "returns the stored context" do
-        result = app.get_context(session: session)
-
-        expect(result[:success]).to be true
-        expect(result[:context]["topics"]).to include("AI")
-        expect(result[:context]["people"]).to include("John")
-        expect(result[:context]["notes"]).to include("Important")
-      end
+      expect(result[:context]["topics"]).to eq(["AI"])
     end
   end
 
   describe "#update_context" do
-    context "with merge mode (default)" do
-      it "adds topics to existing context" do
-        app.update_context(topics: ["AI"], session: session)
-        result = app.update_context(topics: ["Ruby"], session: session)
+    it "adds to what is kept" do
+      run_reply { app.update_context(topics: ["AI"], session: session) }
+      result, = run_reply { app.update_context(topics: ["Ruby"], people: ["Alice"], session: session) }
 
-        expect(result[:success]).to be true
-        expect(result[:action]).to eq("merged")
-        expect(result[:context]["topics"]).to contain_exactly("AI", "Ruby")
-      end
-
-      it "adds people to existing context" do
-        app.update_context(people: ["John"], session: session)
-        result = app.update_context(people: ["Mary"], session: session)
-
-        expect(result[:context]["people"]).to contain_exactly("John", "Mary")
-      end
-
-      it "avoids duplicates when merging" do
-        app.update_context(topics: ["AI"], session: session)
-        result = app.update_context(topics: ["AI", "Ruby"], session: session)
-
-        expect(result[:context]["topics"]).to contain_exactly("AI", "Ruby")
-      end
+      expect(result).to include(success: true, action: "merged")
+      expect(result[:context]).to eq("topics" => %w[AI Ruby], "people" => ["Alice"], "notes" => [])
     end
 
-    context "with replace mode" do
-      before do
-        app.update_context(topics: ["AI", "ML"], people: ["John"], session: session)
-      end
+    it "does not add a text that is kept already" do
+      run_reply { app.update_context(topics: ["AI"], session: session) }
+      _, message = run_reply { app.update_context(topics: ["AI", "AI", " AI "], session: session) }
 
-      it "replaces entire context when replace is true" do
-        result = app.update_context(topics: ["Ruby"], replace: true, session: session)
-
-        expect(result[:success]).to be true
-        expect(result[:action]).to eq("replaced")
-        expect(result[:context]["topics"]).to eq(["Ruby"])
-        expect(result[:context]["people"]).to eq([])
-        expect(result[:context]["notes"]).to eq([])
-      end
+      expect(context["topics"]).to eq(["AI"])
+      expect(message).not_to have_key("state_changes")
     end
 
-    context "with nil parameters" do
-      it "handles nil topics gracefully" do
-        result = app.update_context(topics: nil, people: ["John"], session: session)
+    it "keeps only what is given in all three fields when replace is true" do
+      run_reply { app.update_context(topics: %w[Old1 Old2], people: ["OldPerson"], notes: ["Old"], session: session) }
+      result, = run_reply { app.update_context(topics: ["New"], replace: true, session: session) }
 
-        expect(result[:success]).to be true
-        expect(result[:context]["people"]).to include("John")
-      end
+      expect(result).to include(success: true, action: "replaced")
+      expect(context).to eq("topics" => ["New"], "people" => [], "notes" => [])
+    end
 
-      it "handles all nil parameters" do
-        result = app.update_context(session: session)
+    it "changes nothing when nothing is given" do
+      run_reply { app.update_context(topics: ["AI"], session: session) }
+      result, = run_reply { app.update_context(session: session) }
 
-        expect(result[:success]).to be true
-      end
+      expect(result[:success]).to be true
+      expect(context["topics"]).to eq(["AI"])
     end
   end
 
   describe "#remove_from_context" do
     before do
-      app.update_context(
-        topics: ["AI", "Ruby", "Python"],
-        people: ["John", "Mary"],
-        notes: ["Note 1", "Note 2"],
-        session: session
-      )
+      run_reply do
+        app.update_context(topics: %w[AI Ruby Python], people: %w[John Alice], notes: %w[Note1 Note2], session: session)
+      end
     end
 
-    it "removes specified topics" do
-      result = app.remove_from_context(topics: ["Ruby"], session: session)
+    it "removes the texts given and leaves the others" do
+      result, = run_reply { app.remove_from_context(topics: ["Ruby"], people: ["John"], notes: ["Note1"], session: session) }
 
-      expect(result[:success]).to be true
-      expect(result[:action]).to eq("removed")
-      expect(result[:context]["topics"]).to contain_exactly("AI", "Python")
+      expect(result).to include(success: true, action: "removed")
+      expect(context).to eq("topics" => %w[AI Python], "people" => ["Alice"], "notes" => ["Note2"])
     end
 
-    it "removes specified people" do
-      result = app.remove_from_context(people: ["John"], session: session)
+    it "changes nothing for a text that is not kept, and says it was not found" do
+      result, message = run_reply { app.remove_from_context(topics: ["NonExistent"], session: session) }
 
-      expect(result[:context]["people"]).to eq(["Mary"])
+      expect(result).to include(success: false, not_found: ["NonExistent"])
+      expect(context["topics"]).to eq(%w[AI Ruby Python])
+      expect(message).not_to have_key("state_changes")
     end
 
-    it "removes specified notes" do
-      result = app.remove_from_context(notes: ["Note 1"], session: session)
+    it "says which texts it did not find when it removed others" do
+      result, = run_reply { app.remove_from_context(topics: %w[Ruby Elixir], session: session) }
 
-      expect(result[:context]["notes"]).to eq(["Note 2"])
+      expect(result).to include(success: true, not_found: ["Elixir"])
+      expect(context["topics"]).to eq(%w[AI Python])
     end
 
-    it "handles removing non-existent items" do
-      result = app.remove_from_context(topics: ["Java"], session: session)
+    it "removes a person named without the role" do
+      run_reply { app.update_context(people: ["Sato - teaches linguistics"], session: session) }
+      run_reply { app.remove_from_context(people: ["Sato"], session: session) }
 
-      expect(result[:success]).to be true
-      expect(result[:context]["topics"]).to contain_exactly("AI", "Ruby", "Python")
+      expect(context["people"]).to eq(%w[John Alice])
+    end
+
+    it "removes the item stored, whatever id its text would have" do
+      run_reply do
+        Monadic::TurnState.change!(session, { "kind" => "item", "collection" => "notes", "id" => "t_#{"a" * 24}",
+                                              "op" => "set", "data" => "Imported" })
+      end
+      run_reply { app.remove_from_context(notes: ["Imported"], session: session) }
+
+      expect(context["notes"]).to eq(%w[Note1 Note2])
     end
   end
 
   describe "#clear_context" do
-    before do
-      app.update_context(
-        topics: ["AI"],
-        people: ["John"],
-        notes: ["Important"],
-        session: session
-      )
-    end
-
-    it "clears all context" do
-      result = app.clear_context(session: session)
+    it "removes everything" do
+      run_reply { app.update_context(topics: ["AI"], people: ["John"], notes: ["Note"], session: session) }
+      result, = run_reply { app.clear_context(session: session) }
 
       expect(result[:success]).to be true
-      expect(result[:context]["topics"]).to eq([])
-      expect(result[:context]["people"]).to eq([])
-      expect(result[:context]["notes"]).to eq([])
+      expect(context).to eq("topics" => [], "people" => [], "notes" => [])
+    end
+
+    it "removes items stored under ids their texts would not give" do
+      run_reply do
+        Monadic::TurnState.change!(session, { "kind" => "item", "collection" => "topics", "id" => "t_#{"a" * 24}",
+                                              "op" => "set", "data" => "Imported" })
+      end
+      run_reply { app.clear_context(session: session) }
+
+      expect(context["topics"]).to eq([])
     end
   end
 
-  describe "WebSocket broadcasting" do
-    it "broadcasts context update via WebSocket" do
-      expect(WebSocketHelper).to receive(:send_to_session).with(
-        anything,
-        "test-session-123"
-      )
+  describe "a deleted turn" do
+    it "takes back what the turn added and leaves the rest" do
+      _, first = run_reply { app.update_context(topics: ["AI"], session: session) }
+      run_reply { app.update_context(topics: ["Ruby"], session: session) }
 
-      app.update_context(topics: ["AI"], session: session)
+      delete_turn(first)
+
+      expect(context["topics"]).to eq(["Ruby"])
+    end
+
+    it "brings back what the turn removed" do
+      run_reply { app.update_context(notes: %w[Keep Gone], session: session) }
+      _, removal = run_reply { app.remove_from_context(notes: ["Gone"], session: session) }
+
+      delete_turn(removal)
+
+      expect(context["notes"]).to eq(%w[Keep Gone])
+    end
+
+    it "brings back everything a clearing turn removed" do
+      run_reply { app.update_context(topics: ["AI"], people: ["John"], session: session) }
+      _, clearing = run_reply { app.clear_context(session: session) }
+
+      delete_turn(clearing)
+
+      expect(context).to eq("topics" => ["AI"], "people" => ["John"], "notes" => [])
+    end
+
+    it "keeps one item when a removed text is added again and the removing turn is deleted" do
+      run_reply { app.update_context(topics: ["AI"], session: session) }
+      _, removal = run_reply { app.remove_from_context(topics: ["AI"], session: session) }
+      run_reply { app.update_context(topics: ["AI"], session: session) }
+
+      delete_turn(removal)
+
+      expect(context["topics"]).to eq(["AI"])
     end
   end
 
-  describe "default_context" do
-    it "returns hash with empty arrays for topics, people, notes" do
-      default = app.send(:default_context)
+  describe "a change that cannot be made" do
+    it "is refused outside a running reply, and says so" do
+      result = app.update_context(topics: ["AI"], session: session)
 
-      expect(default).to eq({
-        "topics" => [],
-        "people" => [],
-        "notes" => []
-      })
+      expect(result[:success]).to be false
+      expect(result[:error]).to start_with("Nothing was changed")
+      expect(context["topics"]).to eq([])
+    end
+
+    it "makes none of one call's changes when they are more than a reply may make" do
+      many = Array.new(Monadic::TurnState::Form::ENTRIES + 1) { |i| "topic #{i}" }
+      result, message = run_reply do
+        app.update_context(notes: ["kept"], session: session)
+        app.update_context(topics: many, session: session)
+      end
+
+      expect(result[:success]).to be false
+      expect(context).to eq("topics" => [], "people" => [], "notes" => ["kept"])
+      expect(message["state_changes"].size).to eq(1)
     end
   end
 
-  describe "CONTEXT_KEY constant" do
-    it "is defined as :conversation_context" do
-      expect(MonadicSharedTools::SessionContext::CONTEXT_KEY).to eq(:conversation_context)
+  describe "the page on the work screen" do
+    it "shows the context with the turn that added each text" do
+      run_reply { app.update_context(topics: ["AI"], session: session) }
+      run_reply { app.update_context(people: ["John - engineer"], session: session) }
+
+      path = Monadic::TurnState::Notes.refresh(session, show: true)
+      page = File.read(File.join(@data, path))
+
+      expect(path).to end_with("notes/context.md")
+      expect(page).to include("## Topics", "- AI (turn 1)", "## People", "- John - engineer (turn 2)")
+      expect(page).not_to include("## Notes")
+      expect(Monadic::TurnState::Notes.current(session)).to eq(path)
+    end
+
+    it "is not made, and its folder neither, while nothing is kept" do
+      expect(Monadic::TurnState::Notes.refresh(session, show: true)).to be_nil
+      expect(Monadic::Workspace::Folders.lookup(session)).to be_nil
+      expect(Monadic::TurnState::Notes.current(session)).to be_nil
     end
   end
 end

@@ -218,12 +218,12 @@ RSpec.describe Monadic::Utils::SecretRedactor do
       require_relative "../../../lib/monadic/app"
       Dir.mktmpdir do |dir|
         log = File.join(dir, "command.log")
-        stub_const("MonadicApp::COMMAND_LOG_FILE", log)
+        allow(Monadic::Shell).to receive(:command_log_file).and_return(log)
         allow(Monadic::Utils::Environment).to receive(:rotate_log)
-        allow(Open3).to receive(:capture3)
-          .and_return(["out #{FAKE_TOKEN}", "err #{FAKE_MISTRAL}", double(success?: true)])
         app = MonadicApp.new
-        allow(app).to receive(:ruby_side_command).and_return({ argv: ["ruby", "x.rb"], chdir: dir, path: "/usr/bin" })
+        # A command that writes the values on both of its outputs.
+        writes = ["sh", "-c", 'printf "out %s" "$1"; printf "err %s" "$2" >&2', "sh", FAKE_TOKEN, FAKE_MISTRAL]
+        allow(app).to receive(:ruby_side_command).and_return({ argv: writes, chdir: dir, path: "/usr/bin:/bin" })
         allow(app).to receive(:ruby_side_env).and_return({})
         app.send(:send_command, command: "x.rb #{FAKE_ANTHROPIC}", container: "ruby")
         written = File.read(log)
@@ -248,11 +248,11 @@ RSpec.describe Monadic::Utils::SecretRedactor do
     it "send_command gives a block the output without known values and the error redacted" do
       require_relative "../../../lib/monadic/app"
       allow(Monadic::Utils::Environment).to receive(:rotate_log)
-      binary = ("\xFF\xD8".b + "data #{FAKE_TOKEN}".b)
-      allow(Open3).to receive(:capture3).and_return([binary, "auth Bearer #{'Z' * 24}", double(success?: true)])
-      stub_const("MonadicApp::COMMAND_LOG_FILE", File.join(Dir.tmpdir, "spec-command-b-#{Process.pid}.log"))
+      allow(Monadic::Shell).to receive(:command_log_file).and_return(File.join(Dir.tmpdir, "spec-command-b-#{Process.pid}.log"))
       app = MonadicApp.new
-      allow(app).to receive(:ruby_side_command).and_return({ argv: ["ruby", "x.rb"], chdir: Dir.tmpdir, path: "/usr/bin" })
+      # Bytes that are not text first, then the value; a bearer token on stderr.
+      writes = ["sh", "-c", 'printf "\\377\\330data %s" "$1"; printf "auth Bearer %s" "$2" >&2', "sh", FAKE_TOKEN, "Z" * 24]
+      allow(app).to receive(:ruby_side_command).and_return({ argv: writes, chdir: Dir.tmpdir, path: "/usr/bin:/bin" })
       allow(app).to receive(:ruby_side_env).and_return({})
       seen = nil
       app.send(:send_command, command: "x.rb", container: "ruby") { |out, err, _st| seen = [out, err] }
@@ -269,10 +269,10 @@ RSpec.describe Monadic::Utils::SecretRedactor do
       stub_const("CONFIG", CONFIG.merge("SERVICE_PASSWORD" => password))
       allow(Monadic::Utils::Environment).to receive(:rotate_log)
       log = File.join(Dir.tmpdir, "spec-command-j-#{Process.pid}.log")
-      stub_const("MonadicApp::COMMAND_LOG_FILE", log)
-      allow(Open3).to receive(:capture3).and_return([JSON.generate({ "error" => password }), "", double(success?: true)])
+      allow(Monadic::Shell).to receive(:command_log_file).and_return(log)
       app = MonadicApp.new
-      allow(app).to receive(:ruby_side_command).and_return({ argv: ["ruby", "x.rb"], chdir: Dir.tmpdir, path: "/usr/bin" })
+      writes = ["sh", "-c", 'printf "%s" "$1"', "sh", JSON.generate({ "error" => password })]
+      allow(app).to receive(:ruby_side_command).and_return({ argv: writes, chdir: Dir.tmpdir, path: "/usr/bin:/bin" })
       allow(app).to receive(:ruby_side_env).and_return({})
       out = app.send(:send_command, command: "x.rb", container: "ruby")
       json = out[out.index("{")..]

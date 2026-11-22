@@ -21,6 +21,20 @@ module InteractionUtils
     "xai" => :xai_stt_api_request
   }.freeze
 
+  # Providers whose STT takes a language and cannot detect one.
+  STT_LANGUAGE_REQUIRED = %w[cohere].freeze
+
+  # The language to transcribe in: the one chosen for the conversation, or,
+  # when that is left to detection and the model cannot detect, the page's.
+  def stt_language(lang_code, model, page_language)
+    chosen = lang_code.to_s.strip
+    return lang_code unless chosen.empty? || chosen == "auto"
+    return lang_code unless STT_LANGUAGE_REQUIRED.include?(Monadic::Utils::ModelSpec.stt_provider(model))
+
+    page = page_language.to_s.strip
+    page.empty? ? lang_code : page
+  end
+
   # Convert audio blob to a supported format via ffmpeg if needed.
   # Returns [upload_tempfile, converted_tempfile_or_nil].
   # Caller must close/unlink both files in ensure block.

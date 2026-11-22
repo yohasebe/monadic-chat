@@ -1,31 +1,31 @@
 app "VoiceChatGemini" do
   description do
     en <<~TEXT
-    Conversational AI with voice input and output support. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with voice input and output support. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    音声入出力をサポートする会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    音声入出力をサポートする会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    支持语音输入输出的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    支持语音输入输出的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    음성 입출력을 지원하는 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    음성 입출력을 지원하는 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    IA conversacional con soporte de entrada y salida de voz. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con soporte de entrada y salida de voz. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    IA conversationnelle avec entrée et sortie vocales. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec entrée et sortie vocales. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Konversations-KI mit Spracheingabe und -ausgabe. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit Spracheingabe und -ausgabe. <a href="https://yohasebe.github.io/monadic-chat/#/apps/chat-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   
@@ -55,6 +55,8 @@ app "VoiceChatGemini" do
   display_name "Voice Chat"
   
   features do
+    max_tool_rounds 10
+    show_thinking false
     websearch true
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit true

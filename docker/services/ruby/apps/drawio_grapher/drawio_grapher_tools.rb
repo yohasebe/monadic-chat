@@ -1,9 +1,8 @@
 require 'nokogiri'
 require 'fileutils'
-require 'shellwords'
-require 'cgi'
-require 'json'
 require_relative '../../lib/monadic/utils/shared_path_guard'
+require_relative '../../lib/monadic/workbench/chat_output'
+require_relative '../../lib/monadic/workspace/chat_files'
 
 module DrawIOGrapher
   # Template for a valid minimal Draw.io diagram
@@ -22,156 +21,50 @@ module DrawIOGrapher
     </mxfile>
   XML
 
-  def write_drawio_file(content:, filename: "diagram")
+  # Writes the diagram as a .drawio file in the chat's work folder
+  # (Workspace::ChatFiles), whatever place filename names, and says where.
+  def write_drawio_file(content:, filename: "diagram", workbench: nil)
     return "❌ Invalid filename" unless filename.is_a?(String)
 
-    # Handle file extension
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
+    app = workbench&.session&.dig(:parameters, "app_name")
+    place = Monadic::Workspace::ChatFiles.for_write(filename, caller: workbench, app_name: app.to_s.empty? ? self.class.name : app)
+    guard = Monadic::Utils::SharedPathGuard
+    guard.mkdir_p!(File.dirname(place.full), strict: true)
+    guard.write_file!(place.full, validate_and_repair_drawio_xml(content), strict: true)
+    return "❌ The file could not be verified at #{place.relative}." unless guard.file_stat(place.full)&.size.to_i.positive?
 
-    # Use the unified environment module for data directory
-    data_dir = Monadic::Utils::Environment.shared_volume
-
-    # Ensure the data directory exists
-    unless File.directory?(data_dir)
-      begin
-        FileUtils.mkdir_p(data_dir)
-      rescue StandardError => e
-        return "❌ Could not create directory #{data_dir}: #{e.message}"
-      end
-    end
-
-    filepath = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename, extensions: %w[.drawio], must_exist: false)
-    return "❌ Invalid shared file path" unless filepath
-
-    # Validate and repair XML content
-    validated_content = validate_and_repair_drawio_xml(content)
-
-    # Write the file synchronously - this keeps the spinner active until completion
-    write_file_synchronously(validated_content, filepath, filename, data_dir)
+    "The file has been saved successfully to the shared folder as #{place.relative}."
+  rescue Monadic::Workspace::ChatFiles::Refused => e
+    "❌ #{e.message}"
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    "❌ The file could not be written"
   end
 
-  def preview_drawio(content:, filename: "diagram", session: nil)
+  # Validates and repairs the diagram, keeps it as a .drawio file in a run
+  # folder of the chat's folder and shows it on the work screen, which
+  # draws it. filename is a plain name (no folder).
+  def preview_drawio(content:, filename: "diagram", session: nil, workbench: nil)
     return "❌ Invalid filename" unless filename.is_a?(String)
 
-    # 1. Handle file extension
-    filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
-    shared_volume = Monadic::Utils::Environment.shared_volume
+    name = filename.strip
+    name = "diagram" if name.empty?
+    return "❌ The filename must be a plain name, without a folder" if name.include?("/") || name.include?("\\") || name.start_with?(".")
 
-    # 2. Validate & repair XML
-    validated_content = validate_and_repair_drawio_xml(content)
+    name = "#{name}.drawio" unless name.end_with?(".drawio")
+    app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
+    return "❌ The diagram could not be kept: there is no chat folder to keep it in." unless job
 
-    # 3. Save .drawio file
-    drawio_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(filename, extensions: %w[.drawio], must_exist: false)
-    return "❌ Invalid shared file path" unless drawio_path
-    save_result = write_file_synchronously(validated_content, drawio_path, filename, shared_volume)
-    return save_result if save_result.start_with?("❌")
-
-    # 4. Generate preview HTML
-    timestamp = Time.now.to_i
-    html_filename = "drawio_live_#{timestamp}.html"
-    screenshot_filename = "drawio_preview_#{timestamp}.png"
-    html_path = Monadic::Utils::SharedPathGuard.resolve_in_shared(html_filename, must_exist: false)
-    return "❌ Invalid preview file path" unless html_path
-    Monadic::Utils::SharedPathGuard.write_file!(html_path, build_drawio_preview_html(validated_content))
-
-    # 5. Browser session management via web_navigator.py
-    file_url = "file:///monadic/data/#{html_filename}"
-
-    if drawio_session_active?
-      nav_output = send_command(
-        command: "web_navigator.py --action navigate --url #{Shellwords.escape(file_url)}",
-        container: "python"
-      )
-      nav_result = parse_drawio_response(nav_output)
-      unless nav_result[:success]
-        start_output = send_command(
-          command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
-          container: "python"
-        )
-        start_result = parse_drawio_response(start_output)
-        return "❌ Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
-      end
-    else
-      start_output = send_command(
-        command: "web_navigator.py --action start --url #{Shellwords.escape(file_url)}",
-        container: "python"
-      )
-      start_result = parse_drawio_response(start_output)
-      return "❌ Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
-    end
-
-    # 6. Capture diagram screenshot (waits for SVG to render, resizes to fit)
-    ss_output = send_command(command: "web_navigator.py --action diagram_screenshot", container: "python")
-    ss_result = parse_drawio_response(ss_output)
-
-    if ss_result[:success] && ss_result[:screenshot]
-      src = Monadic::Utils::SharedPathGuard.resolve_in_shared(ss_result[:screenshot], extensions: %w[.png])
-      dst = Monadic::Utils::SharedPathGuard.resolve_in_shared(screenshot_filename, must_exist: false)
-      Monadic::Utils::SharedPathGuard.copy_file!(src, dst) if src && dst
-    end
-
-    result = {
-      success: true,
-      filename: filename,
-      message: "The file #{filename} has been saved. The preview image is automatically displayed in the chat."
-    }
-    # Store gallery HTML for server-side display (no _image vision injection)
-    if session && File.exist?(File.join(shared_volume, screenshot_filename))
-      gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(screenshot_filename.to_s)}\" /></div>"
-      session[:tool_html_fragments] ||= []
-      session[:tool_html_fragments] << gallery_html
-    end
-    result
-  rescue StandardError => e
-    "❌ Preview generation failed"
-  ensure
-    cleanup_old_drawio_html_files(keep_latest: html_filename) if html_filename
-  end
-
-  def stop_drawio_browser
-    output = send_command(command: "web_navigator.py --action stop", container: "python")
-    result = parse_drawio_response(output)
-
-    cleanup_old_drawio_html_files
-
-    "DrawIO browser session ended. #{result[:message] || result[:error] || ''}"
+    path = Monadic::Workbench::ChatOutput.keep(job, name, validate_and_repair_drawio_xml(content))
+    shown = Monadic::Workbench::ChatOutput.show(path, workbench)
+    Monadic::Workbench::ChatOutput.said("The diagram", path, shown: shown)
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError, ArgumentError
+    Monadic::Workbench::ChatOutput.drop_if_empty(job)
+    "❌ The diagram could not be kept"
   end
 
   private
-
-  def write_file_synchronously(validated_content, filepath, filename, data_dir)
-    begin
-      resolved = Monadic::Utils::SharedPathGuard.resolve_in_shared(filepath, extensions: %w[.drawio], must_exist: false)
-      return "❌ Invalid shared file path" unless resolved
-
-      Monadic::Utils::SharedPathGuard.write_file!(resolved, validated_content)
-
-      # Verify file was written with shorter retry intervals for better UX
-      success = false
-      max_retrial = 10
-      max_retrial.times do |_i|
-        sleep 0.2
-        if File.exist?(filepath)
-          success = true
-          break
-        end
-      end
-
-      # Final verification - ensure file is readable and has content
-      if success && File.size(filepath) > 0
-        result = "The file #{filename} has been saved successfully to the shared folder (#{data_dir})."
-      else
-        result = "❌ The file could not be verified at #{filepath}."
-      end
-
-      STDOUT.flush
-      return result
-    rescue StandardError => e
-      error_result = "❌ The file could not be written"
-      STDOUT.flush
-      return error_result
-    end
-  end
 
   # Validate and repair Draw.io XML content
   def validate_and_repair_drawio_xml(content)
@@ -274,85 +167,5 @@ module DrawIOGrapher
 
     # If we can't repair it in a specific way, return the minimal template
     return MINIMAL_TEMPLATE
-  end
-
-  # Check if a web_navigator browser session is active.
-  # Verifies both the session file existence and the Selenium service health
-  # to avoid unnecessary navigate attempts when the container has crashed.
-  def drawio_session_active?
-    session_file = File.join(Monadic::Utils::Environment.shared_volume, ".browser_session_id")
-    return false unless File.exist?(session_file) && !File.read(session_file).strip.empty?
-
-    # Quick health check — if Selenium is unreachable, clear stale session file
-    unless selenium_service_reachable?
-      (Monadic::Utils::SharedPathGuard.delete_file!(session_file) rescue nil)
-      return false
-    end
-
-    true
-  end
-
-  # Lightweight Selenium service health check (2 s timeout)
-  def selenium_service_reachable?
-    require "net/http"
-    uri = URI("http://selenium_service:4444/status")
-    Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
-      http.get(uri.path).is_a?(Net::HTTPSuccess)
-    end
-  rescue StandardError
-    false
-  end
-
-  # Parse JSON response from web_navigator.py
-  def parse_drawio_response(output)
-    json_match = output.to_s.match(/\{.+\}/m)
-    return { success: false, error: "No JSON response from navigator" } unless json_match
-
-    JSON.parse(json_match[0], symbolize_names: true)
-  rescue JSON::ParserError => e
-    { success: false, error: "Failed to parse response: #{e.message}" }
-  end
-
-  # Build HTML page for Draw.io viewer rendering
-  def build_drawio_preview_html(xml_content)
-    # XML → JSON string → HTML attribute escape
-    data = {
-      highlight: "#0000ff",
-      nav: true,
-      resize: true,
-      xml: xml_content
-    }
-    data_json = JSON.generate(data)
-    escaped_data = CGI.escapeHTML(data_json)
-
-    <<~HTML
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          html, body {
-            margin: 0;
-            padding: 20px;
-            background: white;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="mxgraph" data-mxgraph="#{escaped_data}"></div>
-        <script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
-      </body>
-      </html>
-    HTML
-  end
-
-  # Remove old drawio_live_*.html files, optionally keeping one
-  def cleanup_old_drawio_html_files(keep_latest: nil)
-    shared_volume = Monadic::Utils::Environment.shared_volume
-    Dir.glob(File.join(shared_volume, "drawio_live_*.html")).each do |f|
-      next if keep_latest && File.basename(f) == keep_latest
-
-      (Monadic::Utils::SharedPathGuard.delete_file!(f) rescue nil)
-    end
   end
 end

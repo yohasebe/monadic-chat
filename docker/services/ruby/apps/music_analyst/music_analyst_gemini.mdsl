@@ -1,7 +1,12 @@
 app "MusicAnalystGemini" do
   description do
-    en "Evaluate a recorded performance: objective features (tempo/key/chords) plus Gemini's interpretive critique of the music and playing (Gemini)"
-    ja "録音された演奏を評価する：客観的特徴（テンポ/調/コード）と、Geminiによる楽曲・演奏の解釈的講評 (Gemini)"
+    en "Analyze musical features (tempo, key, chords) in audio or MIDI files and get Gemini's interpretive feedback on recorded performances (Gemini)"
+    ja "音声・MIDIファイルの音楽的特徴（テンポ・調・コード）を分析し、録音された演奏についてGeminiの解釈的な講評を得る (Gemini)"
+    zh "分析音频或MIDI文件的音乐特征（速度、调性、和弦），并获得 Gemini 对录制演奏的诠释性点评 (Gemini)"
+    ko "오디오 또는 MIDI 파일의 음악적 특징(템포, 조, 코드)을 분석하고, 녹음된 연주에 대한 Gemini의 해석적 강평을 받습니다 (Gemini)"
+    es "Analiza rasgos musicales (tempo, tonalidad, acordes) en archivos de audio o MIDI y recibe la crítica interpretativa de Gemini sobre interpretaciones grabadas (Gemini)"
+    fr "Analysez les caractéristiques musicales (tempo, tonalité, accords) de fichiers audio ou MIDI et obtenez la critique interprétative de Gemini sur des interprétations enregistrées (Gemini)"
+    de "Analysiert musikalische Merkmale (Tempo, Tonart, Akkorde) in Audio- oder MIDI-Dateien und liefert Geminis interpretierende Kritik aufgenommener Darbietungen (Gemini)"
   end
 
   icon "headphones"
@@ -23,7 +28,7 @@ app "MusicAnalystGemini" do
 
     ## Tool Inputs
 
-    Both tools take `file_path` = the uploaded filename in the shared folder (e.g. "performance.mp3"). `critique_audio` also accepts an optional `focus` to steer the critique (e.g. "intonation", "rhythmic feel", "the piano solo").
+    Both tools take `attachment_id` = the id of the file attached to the message (the message lists it as "Attached audio: ... (attachment_id: ...)"). For a file that is not attached, they take `file_path` = its path in the shared folder (e.g. "performance.mp3") instead. `critique_audio` also accepts an optional `focus` to steer the critique (e.g. "intonation", "rhythmic feel", "the piano solo").
 
     ## Honesty About Limits
 
@@ -44,35 +49,32 @@ app "MusicAnalystGemini" do
 
     - When the user uploads a file and their intent is clear, call the appropriate tool(s) directly. If genuinely ambiguous, briefly ask whether they want objective features, an interpretive critique, or both.
     - After tool results, synthesize a clear, well-structured response. When you ran both lenses, keep the objective and interpretive parts visually separated.
-    - **Embed an audio player** for the analyzed file at the top of your first analysis response so the user can listen while reading, using exactly this HTML (substitute the uploaded filename you passed as `file_path`):
-
-        <audio controls src="/data/FILENAME" style="width:100%"></audio>
-
-      On follow-up turns about the same file, you do not need to repeat the player.
+    - The tools show an audio file on the work screen, where the user can listen while reading. Do not put an audio player or any HTML in your reply.
     - Support both English and Japanese conversations.
-    - Never invent tools beyond the two listed. Call tools one at a time.
+    - For analysis, use only the two tools listed above. Call tools one at a time.
   TEXT
 
   llm do
     provider "gemini"
-    model ["gemini-3.1-pro-preview", "gemini-3.6-flash"]
+    model ["gemini-3.1-pro-preview", "gemini-3.8-flash"]
     reasoning_effort "high"
     context_size 20
   end
 
   features do
-    library_save false
-    library_search false
+    max_tool_rounds 10
     audio_upload true
   end
 
   tools do
     define_tool "analyze_audio_features", "Extract objective, measured features (tempo, key, time signature, chord progression, sections) from an uploaded audio or MIDI file via signal processing" do
-      parameter :file_path, "string", "Filename of the uploaded audio/MIDI file in the shared folder (e.g. 'performance.mp3', 'piece.mid')", required: true
+      parameter :attachment_id, "string", "The attachment_id of an audio or MIDI file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files."
+      parameter :file_path, "string", "Path of an audio/MIDI file in the shared folder (e.g. 'performance.mp3', 'piece.mid'). Only for a file that is not attached."
     end
 
     define_tool "critique_audio", "Produce an interpretive, qualitative critique of the music and performance in an uploaded audio file (mood, genre, expression, dynamics, strengths/weaknesses, overall evaluation) using Gemini audio understanding" do
-      parameter :file_path, "string", "Filename of the uploaded audio file in the shared folder (e.g. 'performance.mp3'). Audio only (not MIDI).", required: true
+      parameter :attachment_id, "string", "The attachment_id of an audio file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files. Audio only (not MIDI)."
+      parameter :file_path, "string", "Path of an audio file in the shared folder (e.g. 'performance.mp3'). Only for a file that is not attached. Audio only (not MIDI)."
       parameter :focus, "string", "Optional aspect to focus the critique on (e.g. 'intonation', 'rhythmic feel', 'the piano solo')"
     end
   end

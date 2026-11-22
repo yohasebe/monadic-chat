@@ -3,18 +3,18 @@
 # Translation context management tools using Monadic Session State mechanism.
 # These tools allow the LLM to save and load translation context (source/target languages, vocabulary)
 # without embedding JSON in responses.
-# Uses ContextPanelHelper to update the sidebar Context Panel.
 
 module TranslateTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
-  include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "translation_context"
+  # The lists of the state, each entry kept apart when the state is kept by
+  # turn (vocabulary entries, named by their original text): { field => the entry's field that names it }.
+  LISTS = { "vocabulary" => "original_text" }.freeze
 
   # Save translation context to session state.
   # Called by LLM when language settings or vocabulary changes.
-  # Also updates the Context Panel with language and vocabulary info.
   #
   # @param source_lang [String] Source language (e.g., "Japanese", "English")
   # @param target_lang [String] Target language (e.g., "English", "Japanese")
@@ -36,15 +36,7 @@ module TranslateTools
     }
 
     # Save to session state
-    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
-
-    # Update Context Panel with language settings
-    if new_source && new_target
-      lang_display = "#{new_source} → #{new_target}"
-      set_context_panel_field(field: :languages, items: [lang_display], session: session)
-    end
-
-    result
+    monadic_save_record(key: STATE_KEY, lists: LISTS, payload: context, session: session)
   end
 
   # Load translation context from session state.
@@ -58,12 +50,11 @@ module TranslateTools
       target_lang: nil,
       vocabulary: []
     }
-    monadic_load_state(key: STATE_KEY, default: default_context, session: session)
+    monadic_load_record(key: STATE_KEY, lists: LISTS, default: default_context, session: session)
   end
 
   # Add vocabulary entry to the translation context.
   # Accumulates vocabulary entries without overwriting existing ones.
-  # Also updates the Context Panel vocabulary field.
   #
   # @param original_text [String] Original text/expression
   # @param translation [String] Preferred translation for the expression
@@ -81,48 +72,49 @@ module TranslateTools
       vocabulary << { original_text: original_text, translation: translation }
     end
 
-    # Save to session state (this also updates languages in Context Panel)
-    result = save_translation_context(
+    save_translation_context(
       source_lang: existing[:source_lang],
       target_lang: existing[:target_lang],
       vocabulary: vocabulary,
       session: session
     )
-
-    # Update Context Panel with the new vocabulary entry
-    vocab_display = "#{original_text}: #{translation}"
-    add_to_context_panel(field: :vocabulary, items: [vocab_display], session: session)
-
-    result
   end
 
   # Clear all vocabulary entries from translation context.
   # Called when user wants to start fresh with vocabulary.
-  # Also clears the Context Panel vocabulary field.
   #
   # @param session [Hash] Session object (automatically provided)
   # @return [String] JSON response confirming vocabulary cleared
   def clear_vocabulary(session: nil)
     existing = load_translation_context_internal(session)
 
-    result = save_translation_context(
+    save_translation_context(
       source_lang: existing[:source_lang],
       target_lang: existing[:target_lang],
       vocabulary: [],
       session: session
     )
-
-    # Clear vocabulary from Context Panel
-    clear_context_panel_field(field: :vocabulary, session: session)
-
-    result
   end
 
   private
 
+  # What the model is given of the state with each request, as load_translation_context
+  # returns it (Monadic::TurnState::ModelState).
+  def state_for_model(session)
+    { data: Monadic::TurnState::ModelState.from_tool(load_translation_context(session: session)), load_tool: "load_translation_context" }
+  end
+
+  # The translation's notes on the work screen (Monadic::TurnState::Notes):
+  # its languages and vocabulary, as the conversation leaves them.
+  def state_notes
+    { title: "Translation notes", key: STATE_KEY,
+      values: { "source_lang" => "From", "target_lang" => "To" },
+      lists: { "vocabulary" => { label: "Vocabulary", name: "original_text", fields: { "translation" => "Translation" } } } }
+  end
+
   # Internal helper to load context as Ruby hash (not JSON string)
   def load_translation_context_internal(session)
-    result = JSON.parse(monadic_load_state(key: STATE_KEY, default: {}, session: session))
+    result = JSON.parse(monadic_load_record(key: STATE_KEY, lists: LISTS, default: {}, session: session))
     data = result["data"] || {}
     {
       source_lang: data["source_lang"],

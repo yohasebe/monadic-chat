@@ -9,16 +9,28 @@ module MonadicHelper
     Monadic::Utils::SharedPathGuard.resolve_in_shared(file_path, must_exist: false)
   end
 
+  # The script each document reader runs, and the container it runs in.
+  DOCUMENT_READERS = {
+    "fetch_text_from_office" => { script: "office2txt.py", container: "python" },
+    "fetch_text_from_pdf" => { script: "pdf2txt.py", container: "python", options: %w[--format md --all-pages] },
+    "fetch_text_from_file" => { script: "content_fetcher.rb", container: "ruby" }
+  }.freeze
+
   def fetch_text_from_office(file: "")
-    fetch_shared_document(file, "office2txt.py", "python")
+    read_document("fetch_text_from_office", file)
   end
 
   def fetch_text_from_pdf(pdf: "")
-    fetch_shared_document(pdf, "pdf2txt.py", "python", "--format", "md", "--all-pages")
+    read_document("fetch_text_from_pdf", pdf)
   end
 
   def fetch_text_from_file(file: "")
-    fetch_shared_document(file, "content_fetcher.rb", "ruby")
+    read_document("fetch_text_from_file", file)
+  end
+
+  def read_document(tool, file)
+    reader = DOCUMENT_READERS.fetch(tool)
+    fetch_shared_document(file, reader[:script], reader[:container], *Array(reader[:options]))
   end
 
   def fetch_shared_document(file, script, container, *options)
@@ -41,68 +53,4 @@ module MonadicHelper
     end
   end
   private :fetch_shared_document
-
-  def write_to_file(filename:, extension:, text:)
-    # Check for directory traversal attempts in filename
-    if filename.include?("/") || filename.include?("\\")
-      return "Error: Invalid filename - directory paths are not allowed"
-    end
-    
-    # Sanitize filename and extension to prevent directory traversal
-    safe_filename = File.basename(filename)
-    safe_extension = extension.gsub(/[^a-zA-Z0-9]/, '')
-    
-    if Monadic::Utils::Environment.in_container?
-      data_dir = MonadicApp::SHARED_VOL
-    else
-      data_dir = MonadicApp::LOCAL_SHARED_VOL
-    end
-
-    container = "monadic-chat-python-container"
-    filepath = File.join(data_dir, "#{safe_filename}.#{safe_extension}")
-
-    # create a temporary file inside the data directory, never through a link
-    begin
-      Monadic::Utils::SharedPathGuard.write_file!(filepath, text)
-    rescue Monadic::Utils::SharedPathGuard::InvalidPath => e
-      return "Error: #{e.message}: #{filename}.#{extension}"
-    rescue Errno::ENOENT => e
-      return "Error: Directory does not exist for file: #{filename}.#{extension}"
-    rescue Errno::EACCES => e
-      return "Error: Permission denied when writing file: #{filename}.#{extension}"
-    rescue Errno::ENOSPC => e
-      return "Error: Not enough disk space to save file: #{filename}.#{extension}"
-    end
-
-    # check the availability of the file with the interval of 1 second
-    # for a maximum of 20 seconds
-    success = false
-    max_retrial = 20
-    max_retrial.times do
-      sleep 1.5
-      if File.exist?(filepath)
-        success = true
-        break
-      end
-    end
-
-    # The Python container mounts the same shared folder, so the file is
-    # already there; nothing is copied by path.
-    if success
-      "The file #{filename}.#{extension} has been written successfully."
-    else
-      "Error: The file could not be written."
-    end
-  rescue IOError => e
-    "Error: File I/O operation failed for #{filename}.#{extension}"
-  rescue SystemCallError => e
-    # Catches any system-level errors not specifically handled above
-    "Error: System error occurred while writing file: #{e.message}"
-  rescue StandardError => e
-    # Keep as fallback for any unexpected errors - maintaining backward compatibility
-    "Error: The code could not be executed.\n#{e}"
-  end
-
-  # Not a tool: called only from the implementations of declared tools.
-  private :write_to_file
 end

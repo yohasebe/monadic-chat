@@ -53,11 +53,21 @@ RSpec.describe "tool arguments never reach a shell" do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@dir)
       recorded = calls
       data = @dir
-      allow(app).to receive(:capture_command) do |command, **|
+      allow(app).to receive(:capture_command) do |command, container: nil, **|
         # The code file is in the shared folder while it runs
-        recorded << [command, File.exist?(File.join(data, command.last.to_s))]
+        recorded << [command, File.exist?(File.join(data, command.last.to_s)), container]
         ["", "stop here", OpenStruct.new(success?: false)]
       end
+    end
+
+    # The run folder of the chat the code runs in.
+    let(:run_dir) { { path: @dir, relative: "conversations/c/artifacts/j_1" } }
+
+    it "runs nothing without a run folder of a chat" do
+      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0)
+      expect(result).to include("no chat folder")
+      expect(calls).to be_empty
+      expect(Dir.glob(File.join(@dir, "**", "code_*"))).to be_empty
     end
 
     it "refuses an execution command that is not an interpreter name" do
@@ -76,13 +86,13 @@ RSpec.describe "tool arguments never reach a shell" do
       expect(calls).to be_empty
     end
 
-    it "runs docker with an argv array, the command split into its own arguments" do
-      result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0)
+    it "runs the code in the Python container with an argv array, the command split into its own arguments" do
+      result = app.send(:send_code, code: "print(1)", command: "python3 -u", extension: "py", max_retries: 0, run_dir: run_dir)
       expect(calls.size).to eq(1), "send_code returned #{result.inspect} before running docker"
-      exec, present = calls.first
+      exec, present, container = calls.first
+      expect(container).to eq(:python)
       expect(exec).to be_an(Array)
-      expect(exec[0..4]).to eq(["docker", "exec", "-w", "/monadic/data", "monadic-chat-python-container"])
-      expect(exec[5..6]).to eq(%w[python3 -u])
+      expect(exec[0..1]).to eq(%w[python3 -u])
       expect(exec.last).to match(/\Acode_\d{8}_\d{6}_[0-9a-f]{8}\.py\z/)
       expect(present).to be(true)
       expect(Dir.glob(File.join(@dir, "code_*"))).to be_empty
@@ -93,14 +103,14 @@ RSpec.describe "tool arguments never reach a shell" do
       allow(Time).to receive(:now).and_return(Time.at(0))
       taken = File.join(@dir, "code_#{Time.at(0).strftime('%Y%m%d_%H%M%S')}_deadbeef.py")
       File.write(taken, "existing user data")
-      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0)
+      result = app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 0, run_dir: run_dir)
       expect(result).to start_with("Error executing code")
       expect(calls).to be_empty
       expect(File.read(taken)).to eq("existing user data")
     end
 
     it "keeps each attempt's code file when asked to" do
-      app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 1, retry_delay: 0, keep_file: true)
+      app.send(:send_code, code: "print(1)", command: "python", extension: "py", max_retries: 1, retry_delay: 0, keep_file: true, run_dir: run_dir)
       expect(calls.size).to eq(2)
       expect(Dir.glob(File.join(@dir, "code_*.py")).size).to eq(2)
     end
@@ -125,7 +135,7 @@ RSpec.describe "tool arguments never reach a shell" do
 
     it "keeps every option one argument" do
       HOSTILE.each do |value|
-        helper.text_to_speech(provider: value, speed: value, voice_id: value, language: value, instructions: value, text: "hi")
+        helper.text_to_speech(provider: value, speed: value, voice_id: value, language: value, instructions: value, text: "hi", out_dir: @dir)
         # Run the built command with the script replaced by printf
         script = helper.command.sub(/\Atts_query\.rb/, "printf '%s\\n'")
         stdout, _stderr, status = Open3.capture3("/bin/sh", "-c", script)

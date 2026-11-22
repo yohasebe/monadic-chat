@@ -2,7 +2,7 @@
 
 The Substitution Pipeline rewrites text at the boundary between the user and the model. Two providers use it:
 
-- **Privacy Filter**: masks personal data before the model sees it (`<<PERSON_1>>`) and restores it in the response. User documentation: `docs/advanced-topics/privacy-filter.md`.
+- **Privacy Filter**: masks personal data (`<<PERSON_1>>`) for the MCP server's tools that take a `privacy` argument (`lib/monadic/mcp/conduit.rb`). Chats hide words with word tables instead: see `anonymization.md`.
 - **Vocabulary**: `${TOKEN}` variables (such as `${SHARED}`) that the model writes and Monadic Chat resolves. User documentation: `docs/docker-integration/shared-folder.md` ("The `${SHARED}` Variable", "Other Interface Variables").
 
 ## Classes
@@ -41,17 +41,10 @@ The Substitution Pipeline rewrites text at the boundary between the user and the
 
 ## Privacy Filter
 
-The vendor adapters do not run the Privacy Filter through `Pipeline`. They call it directly:
+The MCP server builds a `Pipeline` with the Privacy Filter for one call (`Conduit#build_privacy_pipeline`), on a session of its own that belongs to no chat.
 
-- `apply_privacy_to_messages` (`base_vendor_helper.rb`) masks the user and assistant messages before each request (Gemini: `apply_privacy_to_gemini_contents`). The system prompt is not masked.
-- `after_receive_from_llm` restores the response; `sanitize_for_tts` / `sanitize_restored_for_tts` prepare text for speech.
-- The instance is kept in `session[:_privacy_pipeline]`. Its registry lives at `session[:monadic_state][:privacy]`; `PrivacyFilter#state` raises `NotImplementedError` so no state is written to `session[:substitution_state]`.
-
-Failure handling:
-
-- **Masking fails closed.** On a backend error, `on_failure: :block` (default) raises `Monadic::Utils::Privacy::BackendError` and the request is not sent. `on_failure: :pass` sends the text unmasked, except when the chat has words the user marked, which still raises. `apply_privacy_to_messages` has no rescue.
-- `library_search` replaces its results with `LibrarySearch::WITHHELD_MESSAGE` when masking fails.
-- **Restoring falls back to the masked text.** If restoration fails, the user sees the placeholders.
+- **Masking fails closed.** On a backend error, `on_failure: :block` (default) raises `Monadic::Utils::Privacy::BackendError` and the request is not sent.
+- **Restoring falls back to the masked text.** If restoration fails, the caller gets the placeholders.
 
 A rescue on the masking path must withhold or raise, never return the input text.
 
@@ -101,8 +94,8 @@ Every app also gets the shared-folder file tools: `MonadicDSL.inject_file_operat
   ```
 
 - **Variables panel**: `app_data.rb` sets `apps[name]["vocabulary_info"]` from `Vocabulary.describe_for(session, settings)` (`[{token, description, display, value}]`); `vocabulary-panel.js` shows it.
-- **New chat**: `Monadic::Workspace::Chats.begin_new!` (Reset, app change, import) drops the session keys that are not kept, `_substitution_pipeline` and `_privacy_pipeline` included. `chat_state` never saves these two keys.
-- **Export**: `vocabulary_map` and `privacy_known_entities` are not in `PRIVACY_EXPORT_MESSAGE_KEYS` (`privacy_handler.rb`), so shared exports do not carry them.
+- **New chat**: `Monadic::Workspace::Chats.begin_new!` (Reset, app change, import) drops the session keys that are not kept, `_substitution_pipeline` included. `chat_state` never saves it.
+- **Export**: `vocabulary_map` is not in `PRIVACY_EXPORT_MESSAGE_KEYS` (`privacy_handler.rb`), so shared exports do not carry it.
 
 ### Display in the Browser
 

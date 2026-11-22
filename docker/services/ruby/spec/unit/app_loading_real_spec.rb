@@ -152,7 +152,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
           write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
           delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results execute_and_fix_jupyter_cells
           list_jupyter_notebooks create_and_populate_jupyter_notebook
-          restart_jupyter_kernel interrupt_jupyter_execution move_jupyter_cell insert_jupyter_cells
+          clear_jupyter_outputs move_jupyter_cell insert_jupyter_cells
           websearch_agent list_providers_and_voices text_to_speech
           generate_video_with_gemini generate_video_with_veo generate_image_with_imagen generate_music_with_lyria
           validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
@@ -464,7 +464,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       
       # Apps that use auto-discovery and don't need explicit tool mentions
       auto_discovery_apps = %w[
-        code_interpreter jupyter_notebook chat_plus language_practice_plus
+        code_interpreter jupyter_notebook chat language_practice
         research_assistant speech_draft_helper second_opinion
         video_describer drawio_grapher mermaid_grapher novel_writer
         math_tutor image_generator video_generator monadic_help
@@ -520,18 +520,18 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         websearch_agent tavily_search generate_video_with_gemini generate_video_with_veo
         generate_image_with_openai generate_image_with_gemini generate_image_with_grok
         generate_image_with_gemini
-        gpt5_codex_agent grok_code_agent openai_code_agent
+        grok_code_agent openai_code_agent
         save_context get_context update_context remove_from_context clear_context
         load_context add_topics add_people add_notes
         save_research_progress load_research_progress add_finding add_research_topics
         add_search add_sources add_research_notes
         request_tool
       ]
-      
+
       app_dirs.each do |app_dir|
         mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
         ruby_files = Dir.glob(File.join(app_dir, "*_tools.rb"))
-        
+
         next if mdsl_files.length <= 1 || ruby_files.empty?
         
         # Extract core tools from Ruby implementation
@@ -572,7 +572,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       fetch_web_content search_wikipedia tavily_search websearch_agent
       write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
       delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-      list_jupyter_notebooks restart_jupyter_kernel interrupt_jupyter_execution
+      list_jupyter_notebooks clear_jupyter_outputs
       move_jupyter_cell insert_jupyter_cells
       list_providers_and_voices generate_video_with_gemini generate_video_with_veo
       request_tool

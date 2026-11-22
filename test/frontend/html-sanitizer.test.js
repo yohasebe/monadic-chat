@@ -179,17 +179,15 @@ describeFn('model-output sanitization pipeline (golden + XSS)', () => {
       expect(img.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
     });
 
-    test('Monadic JSON tree markup survives (json-item/json-header/json-content)', () => {
-      const html = MarkdownRenderer.render(
-        JSON.stringify({ message: 'hi', context: { theme: 'cats' } }),
-        { isMonadic: true }
-      );
+    test('collapsible tree markup survives (json-item/json-toggle/json-content)', () => {
+      const html = '<div class="json-item" data-key="stats" data-depth="0">' +
+        '<div class="json-toggle" onclick="toggleItem(this)"><span>Stats</span></div>' +
+        '<div class="json-content" style="display: none;">1</div></div>';
       const doc = toDoc(sanitizeModelHtml(html));
-      expect(doc.querySelector('.json-item[data-key="context"]')).not.toBeNull();
-      expect(doc.querySelector('.json-header')).not.toBeNull();
+      expect(doc.querySelector('.json-item[data-key="stats"]')).not.toBeNull();
       expect(doc.querySelector('.json-content')).not.toBeNull();
       // Inline onclick must be gone; delegation (json-tree-toggle.js) handles clicks.
-      expect(doc.querySelector('.json-header').hasAttribute('onclick')).toBe(false);
+      expect(doc.querySelector('.json-toggle').hasAttribute('onclick')).toBe(false);
     });
   });
 

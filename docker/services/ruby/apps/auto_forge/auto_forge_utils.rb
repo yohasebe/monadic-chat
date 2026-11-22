@@ -35,8 +35,11 @@ module AutoForgeUtils
     base_path = AutoForge::Utils::PathConfig.project_base_path
     project_path = File.join(base_path, project_name)
 
-    # Create directory (never through a link)
+    # Create directory (never through a link), made by the running reply
+    raise ProjectCreationError, "A project named #{project_name} is already in this chat" if File.exist?(project_path)
+
     Monadic::Utils::SharedPathGuard.mkdir_p!(project_path)
+    AutoForge::Utils::PathConfig.record_made(project_path)
 
     # Store metadata if provided
     if metadata.any?
@@ -56,17 +59,23 @@ module AutoForgeUtils
       created_at: Time.now.iso8601,
       metadata: metadata
     }
+  rescue AutoForge::Utils::PathConfig::NoChat => e
+    raise ProjectCreationError, e.message
   rescue Errno::EACCES => e
     raise ProjectCreationError, "Permission denied creating project directory: #{e.message}"
   rescue => e
     raise ProjectCreationError, "Failed to create project directory: #{e.message}"
   end
 
-  # List existing AutoForge projects
+  # The projects of the chat the reply runs for (none without a chat)
   # @return [Array<Hash>] List of project information
   def self.list_projects
-    base_path = AutoForge::Utils::PathConfig.project_base_path
-    return [] unless File.directory?(base_path)
+    base_path = begin
+      AutoForge::Utils::PathConfig.project_base_path
+    rescue AutoForge::Utils::PathConfig::NoChat
+      nil
+    end
+    return [] unless base_path && File.directory?(base_path)
 
     Dir.glob(File.join(base_path, "*")).select { |f| File.directory?(f) }.map do |dir|
       project_name = File.basename(dir)
@@ -107,24 +116,22 @@ module AutoForgeUtils
     end
   end
 
-  # Clean up old projects (older than days_old)
-  # @param days_old [Integer] Number of days to keep projects
-  # @return [Array<String>] List of removed project names
-  def self.cleanup_old_projects(days_old = 7)
-    cutoff_time = Time.now - (days_old * 24 * 60 * 60)
-    removed = []
-
-    list_projects.each do |project|
-      created_at = Time.parse(project[:created_at])
-      if created_at < cutoff_time
-        # Removed through folders held open: a link in the project is removed
-        # itself, never followed.
-        Monadic::Utils::SharedPathGuard.remove_tree!(project[:path])
-        removed << project[:name]
+  # The chat's project the user means: the one at path (a folder of this
+  # chat's projects), else the one named name, else the newest. nil when
+  # the chat has none of them.
+  def self.current_project(path: nil, name: nil)
+    projects = list_projects
+    if path && !path.to_s.strip.empty?
+      real = begin
+        File.realpath(path.to_s.strip)
+      rescue SystemCallError
+        nil
       end
+      return projects.find { |project| File.realpath(project[:path]) == real }
     end
+    return find_recent_project(name) if name && !name.to_s.strip.empty?
 
-    removed
+    projects.first
   end
 
   # Validate project specification

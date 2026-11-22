@@ -5,6 +5,7 @@ require 'time'
 require 'fileutils'
 require 'sqlite3'
 require_relative '../utils/secret_redactor'
+require_relative '../utils/app_names'
 
 module Monadic
   module History
@@ -66,20 +67,26 @@ module Monadic
       # or nil when the write is not taken: the chat is deleted or Private,
       # another tab has it (it was resumed there), or `generation` is older
       # than that of the tab's connection that wrote last. The time of the
-      # last activity moves only when the number of messages changes, so a
-      # Session Context that arrives later does not reorder the list.
+      # last activity moves only when the number of messages changes.
+      #
+      # `word_table`, when given, is called inside the transaction for the
+      # chat's word table as it is now: it is saved in place of the payload's
+      # (which was read before), and :absent keeps what was saved.
       def save(chat_id, payload, tab: nil, generation: nil, app_name: nil, model: nil, headings: [nil, nil],
-               search_text: nil, now: Time.now)
-        json = JSON.generate(payload)
+               search_text: nil, word_table: nil, now: Time.now)
         count = payload['messages'].length
         stamp = now.utc.iso8601
         synchronize do |db|
           db.transaction(:immediate) do
             next nil if db.get_first_value('SELECT 1 FROM deleted_chats WHERE chat_id = ?', [chat_id])
 
-            row = db.get_first_row('SELECT revision, generation, owner_tab, message_count, last_activity_at FROM history_chats WHERE chat_id = ?', [chat_id])
+            row = db.get_first_row('SELECT revision, generation, owner_tab, message_count, last_activity_at, payload FROM history_chats WHERE chat_id = ?', [chat_id])
+            next nil if row && !writer?(row, tab, generation)
+
+            saved = row && JSON.parse(row['payload'])
+            payload = with_word_table(payload, word_table.call, saved) if word_table
+            json = JSON.generate(payload)
             if row
-              next nil unless writer?(row, tab, generation)
 
               revision = row['revision'] + 1
               activity = row['message_count'] == count ? row['last_activity_at'] : stamp
@@ -140,22 +147,43 @@ module Monadic
 
       # The list without the conversations themselves, the latest activity
       # first. `query` matches the name, the headings and the messages' text.
-      def list(limit: 100, offset: 0, query: nil)
-        where = ''
+      # app_name: only the chats of that app. unused_before: only the chats
+      # last active before that time.
+      def list(limit: 100, offset: 0, query: nil, app_name: nil, unused_before: nil)
+        conditions = []
         args = []
         unless query.to_s.strip.empty?
           like = "%#{query.to_s.strip.gsub(/[\\%_]/) { |c| "\\#{c}" }}%"
-          where = "WHERE title_user LIKE ? ESCAPE '\\' OR heading_first LIKE ? ESCAPE '\\' " \
-                  "OR heading_recent LIKE ? ESCAPE '\\' OR search_text LIKE ? ESCAPE '\\'"
-          args = [like] * 4
+          conditions << "(title_user LIKE ? ESCAPE '\\' OR heading_first LIKE ? ESCAPE '\\' " \
+                        "OR heading_recent LIKE ? ESCAPE '\\' OR search_text LIKE ? ESCAPE '\\')"
+          args.concat([like] * 4)
         end
+        unless app_name.to_s.empty?
+          # With the chats kept under the names the app took the place of.
+          names = Monadic::Utils::AppNames.with_former(app_name)
+          conditions << "app_name IN (#{(['?'] * names.size).join(', ')})"
+          args.concat(names)
+        end
+        if unused_before
+          conditions << 'last_activity_at < ?'
+          args << unused_before.utc.iso8601
+        end
+        where = conditions.empty? ? '' : "WHERE #{conditions.join(' AND ')}"
         synchronize(create: false) do |db|
           db.execute(<<~SQL, args + [limit, offset])
             SELECT chat_id, app_name, model, title_user, heading_first, heading_recent,
               created_at, updated_at, last_activity_at, revision, message_count
             FROM history_chats #{where} ORDER BY last_activity_at DESC, chat_id LIMIT ? OFFSET ?
           SQL
-        end || []
+        end.to_a.each { |row| row['app_name'] = Monadic::Utils::AppNames.current(row['app_name']) }
+      end
+
+      # The apps the kept chats are of, by name.
+      def app_names
+        rows = synchronize(create: false) do |db|
+          db.execute('SELECT DISTINCT app_name FROM history_chats WHERE app_name IS NOT NULL ORDER BY app_name')
+        end
+        Array(rows).map { |row| Monadic::Utils::AppNames.current(row['app_name']) }.uniq.sort
       end
 
       # Removes the chat and keeps a tombstone, so nothing of it is written
@@ -167,6 +195,7 @@ module Monadic
           db.execute('INSERT OR IGNORE INTO deleted_chats (chat_id, deleted_at) VALUES (?, ?)', [chat_id, now.utc.iso8601])
         end
       end
+
 
       # Removes the chat's row without a tombstone: the chat has nothing left
       # to keep for now (its user messages were removed), and what it says
@@ -207,6 +236,14 @@ module Monadic
       end
 
       private
+
+      # The payload with the word table given (:absent: the one saved, or
+      # else the payload's own). The key says the chat hides its words with
+      # a table, also when what it holds cannot be read as one.
+      def with_word_table(payload, table, saved)
+        table = saved&.key?('word_table') ? saved['word_table'] || {} : payload['word_table'] if table == :absent
+        table.nil? ? payload : payload.merge('word_table' => table)
+      end
 
       # A tab writes the chat it has (a row from before tabs were recorded
       # has none); within the tab, a connection older than the one that

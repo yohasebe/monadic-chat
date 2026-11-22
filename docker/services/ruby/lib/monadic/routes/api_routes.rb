@@ -178,7 +178,7 @@ get "/api/app/:name/graph" do
     input_types = ["text"]
     # Image input: explicit vision flag OR image-to-X upload (upload_only).
     input_types << "image" if s[:image] || s["image"] || wv_accepts_image_upload?(s)
-    input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"]
+    input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_upload] || s["pdf_upload"]
 
     {
       app_name: s[:app_name] || s["app_name"],
@@ -209,8 +209,7 @@ get "/api/app/:name/graph" do
       end),
       shared_tool_groups: wv_extract_shared_tool_groups(s),
       agents: wv_extract_agents(s),
-      features: wv_extract_features(s),
-      context_schema: (s[:context_schema] || s["context_schema"] || {})
+      features: wv_extract_features(s)
     }.to_json
   rescue StandardError => e
     status 500

@@ -6,13 +6,28 @@ Monadic Chat は、言語モデルの API と合わせて、いくつかの Dock
 
 共有フォルダは、お使いのコンピューターとコンテナをつなぎます。エージェントに渡すファイルをここに置き、エージェントが作ったファイルもここに保存されます。
 
-![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
+![Monadic Chat の構成](../assets/images/figures/architecture.svg)
 
 ## ローカルでの動作 :id=local-operation
 
 - すべての部品（コンテナ、Web サーバー、画面）が 1 台のコンピューターで動きます
 - ポートはすべて `127.0.0.1`（localhost）に割り当てられ、そのコンピューターからだけ使えます
 - ブラウザーのタブごとに、独立した会話のセッションになります（[マルチタブのセッション管理](../advanced-topics/advanced-configuration.md#multi-tab-sessions)を参照）
+
+## コンテナのエンジン :id=container-engine
+
+Monadic Chat は、`docker` コマンドが使うエンジンを使います。`DOCKER_CONTEXT` で指定されたもの、無ければ `DOCKER_HOST` で指定されたもの、それも無ければ今の Docker の接続先（`docker context use` で選んだもの）です。起動時のコンソールにエンジンと接続先の名前が出て、上部の表示にエンジンの名前が出ます。
+
+- 標準は **Docker Desktop**、Linux では **Docker Engine** も使えます。選ばれているエンジンが Docker Desktop で、動いていないときは、Monadic Chat が起動します。
+- `docker` コマンドから使えるほかのエンジンでも動きます。macOS では **Podman** と **Colima**（Lima の仮想マシンで Docker Engine を動かすもの）で動作を確かめています。こうしたエンジンには次が必要です。
+  - `docker` コマンドと、その `compose` と `buildx` のプラグイン
+  - **開始** を押す前にエンジンを動かしておくこと（Monadic Chat が起動するのは Docker Desktop だけです）
+  - コンテナのためのメモリ。エンジンの仮想マシンに 8 GB あれば、すべてのコンテナが動きます
+  - ホームフォルダをエンジンと共有すること（`~/monadic` がコンテナから見えるようにするため）
+- 使うのはこのコンピューターのエンジンだけです。接続先や `DOCKER_HOST` が `ssh://` や `tcp://` を指すときは使いません。
+- イメージはエンジンごとに別です。エンジンを切り替えた後の最初の **開始** では、イメージをもう一度ダウンロードして作ります。
+
+各エンジンのインストールと設定は、それぞれの文書を参照してください。
 
 ## 標準の Docker コンテナ :id=standard-containers
 
@@ -24,25 +39,25 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 ### Python コンテナ（`monadic-chat-python-container`） :id=python-container
 アプリのための Python のコード、コマンドラインのツール、JupyterLab を動かします。
 - **ポート**：8889（JupyterLab）
-- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Syntax Tree、Concept Visualizer、Mermaid Grapher、DrawIO Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
-- 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **Actions → Install Options** で加えます。[Python コンテナ](python-container.md)を参照してください。
+- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Concept Visualizer、Mermaid Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
+- 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **アクション → インストールオプション** で加えます。[Python コンテナ](python-container.md)を参照してください。
 
 ### Selenium コンテナ（`monadic-chat-selenium-container`） :id=selenium-container
 アプリが操作する Chromium ブラウザーを動かし、Web ページを開いたりスクリーンショットを撮ったりします。
-- **ポート**：4444（Selenium）、7900（**Open → Open noVNC** でのブラウザーの表示）、5900（VNC）
-- **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher、DrawIO Grapher
+- **ポート**：7900（**開く → noVNC を開く** でのブラウザーの表示）。WebDriver（4444）には、ほかのコンテナからだけつながります
+- **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher
 
 ### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
-ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base、PDF Database、ヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
+ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base とヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
 
 ### Embeddings コンテナ（`monadic-chat-embeddings-container`） :id=embeddings-container
-Knowledge Base、PDF Database、ヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
+Knowledge Base とヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
 
 ### Privacy コンテナ（`monadic-chat-privacy-container`） :id=privacy-container
-[Privacy Filter](../advanced-topics/privacy-filter.md) のために個人情報を見つけます。Privacy Filter は、テキストを API に送る前に個人情報をプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
+[匿名化](../advanced-topics/anonymization.md)のために名前を見つけます。匿名化は、選んだ語を、会話が送る文の中でプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
 
 ### Extractor コンテナ（`monadic-chat-extractor-container`） :id=extractor-container
-Knowledge Base Quality Pack をインストールしたときだけあります（**Actions → Install Options → Install Knowledge Base Quality Pack**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
+Knowledge Base 品質パックをインストールしたときだけあります（**アクション → インストールオプション → Knowledge Base 品質パックをインストール**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
 
 ## アプリごとに必要なコンテナ :id=container-requirements
 
@@ -60,17 +75,16 @@ Knowledge Base Quality Pack をインストールしたときだけあります�
 
 **Python コンテナ**：
 - コードの実行（Code Interpreter、Jupyter Notebook）
-- LaTeX による図（Syntax Tree、Concept Visualizer）
+- LaTeX による図（Concept Visualizer）
 - 動画の分析（Video Describer）
 - Knowledge Base へのファイルの取り込み（PDF と Office のファイル）
 
 **Selenium コンテナ**：
 - Web ページを開く、スクリーンショットを撮る（Web Insight、Research Assistant、Auto Forge）
-- 図のプレビュー（Mermaid Grapher、DrawIO Grapher）
+- 図のプレビュー（Mermaid Grapher）
 
 **Qdrant と Embeddings のコンテナ**：
 - Knowledge Base
-- PDF Database
 - Monadic Chat Help
 
 ?> 独自のコンテナを加える方法は、[Docker コンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
@@ -87,7 +101,7 @@ Monadic Chat は、ローカルの LLM として [Ollama](https://ollama.com) �
 
 ### コンテナの起動 :id=container-dependencies
 - Start を押すと、Ruby、Python、Selenium、Qdrant、Embeddings、Privacy のコンテナが起動します。Extractor コンテナは、インストールしてあれば起動します
-- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。Knowledge Base とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat Info パネルの **Help Data** からインストールしたヘルプのデータも要ります
+- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。Knowledge Base とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat情報パネルの **ヘルプデータ** からインストールしたヘルプのデータも要ります
 - アプリに必要なコンテナが止まっていれば、そのアプリを選んだときに Monadic Chat が起動し直します
 
 ### 共有するデータのボリューム :id=shared-volumes
@@ -98,7 +112,7 @@ Monadic Chat は、ローカルの LLM として [Ollama](https://ollama.com) �
 ## 更新と再ビルド :id=rebuilding-process
 
 - アプリを更新した後の最初の Start で、Ruby コンテナが再ビルドされます（ビルドのキャッシュを使うので短時間です）。ほかのコンテナは、更新で定義が変わったものだけが更新されます
-- **Actions → Build Ruby Container** と **Actions → Build Python Container** は、キャッシュを使わずに一からビルドします
+- **アクション → Rubyコンテナをビルド** と **アクション → Pythonコンテナをビルド** は、キャッシュを使わずに一からビルドします
 - Start の進み具合はコンソールに表示されます。起動ごとのまとめは `~/monadic/log/docker_startup.log` に書かれます
 
 ## 起動時のヘルスチェック :id=startup-health

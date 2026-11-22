@@ -1,6 +1,6 @@
 # 設定リファレンス
 
-このページでは、`~/monadic/config/env` の設定を一覧にします。多くは **Settings** ウィンドウ（**Open → Settings**）にもあり、同じファイルに書かれます。アプリはこのファイルを書くたびに、自分のユーザーアカウントだけが読み書きできる権限にします（Windows では WSL の中で）。手で編集したファイルは、アプリが書くまで元の権限のままです。
+このページでは、`~/monadic/config/env` の設定を一覧にします。多くは **Settings** ウィンドウ（**開く → 設定**）にもあり、同じファイルに書かれます。アプリはこのファイルを書くたびに、自分のユーザーアカウントだけが読み書きできる権限にします（Windows では WSL の中で）。手で編集したファイルは、アプリが書くまで元の権限のままです。
 
 値は書いたとおりに使います。値の中の `$VAR`・`${VAR}`・`$(...)` は展開しません。要求の送り先、動かすプログラム、読むファイルを決める設定は、このファイルからは読みません。プロキシの設定（`https_proxy` など）、`MCP_SERVER_HOST`、プログラムの環境の変数（`PATH`・`HOME`・`RUBYOPT` など）、それに名前が送り先・プログラム・パスを表す語（`_URL`・`_URI`・`_HOST`・`_ENDPOINT`・`_PROXY`・`_ADDRESS`・`_SOCKET`・`_CMD`・`_COMMAND`・`_BIN`・`_EXEC`・`_PATH`・`_DIR`・`_FILE` など）で終わる設定です。アプリを起動するシェルの環境変数で設定してください。ファイルを指す設定（`SSL_CERT_FILE`・`SSL_CERT_DIR`・`TTS_DICT_PATH`・`HELP_DATA_DUMP`）は読みますが、値が共有フォルダの外にある既存のファイルかフォルダの絶対パスのときだけ使います。ポートの設定（`MCP_SERVER_PORT`・`JUPYTER_PORT`・`*_DEV_PORT`）は 1〜65535 の数でなければなりません。
 
@@ -15,7 +15,6 @@
 - [開発設定](#development-settings)
 - [コンテナ設定](#container-settings)
 - [インストールオプション](#install-options)
-- [PDF 処理設定](#pdf-processing-settings)
 
 ## 設定優先度 :id=configuration-priority
 
@@ -64,7 +63,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 - **読み込むとき**: Start を押したときに、すべての参照を 1 回の `op` の呼び出しで読み込みます。1Password の確認は通常 1 回です。この呼び出しが失敗した場合は、どの参照が失敗したかを調べるために 1 つずつ読み直すので、1Password が再び確認を求めることがあります。すべての参照を読み込めたら、値はアプリを終了するまで保持し、Restart やコンテナの再起動では読み直しません。読み込めなかった参照がある場合は、次の Start か Restart で読み直します。設定で参照を変えた場合は、次の Start で読み直します。
 - **値の置き場所**: `~/monadic/config/env` には参照のまま残ります。値はアプリのメモリに置き、メモリ上のマウント（tmpfs）を通して Ruby のコンテナに渡します。ファイル、コンテナの設定、コンテナの環境変数には書かず、ログにも出しません。メモリ上のマウントは Docker の仮想マシンのメモリにあります。
 - **読み込めなかったとき**: コンソールに、キーの名前と理由（`op` が見つからない、1Password がロックされているか CLI がサインインしていない、確認が取り消されたか 2 分以内に応答がなかった、項目またはフィールドが見つからない）を表示します。そのキーは次の Start まで未設定として扱い、ほかのキーと機能はそのまま使えます。参照の文字列をキーとしてプロバイダに送ることはありません。
-- **アプリより古い Ruby のコンテナ**: 値を使えないため、アプリは値を渡さず、作り直しを促します（**Actions → Build Ruby Container**）。
+- **アプリより古い Ruby のコンテナ**: 値を使えないため、アプリは値を渡さず、作り直しを促します（**アクション → Rubyコンテナをビルド**）。
 - **開発モード**（`rake server:debug`）: サーバがホストで動くため、サーバ自身がすべての参照を 1 回の `op` の呼び出しで読み込みます。`op` は `PATH` から、または `MONADIC_OP_CLI` に書いたパス（このファイルではなくシェルで設定）から探します。この呼び出しが失敗すると、参照のあるキーはすべて未設定になり、コンソールにはキーの名前だけを表示します（理由は表示しません）。
 
 ## モデル設定 :id=model-settings
@@ -99,10 +98,10 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 | `MENU_BAR_MODE` | メニューバーやシステムトレイから使う | `false` | `true`、`false` |
 | `MAX_STORED_MESSAGES` | セッションを元に戻すためにブラウザーに保存するメッセージの数 | `1000` | 数 |
 | `ROUGE_THEME` | シンタックスハイライトのテーマ | `github:light` | [使えるテーマ](../basic-usage/syntax-highlighting.md)を参照 |
-| `PRIVACY_FILTER` | Privacy のコンテナを起動し、Privacy Filter を使えるようにする | `true` | `true`、`false` |
-| `PRIVACY_LANGS` | Privacy Filter が英語のほかに読み込む言語 | `en` | カンマ区切りのコード（`en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`） |
-| `EXTRACTOR_SERVICE` | Knowledge Base Quality Pack のコンテナを使う | `false` | `true`、`false` |
-| `EXTRACTOR_LANGS` | Knowledge Base Quality Pack の OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
+| `PRIVACY_FILTER` | 匿名化のために名前を探す Privacy のコンテナをダウンロードし、起動する | `true` | `true`、`false` |
+| `PRIVACY_LANGS` | Privacy のコンテナが英語のほかに読み込む言語 | `en` | カンマ区切りのコード（`en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`） |
+| `EXTRACTOR_SERVICE` | Knowledge Base 品質パックのコンテナを使う | `false` | `true`、`false` |
+| `EXTRACTOR_LANGS` | Knowledge Base 品質パックの OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
 | `LIBRARY_IMPORT_MAX_BYTES` | Knowledge Base が取り込むファイルの最大の大きさ（バイト） | `104857600`（100 MiB） | 数 |
 | `GEMINI_MAX_INLINE_PDF_MB` | Gemini にそのまま送る PDF の最大の大きさ（MB） | `20` | 数 |
 
@@ -112,10 +111,10 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 | 変数 | 説明 | 既定 | 範囲・選択肢 |
 |------|------|------|--------------|
-| `TTS_DICT_PATH` | TTS の読みの辞書（CSV）のパス。Settings ウィンドウ（"TTS Dictionary File Path"）で設定します。ファイルは `~/monadic/config/TTS_DICT.csv` に写され、サーバーはそれを読みます | （任意） | ファイルのパス |
-| `AUTO_TTS_MAX_BYTES` | 応答の後に Auto Speech が読み上げる最大の量（バイト）。長い文は文の切れ目で切ります | `400` | 数 |
+| `TTS_DICT_PATH` | TTS の読みの辞書（CSV）のパス。設定ウィンドウ（「TTS辞書ファイルパス」）で設定します。ファイルは `~/monadic/config/TTS_DICT.csv` に写され、サーバーはそれを読みます | （任意） | ファイルのパス |
+| `AUTO_TTS_MAX_BYTES` | 応答の後に自動音声が読み上げる最大の量（バイト）。長い文は文の切れ目で切ります | `400` | 数 |
 
-> **注意**：音声認識のモデルは環境変数では設定しません。Web の画面の **Speech** パネルで選び、選んだものはブラウザーの Cookie に保存されます。
+> **注意**：音声認識のモデルは環境変数では設定しません。Web の画面の音声パネルで選び、選んだものはブラウザーの Cookie に保存されます。
 
 ## ヘルプシステム設定 :id=help-system-settings
 
@@ -148,26 +147,27 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 ## インストールオプション :id=install-options
 
-Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**Actions → Build Python Container** で作り直してください。同じ Install Options のパネルにある Privacy Filter の言語と Knowledge Base Quality Pack は、[システム設定](#system-settings)にあります。
+Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**アクション → Pythonコンテナをビルド** で作り直してください。同じインストールオプションの項目にある、伏せる名前を探す言語と Knowledge Base 品質パックは、[システム設定](#system-settings)にあります。
 
 | 変数 | 説明 | 必要なアプリ | 既定 |
 |------|------|--------------|------|
-| `INSTALL_LATEX` | LaTeX（図のための最小の組。CJK 対応と dvisvgm を含む） | Syntax Tree、Concept Visualizer | `false` |
+| `INSTALL_LATEX` | LaTeX（図のための最小の組。CJK 対応と dvisvgm を含む） | Concept Visualizer | `false` |
 | `PYOPT_NLTK` | Natural Language Toolkit | 自然言語処理 | `false` |
 | `PYOPT_SPACY` | spaCy（自然言語処理のライブラリ） | 高度な自然言語処理 | `false` |
 | `PYOPT_GENSIM` | トピックモデルのライブラリ | テキストの分析 | `false` |
-| `PYOPT_LIBROSA` | Music Analysis：librosa と madmom（soundfile、midiutil、pretty_midi を含む） | Music Lab、Music Analyst | `false` |
+| `PYOPT_LIBROSA` | Music Analysis：librosa と madmom（soundfile、midiutil、pretty_midi を含む） | Music Tutor、Music Analyst | `false` |
 | `PYOPT_MEDIAPIPE` | 画像認識のフレームワーク（CPU） | 画像の処理 | `false` |
 | `PYOPT_TRANSFORMERS` | Hugging Face Transformers と Accelerate（CPU） | 深層学習の自然言語処理 | `false` |
+| `PYOPT_PLOTLY_STATIC` | kaleido と Chromium：ノートブックの Plotly のグラフに PNG を添えて保存する | 作業画面に表示するノートブックの Plotly のグラフ | `false` |
 | `IMGOPT_IMAGEMAGICK` | ImageMagick の画像処理 | 高度な画像の操作 | `false` |
 
 ### インストールオプションの設定方法
 
-**Settings ウィンドウで（推奨）：**
-1. **Actions → Install Options** を選びます。Settings ウィンドウが Install Options の項目で開きます
+**設定ウィンドウで（推奨）：**
+1. **アクション → インストールオプション** を選びます。設定ウィンドウがインストールオプションの項目で開きます
 2. 使うオプションをオンにします
 3. **Save** をクリックします
-4. **Actions → Build Python Container** を選びます
+4. **アクション → Pythonコンテナをビルド** を選びます
 
 **設定ファイルで：**
 ```bash
@@ -190,15 +190,6 @@ PYOPT_LIBROSA=true
 
 - NLTK と spaCy のオプションが入れるのはパッケージだけです。データセットとモデルは、Python のイメージのビルドの最後に実行される `~/monadic/config/pysetup.sh` でダウンロードしてください
 - ビルドに失敗したときは、今のイメージがそのまま使われます
-
-## PDF処理設定 :id=pdf-processing-settings
-
-この設定は、MCP サーバーが Knowledge Base に取り込む PDF に使われます。Web の画面で取り込む PDF には、決まった断片の大きさが使われます。
-
-| 変数 | 説明 | 既定 |
-|------|------|------|
-| `PDF_RAG_TOKENS` | PDF の断片 1 つのトークン数 | `4000` |
-| `PDF_RAG_OVERLAP_LINES` | PDF の断片が重なる行数 | `4` |
 
 ## 設定例
 

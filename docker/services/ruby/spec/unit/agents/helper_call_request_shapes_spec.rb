@@ -2,7 +2,6 @@
 
 require "spec_helper"
 require_relative "../../../lib/monadic/utils/provider_response"
-require_relative "../../../lib/monadic/agents/context_extractor_agent"
 require_relative "../../../lib/monadic/agents/image_analysis_agent"
 require_relative "../../../lib/monadic/shared_tools/parallel_dispatch"
 
@@ -87,41 +86,6 @@ RSpec.describe "Helper-call request shapes", :no_api do
       app.send(:anthropic_sub_call, "https://api.anthropic.com/v1/messages", "k", "claude-haiku-4-5-20251001", "p", 10)
       expect(sent[0]).not_to have_key("temperature")
       expect(sent[1]).to include("temperature" => 0.0)
-    end
-  end
-
-  describe "context extraction" do
-    let(:agent) { Object.new.extend(ContextExtractorAgent) }
-    let(:sent) { [] }
-
-    def stub_request(reply)
-      allow(agent).to receive(:make_http_request) { |_uri, body, _headers| sent << body; reply.to_json }
-    end
-
-    it "asks a reasoning OpenAI model for its lowest effort instead of a temperature" do
-      stub_request({ "choices" => [{ "message" => { "content" => "{}" } }] })
-      agent.call_provider_api("openai", "gpt-6.1-sol", "s", "k")
-      expect(sent.last).to include("reasoning_effort" => "low")
-      expect(sent.last).not_to have_key("temperature")
-    end
-
-    it "keeps temperature away from Claude models that refuse it and thinks lightly" do
-      stub_request({ "content" => [{ "type" => "thinking", "thinking" => "" }, { "type" => "text", "text" => "{\"t\":1}" }] })
-      expect(agent.call_provider_api("anthropic", "claude-sonnet-5-5", "s", "k")).to eq("{\"t\":1}")
-      expect(sent.last).not_to have_key("temperature")
-      expect(sent.last["output_config"]).to eq(effort: "low")
-    end
-
-    it "asks Mistral Large 4 for its least reasoning and reads its parts" do
-      stub_request({ "choices" => [{ "message" => { "content" => [{ "type" => "text", "text" => "{}" }] } }] })
-      expect(agent.call_provider_api("mistral", "mistral-large-4", "s", "k")).to eq("{}")
-      expect(sent.last).to include("reasoning_effort" => "low")
-    end
-
-    it "turns DeepSeek thinking off for every DeepSeek chat model" do
-      stub_request({ "choices" => [{ "message" => { "content" => "{}" } }] })
-      agent.call_provider_api("deepseek", "deepseek-flash", "s", "k")
-      expect(sent.last["thinking"]).to eq("type" => "disabled")
     end
   end
 

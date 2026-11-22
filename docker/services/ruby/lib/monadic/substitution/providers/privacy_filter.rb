@@ -2,9 +2,11 @@
 
 require_relative '../provider'
 require_relative '../../utils/privacy/backend'
+require_relative '../../utils/privacy/outbound'
 require_relative '../../utils/privacy/presidio_backend'
 require_relative '../../utils/privacy/registry'
 require_relative '../../utils/privacy/types'
+require_relative '../../utils/privacy/word_table'
 # language_detector is required lazily inside #resolve_languages to break the
 # pipeline <-> language_detector require cycle (language_detector requires the
 # Privacy::Pipeline alias, which requires this file).
@@ -47,8 +49,9 @@ module Monadic
         # RESTORE_RE only widens what we accept *back* from the model so a
         # lightly mangled token still restores instead of leaking the broken
         # token to the user. The captured TYPE_N rebuilds the clean registry
-        # key, so the corruption never reaches the UI.
-        RESTORE_RE = /<<[\s?]*([A-Z_]+)_(\d+)[\s?]*>>/
+        # key, so the corruption never reaches the UI. (The same rule as the
+        # chat's word table reads back with.)
+        RESTORE_RE = Monadic::Utils::Privacy::WordTable::RESTORE_RE
 
         # The registry key a RESTORE_RE match stands for: the clean
         # "<<TYPE_N>>", however the model mangled the token around it.
@@ -171,11 +174,10 @@ module Monadic
 
           labels = reg.filter_map do |placeholder, original|
             m = placeholder.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
-            [original.to_s, "#{m[1].tr('_', ' ')} #{m[2]}"] if m
+            [original.to_s, Monadic::Utils::Privacy::Outbound.spoken_label(m[1], m[2])] if m
           end
           # Overlapping strings are replaced as one, so no part of one is read
           # out because another was replaced first.
-          require_relative '../../utils/privacy/outbound'
           Monadic::Utils::Privacy::Outbound.replace_union(restored_text, labels + marked)
         end
 

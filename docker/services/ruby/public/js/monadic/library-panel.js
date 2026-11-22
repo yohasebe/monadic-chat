@@ -104,22 +104,39 @@
     return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } }, { silentDrop: true });
   }
 
-  // Persist the user's preferred default for the RAG toggle across
-  // sessions/page loads. The server still owns the per-session state
-  // (and the first-message lock), but this lets users avoid flipping
-  // the toggle every time they open a new session. Stored as 'on' or
-  // 'off' so unset/legacy values fall through to the server default.
-  var RAG_DEFAULT_KEY = 'monadic.library.ragDefault';
-  function readRagDefault() {
+  // The RAG toggle is remembered per app: turning it on in one app does
+  // not turn it on in another, and an app the user never turned it on in
+  // starts with it off. Stored as a list of the apps it is on in.
+  var RAG_APPS_KEY = 'monadic.library.ragApps';
+  function readRagApps() {
     try {
-      if (typeof window === 'undefined' || !window.localStorage) return null;
-      return window.localStorage.getItem(RAG_DEFAULT_KEY);
-    } catch (e) { return null; }
+      if (typeof window === 'undefined' || !window.localStorage) return [];
+      var list = JSON.parse(window.localStorage.getItem(RAG_APPS_KEY) || '[]');
+      return Array.isArray(list) ? list : [];
+    } catch (e) { return []; }
   }
-  function writeRagDefault(enabled) {
+  function ragOnFor(app) {
+    return !!app && readRagApps().indexOf(app) >= 0;
+  }
+  // Put the state remembered for the app into the switch, and tell the
+  // server when it changes. Called for every app change through
+  // applyAppCapabilityClasses (monadic.js), and once at start.
+  function applyRagForApp(app) {
+    var toggle = (typeof document !== 'undefined') ? document.getElementById('library-rag-toggle') : null;
+    if (!toggle) return;
+    var on = ragOnFor(app || currentAppName());
+    if (toggle.checked === on) return;
+    toggle.checked = on;
+    setRagToggle(on);
+    if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
+  }
+  function rememberRag(app, enabled) {
+    if (!app) return;
     try {
       if (typeof window === 'undefined' || !window.localStorage) return;
-      window.localStorage.setItem(RAG_DEFAULT_KEY, enabled ? 'on' : 'off');
+      var list = readRagApps().filter(function (name) { return name !== app; });
+      if (enabled) list.push(app);
+      window.localStorage.setItem(RAG_APPS_KEY, JSON.stringify(list));
     } catch (e) { /* private mode / quota — silently ignore */ }
   }
   function setScopeApp(conversationId, scopeApp) {
@@ -347,13 +364,8 @@
     return PII_EMAIL_RE.test(corpus) || PII_PHONE_RE.test(corpus);
   }
 
-  // Render the Privacy badge column. Privacy Filter and Knowledge Base
-  // save are mutually exclusive at the app level: apps that declare
-  // `privacy do; enabled true; end` in their MDSL have library_save
-  // forced to false by dsl.rb#finalize_capabilities!, so saved KB
-  // entries never go through the Privacy registry — there is no
-  // `pii_status` field to surface. The remaining heuristic catches
-  // legacy or imported entries whose title / source obviously looks
+  // Render the Privacy badge column. A heuristic catches entries whose title
+  // / source obviously looks
   // like PII (email or phone patterns), giving the user a glance-level
   // warning before clicking in.
   function privacyBadgeHtml(row) {
@@ -1080,13 +1092,8 @@
     return '';
   }
 
-  function privacyOn() {
-    try {
-      if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.isEnabled === 'function') {
-        return !!window.WsPrivacyHandler.isEnabled();
-      }
-    } catch (_) {}
-    try { return !!window.privacyEnabled; } catch (_) { return false; }
+  function chatHidesWords() {
+    return !!(window.WordTable && window.WordTable.isMarked());
   }
 
   function openSaveModal() {
@@ -1630,21 +1637,16 @@
       && window.messages.some(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); });
   }
 
-  // Privacy Filter and Knowledge Base save are mutually exclusive at the
-  // app level — see docs/basic-usage/basic-apps.md#privacy-kb-by-app.
-  // The Save button is hidden in two cases:
-  //   1. The current app is in the KB-save excluded list (artifact-centric
-  //      apps and PF-only apps; flag set by DSL post-processing in
-  //      lib/monadic/dsl.rb#library_save_eligible?).
-  //   2. The Privacy Filter is active in this session — defense in depth
-  //      so a misconfigured app cannot leak PII to disk.
+  // Whether the current app saves to the Knowledge Base (artifact-centric apps
+  // and apps that declare `library_save false` do not; flag set by DSL
+  // post-processing in lib/monadic/dsl.rb).
   function isCurrentAppKbSaveEligible() {
     return readAppFeatureFlag('library_save');
   }
 
   // The "Use Knowledge Base for retrieval" toggle is gated on the same
-  // app metadata as the library_search auto-injection. PF-only apps and
-  // artifact-centric apps do not have library_search in their tool list,
+  // app metadata as the library_search auto-injection. Apps that declare
+  // `library_search false` do not have library_search in their tool list,
   // so the toggle would be a no-op there — hiding it keeps the UI honest.
   function isCurrentAppKbRetrievalEligible() {
     return readAppFeatureFlag('library_search');
@@ -1671,27 +1673,24 @@
   // when more than one disable condition is in effect:
   //
   //   1. The current app does not support saving to the Knowledge Base
-  //      (e.g. apps that declare `privacy do; enabled true; end` or
-  //      `library_save false` in MDSL). Reported first because telling the
+  //      (apps that declare `library_save false` in MDSL). Reported first because telling the
   //      user "no messages yet" is misleading when saving will never
   //      be allowed regardless of how many messages they have.
-  //   2. Privacy Filter is currently ON in this session. Mutually
-  //      exclusive with KB save by design — we refuse to ingest content
-  //      that the user is actively asking us to mask before the LLM sees
-  //      it. (Defense-in-depth on the backend side too.)
+  //   2. The chat hides words: the Knowledge Base would keep them, and a
+  //      search from another chat would send them. (Refused on the server
+  //      too.)
   //   3. There are simply no user/assistant messages to save yet.
   //
   // Driven by initial page load, SessionState events (message added /
-  // cleared / app changed), and live `privacy:state-changed` pushes from
-  // the backend so the button reflects backend-authoritative privacy
-  // state without polling.
+  // cleared / app changed), and `wordtable:changed` from the chat's word
+  // table, so the button follows the chat without polling.
   function updateSaveButtonAvailability() {
     if (typeof document === 'undefined') return;
     var btn = document.getElementById('library-save');
     if (!btn) return;
 
     var appEligible = isCurrentAppKbSaveEligible();
-    var privacyActive = privacyOn();
+    var hidesWords = chatHidesWords();
     var saveable = hasSessionMessages();
 
     var disabled = false;
@@ -1702,10 +1701,10 @@
       disabled = true;
       titleKey = 'ui.libSaveAppUnsupported';
       titleFallback = 'This app does not support saving to the Knowledge Base.';
-    } else if (privacyActive) {
+    } else if (hidesWords) {
       disabled = true;
-      titleKey = 'ui.libSavePrivacyActive';
-      titleFallback = 'Saving is disabled while the Privacy Filter is active in this session.';
+      titleKey = 'ui.libSaveHidesWords';
+      titleFallback = 'A chat that hides words cannot be saved to the Knowledge Base.';
     } else if (!saveable) {
       disabled = true;
       titleKey = 'ui.libNoMessages';
@@ -1744,7 +1743,7 @@
         .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
       window.SessionState.on('app:changed', updateRagToggleVisibility);
     }
-    document.addEventListener('privacy:state-changed', updateSaveButtonAvailability);
+    document.addEventListener('wordtable:changed', updateSaveButtonAvailability);
 
     var browseBtn = document.getElementById('library-browse');
     if (browseBtn) browseBtn.onclick = openBrowseModal;
@@ -1761,22 +1760,15 @@
     if (ragToggle) {
       ragToggle.onchange = function () {
         var on = ragToggle.checked;
-        // Push the preference to localStorage *and* to the server so
-        // the next session inherits the same default and the current
+        // Remember it for this app, and tell the server so the current
         // session reflects it immediately.
-        writeRagDefault(on);
+        rememberRag(currentAppName(), on);
         setRagToggle(on);
         // Refresh the header summary bar so its "Knowledge Base" badge
         // tracks the toggle immediately.
         if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
       };
-      // Apply the persisted default on first paint. We only push it
-      // upstream when the user previously chose ON — pushing OFF would
-      // be a no-op since OFF is the server's default anyway.
-      if (readRagDefault() === 'on') {
-        ragToggle.checked = true;
-        setRagToggle(true);
-      }
+      applyRagForApp();
     }
 
     // Browse-modal controls
@@ -1927,6 +1919,7 @@
     requestStats: requestStats,
     requestRagState: requestRagState,
     setRagToggle: setRagToggle,
+    applyRagForApp: applyRagForApp,
     setScopeApp: setScopeApp,
     deleteConversation: deleteConversation,
     openSaveModal: openSaveModal,

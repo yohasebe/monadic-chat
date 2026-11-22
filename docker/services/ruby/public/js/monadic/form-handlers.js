@@ -4,48 +4,6 @@
  */
 
 /**
- * Handles file uploads for the PDF viewer
- * @param {File} file - The file to upload
- * @param {string} fileTitle - Title for the PDF
- * @returns {Promise} - Promise resolving to the upload response
- */
-async function uploadPdf(file, fileTitle) {
-  if (!file) {
-    throw new Error("Please select a PDF file to upload");
-  }
-  
-  // Validate file type
-  if (file.type !== "application/pdf") {
-    throw new Error("Please select a PDF file");
-  }
-  
-  // Prepare form data
-  const formData = new FormData();
-  formData.append("pdfFile", file);
-  formData.append("pdfTitle", fileTitle);
-  // Tell the server which app this upload belongs to so the per-app store
-  // gets the right namespace. The session-derived fallback may be stale if
-  // UPDATE_PARAMS has not fired yet for this WebSocket session.
-  try {
-    const appsEl = (typeof document !== 'undefined') ? document.getElementById('apps') : null;
-    const appName = appsEl ? appsEl.value : '';
-    if (appName) formData.append("appName", appName);
-  } catch (_) { /* no-op */ }
-
-  // Do not retry on failure: a transient client-side error can leave the
-  // server-side upload completed, so a retry would create duplicates.
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120000);
-  try {
-    return await window.monadicFetch.postJson('/pdf', formData, {
-      signal: controller.signal
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
  * Converts document files to text and adds to the message textarea
  * @param {File} doc - The document file to convert
  * @param {string} docLabel - Optional label for the document
@@ -129,8 +87,8 @@ async function importSession(file) {
 }
 
 /**
- * POST /load with optional retry when the backend reports a Privacy Filter
- * encrypted file requires a passphrase. The user is prompted via the
+ * POST /load with optional retry when the backend reports that an encrypted
+ * export requires a passphrase. The user is prompted via the
  * #privacyImportPassphraseModal; on confirm we re-send the same file plus
  * the passphrase. Wrong passphrase loops back to the prompt with an error.
  */
@@ -358,35 +316,24 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
   }
 }
 
-/**
- * Uploads an audio or MIDI file for analysis
- * @param {File} file - The audio/MIDI file to upload
- * @returns {Promise} - Promise resolving to the upload response
- */
-async function uploadAudioFile(file) {
-  if (!file) {
-    throw new Error("Please select an audio or MIDI file");
-  }
-  const formData = new FormData();
-  formData.append("audioFile", file);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60000);
-  try {
-    return await window.monadicFetch.postJson("/upload_audio", formData, {
-      signal: controller.signal
-    });
-  } finally {
-    clearTimeout(timer);
-  }
+// What the page says when an import is done: that it was imported, and,
+// when the file held app state that did not fit, how many entries of it
+// were left out (state_dropped from the import route). t: the translator.
+function importNotice(response, t) {
+  const say = typeof t === 'function' ? t : null;
+  const done = say ? say('ui.messages.sessionImported') : 'Session imported successfully';
+  const dropped = response && Number(response.state_dropped) > 0 ? Number(response.state_dropped) : 0;
+  if (!dropped) return done;
+  const left = say ? say('ui.messages.stateDropped') : "{n} entries of the app's saved state did not fit and were left out.";
+  return done + ' ' + String(left).replace('{n}', String(dropped));
 }
 
 // Export functions to window for browser environment
 window.formHandlers = {
-  uploadPdf,
   convertDocument,
   fetchWebpage,
   importSession,
-  uploadAudioFile,
+  importNotice,
   setupUrlValidation,
   setupFileValidation,
   showModalWithFocus

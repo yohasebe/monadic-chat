@@ -4,6 +4,8 @@
 # Handles: CHECK_TOKEN, AI_USER_QUERY, UPDATE_PARAMS, SYSTEM_PROMPT,
 # SAMPLE, UPDATE_LANGUAGE, and RESET messages.
 
+require_relative '../../turn_state/notes'
+
 module WebSocketHelper
   private def handle_ws_check_token(connection, obj, session)
     # Store ui_language in session parameters if provided
@@ -80,15 +82,30 @@ module WebSocketHelper
 
     params = obj["contents"]["params"]
     rack_session = Thread.current[:rack_session]
+    # Counted with the answers the page waits for (reply_state.rb), under an
+    # id of the server's own (the page's ids start again on each load).
+    state_id = "ai_user:#{SecureRandom.hex(8)}"
+    reply_running(state_id, ws_session_id)
 
-    Thread.new do
+    worker = Thread.new do
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = rack_session
-      # A reply still being written comes first (waited for here, not in the
-      # read loop, so a Reset or Cancel meanwhile is still taken).
-      reply&.join
-      write_ai_user_suggestion(session, params, notice)
+      given = false
+      # A reply still being written comes first, recorded (waited for here,
+      # not in the read loop, so a Reset or Cancel meanwhile is still taken).
+      # Nothing is suggested for an answer that was cancelled.
+      if (answer = reply && reply[:reply_handle])
+        answer.wait_ended
+        next if answer.cancelled?
+      else
+        reply&.join
+      end
+      given = write_ai_user_suggestion(session, params, notice)
+    ensure
+      finish_reply(state_id, given ? "done" : "no_reply", ws_session_id)
     end
+    worker[:reply_request_id] = state_id
+    worker
   end
 
   private def write_ai_user_suggestion(session, params, notice)
@@ -103,12 +120,15 @@ module WebSocketHelper
       nil
     elsif result["type"] == "error"
       notice.call("type" => "ai_user_error", "content" => result["content"].to_s)
+      false
     else
       notice.call("type" => "ai_user", "content" => result["content"])
       notice.call("type" => "ai_user_finished", "content" => result["content"])
+      true
     end
   rescue StandardError => e
     notice.call("type" => "ai_user_error", "content" => "AI User error: #{e.message}")
+    false
   end
 
   # Whether UPDATE_PARAMS moves the tab to another app (a new chat).
@@ -141,11 +161,16 @@ module WebSocketHelper
     session[:messages].clear
     session[:parameters].clear
     Monadic::Workspace::Chats.begin_new!(session)
+    Monadic::Utils::Privacy::Words.restore!(session, imported.delete(:word_table))
     imported.each { |key, value| session[key] = value }
+    # The app state is made from the file's messages and base.
+    Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
     session[:parameters]["ui_language"] ||= ui_language if ui_language
     sync_session_state!
 
     send_chat_to_page(connection, session)
+    # The page is told of the file's words on the result: its table is there by then.
+    send_word_table(connection, session)
     send_to_client(connection, { "type" => "import_result", "token" => token, "success" => true })
     Monadic::Utils::ExtraLogger.log { "[Import] Tab #{ws_session_id} took #{session[:messages].size} messages" }
   rescue StandardError => e
@@ -165,12 +190,16 @@ module WebSocketHelper
     handle_audio_abort(nil, nil) if session[:_realtime_stt] && respond_to?(:handle_audio_abort, true)
   end
 
+  # The chat the session is in and its epoch, as the page matches them.
+  private def chat_token(session)
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    chat_id && "#{chat_id}.#{Monadic::Workspace::Chats.epoch(chat_id)}"
+  end
+
   # What the page shows of the chat now in the session (an imported or a
   # resumed one), in the order it applies them; the pauses let it build the
-  # app list before the parameters select from it. A resumed chat is shown
-  # with its Privacy Filter state locked, as after a reload, so the page
-  # does not turn the filter on for it as it does for a new chat.
-  private def send_chat_to_page(connection, session, restored: false)
+  # app list before the parameters select from it.
+  private def send_chat_to_page(connection, session)
     apps_data = prepare_apps_data(session[:parameters]["ui_language"], session: session)
     app_name = session[:parameters]["app_name"]
     shown = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == app_name }
@@ -178,20 +207,9 @@ module WebSocketHelper
     sleep(0.2)
     send_to_client(connection, { "type" => "parameters", "content" => session[:parameters], "from_import" => true }) unless session[:parameters].empty?
     sleep(0.05)
-    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true,
-                                 "private" => Monadic::History::Policy.private?(session) })
-
-    state = session[:monadic_state]
-    if state && state[:conversation_context]
-      send_to_client(connection, { "type" => "context_update", "context" => state[:conversation_context],
-                                   "schema" => state[:context_schema], "from_import" => true })
-    end
-    registry = state && state[:privacy] && state[:privacy][:registry]
-    privacy = { "type" => "privacy_state", "enabled" => session[:_privacy_session_enabled] == true,
-                "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
-                "private" => Monadic::History::Policy.private?(session) }
-    privacy["restored"] = true if restored
-    send_to_client(connection, privacy)
+    send_to_client(connection, { "type" => "past_messages", "content" => shown, "from_import" => true })
+    # The app's state, as its notes on the work screen show it.
+    Monadic::TurnState::Notes.refresh(session, show: true, tab: Thread.current[:websocket_session_id])
   end
 
   private def handle_ws_update_params(connection, obj, session)
@@ -217,21 +235,7 @@ module WebSocketHelper
       # not start with the previous one's words, Private or not.
       session[:messages] = []
       Monadic::Workspace::Chats.begin_new!(session)
-      # Push a privacy_state event so the frontend indicator reflects the
-      # cleared registry immediately, instead of staying at the previous
-      # app's count until the user sends the first message.
-      ws_session_id = Thread.current[:websocket_session_id]
-      privacy_state_msg = {
-        "type" => "privacy_state",
-        "enabled" => false,
-        "registry_count" => 0,
-        "error" => nil,
-        "private" => false
-      }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(privacy_state_msg, ws_session_id)
-      end
-      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context + privacy reset" }
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context reset" }
     end
 
     # On-demand container startup: when the user selects an app that needs
@@ -334,15 +338,12 @@ module WebSocketHelper
       # Generate a unique message ID
       message_id = SecureRandom.hex(4)
 
-      # Words marked for the Privacy Filter are taken out and kept for the
-      # chat, as for a sent message; nothing is added if that fails.
+      # A system message may not hold a word the chat hides.
       if text.is_a?(String)
-        if obj["role"] == "system" && marked_words_in_system_text?(text, session)
+        if obj["role"] == "system" && hidden_word_in_system_text?(text, session)
           send_error(SYSTEM_TEXT_MARKED, ws_session_id, { "not_accepted" => true })
           return
         end
-        text = take_privacy_marks(text, session, ws_session_id)
-        return if text.nil?
       end
 
       # Attachments go only with a user message, checked as for a sent
@@ -481,7 +482,8 @@ module WebSocketHelper
   end
 
   # Seconds for a stopped reply's own clean-up: stopping a command it runs
-  # (Monadic::Shell::STOP_TIMEOUT plus the group's grace) fits within it.
+  # (Monadic::Shell::STOP_TIMEOUT plus the group's grace) fits within it. An
+  # answer still stopping past it is noted (ReplyHandle#wait_ended).
   REPLY_STOP_WAIT = 15
 
   # Stops a reply that is still being written, waits briefly for its clean-up
@@ -489,13 +491,26 @@ module WebSocketHelper
   # queued. The page gets the same notice as for Cancel, which gives it its
   # controls back without touching the input box.
   private def stop_running_reply(thread, queue)
-    queue&.clear
-    return unless thread&.alive?
+    # An answer is cancelled and waited for until its worker ended it (the
+    # wait has no limit: what comes next in the chat must not overlap with
+    # what it still writes; a stop past REPLY_STOP_WAIT is noted).
+    if (handle = thread && thread[:reply_handle])
+      running = !handle.ended?
+      Replies.stop_and_settle(handle)
+      drop_queued_replies(queue)
+      send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id]) if running
+      return
+    end
 
-    thread.kill
-    thread.join(REPLY_STOP_WAIT)
-    queue&.clear
-    send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
+    drop_queued_replies(queue)
+    if thread&.alive?
+      thread.kill
+      thread.join(REPLY_STOP_WAIT)
+      drop_queued_replies(queue)
+      send_or_broadcast({ "type" => "cancel" }.to_json, Thread.current[:websocket_session_id])
+    end
+    # Also an answer whose thread was stopped before it ran.
+    stop_reply_work(thread)
   end
 
   private def handle_ws_reset(session)
@@ -522,11 +537,5 @@ module WebSocketHelper
     # now on go to a new folder while the previous chat's folder stays.
     Monadic::Workspace::Chats.begin_new!(session)
     sync_session_state!
-    # The Privacy Filter is off for the new chat until the page turns it on
-    # again; tell the page, so its indicator does not keep showing the old
-    # chat's ON (the page turns it back on itself when its toggle is on).
-    send_or_broadcast({ "type" => "privacy_state", "enabled" => false, "registry_count" => 0, "error" => nil,
-                        "private" => false }.to_json,
-                      Thread.current[:websocket_session_id])
   end
 end

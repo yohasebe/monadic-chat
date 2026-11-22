@@ -30,7 +30,6 @@ RSpec.describe 'Live Conversation library_search tool' do
       [hit]
     end
     allow(MonadicSharedTools::LibrarySearch).to receive(:format_results).and_return('formatted')
-    allow(MonadicSharedTools::LibrarySearch).to receive(:apply_privacy) { |out, _s| out }
 
     session = { parameters: { 'app_name' => 'LiveConversationOpenAI' } }
     result = entry[:call].call({ 'query' => 'apples', 'top_n' => 2 }, session)

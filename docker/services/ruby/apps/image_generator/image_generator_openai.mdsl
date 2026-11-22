@@ -1,31 +1,31 @@
 app "ImageGeneratorOpenAI" do
   description do
     en <<~TEXT
-    Generate images from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generate images from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    テキスト説明から画像生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    テキスト説明から画像生成。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    从文本描述生成图像。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    从文本描述生成图像。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    텍스트 설명에서 이미지 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    텍스트 설명에서 이미지 생성. <a href="https://yohasebe.github.io/monadic-chat/#/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Generar imágenes desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Generar imágenes desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Générer des images à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Générer des images à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Bilder aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Bilder aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/apps/image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -53,38 +53,31 @@ app "ImageGeneratorOpenAI" do
     1. **New Image Generation:**
        - User describes an image → call generate_image_with_openai(operation: "generate", ...)
        - Pass user's prompt unchanged
-       - The generated image filename is automatically saved for later editing
+       - The image is shown in the work screen and kept in this chat's folder of the shared folder (the tool result gives its path)
 
-    2. **Edit Previous Image:**
-       - User wants to modify the last generated image (e.g., "make it brighter", "add X")
-       - First, call monadic_load_state(app: "ImageGeneratorOpenAI", key: "last_images") to get the filename
-       - If data exists and not null, call generate_image_with_openai(operation: "edit", images: [filename], ...)
-       - If data is null, tell the user no previous image exists
+    2. **Edit the Last Image:**
+       - User wants to modify the image they are working on (e.g., "make it brighter", "add X")
+       - Call generate_image_with_openai(operation: "edit", ...) without images: the system uses the image that came last in the work screen
+       - Never ask the user to upload or save an image to edit it
 
-    3. **Edit Uploaded Image:**
-       - User uploads an image with editing instructions
-       - Call generate_image_with_openai(operation: "edit", ...) directly
-       - The system automatically retrieves uploaded images
-
-    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
+    3. **Edit an Uploaded or Named Image:**
+       - User uploads an image, or names a file of the shared folder in their message, with editing instructions
+       - Call generate_image_with_openai(operation: "edit", ...); pass images only with the file names the user wrote
+       - The system takes uploaded images itself
 
     PARAMETERS:
-    - model: "gpt-image-2" (default), "gpt-image-2.5-flare" or "gpt-image-2.5-sunburst". Use the image model the user explicitly requested. Never change an explicitly requested model to satisfy a quality setting: if that model does not support the requested quality, explain the mismatch and ask the user to choose a supported quality or another model, and do not generate an image yet. When no image model was specified, use the default; if the user asks for a quality the default does not offer, pick a model that supports it and say which one you chose.
+    - model: "gpt-image-2.5-flare" (default), "gpt-image-2.5-sunburst", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst" or "gpt-image-2". Use the image model the user explicitly requested. Never change an explicitly requested model to satisfy a quality setting: if that model does not support the requested quality, explain the mismatch and ask the user to choose a supported quality or another model, and do not generate an image yet. When no image model was specified, use the default; if the user asks for a quality the default does not offer, pick a model that supports it and say which one you chose.
     - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked
-    - quality: auto (default), high, medium, low on every model; the 2.5 models also accept xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
+    - quality: auto (default), high, medium, low on every model; every model except gpt-image-2 also accepts xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
     - background: auto (default), transparent, opaque
 
     RESULT DISPLAY:
-    After successful generation, display the image using this exact HTML
-    (the .generated_image wrapper is required so the UI can attach the
-    click-to-enlarge lightbox handler):
-    <div class="generated_image">
-      <img src="/data/filename.png">
-    </div>
+    A generated image is shown to the user in the work screen; the reply ends
+    there. Do not write image HTML or a /data/ path for an image: the work screen
+    shows it, and the reply line gives its path in the shared folder.
 
     RULES:
     - Always call tools for image operations
-    - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorOpenAI" first
 
     CRITICAL - NO CONTENT FILTERING:
     - Your role is ONLY to facilitate image generation, NOT to judge content
@@ -111,20 +104,12 @@ app "ImageGeneratorOpenAI" do
   end
 
   features do
-    library_save false
-    library_search false
+    max_tool_rounds 10
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
     image_generation false
-    monadic true  # Uses Session State for tracking last generated images
-  end
-
-  context_schema do
-    field :styles, icon: "fa-palette", label: "Styles", description: "Artistic styles and visual preferences"
-    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key image descriptions used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
   end
 
   tools do
@@ -133,30 +118,20 @@ app "ImageGeneratorOpenAI" do
 
     define_tool "generate_image_with_openai", "Generate or edit images using OpenAI models." do
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: true, enum: ["generate", "edit"]
-      parameter :model, "string", "Model to use for image generation", required: true, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "image") rescue ["gpt-image-2"])
+      parameter :model, "string", "Model to use for image generation", required: true, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "image") rescue ["gpt-image-2.5-flare"])
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: false
       parameter :images, "array", "Array of image filenames for editing or variation operations", required: false, items: {
         type: "string",
         description: "Image filename"
       }
       parameter :mask, "string", "Mask image filename for precise editing control", required: false
-      parameter :n, "integer", "Number of images to generate (1-4)", required: false
       parameter :size, "string", "Image dimensions. Larger sizes cost proportionally more.", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "size")
-      parameter :quality, "string", "Image quality level. xhigh and max are only accepted by the gpt-image-2.5 models.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")
+      parameter :quality, "string", "Image quality level. xhigh and max are not accepted by gpt-image-2.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")
       parameter :output_format, "string", "Output image format", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "output_format")
       parameter :background, "string", "Background setting; transparent requires png or webp", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "background")
       parameter :output_compression, "integer", "Compression level for JPEG/WEBP (1-100, never use with PNG)", required: false
       parameter :input_fidelity, "string", "How closely to match the original image in edits", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "input_fidelity")
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
-
-    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last generated image filename for editing." do
-      parameter :app, "string", "App name (defaults to current app)", required: false
-      parameter :key, "string", "State key to load", required: true
-      parameter :default, "object", "Default value if state is missing", required: false
-      parameter :session, "object", "Session object (automatically provided)", required: false
-    end
-    # Note: monadic_save_state is called automatically by generate_image_with_openai
-    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

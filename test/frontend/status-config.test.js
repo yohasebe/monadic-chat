@@ -21,8 +21,7 @@ describe('StatusConfig Module', () => {
       const config = StatusConfig.getStatusConfig('success');
       expect(config).toBeDefined();
       expect(config.icon).toBe('fa-circle-check');
-      expect(config.colorLight).toBeDefined();
-      expect(config.colorDark).toBeDefined();
+      expect(config.color).toBe('var(--pal-green-text)');
     });
 
     it('returns null for invalid status type', () => {
@@ -69,39 +68,13 @@ describe('StatusConfig Module', () => {
   });
 
   describe('getTextColor', () => {
-    it('returns light mode color when isDark is false', () => {
-      const color = StatusConfig.getTextColor('success', false);
-      expect(color).toBe('#5cd65c');
+    it('gives the palette token of a status type, which follows the theme', () => {
+      expect(StatusConfig.getTextColor('success')).toBe('var(--pal-green-text)');
+      expect(StatusConfig.getTextColor('danger')).toBe('var(--pal-red-text)');
     });
 
-    it('returns dark mode color when isDark is true', () => {
-      const color = StatusConfig.getTextColor('success', true);
-      expect(color).toBe('#7fd89f');
-    });
-
-    it('returns default secondary color for invalid type', () => {
-      expect(StatusConfig.getTextColor('invalid', false)).toBe('#757575');
-      expect(StatusConfig.getTextColor('invalid', true)).toBe('#bdbdbd');
-    });
-  });
-
-  describe('getBackgroundColor', () => {
-    it('returns light background for light mode', () => {
-      expect(StatusConfig.getBackgroundColor(false)).toBe('#707070');
-    });
-
-    it('returns dark background for dark mode', () => {
-      expect(StatusConfig.getBackgroundColor(true)).toBe('#2a2a2a');
-    });
-  });
-
-  describe('getBorderColor', () => {
-    it('returns light border for light mode', () => {
-      expect(StatusConfig.getBorderColor(false)).toBe('#808080');
-    });
-
-    it('returns dark border for dark mode', () => {
-      expect(StatusConfig.getBorderColor(true)).toBe('#444444');
+    it('gives the secondary text color for an unknown type', () => {
+      expect(StatusConfig.getTextColor('invalid')).toBe('var(--text-secondary)');
     });
   });
 
@@ -109,18 +82,6 @@ describe('StatusConfig Module', () => {
     it('exposes STATUS_CONFIG object', () => {
       expect(StatusConfig.STATUS_CONFIG).toBeDefined();
       expect(StatusConfig.STATUS_CONFIG.success).toBeDefined();
-    });
-
-    it('exposes STATUS_BG object', () => {
-      expect(StatusConfig.STATUS_BG).toBeDefined();
-      expect(StatusConfig.STATUS_BG.light).toBeDefined();
-      expect(StatusConfig.STATUS_BG.dark).toBeDefined();
-    });
-
-    it('exposes STATUS_BORDER object', () => {
-      expect(StatusConfig.STATUS_BORDER).toBeDefined();
-      expect(StatusConfig.STATUS_BORDER.light).toBeDefined();
-      expect(StatusConfig.STATUS_BORDER.dark).toBeDefined();
     });
   });
 });

@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Required for Concept Visualizer / Syntax Tree",
+        "help": "Required for Concept Visualizer",
         "items": {
           "install": "Install LaTeX (minimal set for diagrams)"
         }
@@ -73,12 +73,13 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (CPU)",
-          "transformers": "transformers (CPU only)"
+          "transformers": "transformers (CPU only)",
+          "plotlyStatic": "Plotly static images (kaleido + Chromium)"
         }
       },
       "music": {
         "title": "Music Analysis",
-        "help": "Required for Music Lab. Installs audio analysis libraries (chord detection, tempo/key estimation, etc.).",
+        "help": "Required for Music Tutor and Music Analyst. Installs audio analysis libraries (chord detection, tempo/key estimation, etc.).",
         "items": {
           "librosa": "librosa + madmom"
         }
@@ -104,6 +105,8 @@
     "restart": "Restart",
     "openConsole": "Open Console",
     "openBrowser": "Open Browser",
+    "showWebUI": "Show Web UI",
+    "closeWebUI": "Close Web UI",
     "openNoVNC": "Open noVNC",
     "openSharedFolder": "Open Shared Folder",
     "openConfigFolder": "Open Config Folder",
@@ -124,28 +127,37 @@
     "updateUserContainers": "Update User Containers",
     "startSeleniumContainer": "Start Selenium Container",
     "stopSeleniumContainer": "Stop Selenium Container",
-    "startJupyterLab": "Start JupyterLab",
+    "openJupyterLab": "Open JupyterLab",
     "stopJupyterLab": "Stop JupyterLab",
     "importDocumentDB": "Import Document DB",
     "exportDocumentDB": "Export Document DB",
-    "open": "Open",
-    "openConsole": "Open Console"
+    "open": "Open"
   },
   "tray": {
     "show": "Show",
     "quit": "Quit"
   },
   "messages": {
-    "dockerNotRunning": "Docker Desktop is not running. Please start Docker Desktop and try again.",
+    "dockerNotRunning": "Docker is not running. Start Docker Desktop (or the Docker-compatible runtime you use) and try again.",
     "dockerPermissionDenied": "Docker is running, but this user is not allowed to use it. Add your user to the docker group (sudo usermod -aG docker $USER), then log out and back in. On Omarchy, run omarchy-setup-security-sudoless-docker instead. Membership in the docker group grants root-equivalent access.",
     "dockerEngineNotRunning": "Docker is not running. Start the Docker service (sudo systemctl start docker) or Docker Desktop, and try again.",
     "noInternetAtStartup": "No internet connection was found at startup. Local models, settings and files still work; cloud AI providers, downloading container images and checking for updates need a connection. Restart Monadic Chat once you are online.",
-    "dockerNotRunningStart": "Docker Desktop is not running. Please start Docker Desktop and press <b>start</b> button.",
+    "dockerNotRunningStart": "Docker is not running. Start Docker Desktop (or the Docker-compatible runtime you use) and press the <b>start</b> button.",
+    "dockerRefused": "Docker cannot be used: {{reason}}.",
+    "dockerEngine": "Container engine: {{engine}}",
+    "dockerEngineContext": "Container engine: {{engine}} (Docker context: {{context}})",
+    "pullProgress": "Downloading container images… {{size}}",
+    "pullDone": "Downloaded container images ({{size}})",
+    "pullProgressNoSize": "Downloading container images…",
+    "pullDoneNoSize": "Downloaded container images",
+    "containerNotBuilt": "not built yet",
     "systemInitComplete": "System initialization complete",
     "openingBrowser": "Opening the browser.",
     "openBrowserManually": "Please open browser manually at http://localhost:4567",
     "browserOpenFailed": "Failed to open browser automatically. Please open manually by navigating to: http://localhost:4567",
     "serverVerifyFailed": "Could not verify server is running. Please check Docker status and try restart.",
+    "rubyNotStarted": "The Ruby container did not start, so Monadic Chat is not running.",
+    "fixAndStartAgain": "Fix the cause and press <b>Start</b> again.",
     "errorConnecting": "Error connecting to server. Please check Docker status and try restart.",
     "newVersionAvailable": "A new version ({{version}}) is available (current: {{current}}).",
     "downloadAndInstall": "Download & Install",
@@ -159,6 +171,9 @@
     "serverNotRunning": "Server is not running. Please start the server first.",
     "serverStoppedAfterSleep": "Server stopped after system sleep/resume. Please restart the server.",
     "quittingMonadicChat": "Quitting Monadic Chat . . .",
+    "backgroundReplyDone": "The reply has arrived.",
+    "backgroundReplyFailed": "The reply did not arrive. Check the Web UI.",
+    "backgroundReplyLost": "The connection was lost. Check the Web UI.",
     "monadicChatPreparing": "Monadic Chat preparing . . .",
     "dockerNotInstalled": {
       "darwin": "Docker was not found. Install Docker Desktop for Mac, start it, and then press <b>Start</b>.",
@@ -192,8 +207,6 @@
     "importingDocumentDB": "Importing Document DB . . .",
     "exportingDocumentDB": "Exporting Document DB . . .",
     "stoppingDockerServices": "Stopping the Docker services . . .",
-    "standaloneModeTip": "Please make sure Docker Desktop is running while using Monadic Chat.",
-    "standaloneModeTipLinux": "Please make sure Docker is running while using Monadic Chat.",
     "pressStartButton": "Press <b>start</b> button to initialize the server.",
     "checkingForUpdates": "Checking for updates...",
     "serverRunningOnPort": "The server is running on port 4567. Opening the browser.",
@@ -245,7 +258,7 @@
     "cancel": "Cancel",
     "yes": "Yes",
     "no": "No",
-    "dockerNotRunning": "Docker is not running. Please start Docker Desktop first.",
+    "dockerNotRunning": "Docker is not running. Please start Docker Desktop (or the Docker-compatible runtime you use) first.",
     "dockerStarting": "Starting Docker Desktop...",
     "dockerStartFailed": "Failed to start Docker Desktop. Please start it manually and try again.",
     "containersStarting": "Starting Docker containers...",
@@ -254,6 +267,8 @@
     "containersUpdating": "Updating Docker containers...",
     "quitConfirmTitle": "Quit Monadic Chat",
     "quitConfirmMessage": "Docker containers are currently running. Do you want to stop them before quitting?",
+    "backgroundHoldFailedTitle": "Could Not Confirm the Microphone Stopped",
+    "backgroundHoldFailedMessage": "Monadic Chat could not confirm that the microphone and audio stopped, so the Web UI stays open. Close it now? The conversation in it will be lost.",
     "stopContainers": "Stop Containers",
     "quitDirectly": "Quit Directly",
     "confirmRemoveDockerData": "Confirm Removal",
@@ -267,7 +282,7 @@
     "seleniumWillNotStartOnNextLaunch": "Selenium container will NOT start on next launch of Monadic Chat.",
     "exportDbConfirmTitle": "Export Document DB",
     "exportDbConfirmMessage": "Export the entire Document DB?",
-    "exportDbConfirmDetail": "The export contains every saved conversation and PDF document. Encrypting the output is strongly recommended — without encryption the file is plaintext and includes any personal information stored in the database.",
+    "exportDbConfirmDetail": "The export contains every conversation saved to the Knowledge Base and every PDF document. The chat history is not included. Encrypting the output is strongly recommended — without encryption the file is plaintext and includes any personal information stored in the database.",
     "exportDbEncrypted": "Encrypt and Export",
     "exportDbPlain": "Export Plain",
     "exportDbPassphraseTitle": "Set Passphrase for Encrypted DB Export",
@@ -277,7 +292,7 @@
     "exportDbEncryptedFailed": "Encryption failed. The plain tarball (monadic-qdrant.tar.gz) is left in place.",
     "importDbConfirmTitle": "Import Document DB",
     "importDbConfirmMessage": "Replace the current Document DB with the imported file?",
-    "importDbConfirmDetail": "Importing OVERWRITES all currently saved conversations, PDFs, and Knowledge Base entries. The current data cannot be recovered after import. Make sure the file (~/monadic/data/monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc) is from a trusted source.",
+    "importDbConfirmDetail": "Importing OVERWRITES all conversations saved to the Knowledge Base, PDFs, and other Knowledge Base entries. The chat history is not changed. The current data cannot be recovered after import. Make sure the file (~/monadic/data/monadic-qdrant.tar.gz or monadic-qdrant.tar.gz.enc) is from a trusted source.",
     "importDbContinue": "Replace and Import",
     "importDbPassphraseTitle": "Decrypt Document DB",
     "importDbPassphraseHint": "Enter the passphrase used when the file was exported.",
@@ -335,6 +350,7 @@
       "notBuilt": "not yet built",
       "optionsChanged": "options changed ({{options}})",
       "pythonContainer": "Python container",
+      "privacyContainer": "Privacy container (name finder)",
       "minutes": "{{range}} min"
     }
   }

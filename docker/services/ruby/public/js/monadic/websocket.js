@@ -75,7 +75,7 @@ if (!window.logTL) {
 // OpenAI API token verification
 window.verified = null;
 
-const { getMessageAppName, getMessageMonadicFlag, renderMessage } = window.WsContentRenderer || {};
+const { renderMessage } = window.WsContentRenderer || {};
 const { registerAudioElement, stopAllActiveAudio } = window.WsAudioPlayback || {};
 
 if (typeof window.suppressParamBroadcastCount === 'undefined') {
@@ -147,7 +147,6 @@ window.defaultApp = DEFAULT_APP;
 // isElementInViewport now in ws-content-renderer.js
 const isElementInViewport = window.isElementInViewport;
 
-const applyMermaid = window.applyMermaid;
 const applyDrawIO = window.applyDrawIO;
 
 // ABC notation, toggle, and source-code helpers now in ws-content-renderer.js
@@ -224,19 +223,21 @@ window.isReasoningStreamActive = function() {
 // (window.WsToolStatusUi, also exported as window.updateToolStatus / window.clearToolStatus
 // for back-compat with ws-tool-handler.js which does free-variable lookup).
 
+// The server's WebSocket address: the page's host and port when it is not
+// opened as localhost, ws://localhost:4567 otherwise.
+function monadicSocketBase() {
+  const host = window.location.hostname;
+  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+    return `ws://${host}:${window.location.port || '4567'}`;
+  }
+  return 'ws://localhost:4567';
+}
+window.monadicSocketBase = monadicSocketBase;
+
 function connect_websocket(callback) {
-  // Use current hostname if available, otherwise default to localhost
-  let wsUrl = 'ws://localhost:4567';
+  let wsUrl = monadicSocketBase();
   // Always resolve the tab ID through the getter so it tracks sessionStorage changes.
   const tabId = window.getMonadicTabId ? window.getMonadicTabId() : null;
-
-  // If accessing from a non-localhost address, use that instead
-  if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    const host = window.location.hostname;
-    const port = window.location.port || '4567';
-    wsUrl = `ws://${host}:${port}`;
-    if (window.debugWebSocket) console.log(`[WebSocket] Using hostname from browser: ${wsUrl}`);
-  }
 
   if (tabId) {
     const separator = wsUrl.includes('?') ? '&' : '?';
@@ -269,6 +270,9 @@ window.loadedApp = "Chat";
       window.silentReconnectMode = false;
       document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     } catch (_) { console.warn("[WebSocket] Silent reconnect cleanup failed:", _); }
+    // Answers go to the connection that asked: what was asked over the one
+    // before gets none now.
+    if (window.HistoryPanel && typeof window.HistoryPanel.connectionOpened === 'function') window.HistoryPanel.connectionOpened();
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', true);
@@ -302,6 +306,11 @@ window.loadedApp = "Chat";
       // No key goes from the page: the server checks the one it has.
       ui_language: uiLanguage
     }, { silentDrop: true });
+
+    // The work screen opens its socket again with a pass from this one.
+    if (window.WorkScreen) {
+      try { window.WorkScreen.onChatSocketOpen(); } catch (_) {}
+    }
 
     // Library (Knowledge Base) panel: fetch initial inventory + counts
     // once the connection is up. The panel is mounted globally and
@@ -568,7 +577,7 @@ window.loadedApp = "Chat";
       const sendBtnEl = $id("send");
       if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
-        ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
+        ["send", "clear", "image-file", "voice", "doc", "url", "ai_user"].forEach(function(id) {
           const el = $id(id);
           if (el) el.disabled = false;
         });
@@ -615,6 +624,12 @@ window.loadedApp = "Chat";
     if (window.debugWebSocket) {
       console.log(`[WS-SWITCH] About to process message type: ${data["type"]}`);
     }
+    // Speech for an answer started before the last Cancel is not played, nor
+    // its progress or end shown.
+    if (window.BackgroundReply && typeof window.BackgroundReply.refusesSpeech === 'function' &&
+        window.BackgroundReply.refusesSpeech(data)) {
+      return;
+    }
     switch (data["type"]) {
       case "fragment_with_audio": {
         const wah = window.WsAudioHandler;
@@ -640,14 +655,6 @@ window.loadedApp = "Chat";
         break;
       }
 
-      case "privacy_state": {
-        const wph = window.WsPrivacyHandler;
-        if (wph && typeof wph.handleState === 'function') {
-          wph.handleState(data);
-        }
-        break;
-      }
-
       case "history_list":
       case "history_renamed":
       case "history_deleted":
@@ -661,14 +668,6 @@ window.loadedApp = "Chat";
         // conversation; the import dialog waits for this.
         if (typeof window.onImportResult === 'function') {
           window.onImportResult(data);
-        }
-        break;
-      }
-
-      case "privacy_toggle_ack": {
-        const wph_ack = window.WsPrivacyHandler;
-        if (wph_ack && typeof wph_ack.handleToggleAck === 'function') {
-          wph_ack.handleToggleAck(data);
         }
         break;
       }
@@ -694,14 +693,6 @@ window.loadedApp = "Chat";
             }
           }
         } catch (_) { /* non-fatal: export persistence is best-effort */ }
-        break;
-      }
-
-      case "privacy_registry": {
-        const wph2 = window.WsPrivacyHandler;
-        if (wph2 && typeof wph2.handleRegistry === 'function') {
-          wph2.handleRegistry(data);
-        }
         break;
       }
 
@@ -747,6 +738,8 @@ window.loadedApp = "Chat";
       }
 
       case "audio": {
+        // Held in the background by the desktop app: dropped, not queued.
+        if (window.BackgroundReply && window.BackgroundReply.isHeld()) break;
         const wahAudio = window.WsAudioHandler;
         if (wahAudio && typeof wahAudio.handleAudio === 'function') {
           wahAudio.handleAudio(data);
@@ -757,6 +750,8 @@ window.loadedApp = "Chat";
       // Speech-to-speech audio arrives as ~100ms deltas and is scheduled
       // ahead of time rather than queued; see ws-sts-playback.js.
       case "sts_audio_delta": {
+        // Held in the background by the desktop app: dropped, not scheduled.
+        if (window.BackgroundReply && window.BackgroundReply.isHeld()) break;
         const sts = window.WsStsPlayback;
         if (sts && typeof sts.handleStsAudioDelta === 'function') {
           sts.handleStsAudioDelta(data);
@@ -862,19 +857,98 @@ window.loadedApp = "Chat";
         break;
       }
 
-      case "context_extraction_started": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handleContextExtractionStarted === 'function') {
-          wsh.handleContextExtractionStarted(data);
+      case "work_screen_token": {
+        if (window.WorkScreen) window.WorkScreen.onPass(data.token);
+        break;
+      }
+
+      case "workbench_open_url": {
+        // An address the user opened in the chat's browser: said only when
+        // it did not open.
+        if (!data.success && typeof setAlert === 'function') {
+          const keys = { invalid_url: 'openUrlInvalid', browser_starting: 'openUrlStarting' };
+          const key = 'ui.modals.' + (keys[data.error] || 'openUrlFailed');
+          const text = typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : key;
+          setAlert(text, data.error === 'browser_starting' ? 'warning' : 'error');
         }
         break;
       }
 
-      case "context_update": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handleContextUpdate === 'function') {
-          wsh.handleContextUpdate(data);
+      case "jupyter_opened": {
+        if (window.Workbench) window.Workbench.onJupyterOpened(data);
+        break;
+      }
+
+      case "work_screen": {
+        if (window.WorkScreen) window.WorkScreen.onChatEvent(data);
+        break;
+      }
+
+      case "workbench": {
+        if (window.Workbench) window.Workbench.onView(data);
+        break;
+      }
+
+      case "workbench_result": {
+        if (window.Workbench) window.Workbench.onResult(data);
+        break;
+      }
+
+      case "workbench_download": {
+        if (window.Workbench) window.Workbench.onDownload(data);
+        break;
+      }
+
+      case "workbench_attachment_opened": {
+        if (window.Workbench) window.Workbench.onAttachmentOpened(data);
+        break;
+      }
+      case "workbench_opened": {
+        if (window.Workbench) window.Workbench.onOpened(data);
+        break;
+      }
+
+      case "workbench_versions": {
+        if (window.Workbench) window.Workbench.onVersions(data);
+        break;
+      }
+
+      case "workbench_selected": {
+        if (window.Workbench) window.Workbench.onSelected(data);
+        break;
+      }
+
+      case "workbench_changed": {
+        if (window.Workbench) window.Workbench.onChanged();
+        break;
+      }
+
+      // A reply ended without its message: what it looked at in the work
+      // screen is drawn on the user's message.
+      case "workbench_capture": {
+        if (window.Workbench && typeof window.Workbench.onCapture === 'function') window.Workbench.onCapture(data);
+        break;
+      }
+
+      case "workbench_looks": {
+        if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(data.looks)) {
+          window.Workbench.drawLooks(data.mid, data.looks);
         }
+        break;
+      }
+
+      case "word_table": {
+        if (window.WordTable) window.WordTable.handleTable(data);
+        break;
+      }
+
+      case "words_found": {
+        if (window.WordTable) window.WordTable.handleFound(data);
+        break;
+      }
+
+      case "words_changed": {
+        if (window.WordTable) window.WordTable.handleChanged(data);
         break;
       }
 
@@ -903,6 +977,7 @@ window.loadedApp = "Chat";
       }
 
       case "error": {
+        if (data["not_accepted"] && window.BackgroundReply) window.BackgroundReply.onRefused();
         const werr = window.WsErrorHandler;
         if (werr && typeof werr.handleError === 'function') {
           werr.handleError(data);
@@ -996,20 +1071,6 @@ window.loadedApp = "Chat";
         const wih = window.WsInfoHandler;
         if (wih && typeof wih.handleInfo === 'function') {
           wih.handleInfo(data);
-        }
-        break;
-      }
-      case "pdf_titles": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handlePDFTitles === 'function') {
-          wsh.handlePDFTitles(data);
-        }
-        break;
-      }
-      case "pdf_deleted": {
-        const wsh = window.WsSessionHandler;
-        if (wsh && typeof wsh.handlePDFDeleted === 'function') {
-          wsh.handlePDFDeleted(data);
         }
         break;
       }
@@ -1121,6 +1182,10 @@ window.loadedApp = "Chat";
         break;
       }
       case "ai_user_error": {
+        // Refused before it started (the server's ai_user_* refusals).
+        if (["ai_user_requires_conversation", "ai_user_busy"].includes(data["content"]) && window.BackgroundReply) {
+          window.BackgroundReply.onRefused();
+        }
         const auh = window.WsAIUserHandler;
         if (auh && typeof auh.handleAIUserError === 'function') {
           auh.handleAIUserError(data);
@@ -1179,6 +1244,18 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "reply_state": {
+        if (window.BackgroundReply) window.BackgroundReply.onReplyState(data);
+        break;
+      }
+
+      case "reply_cancel": {
+        if (window.BackgroundReply && typeof window.BackgroundReply.onReplyToken === 'function') {
+          window.BackgroundReply.onReplyToken(ws, data);
+        }
+        break;
+      }
+
       case "streaming_complete": {
         const wstream = window.WsStreamingHandler;
         if (wstream && typeof wstream.handleStreamingComplete === 'function') {
@@ -1188,6 +1265,10 @@ window.loadedApp = "Chat";
       }
 
       case "cancel": {
+        // The answer was stopped: its stop token goes.
+        if (window.BackgroundReply && typeof window.BackgroundReply.forgetStopToken === 'function') {
+          window.BackgroundReply.forgetStopToken();
+        }
         const wcancel = window.WsErrorHandler;
         if (wcancel && typeof wcancel.handleCancel === 'function') {
           wcancel.handleCancel(data);
@@ -1219,6 +1300,16 @@ window.loadedApp = "Chat";
 
   ws.onclose = function (_e) {
     window.initialLoadComplete = false;
+    // Answers still running end here as far as the page can tell, and the
+    // page takes input again: nothing more comes for them.
+    if (window.WordTable) window.WordTable.connectionLost();
+    const repliesLost = window.BackgroundReply ? window.BackgroundReply.onConnectionLost() : 0;
+    if (repliesLost > 0) {
+      window._replyInterrupted = true;
+      if (window.wsHandlers && typeof window.wsHandlers.endInterruptedReply === 'function') {
+        window.wsHandlers.endInterruptedReply();
+      }
+    }
 
     // CRITICAL: Reset isConnecting flag when connection closes
     // This prevents handleVisibilityChange from being permanently blocked
@@ -1246,6 +1337,9 @@ window.loadedApp = "Chat";
       // Do not attempt reconnection in silent mode
       try { stopPing(); } catch(_) { console.warn("[WebSocket] Ping stop failed:", _); }
       return;
+    } else if (repliesLost > 0) {
+      const interruptedText = getTranslation('ui.messages.replyInterrupted', 'The connection was lost before the reply was complete. Send the message again.');
+      setAlert(`<i class='fa-solid fa-server'></i> ${interruptedText}`, "warning");
     } else {
       const lostText = getTranslation('ui.messages.connectionLost', 'Connection lost');
       setAlert(`<i class='fa-solid fa-server'></i> ${lostText}`, "warning");

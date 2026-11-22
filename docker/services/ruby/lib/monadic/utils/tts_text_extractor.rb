@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 module Monadic
   module Utils
     # Utility for extracting TTS text from tool parameters based on app settings.
@@ -28,7 +30,10 @@ module Monadic
       # @param argument_hash [Hash] Arguments passed to the tool (with symbol keys)
       # @param session [Hash] Session hash to store tts_text
       # @return [String, nil] Extracted TTS text if found, nil otherwise
-      def extract_tts_text(app:, function_name:, argument_hash:, session:)
+      # function_return: what the tool returned. When the tool the app names
+      # (with its parameter) succeeded, the reply ends with it: the text is
+      # the reply, and the model is not asked again (reply_ended).
+      def extract_tts_text(app:, function_name:, argument_hash:, session:, function_return: nil)
         return nil unless defined?(APPS) && APPS[app]
 
         tts_target = APPS[app]&.settings&.[](:tts_target)
@@ -45,12 +50,32 @@ module Monadic
 
         # Store in session for TTS processing
         session[:tts_text] = tts_text.to_s
+        session[:tts_reply_ended] = true if target_tool && succeeded?(function_return)
 
         if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
           puts "[TtsTextExtractor] Extracted tts_text from #{function_name}.#{target_param}: #{tts_text.to_s[0..100]}"
         end
 
         tts_text.to_s
+      end
+
+      # The reply a tool ended (extract_tts_text), taken once: the results a
+      # provider's request returns, with no text of the model's (the text
+      # the tool was given is the reply), or nil. emit gets the reply's end.
+      def reply_ended(session, &emit)
+        return nil unless session.respond_to?(:delete) && session.delete(:tts_reply_ended)
+
+        emit&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+        [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
+      end
+
+      # Whether a tool's return says it succeeded: { success: true }, as a
+      # Hash or as JSON.
+      def succeeded?(function_return)
+        value = function_return.is_a?(String) ? JSON.parse(function_return) : function_return
+        value.is_a?(Hash) && (value["success"] == true || value[:success] == true)
+      rescue JSON::ParserError
+        false
       end
     end
   end

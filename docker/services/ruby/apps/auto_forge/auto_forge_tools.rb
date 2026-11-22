@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative '../../lib/monadic/utils/shared_path_guard'
-require 'cgi'
 require 'fileutils'
 require 'securerandom'
 require 'set'
@@ -10,6 +9,7 @@ require 'json'
 require_relative 'auto_forge'
 require_relative 'auto_forge_utils'
 require_relative 'auto_forge_debugger'
+require_relative '../../lib/monadic/shared_tools/workbench_tools'
 require_relative 'agents/error_explainer'
 require_relative 'utils/codex_response_analyzer'
 require_relative '../../lib/monadic/agents/openai_code_agent'
@@ -212,19 +212,6 @@ module AutoForgeTools
     # Pass the progress callback to generate_application
     result = app.generate_application(spec, &progress_callback)
 
-    # Store project info in context for additional file generation
-    # Note: Only using local variable context to avoid race conditions with shared @context
-    if result[:success]
-      auto_forge = context[:auto_forge] || {}
-      auto_forge[:project_path] = result[:project_path]
-      auto_forge[:project_type] = project_type
-      auto_forge[:project_id] = result[:project_id]
-      auto_forge[:main_file] = result[:files_created]&.first if project_type == 'cli'
-      context[:auto_forge] = auto_forge
-      context['auto_forge'] = auto_forge if context.respond_to?(:[])
-      # Removed @context assignment to prevent cross-session contamination
-    end
-
     # Format response
     if result[:success]
       if project_type == 'cli'
@@ -364,9 +351,9 @@ module AutoForgeTools
     projects = AutoForgeUtils.list_projects
 
     if projects.empty?
-      "No AutoForge projects found"
+      "No AutoForge projects in this chat"
     else
-      lines = ["📁 AutoForge Projects:\n"]
+      lines = ["📁 AutoForge projects of this chat:\n"]
       projects.each do |project|
         status = project[:has_index] ? "✅" : "🚧"
         lines << "  #{status} #{project[:base_name]} (#{project[:name]})"
@@ -380,38 +367,22 @@ module AutoForgeTools
     end
   end
 
-  def cleanup_old_projects(params = {})
-    days = params['days'] || params[:days] || 7
-    removed = AutoForgeUtils.cleanup_old_projects(days.to_i)
-
-    if removed.empty?
-      "No old projects to clean up"
-    else
-      "🗑️ Removed #{removed.size} old project(s):\n#{removed.map { |p| "  - #{p}" }.join("\n")}"
-    end
-  end
-
   def generate_additional_file(params = {})
     file_type = params['file_type'] || params[:file_type]
     file_name = params['file_name'] || params[:file_name]
     instructions = params['instructions'] || params[:instructions]
 
-    # Handle both symbol and string keys for context
-    context = @context || {}
-    auto_forge = context[:auto_forge] || context['auto_forge'] || {}
+    # The chat's project: the one named by path or name, else the newest.
+    project = AutoForgeUtils.current_project(path: params['project_path'] || params[:project_path],
+                                             name: params['project_name'] || params[:project_name])
+    return "❌ No project of this chat was found. Please generate the main application first." unless project
 
-    # Try both key formats for retrieval
-    project_path = auto_forge[:project_path] || auto_forge['project_path']
-    project_type = auto_forge[:project_type] || auto_forge['project_type'] ||
-                   auto_forge[:current_project_type] || auto_forge['current_project_type']
+    project_path = project[:path]
+    # A web project has its index.html; any other is a CLI project.
+    return "ℹ️ Additional files are only available for CLI projects." if project[:has_index]
 
-    unless project_path && File.exist?(project_path)
-      return "❌ No active project found. Please generate the main application first."
-    end
-
-    unless project_type == 'cli'
-      return "ℹ️ Additional files are only available for CLI projects."
-    end
+    # A project an earlier turn made is kept as it is before it changes.
+    AutoForge::Utils::PathConfig.before_change(project_path)
 
     # Allow fully custom file generation when file_name and instructions are present
     if file_name && instructions
@@ -441,14 +412,16 @@ module AutoForgeTools
     end
   end
 
-  def debug_application(params = {})
-    context = resolve_project_context(params)
+  # Takes its arguments as a hash or as keywords. workbench: who called
+  # (Monadic::Workbench::Caller), given by the server.
+  def debug_application(params = {}, workbench: nil, **keywords)
+    context = resolve_project_context(params.merge(keywords))
 
     unless context[:success]
       return format_debug_context_error(context)
     end
 
-    debugger = AutoForge::Debugger.new(@context)
+    debugger = AutoForge::Debugger.new
 
     # Check Selenium availability with retries
     if error = debugger.send(:check_selenium_or_error)
@@ -471,13 +444,13 @@ module AutoForgeTools
     result[:html_path] = context[:html_path]
     report_text = format_debug_report(result)
 
-    # Return gallery_html for server-side display (vendor helpers auto-inject into session)
-    if result[:screenshot]
-      gallery = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(result[:screenshot].to_s)}\" /></div>"
-      { text: report_text, gallery_html: gallery }
-    else
-      report_text
-    end
+    # The screenshot is shown in the work screen (the reply's message names
+    # it there); the model is told so, not shown it.
+    return report_text unless result[:screenshot]
+
+    said = MonadicSharedTools::WorkbenchTools.show_file(result[:screenshot].to_s, workbench)
+    note = said.start_with?("{") ? "The screenshot is shown in the work screen beside the chat." : said
+    "#{report_text}\n\nScreenshot: #{result[:screenshot]}\n#{note}"
   rescue => e
     "❌ Debug error: #{e.message.gsub(/<.*?>/, '')[0..200]}"
   end
@@ -489,7 +462,7 @@ module AutoForgeTools
       return raw_error_hash(context)
     end
 
-    debugger = AutoForge::Debugger.new(@context)
+    debugger = AutoForge::Debugger.new
 
     # Check Selenium availability with retries
     if error = debugger.send(:check_selenium_or_error)
@@ -982,15 +955,17 @@ module AutoForgeTools
     sanitized
   end
 
-  def resolve_text_generator
-    # Note: Removed @context usage to prevent cross-session contamination
-    # Default to OpenAI agent
+  # The call to the code agent of each provider (Monadic::Agents::*CodeAgent).
+  CODE_AGENT_CALLS = { openai: :call_openai_code, claude: :call_claude_code, grok: :call_grok_code }.freeze
 
-    if respond_to?(:call_openai_code)
-      ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_openai_code(prompt: prompt, app_name: app_name, &block) }
-    else
-      nil
-    end
+  # A call to the code agent of the app's own provider (its forge_agent),
+  # never another provider's: (prompt, app_name) -> its result. nil when
+  # the app has none.
+  def resolve_text_generator
+    call = CODE_AGENT_CALLS[respond_to?(:forge_agent) ? forge_agent : nil]
+    return nil unless call && respond_to?(call)
+
+    ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { send(call, prompt: prompt, app_name: app_name, &block) }
   end
 
   def build_custom_file_prompt(project_path, file_name, instructions, usage_examples: false)
@@ -1081,22 +1056,18 @@ module AutoForgeTools
     errors = fetch_array(diagnosis[:debug_result], :javascript_errors)
     return 'No errors to fix.' if errors.empty?
 
-    unless respond_to?(:call_openai_code)
-      return 'Error correction requires GPT-5-Codex access.'
-    end
+    generator = resolve_text_generator
+    return "Error correction needs the code agent of this app's provider." unless generator
 
     fix_prompt = build_fix_prompt(diagnosis[:explanations], errors)
-    puts '[AutoForge] Calling GPT-5-Codex for fixes...' if CONFIG && CONFIG['EXTRA_LOGGING']
+    puts "[AutoForge] Calling the #{forge_agent} code agent for fixes..." if CONFIG && CONFIG['EXTRA_LOGGING']
 
-    codex_result = call_openai_code(
-      prompt: fix_prompt,
-      app_name: 'AutoForgeErrorFixer'
-    )
+    codex_result = generator.call(fix_prompt, 'AutoForgeErrorFixer')
 
     if codex_result[:success]
       apply_codex_fix(diagnosis, codex_result[:code])
     else
-      error_msg = fetch_from_hash(codex_result, :error) || 'Unknown error from GPT-5-Codex'
+      error_msg = fetch_from_hash(codex_result, :error) || 'Unknown error from the code agent'
       "Failed to generate fixes: #{error_msg}\n\nYou may want to try again or fix manually."
     end
   end
@@ -1132,6 +1103,9 @@ module AutoForgeTools
     project_name = diagnosis[:project_name]
 
     begin
+      # The project as an earlier turn left it is kept first, so deleting
+      # this turn puts it back (Workbench::Revision).
+      AutoForge::Utils::PathConfig.before_change(File.dirname(html_path))
       # The page is read as a plain file of the shared folder: a link in its
       # place is never followed (its target would be copied in).
       Monadic::Utils::SharedPathGuard.copy_file!(html_path, backup_path, replace: false)

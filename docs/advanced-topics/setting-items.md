@@ -68,15 +68,15 @@ All settings in the features block are optional:
 - `initiate_from_assistant` - Start conversation with AI message
 
 #### Content Features
-- `pdf_vector_storage` - Enable PDF database functionality for RAG (Retrieval-Augmented Generation). Shows PDF import button and database panel in the UI
 - `websearch` - Enable web search capability
 - `image_generation` - Enable AI image generation capabilities. Accepts:
   - `true` - Image generation and editing
   - `"upload_only"` - Image upload only (no generation/editing)
   - `false` - Disabled (default)
-- `mermaid` - Enable Mermaid diagram rendering
+- `mermaid` - Tell the model how to write Mermaid diagrams, and show the badge (Mermaid diagrams are drawn in every app)
 - `abc` - Enable ABC music notation
 - `math` - Enable LaTeX math rendering
+- `max_tool_rounds` - At most this many rounds of tool calls in a turn (otherwise 20; see [Feature Flags](monadic_dsl.md#feature-flags)). In any app, a tool called with the same arguments is not run a third time in a turn unless a call not made before in that turn came between
 
 #### Speech-to-Speech
 These apply to Live Conversation apps, which stream the microphone to a provider's realtime API instead of using the text input panel:
@@ -93,7 +93,6 @@ Omitted `sts_vad_*` keys fall back to the provider's defaults, and not every pro
 
 #### Context Management
 - `context_size` - Number of recent messages sent to the model. It also sets the **Max Context Size** field in the web UI
-- `monadic` - Enable Session State and Session Context; see [Monadic Mode](./monadic-mode.md)
 - `toggle` - Render `<div class='toggle'>` blocks in responses as collapsible sections
 - `prompt_suffix` - Text appended to every user message
 
@@ -122,11 +121,11 @@ end
 These are set in the **Settings** window (**Open → Settings**), not in MDSL files. Its categories are General, System, API Keys, Voice & Audio, Services, Install Options, Actions and About. Among the settings:
 
 - API keys for the providers, ElevenLabs and Tavily
-- UI language, Browser Mode, Launch at Login and Menu Bar Mode
+- UI language, Browser Mode, Launch at Login, Menu Bar Mode and Notify When a Reply Arrives in the Background
 - Extra Logging
 - The TTS dictionary file and the size limit for Auto Speech
 - The MCP server and its port
-- [Install Options](./advanced-configuration.md#install-options), including the Privacy Filter languages and the Knowledge Base Quality Pack
+- [Install Options](./advanced-configuration.md#install-options), including the languages for finding names to hide and the Knowledge Base Quality Pack
 
 The settings are saved in `~/monadic/config/env` and kept between sessions.
 
@@ -150,7 +149,6 @@ app "ChatOpenAI" do
     easy_submit true
     auto_speech false
     context_size 20
-    monadic false
     # Note: Image upload is automatically enabled for models with vision capability
     websearch true
   end

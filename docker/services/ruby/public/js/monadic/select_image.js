@@ -16,7 +16,9 @@ const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 // The same lists the server accepts for each purpose (FileTypes); a spec
 // checks that they agree.
 const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi'];
-const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.opus', '.flac', '.aac', '.webm'];
+const AUDIO_EXTENSIONS = ['.mp3', '.m4a', '.wav', '.ogg', '.opus', '.flac', '.aac', '.webm', '.mid', '.midi'];
+// Standard MIDI files: attached as audio, in the apps that analyze music only.
+const MIDI_EXTENSIONS = ['.mid', '.midi'];
 // Every attachment of the next message, videos and audio alike (the names
 // say "video" from when only videos were attached).
 let videoAttachments = []; // [{ attachment_id, name, size, purpose }]
@@ -39,8 +41,23 @@ function appTakesVideoAttachments(appName) {
   return appImportsToolGroup(appName, 'video_analysis');
 }
 
+// An app that analyzes music files (its audio_upload setting).
+function appAnalyzesMusicFiles(appName) {
+  const app = (typeof apps !== 'undefined' && apps) ? apps[appName] : null;
+  return Boolean(app) && (app.audio_upload === true || app.audio_upload === 'true');
+}
+
 function appTakesAudioAttachments(appName) {
-  return appImportsToolGroup(appName, 'audio_transcription');
+  return appImportsToolGroup(appName, 'audio_transcription') || appAnalyzesMusicFiles(appName);
+}
+
+// The audio extensions an app takes as attachments: MIDI only where music
+// is analyzed.
+function audioExtensionsFor(appName) {
+  if (!appTakesAudioAttachments(appName)) return [];
+  return appAnalyzesMusicFiles(appName)
+    ? AUDIO_EXTENSIONS
+    : AUDIO_EXTENSIONS.filter(function (ext) { return !MIDI_EXTENSIONS.includes(ext); });
 }
 
 function hasExtension(file, extensions) {
@@ -60,7 +77,7 @@ function isAudioFile(file) {
 // (it goes the usual way). A video app takes .webm as a video.
 function attachmentPurposeFor(file, appName) {
   if (isVideoFile(file) && appTakesVideoAttachments(appName)) return 'video';
-  if (isAudioFile(file) && appTakesAudioAttachments(appName)) return 'audio';
+  if (hasExtension(file, audioExtensionsFor(appName))) return 'audio';
   return null;
 }
 
@@ -337,7 +354,7 @@ if (selectFileButton) {
     }
     // Apps that transcribe audio take an audio file, as an attachment.
     if (appTakesAudioAttachments(currentApp) && imageFileEl) {
-      imageFileEl.setAttribute('accept', imageFileEl.getAttribute('accept') + ',' + AUDIO_EXTENSIONS.join(','));
+      imageFileEl.setAttribute('accept', imageFileEl.getAttribute('accept') + ',' + audioExtensionsFor(currentApp).join(','));
       const audioNote = getTranslation('ui.fileToImportAudio', 'Audio (.mp3, .m4a, .wav, .ogg, .flac, ...)');
       if (imageFileLabel) imageFileLabel.textContent = imageFileLabel.textContent + ' / ' + audioNote;
     }
@@ -578,8 +595,8 @@ function updateFileDisplay(files) {
       // Display URL-referenced file with link icon
       const icon = getDocumentIcon(file.type);
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-        <div class="file-container">
-          <i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}
+        <div class="file-container attachment-chip">
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -588,8 +605,8 @@ function updateFileDisplay(files) {
     } else if (file.type === 'application/pdf') {
       // Display PDF file with icon and title
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-        <div class="file-container">
-          <i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}
+        <div class="file-container attachment-chip">
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}</button>
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -599,8 +616,8 @@ function updateFileDisplay(files) {
       // Display document file (XLSX, DOCX, CSV, etc.) with appropriate icon
       const icon = getDocumentIcon(file.type);
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-        <div class="file-container">
-          <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}
+        <div class="file-container attachment-chip">
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -616,7 +633,7 @@ function updateFileDisplay(files) {
           <div class="mask-overlay-label">MASK</div>
           <div class="mask-controls">
             <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
-              <i class="fas fa-times"></i> Remove Mask
+              <i class="fa-regular fa-trash-can"></i> Remove Mask
             </button>
             <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
               <i class="fas fa-eye-slash"></i> Toggle Mask
@@ -626,24 +643,20 @@ function updateFileDisplay(files) {
       `;
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', overlayDisplay);
     } else if (!hasMask || !maskData || file.title !== maskData.title) { // Skip displaying the mask image separately
-      // Display image with thumbnail
-      const imageActions = `
-        <div class="image-actions">
-          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
-            <i class="fas fa-times"></i>
-          </button>
+      // A name chip: the image itself is shown on the work screen. The
+      // image stays in the chip, hidden, for the mask editor.
+      const imageDisplay = `
+        <div class="image-container file-container attachment-chip">
+          <img class='base64-image' hidden alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
+          <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-image"></i> ${window.escapeHtml(file.title)}</button>
           ${isMaskEditingEnabled ?
-            `<button class='btn btn-primary btn-sm create-mask ml-2' data-index='${index}' tabindex="100">
+            `<button class='btn btn-primary btn-sm create-mask' data-index='${index}' tabindex="100">
               <i class="fas fa-brush"></i> Create Mask
             </button>` : ''
           }
-        </div>
-      `;
-
-      const imageDisplay = `
-        <div class="image-container">
-          <img class='base64-image' alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
-          ${imageActions}
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
       `;
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', imageDisplay);
@@ -655,14 +668,27 @@ function updateFileDisplay(files) {
     const sizeMb = (Number(video.size || 0) / (1024 * 1024)).toFixed(1);
     const icon = video.purpose === 'audio' ? 'fa-file-audio' : 'fa-film';
     if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
-      <div class="file-container video-attachment">
-        <i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)
+      <div class="file-container video-attachment attachment-chip">
+        <button type="button" class="attachment-chip-name" data-draft-attachment='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)</button>
         <button class='btn btn-secondary btn-sm remove-video' data-index='${index}' tabindex="99">
           <i class="fas fa-times"></i>
         </button>
       </div>
     `);
   });
+  // A chip's name shows the file on the work screen.
+  document.querySelectorAll("#image-used .attachment-chip-name").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const entries = attachmentDrafts();
+      const entry = this.dataset.draftAttachment !== undefined
+        ? entries.find(function (e) { return e.key === 'attachment:' + (videoAttachments[parseInt(btn.dataset.draftAttachment, 10)] || {}).attachment_id; })
+        : entries[parseInt(this.dataset.draftIndex, 10)];
+      if (entry && window.Workbench && typeof window.Workbench.showAttachment === 'function') {
+        window.Workbench.showAttachment(Object.assign({ source: 'draft' }, entry));
+      }
+    });
+  });
+  document.dispatchEvent(new CustomEvent('attachments:changed'));
   document.querySelectorAll(".remove-video").forEach(function (btn) {
     btn.addEventListener("click", function () {
       videoAttachments.splice(parseInt(this.dataset.index, 10), 1);
@@ -807,6 +833,7 @@ window.limitImageCount = limitImageCount;
 window.clearAllImages = clearAllImages;
 window.appTakesVideoAttachments = appTakesVideoAttachments;
 window.appTakesAudioAttachments = appTakesAudioAttachments;
+window.audioExtensionsFor = audioExtensionsFor;
 window.attachmentPurposeFor = attachmentPurposeFor;
 window.isVideoFile = isVideoFile;
 window.isAudioFile = isAudioFile;
@@ -1009,3 +1036,25 @@ function imageToBase64(blob, callback) {
     reader.readAsDataURL(blob);
   });
 }
+
+// What the next message carries, as the work screen shows it: the files in
+// the page (images, PDFs, documents, by their place in images[]) and the
+// audio and video attached on the server (by their attachment id).
+function attachmentDrafts() {
+  const list = (typeof images !== 'undefined' && Array.isArray(images)) ? images : [];
+  const files = list.map(function (file, index) {
+    const kind = file.source === 'url' ? 'document'
+      : file.type === 'application/pdf' ? 'pdf'
+      : isDocumentType(file.type) ? 'document' : 'image';
+    const data = typeof file.data === 'string' ? file.data : null;
+    return { key: 'file:' + index + ':' + file.title, kind: kind, name: file.title,
+             size: data ? Math.floor((data.length - data.indexOf(',') - 1) * 3 / 4) : null,
+             data: kind === 'document' ? null : data };
+  });
+  const attached = videoAttachments.map(function (a) {
+    return { key: 'attachment:' + a.attachment_id, kind: a.purpose === 'audio' ? 'audio' : 'video', name: a.name,
+             size: Number(a.size) || null, attachmentId: a.attachment_id };
+  });
+  return files.concat(attached);
+}
+if (typeof window !== 'undefined') window.AttachmentDrafts = { list: attachmentDrafts };

@@ -28,8 +28,12 @@ RSpec.describe "Jupyter Advanced Features", :integration do
     end
   end
   
-  describe "Kernel Management" do
-    it "can restart kernel and clear outputs" do
+  def sources(filename)
+    JSON.parse(File.read(File.join(MonadicApp::LOCAL_SHARED_VOL, filename)))["cells"].map { |cell| Array(cell["source"]).join }
+  end
+
+  describe "Clearing outputs" do
+    it "clears the outputs a run left" do
       # Create a notebook with some cells
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
       expect(result).to include("Access it at:")
@@ -50,20 +54,12 @@ RSpec.describe "Jupyter Advanced Features", :integration do
         cells: cells,
         run: true
       )
-      expect(add_result.downcase).to include("command has been executed")
-      
-      # Restart kernel
-      restart_result = app_instance.restart_jupyter_kernel(filename: actual_filename.sub('.ipynb', ''))
-      expect(restart_result.downcase).to include("restart")
-    end
-    
-    it "handles interrupt request appropriately" do
-      result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
-      skip "Could not extract filename from: #{result}" unless actual_filename
-      
-      interrupt_result = app_instance.interrupt_jupyter_execution(filename: actual_filename)
-      expect(interrupt_result).to include("not currently supported")
+      expect(add_result.downcase).to include("executed")
+
+      clear_result = app_instance.clear_jupyter_outputs(filename: actual_filename.sub('.ipynb', ''))
+      expect(clear_result).to start_with("Cleared the outputs")
+      cells_after = JSON.parse(File.read(File.join(MonadicApp::LOCAL_SHARED_VOL, actual_filename)))["cells"]
+      expect(cells_after.flat_map { |cell| cell["outputs"] || [] }).to be_empty
     end
   end
   
@@ -89,10 +85,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
         from_index: 1,
         to_index: 3
       )
-      expect(move_result).to include("Successfully moved cell")
-      
-      # Note: Actual cell movement implementation is pending
-      # For now, just verify the function returns success message
+      expect(move_result).to eq("Moved cell 1 to position 3.")
+      expect(sources(actual_filename)).to eq(["# Cell 0", "# Cell 2", "# Cell 3", "# Cell 1"])
     end
     
     it "handles invalid indices gracefully" do
@@ -134,10 +128,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
         cells: insert_cells,
         run: false
       )
-      expect(insert_result).to include("Successfully inserted")
-      
-      # Note: Actual cell insertion implementation is pending
-      # For now, just verify the function returns success message
+      expect(insert_result).to eq("Inserted 1 cell(s) at position 1.")
+      expect(sources(actual_filename)).to eq(["# First", "# Middle", "# Last"])
     end
     
     it "can insert and run cells" do
@@ -157,7 +149,7 @@ RSpec.describe "Jupyter Advanced Features", :integration do
         run: true
       )
       
-      expect(insert_result).to include("Successfully inserted")
+      expect(insert_result).to start_with("Inserted 1 cell(s) at position 0.")
       # The run flag should cause execution
       expect(insert_result.downcase).to include("executed")
     end

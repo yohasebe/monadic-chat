@@ -14,7 +14,14 @@ require_relative '../../../../lib/monadic/utils/interaction_utils'
 # a chat goes out, however the request was put together.
 RSpec.describe Monadic::Utils::Privacy::EgressGuard do
   let(:refused) { Monadic::Utils::Privacy::Outbound::Refused }
-  let(:chat) { { monadic_state: { privacy: { terms: [{ text: 'SecretName', type: 'PERSON' }] } } } }
+  let(:words) { Monadic::Utils::Privacy::Words }
+  let(:chat) { hiding('SecretName') }
+
+  def hiding(*hidden)
+    session = { Monadic::Workspace::Chats::SESSION_KEY => Monadic::Workspace::Ids.generate(:chat) }
+    words.start!(session).confirm_all!(hidden.map { |word| [word, 'PERSON'] })
+    session
+  end
 
   before do
     described_class.install!
@@ -24,6 +31,7 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
   after do
     Thread.current[:rack_session] = nil
     Fiber[described_class::CHAT_KEY] = nil
+    words::LOCK.synchronize { words::TABLES.clear }
   end
 
   describe 'the http gem' do
@@ -163,7 +171,7 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
     end
 
     it 'checks the path and query, as written and decoded' do
-      Thread.current[:rack_session] = { monadic_state: { privacy: { terms: [{ text: 'Secret Name', type: 'PERSON' }] } } }
+      Thread.current[:rack_session] = hiding('Secret Name')
       %w[/search?q=Secret+Name /search?q=Secret%20Name].each do |path|
         expect { http.request(Net::HTTP::Get.new(path)) }.to raise_error(refused)
       end
@@ -267,9 +275,10 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
     end
 
     it 'still finds the words when a Reset falls between reading the chat id and the words' do
-      session = chat.merge(parameters: {}, messages: [])
+      session = { parameters: {}, messages: [] }
       Fiber.new do
         Monadic::Workspace::Chats.start_new!(session)
+        words.start!(session).confirm_all!([%w[SecretName PERSON]])
         reset = false
         allow(described_class).to receive(:terms_now).and_wrap_original do |original, s|
           unless reset
@@ -283,9 +292,10 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
     end
 
     it 'refuses when a Reset falls between the reads and the kept words are gone too' do
-      session = chat.merge(parameters: {}, messages: [])
+      session = { parameters: {}, messages: [] }
       Fiber.new do
         Monadic::Workspace::Chats.start_new!(session)
+        words.start!(session).confirm_all!([%w[SecretName PERSON]])
         old_id = session[:chat_id]
         reset = false
         allow(described_class).to receive(:terms_now).and_wrap_original do |original, s|
@@ -307,7 +317,7 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
       session = Class.new(Hash) do
         define_method(:delete) { |key| order << key.to_s; super(key) }
       end.new
-      session[:monadic_state] = chat[:monadic_state]
+      session[:monadic_state] = {}
       session[:chat_id] = 'c_x'
       Monadic::Workspace::Chats.clear_chat_state!(session)
       expect(order.first).to eq('chat_id')
@@ -322,7 +332,7 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
     end
 
     it 'checks a chat only for its own words, and a request of no chat for none' do
-      other = { monadic_state: { privacy: { terms: [{ text: 'OtherName', type: 'PERSON' }] } } }
+      other = hiding('OtherName')
       expect { described_class.check!('api.example.invalid', { 'text' => 'OtherName' }) }.not_to raise_error
       Fiber.new do
         described_class.for_chat(other)
@@ -351,7 +361,7 @@ RSpec.describe Monadic::Utils::Privacy::EgressGuard do
 
   describe 'what is read in a body' do
     it 'finds a word as written in JSON, and in plain text, but not in bytes or attached data' do
-      Thread.current[:rack_session] = { monadic_state: { privacy: { terms: [{ text: 'A"B', type: 'PERSON' }] } } }
+      Thread.current[:rack_session] = hiding('A"B')
       expect { described_class.check!('api.example.invalid', JSON.generate('a' => JSON.generate('A"B'))) }
         .to raise_error(refused)
       expect { described_class.check!('api.example.invalid', *described_class.body_texts('note: A"B')) }

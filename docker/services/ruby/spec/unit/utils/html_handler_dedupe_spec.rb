@@ -56,7 +56,7 @@ RSpec.describe WebSocketHelper, '#dedupe_tool_html_fragments' do
     expect(host.dedupe_tool_html_fragments(llm_text, fragments)).to eq([])
   end
 
-  it 'ignores non-gallery fragments (e.g. ABC notation HTML from Music Lab)' do
+  it 'ignores non-gallery fragments (e.g. ABC notation HTML from Music Tutor)' do
     llm_text = %Q(<img src="/data/score.png" />)
     abc_fragment = %Q(<div class="abc-notation" data-abc="X:1\nT:Test"></div>)
     fragments = [abc_fragment]

@@ -157,4 +157,21 @@ RSpec.describe 'MonadicDSL class_def emit coverage' do
       expect(dsl_source).to match(pattern)
     end
   end
+
+  describe 'reasoning_effort' do
+    it 'is "none" when the app does not write it' do
+      settings = load_mdsl_body('EmitEffortUnset', '# no reasoning_effort')
+      expect(settings[:reasoning_effort]).to eq('none')
+    end
+
+    it 'is the value written in the llm block' do
+      settings = load_mdsl_body('EmitEffortLlm', '# in llm', llm_extras: 'reasoning_effort "low"')
+      expect(settings[:reasoning_effort]).to eq('low')
+    end
+
+    it 'is the value written in features' do
+      settings = load_mdsl_body('EmitEffortFeatures', 'features do; reasoning_effort "medium"; end')
+      expect(settings[:reasoning_effort]).to eq('medium')
+    end
+  end
 end

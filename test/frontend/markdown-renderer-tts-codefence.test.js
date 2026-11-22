@@ -81,7 +81,7 @@ describeFn('MarkdownRenderer preserves code-fence indentation under TTS sanitiza
       '```'
     ].join('\n');
 
-    const out = preText(MarkdownRenderer.render(code, { appName: 'mermaid_grapher' }));
+    const out = preText(MarkdownRenderer.render(code));
 
     expect(out).toContain('  root((化学))');     // 2-space
     expect(out).toContain('    物理化学');         // 4-space
@@ -93,7 +93,7 @@ describeFn('MarkdownRenderer preserves code-fence indentation under TTS sanitiza
 
   test('prose outside code fences is still space-collapsed by the sanitizer', () => {
     const text = 'Hello    world\n\n```mermaid\nmindmap\n  root((A))\n    B\n```';
-    const html = MarkdownRenderer.render(text, { appName: 'mermaid_grapher' });
+    const html = MarkdownRenderer.render(text);
     // Prose double spaces collapse (sanitizer still runs outside fences)...
     expect(html).toContain('Hello world');
     // ...while the fenced indentation is preserved.

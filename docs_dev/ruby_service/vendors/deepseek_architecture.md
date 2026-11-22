@@ -33,7 +33,7 @@ Images are sent only as JPEG, PNG, GIF or WebP; other attachments (PDFs) are dro
 - An assistant message with `tool_calls` is sent with `content: nil`.
 - Text written before a tool call is saved as its own assistant message and shown with `more_coming: true`.
 - At most `MAX_FUNC_CALLS = 20` rounds; beyond that the turn ends with "ERROR: Call depth exceeded".
-- `should_stop_for_errors?` ends the turn on repeated tool errors ("Repeated errors detected.").
+- `should_stop_for_errors?` ends the turn on repeated tool errors or a tool call cycle (`stop_reply`).
 - A web search tool called while web search is off makes the next request go without tools.
 
 ### Terminal Tools

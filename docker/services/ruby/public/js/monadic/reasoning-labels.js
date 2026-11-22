@@ -206,8 +206,7 @@ class ReasoningLabels {
           'high': 'High (Detailed)'
         },
         'DeepSeek': {
-          'minimal': 'Off',
-          'medium': 'On'
+          'none': 'Off'
         }
       },
       'ja': {
@@ -235,8 +234,7 @@ class ReasoningLabels {
           'high': '高（詳細）'
         },
         'DeepSeek': {
-          'minimal': 'オフ',
-          'medium': 'オン'
+          'none': 'オフ'
         }
       },
       'zh': {
@@ -264,8 +262,7 @@ class ReasoningLabels {
           'high': '高（详细）'
         },
         'DeepSeek': {
-          'minimal': '关闭',
-          'medium': '开启'
+          'none': '关闭'
         }
       },
       'ko': {
@@ -276,8 +273,7 @@ class ReasoningLabels {
           'high': '높음'
         },
         'DeepSeek': {
-          'minimal': '끄기',
-          'medium': '켜기'
+          'none': '끄기'
         }
       },
       'es': {
@@ -288,8 +284,7 @@ class ReasoningLabels {
           'high': 'Alto'
         },
         'DeepSeek': {
-          'minimal': 'Desactivado',
-          'medium': 'Activado'
+          'none': 'Desactivado'
         }
       },
       'fr': {
@@ -300,8 +295,7 @@ class ReasoningLabels {
           'high': 'Élevé'
         },
         'DeepSeek': {
-          'minimal': 'Désactivé',
-          'medium': 'Activé'
+          'none': 'Désactivé'
         }
       },
       'de': {
@@ -312,8 +306,7 @@ class ReasoningLabels {
           'high': 'Hoch'
         },
         'DeepSeek': {
-          'minimal': 'Aus',
-          'medium': 'Ein'
+          'none': 'Aus'
         }
       }
     };

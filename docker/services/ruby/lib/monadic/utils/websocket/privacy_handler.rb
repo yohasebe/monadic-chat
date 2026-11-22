@@ -5,117 +5,35 @@ require 'json'
 require 'time'
 require_relative '../privacy/export_cipher'
 
-# WebSocket handlers for the Privacy Filter UI (Blocks C.3 + D.2).
-# Provides registry inspection (modal viewer) and the unified export dialog.
+# WebSocket handlers for exporting a conversation.
 #
 # Export uses two orthogonal axes:
 #   - encrypt:  true (AES-256-GCM + Argon2id) | false (plain JSON)
 #   - content:  "restored" (default)          | "masked" (placeholders only)
 #
-# `encrypt` is always available, regardless of whether the Privacy Filter
-# is active in this session — encryption protects files at rest, while the
-# privacy filter protects data in transit to LLM providers. The two
-# concerns are independent.
-#
-# Registry stays in memory only (RD-1); exports are user-driven via UI.
+# `encrypt` is always available: it protects the file at rest, while a
+# chat's word table hides words in what is sent. The two are independent.
 
 require_relative '../privacy/outbound'
+require_relative '../../workbench/record'
+require_relative '../../workbench/shown'
+require_relative '../../workbench/made'
+require_relative '../../workbench/look/record'
+require_relative '../../turn_state/form'
+require_relative '../progressive_tool_manager'
 
 module WebSocketHelper
-  PRIVACY_PLACEHOLDER_RE = /\A<<([A-Z_]+)_(\d+)>>\z/
   PRIVACY_EXPORT_MODES = %w[encrypted masked_only restored].freeze
   PRIVACY_EXPORT_CONTENT = %w[restored masked].freeze
 
-  # PRIVACY_TOGGLE: backend-authoritative toggle handler.
-  #
-  # The frontend treats the backend's privacy_toggle_ack reply as the
-  # source of truth for the toggle's checkbox state. On enable, we probe
-  # the privacy container's health (~2s) and only flip session state to
-  # true on success. On failure, we surface the reason in the ack and
-  # the frontend reverts the visual checkbox.
-  #
-  # The ack is a separate message type from privacy_state (which handles
-  # registry-count indicator updates triggered by app-change / reset /
-  # import) so the two concerns do not race: an unrelated privacy_state
-  # event firing during an in-flight toggle would otherwise be mistaken
-  # for the toggle response.
-  private def handle_ws_privacy_toggle(connection, session, obj)
-    requested_enabled = obj["enabled"] == true || obj["enabled"] == "true"
+  PAGE_OUT_OF_DATE = 'This page is out of date. Reload the page to go on.'
 
-    # The filter is chosen before the chat begins: once it has begun (Start
-    # Session adds the system prompt), neither the filter nor whether the
-    # chat is Private changes, so nothing of a chat was written to disk
-    # before it became Private, and a Private chat keeps its filter. The
-    # page locks the toggle at Start Session; this answers any other sender
-    # with the chat's state as it is. The app is not checked here (the page
-    # asks before it tells the server about a new app): Private only takes
-    # things away.
-    if chat_begun?(session)
-      enabled = session[:_privacy_session_enabled] == true
-      return send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => enabled,
-                                          "error" => requested_enabled == enabled ? nil : "privacy_chat_started",
-                                          "private" => Monadic::History::Policy.private?(session) })
-    end
-
-    if requested_enabled
-
-      # Asking for the filter makes the chat Private, whether or not the
-      # filter turns out to be up: nothing of it is kept in the history.
-      Monadic::History::Policy.mark_private!(session)
-      sync_session_state!
-
-      require_relative '../privacy/presidio_backend'
-      backend = Monadic::Utils::Privacy::PresidioBackend.new
-      if !backend.health
-        # Health probe failed. Keep state OFF so subsequent vendor calls
-        # cannot mistake the toggle as active. The reason tells the user
-        # whether to wait (the container starts when an app that needs it
-        # is chosen, and loading its language models takes a while) or to
-        # look into it.
-        session[:_privacy_session_enabled] = false
-        session.delete(:_privacy_pipeline)
-        reason = privacy_container_coming_up? ? "privacy_container_starting" : "privacy_container_unreachable"
-        send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => reason, "private" => true })
-      else
-        session[:_privacy_session_enabled] = true
-        send_to_client(connection, {
-          "type" => "privacy_toggle_ack",
-          "enabled" => true,
-          "error" => nil,
-          "private" => true
-        })
-        # Push a fresh privacy_state so the indicator becomes visible right
-        # away. Without this the indicator only shows up after the first
-        # assistant response (when streaming_handler emits its own
-        # privacy_state on restoration). The registry is empty at this
-        # point — count == 0 renders the "Privacy ready" gray state.
-        send_privacy_state(connection, session, registry_count: 0)
-      end
-    else
-      session[:_privacy_session_enabled] = false
-      session.delete(:_privacy_pipeline)
-      # Turned off before the chat begins, the chat is a normal one again
-      # (nothing of it was written).
-      Monadic::History::Policy.clear!(session)
-      send_to_client(connection, {
-        "type" => "privacy_toggle_ack",
-        "enabled" => false,
-        "error" => nil,
-        "private" => Monadic::History::Policy.private?(session)
-      })
-      # Mirror the toggle to the indicator so the badge disappears
-      # immediately when the user opts out, instead of staying visible
-      # until the next message turn.
-      send_privacy_state(connection, session, enabled: false, registry_count: 0)
-    end
-  end
-
-  private def chat_begun?(session)
-    Monadic::History::Policy.begun?(session)
-  end
-
-  private def user_words_in_chat?(session)
-    Array(session[:messages]).any? { |m| m['role'] == 'user' && !m['text'].to_s.strip.empty? }
+  # What only a page loaded before this version sends. It is answered here,
+  # as a command the page must not repeat, so that it is never taken for a
+  # message to the model. The page's switch goes back to off with the reply.
+  private def handle_ws_page_out_of_date(connection)
+    send_to_client(connection, { "type" => "privacy_toggle_ack", "enabled" => false, "error" => nil })
+    send_to_client(connection, { "type" => "error", "content" => PAGE_OUT_OF_DATE })
   end
 
   private def privacy_container_coming_up?
@@ -125,64 +43,6 @@ module WebSocketHelper
     false
   end
 
-  # Build and emit a privacy_state payload mirroring the shape used by
-  # streaming_handler / misc_handlers. Centralized so all sites stay in
-  # sync when the schema evolves (currently: type, enabled, registry_count,
-  # detection?, error).
-  private def send_privacy_state(connection, session, enabled: true, registry_count: 0)
-    payload = {
-      "type" => "privacy_state",
-      "enabled" => enabled,
-      "registry_count" => registry_count,
-      "error" => nil,
-      "private" => Monadic::History::Policy.private?(session)
-    }
-    if enabled
-      begin
-        require_relative '../privacy/language_detector'
-        detection = Monadic::Utils::Privacy::LanguageDetector.peek_detection_state(session)
-        payload["detection"] = detection if detection.is_a?(Hash)
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[Privacy] detection state unavailable in toggle: #{e.message}" }
-      end
-    end
-    send_to_client(connection, payload)
-  end
-
-  # Respond to "PRIVACY_REGISTRY" requests with the current placeholder map.
-  # The payload is intentionally compact (one row per placeholder) and never
-  # cached or persisted client-side.
-  private def handle_ws_privacy_registry(connection, session)
-    pipeline = session[:_privacy_pipeline]
-    payload = {
-      "type" => "privacy_registry",
-      "enabled" => !!pipeline,
-      "entries" => privacy_registry_entries(pipeline)
-    }
-    send_to_client(connection, payload)
-  end
-
-  private def privacy_registry_entries(pipeline)
-    return [] unless pipeline
-
-    state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
-    registry = state.is_a?(Hash) ? state[:registry] : nil
-    return [] unless registry.is_a?(Hash)
-
-    registry.map do |placeholder, original|
-      type = if (m = placeholder.match(PRIVACY_PLACEHOLDER_RE))
-               m[1]
-             else
-               "UNKNOWN"
-             end
-      { "placeholder" => placeholder, "original" => original, "type" => type }
-    end
-  end
-
-  # Handle "PRIVACY_EXPORT" requests. Two orthogonal axes:
-  #   - encrypt: bool (AES-256-GCM + Argon2id with passphrase, or plain JSON)
-  #   - content: "restored" (default) | "masked" (placeholders only, no registry)
-  #
   # The legacy `mode` parameter ("encrypted"|"masked_only"|"restored") is
   # accepted for backward compatibility and translated to the new axes.
   # Sends "privacy_export_data" with base64-encoded JSON content for the
@@ -192,51 +52,34 @@ module WebSocketHelper
     unless PRIVACY_EXPORT_CONTENT.include?(content_kind)
       send_to_client(connection, {
         "type" => "privacy_export_error",
+        "request_id" => export_request_id(obj),
         "error" => "invalid_content",
         "valid_content" => PRIVACY_EXPORT_CONTENT
       })
       return
     end
 
-    pipeline = session[:_privacy_pipeline]
-    state = pipeline.respond_to?(:registry_state) ? pipeline.registry_state : nil
-    # The chat's own privacy state when no pipeline is built yet (a tab that
-    # reconnected): the registry and the marked words live in the chat.
-    state ||= (session[:monadic_state] || {})[:privacy]
-    registry = (state.is_a?(Hash) ? state[:registry] : {}) || {}
-    terms = (state.is_a?(Hash) ? state[:terms] : nil) || []
+    word_table = Monadic::Utils::Privacy::Words.table(session)
     messages = privacy_clean_messages(session[:messages] || [])
 
-    # When the user requests "masked", apply the registry placeholders to the
-    # message text and drop the registry from the export so the file never
-    # contains real PII. If there is no registry (privacy filter was off),
-    # "masked" is equivalent to "restored" — there are no placeholders to
-    # apply, so the original text passes through unchanged.
     parameters = privacy_export_parameters(session)
 
-    # A masked file holds neither the registry nor the marked words: marked
-    # words are masked too, with placeholders of their own when the model
-    # never saw them. A restored file keeps the marked words, so the
-    # imported chat goes on masking them.
-    remask = privacy_registry_with_terms(registry, terms)
+    # A masked file is masked by the chat's active words and holds no table;
+    # only a restored file carries the table, so a shared one cannot be
+    # turned back.
+    remask = word_table ? Monadic::Utils::Privacy::Words.masking(word_table) : {}
+    table_to_export = word_table && content_kind == "restored" ? word_table.to_h : nil
     if content_kind == "masked" && !remask.empty?
       messages = privacy_remask_messages(messages, remask)
       parameters = privacy_remask_parameters(parameters, remask)
-      registry_to_export = {}
-      terms_to_export = []
-    else
-      registry_to_export = registry
-      terms_to_export = terms.map { |t| { "text" => t[:text] || t["text"], "type" => t[:type] || t["type"] } }
     end
 
-    header = privacy_export_header(session, messages, registry_to_export)
     legacy_mode = privacy_export_legacy_mode(encrypt, content_kind)
 
     # Include parameters + monadic_state alongside messages so the export
     # round-trips a full session (matches the historical local export shape).
     # `parameters` was assembled and remasked above, alongside the messages.
     monadic_state = privacy_export_monadic_state(session)
-    session_context = privacy_export_session_context(session)
     masked_file = content_kind == "masked" && !remask.empty?
     # Dynamic-skill unlock state, so an imported session restores the skills the
     # model had acquired (reproducibility). This is the ACTIVE export path
@@ -246,18 +89,27 @@ module WebSocketHelper
     progressive_tools = Monadic::Utils::ProgressiveToolManager.export_unlocked(session)
 
     # A masked file holds none of the originals anywhere, not only in the
-    # message text: everything that goes into it (the app state, the Session
-    # Context, what is nested in the messages) is masked, and the file is not
+    # message text: everything that goes into it (the app state, what is
+    # nested in the messages) is masked, and the file is not
     # written when one is still there.
     if masked_file
       outbound = Monadic::Utils::Privacy::Outbound
       messages = privacy_mask_messages_everywhere(messages, remask)
       parameters = privacy_mask_everywhere(parameters, remask)
-      monadic_state = privacy_mask_everywhere(monadic_state, remask)
-      session_context = privacy_mask_everywhere(session_context, remask)
+      monadic_state = privacy_mask_app_state(monadic_state, remask)
       progressive_tools = privacy_mask_everywhere(progressive_tools, remask)
+    end
+
+    # The header (plain text even in an encrypted file) and the file name
+    # name the app as the exported parameters do: masked in a masked file.
+    app_name = parameters.is_a?(Hash) ? parameters["app_name"].to_s : ""
+    header = privacy_export_header(app_name, messages)
+    filename = privacy_export_filename(app_name, encrypt, content_kind)
+
+    if masked_file
       contents = { "messages" => messages, "parameters" => parameters, "monadic_state" => monadic_state,
-                   "session_context" => session_context, "progressive_tools" => progressive_tools }
+                   "progressive_tools" => progressive_tools,
+                   "header" => header, "filename" => filename }
       left = remask.values.map(&:to_s).reject(&:empty?)
       leaked = privacy_file_strings(contents).any? { |text| outbound.holds_word?(text, left) }
       raise ArgumentError, "a masked value is still in the file" if leaked
@@ -268,19 +120,18 @@ module WebSocketHelper
       if passphrase.empty?
         send_to_client(connection, {
           "type" => "privacy_export_error",
+          "request_id" => export_request_id(obj),
           "error" => "passphrase_required"
         })
         return
       end
       payload = {
         "messages" => messages,
-        "registry" => registry_to_export,
         "parameters" => parameters
       }
-      payload["terms"] = terms_to_export unless terms_to_export.empty?
+      payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
-      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
@@ -288,19 +139,16 @@ module WebSocketHelper
       content = JSON.generate(envelope)
     else
       payload = { "parameters" => parameters, "messages" => messages }
-      payload["registry"] = registry_to_export unless registry_to_export.empty?
-      payload["terms"] = terms_to_export unless terms_to_export.empty?
+      payload["word_table"] = table_to_export if table_to_export
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
-      payload.merge!(session_context)
       payload["progressive_tools"] = progressive_tools if progressive_tools
       content = JSON.pretty_generate(payload)
     end
 
-    filename = privacy_export_filename(session, encrypt, content_kind)
-
     send_to_client(connection, {
       "type" => "privacy_export_data",
+      "request_id" => export_request_id(obj),
       "mode" => legacy_mode,
       "encrypt" => encrypt,
       "content" => content_kind,
@@ -308,12 +156,20 @@ module WebSocketHelper
       "content_base64" => Base64.strict_encode64(content),
       "mime" => "application/json"
     })
-  rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError, Monadic::Utils::Privacy::ExportCipher::DecryptionError, ArgumentError => e
+  rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError, Monadic::Utils::Privacy::ExportCipher::DecryptionError, ArgumentError,
+         Monadic::Utils::Privacy::Outbound::Refused
     send_to_client(connection, {
       "type" => "privacy_export_error",
-      "error" => "export_failed",
-      "detail" => e.message
+      "request_id" => export_request_id(obj),
+      "error" => "export_failed"
     })
+  end
+
+  # The page's id for the export it asked for, given back with the answer
+  # so the page takes only the answer to the request it is waiting for.
+  private def export_request_id(obj)
+    id = obj.is_a?(Hash) ? obj["request_id"] : nil
+    id.is_a?(String) && id.match?(/\A[\w-]{1,64}\z/) ? id : nil
   end
 
   # Translate request params (new 2-axis form, or legacy 3-mode form) into
@@ -396,7 +252,8 @@ module WebSocketHelper
   PRIVACY_EXPORT_MESSAGE_KEYS = %w[
     mid role text app_name type lang html active
     thinking tokens images image
-    interrupted tools_used verify
+    interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
+    state_changes
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -405,7 +262,23 @@ module WebSocketHelper
   private def privacy_clean_messages(messages)
     messages.map do |m|
       next m unless m.is_a?(Hash)
-      m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
+
+      kept = m.select { |k, _| PRIVACY_EXPORT_MESSAGE_KEYS.include?(k.to_s) }
+      # A user message whose reply was stopped: true only.
+      kept['reply_stopped'] = true if m['role'] == 'user' && m['reply_stopped'] == true
+      # What the reply made (the workbench's record), in its checked form only.
+      artifacts = Monadic::Workbench::Record.clean(kept.delete('artifacts') || kept.delete(:artifacts))
+      kept = kept.merge('artifacts' => artifacts) if artifacts
+      looks = Monadic::Workbench::Look::Record.clean(kept.delete('workbench_looks') || kept.delete(:workbench_looks))
+      kept = kept.merge('workbench_looks' => looks) if looks
+      shown = Monadic::Workbench::Shown.clean(kept.delete('workbench_shown') || kept.delete(:workbench_shown))
+      kept = kept.merge('workbench_shown' => shown) if shown
+      made = Monadic::Workbench::Made.clean(kept.delete('workbench_made') || kept.delete(:workbench_made))
+      kept = kept.merge('workbench_made' => made) if made
+      revisions = Monadic::Workbench::Made.clean_revisions(kept.delete('workbench_revisions') || kept.delete(:workbench_revisions))
+      kept = kept.merge('workbench_revisions' => revisions) if revisions
+      changes = Monadic::TurnState::Form.clean_changes(kept.delete('state_changes') || kept.delete(:state_changes))
+      changes ? kept.merge('state_changes' => changes) : kept
     end
   end
 
@@ -413,26 +286,6 @@ module WebSocketHelper
   # detected values in the others: reasoning quotes the conversation, and the
   # rendered HTML is built from the restored body.
   PRIVACY_REMASK_MESSAGE_FIELDS = %w[text thinking html].freeze
-
-  # The registry plus a placeholder for each marked word it does not hold
-  # (numbered after the registry's own, per type).
-  private def privacy_registry_with_terms(registry, terms)
-    combined = registry.dup
-    counters = Hash.new(0)
-    registry.each_key do |placeholder|
-      m = placeholder.to_s.match(/\A<<([A-Z_]+)_(\d+)>>\z/)
-      counters[m[1]] = [counters[m[1]], m[2].to_i].max if m
-    end
-    terms.each do |term|
-      text = term[:text] || term["text"]
-      type = term[:type] || term["type"] || "PERSON"
-      next if text.to_s.empty? || combined.value?(text)
-
-      counters[type] += 1
-      combined["<<#{type}_#{counters[type]}>>"] = text
-    end
-    combined
-  end
 
   # The originals in text replaced by their placeholders, overlapping
   # occurrences as one (Outbound.replace_union), so no part of an original
@@ -442,8 +295,11 @@ module WebSocketHelper
   end
 
   # Every string in a value masked the same way (the app state, the Session
-  # Context and anything nested in the messages of a masked file).
-  private def privacy_mask_everywhere(value, registry, depth = 0)
+  # Context and anything nested in the messages of a masked file). keys:
+  # the keys of a Hash are what someone said too (the names an app keeps
+  # its items by, such as a story's characters), and are masked as well;
+  # two keys that would become one refuse the file rather than lose one.
+  private def privacy_mask_everywhere(value, registry, depth = 0, keys: false)
     outbound = Monadic::Utils::Privacy::Outbound
     case value
     when String
@@ -453,12 +309,50 @@ module WebSocketHelper
       unless inner.nil?
         raise ArgumentError, "a value is nested as JSON too deeply to be masked" if depth >= outbound::JSON_DEPTH
 
-        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1))
+        return JSON.generate(privacy_mask_everywhere(inner, registry, depth + 1, keys: keys))
       end
       privacy_replace_union(value, registry)
-    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth) }
-    when Hash then value.transform_values { |v| privacy_mask_everywhere(v, registry, depth) }
+    when Array then value.map { |v| privacy_mask_everywhere(v, registry, depth, keys: keys) }
+    when Hash
+      value.each_with_object({}) do |(k, v), out|
+        masked_key = keys && k.is_a?(String) ? privacy_replace_union(k, registry) : k
+        raise ArgumentError, "two names would be the same once masked" if out.key?(masked_key)
+
+        out[masked_key] = privacy_mask_everywhere(v, registry, depth, keys: keys)
+      end
     else value
+    end
+  end
+
+  # A reply's state changes in a masked file: their form (app, kind, key,
+  # collection, id, op) stays, so the file imports; data is masked, keys
+  # and all.
+  private def privacy_mask_state_changes(changes, registry)
+    return changes unless changes.is_a?(Array)
+
+    changes.map do |change|
+      next change unless change.is_a?(Hash) && change.key?('data')
+
+      change.merge('data' => privacy_mask_everywhere(change['data'], registry, keys: true))
+    end
+  end
+
+  # The app state of a masked file: its form (the app's name, the state's
+  # key, the envelope's fields) stays as it is, so the file imports; what
+  # the app kept in it (data) is masked, the names it keeps items by among it.
+  private def privacy_mask_app_state(state, registry)
+    return state unless state.is_a?(Hash)
+
+    state.transform_values do |entries|
+      next entries unless entries.is_a?(Hash)
+
+      entries.transform_values do |entry|
+        next privacy_mask_everywhere(entry, registry, keys: true) unless entry.is_a?(Hash)
+
+        entry.to_h do |field, value|
+          [field, field.to_s == "data" ? privacy_mask_everywhere(value, registry, keys: true) : value]
+        end
+      end
     end
   end
 
@@ -473,7 +367,13 @@ module WebSocketHelper
       next privacy_mask_everywhere(m, registry) unless m.is_a?(Hash)
 
       m.each_with_object({}) do |(k, v), out|
-        out[k] = PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s) ? v : privacy_mask_everywhere(v, registry)
+        out[k] = if PRIVACY_MESSAGE_PROTOCOL_KEYS.include?(k.to_s)
+                   v
+                 elsif k.to_s == Monadic::TurnState::Form::STATE_CHANGES_KEY
+                   privacy_mask_state_changes(v, registry)
+                 else
+                   privacy_mask_everywhere(v, registry)
+                 end
       end
     end
   end
@@ -531,15 +431,9 @@ module WebSocketHelper
   # exports remain round-trippable through the existing import path. Returns
   # nil when there is no monadic_state to include.
   # Keys that sit alongside the app namespaces in session[:monadic_state] but
-  # hold something else. `conversation_context` and `context_schema` are the
-  # Context Panel's own structures; `privacy` is the registry, which RD-1 says
-  # is never persisted.
-  #
-  # The import route reads each app namespace as {key => {data, version,
-  # updated_at}} and applies ["data"] to every value, so emitting the panel's
-  # plain hash here made the import raise. It has its own field on the wire —
-  # `session_context` — which the import route already restores; this exports
-  # into that field rather than leaving the mechanism unwired.
+  # hold something else: `privacy` is the registry, which RD-1 says is never
+  # persisted; `conversation_context` and `context_schema` are what files of
+  # earlier versions kept there, never app state.
   PRIVACY_STATE_RESERVED_KEYS = %w[privacy conversation_context context_schema].freeze
 
   private def privacy_export_monadic_state(session)
@@ -560,33 +454,17 @@ module WebSocketHelper
     serializable.empty? ? nil : serializable
   end
 
-  # The Context Panel's structures, exported under the field names the import
-  # route reads (`session_context` / `context_schema`).
-  private def privacy_export_session_context(session)
-    state = session[:monadic_state]
-    return {} unless state.is_a?(Hash)
-
-    context = state[:conversation_context] || state["conversation_context"]
-    schema = state[:context_schema] || state["context_schema"]
-
-    {}.tap do |out|
-      out["session_context"] = context if context.is_a?(Hash) && !context.empty?
-      out["context_schema"] = schema if schema
-    end
-  end
-
   # Build a non-secret header for the envelope. Stays in plaintext so users
   # can identify exports without decrypting (header_sha256 protects against
   # tampering).
-  private def privacy_export_header(session, messages, registry)
-    app_name = session.dig(:parameters, "app_name") || "unknown"
+  private def privacy_export_header(app_name, messages)
+    app_name = "unknown" if app_name.to_s.empty?
     {
       "schema_version" => Monadic::Utils::Privacy::ExportCipher::SCHEMA_VERSION,
       "created_at" => Time.now.utc.iso8601,
       "app_name" => app_name,
       "monadic_version" => (defined?(Monadic::VERSION) ? Monadic::VERSION : "unknown"),
-      "message_count" => messages.length,
-      "registry_count" => registry.size
+      "message_count" => messages.length
     }
   end
 
@@ -600,8 +478,7 @@ module WebSocketHelper
     "restored"         => ".plain.json"
   }.freeze
 
-  private def privacy_export_filename(session, encrypt, content_kind)
-    app_name = session.dig(:parameters, "app_name").to_s
+  private def privacy_export_filename(app_name, encrypt, content_kind)
     safe_app = app_name.gsub(/[^a-zA-Z0-9_-]/, "_")
     safe_app = "monadic" if safe_app.empty?
     ts = Time.now.strftime("%Y%m%d-%H%M%S")
@@ -616,70 +493,17 @@ module WebSocketHelper
     "#{safe_app}-#{ts}#{suffix}#{ext}"
   end
 
-  # Words the user marks in what they write (⟦…⟧, see Privacy::Marks) are
-  # taken out of the text here, where the chat receives what a person wrote
-  # (a message sent, a message edited), and kept for the chat. Returns the
-  # text without the marks, or nil when it must not go on: a mark that is
-  # not well formed, or marks (or words marked before) while the Privacy
-  # Filter is not on for this chat. The error is sent to the page as not
-  # accepted: nothing was recorded, so the page keeps the cards it shows.
-  # `refusal` adds what the page needs to undo the action (an edit).
-  def take_privacy_marks(text, session, ws_session_id, refusal = {})
-    require_relative '../privacy/marks'
-    require_relative '../privacy/registry'
-    require_relative '../privacy/outbound'
-    marks = Monadic::Utils::Privacy::Marks
-    begin
-      clean, terms = marks.extract(text.to_s)
-    rescue marks::Invalid => e
-      send_error("The words marked with \u27E6 \u27E7 could not be read: #{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-      return nil
-    end
-
-    if (terms.any? || Monadic::Utils::Privacy::Outbound.marked_terms?(session)) && !privacy_on_for_chat?(session)
-      send_error("Words are marked to be masked in this chat, but the Privacy Filter is off. " \
-                 "Turn it on (or reset the chat) to send. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-      return nil
-    end
-
-    begin
-      Monadic::Utils::Privacy::Registry.new(session).add_terms!(terms) if terms.any?
-    rescue Monadic::Utils::Privacy::Registry::TooManyTerms => e
-      send_error("#{e.message}. Nothing was sent.", ws_session_id, { "not_accepted" => true }.merge(refusal))
-      return nil
-    end
-    clean
-  end
-
-  # Whether a system message the user writes (a sample or an edit) holds
-  # words to mask: new marks, or words marked before. System messages are
-  # sent without masking, so the last check before a request leaves would
-  # refuse every later request of the chat; such text is refused when it is
-  # written instead. A mark that is not well formed is left to
-  # take_privacy_marks to report.
-  def marked_words_in_system_text?(text, session)
-    require_relative '../privacy/marks'
-    require_relative '../privacy/outbound'
-    marks = Monadic::Utils::Privacy::Marks
+  # Whether a system message the user writes holds a word this chat hides.
+  # System messages are sent as written, so the last check before a request
+  # leaves would refuse every later request of the chat; such text is
+  # refused when it is written instead.
+  def hidden_word_in_system_text?(text, session)
     outbound = Monadic::Utils::Privacy::Outbound
-    begin
-      clean, terms = marks.extract(text.to_s)
-    rescue marks::Invalid
-      return false
-    end
-    terms.any? || outbound.holds_word?(clean, outbound.terms_of(session))
+    outbound.holds_word?(text.to_s, outbound.terms_of(session))
+  rescue Monadic::Utils::Privacy::Outbound::Refused
+    true
   end
 
-  SYSTEM_TEXT_MARKED = 'A system message is sent without masking, so it cannot hold words marked to be masked. ' \
+  SYSTEM_TEXT_MARKED = 'A system message is sent as written, so it cannot hold a word this chat hides. ' \
                        'Nothing was changed.'
-
-  # The Privacy Filter masks this chat: the user turned it on, and the app
-  # uses it.
-  def privacy_on_for_chat?(session)
-    return false unless session[:_privacy_session_enabled] == true
-
-    app_name = (session[:parameters] || {})["app_name"]
-    settings = defined?(APPS) && APPS[app_name] ? APPS[app_name].settings : nil
-    !!(settings && settings.dig(:privacy, :enabled) == true)
-  end
 end

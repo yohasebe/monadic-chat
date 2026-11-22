@@ -95,7 +95,8 @@ window.shims.uiUtils = {
     // On mobile and medium screens where menu/content are exclusive, check toggle state
     if (isMobile || isMedium) {
       var toggleBtn = $id('toggle-menu');
-      var isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
+      var isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
+        : (toggleBtn && toggleBtn.classList.contains('menu-hidden'));
 
       if (!isMenuHidden) {
         var topBtn = $id('back_to_top');
@@ -268,20 +269,6 @@ window.shims.uiUtils = {
 // loaded earlier in the bundle) so the X-Requested-With contract and
 // JSON parsing live in one place.
 window.shims.formHandlers = {
-  uploadPdf: function (file, fileTitle) {
-    if (!file) return Promise.reject(new Error("Please select a PDF file to upload"));
-    if (file.type !== "application/pdf") return Promise.reject(new Error("Please select a PDF file"));
-
-    const formData = new FormData();
-    formData.append("pdfFile", file);
-    formData.append("pdfTitle", fileTitle);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 120000);
-    return window.monadicFetch.postJson("/pdf", formData, { signal: controller.signal })
-      .finally(() => clearTimeout(timer));
-  },
-
   convertDocument: function (doc, docLabel) {
     if (!doc) return Promise.reject(new Error("Please select a document file to convert"));
     if (doc.type === "application/octet-stream") return Promise.reject(new Error("Unsupported file type"));
@@ -379,18 +366,6 @@ window.shims.formHandlers = {
         modal.removeEventListener('hidden.bs.modal', onHidden);
       });
     }
-  },
-
-  uploadAudioFile: function (file) {
-    if (!file) return Promise.reject(new Error("Please select an audio or MIDI file"));
-
-    const formData = new FormData();
-    formData.append("audioFile", file);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
-    return window.monadicFetch.postJson("/upload_audio", formData, { signal: controller.signal })
-      .finally(() => clearTimeout(timer));
   }
 };
 

@@ -131,7 +131,7 @@ module WebSocketHelper
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s
-        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "math", "mermaid", "abc", "monadic", "pdf_vector_storage", "websearch", "jupyter", "image_generation", "video", "audio_upload", "privacy_enabled", "library_save", "library_search"].include?(p.to_s)
+        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "math", "mermaid", "abc", "websearch", "jupyter", "image_generation", "video", "audio_upload", "library_save", "library_search", "show_thinking"].include?(p.to_s)
           # Preserve boolean values for feature flags
           # These need to be actual booleans, not strings, for proper JavaScript evaluation
           apps[k][p] = m
@@ -264,26 +264,11 @@ module WebSocketHelper
 
     # Send past_messages with additional delay to ensure parameters is processed first
     sleep(0.05)  # Additional 0.05s delay (total 0.1s from start)
-    # Whether the chat is Private travels with its words, so the page knows
-    # it before it holds them (and does not store them).
-    past_messages_data = { "type" => "past_messages", "content" => filtered_messages,
-                           "private" => Monadic::History::Policy.private?(rack_session) }
+    past_messages_data = { "type" => "past_messages", "content" => filtered_messages }
     send_or_broadcast(past_messages_data.to_json, ws_session_id)
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}" }
-
-    # A chat that goes on after a reload keeps its Privacy Filter state; the
-    # page shows it as it is (and locked, as before the reload) rather than
-    # from what it remembers for the app.
-    unless filtered_messages.empty?
-      state = rack_session[:monadic_state]
-      registry = state && state[:privacy] && state[:privacy][:registry]
-      send_or_broadcast({ "type" => "privacy_state", "enabled" => rack_session[:_privacy_session_enabled] == true,
-                          "registry_count" => registry.is_a?(Hash) ? registry.size : 0, "error" => nil,
-                          "restored" => true,
-                          "private" => Monadic::History::Policy.private?(rack_session) }.to_json, ws_session_id)
-    end
 
     # Send info message to hide spinner and show "Ready" status
     # For initial load with no parameters, send minimal info data

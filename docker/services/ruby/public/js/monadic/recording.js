@@ -345,7 +345,7 @@ function startAudioCapture() {
     // Reset button state
     const voiceEl = $id("voice");
     if (voiceEl) {
-      voiceEl.classList.toggle("btn-info");
+      voiceEl.classList.toggle("btn-warning");
       voiceEl.classList.toggle("btn-danger");
       voiceEl.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
     }
@@ -421,7 +421,7 @@ function startAudioCapture() {
       setAlert(`${micErrorText}: ${err.message}`, "error");
 
       // Restore button state on error
-      voiceButton.classList.toggle("btn-info");
+      voiceButton.classList.toggle("btn-warning");
       voiceButton.classList.toggle("btn-danger");
       voiceButton.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
       ['send', 'clear'].forEach(id => { const el = $id(id); if (el) el.disabled = false; });
@@ -459,7 +459,7 @@ voiceButton.addEventListener("click", function () {
     const amplitudeEl = $id("amplitude");
     if (amplitudeEl) amplitudeEl.style.display = "inline-flex";
     silenceDetected = false;
-    voiceButton.classList.toggle("btn-info");
+    voiceButton.classList.toggle("btn-warning");
     voiceButton.classList.toggle("btn-danger");
     const stopText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.stopButton') : 'Stop';
     voiceButton.innerHTML = `<i class="fas fa-microphone"></i> ${stopText}`;
@@ -563,7 +563,7 @@ voiceButton.addEventListener("click", function () {
     const originalPlaceholder = (messageElStop && messageElStop.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
     if (messageElStop) messageElStop.setAttribute("placeholder", originalPlaceholder);
 
-    voiceButton.classList.toggle("btn-info");
+    voiceButton.classList.toggle("btn-warning");
     voiceButton.classList.toggle("btn-danger");
     voiceButton.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
     const processingText = getTranslation('ui.messages.processingStatus', 'PROCESSING ...');
@@ -737,7 +737,7 @@ voiceButton.addEventListener("click", function () {
     const originalPlaceholder = (messageElSilence && messageElSilence.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
     if (messageElSilence) messageElSilence.setAttribute("placeholder", originalPlaceholder);
 
-    voiceButton.classList.toggle("btn-info");
+    voiceButton.classList.toggle("btn-warning");
     voiceButton.classList.toggle("btn-danger");
     const silenceText = getTranslation('ui.messages.silenceDetected', 'SILENCE DETECTED: Check your microphone settings');
     setAlert(silenceText, "error");

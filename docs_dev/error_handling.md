@@ -11,7 +11,7 @@ This page describes the safeguards that stop a tool loop: repeated tool errors, 
   - a Hash with `success: false` (symbol or string key);
   - a string containing `"success":false` or `"success": false`.
 - `handle_function_error` records the error in `ErrorPatternDetector`, marks the last recorded tool call as errored, and, when the detector says to stop, sends the suggestion as a fragment and sets `session[:parameters]["stop_retrying"] = true`.
-- `should_stop_for_errors?` is true when `stop_retrying` is set or a tool call cycle is detected. `stop_message_for_session` returns the cycle message or the error suggestion.
+- `should_stop_for_errors?` is true when `stop_retrying` is set or a tool call cycle is detected. `stop_reply` ends the turn: it names the tools of a cycle, or reports repeated errors (their suggestion was sent when they stopped).
 - `reset_error_tracking(session)` clears the error history, the tool call sequence and `stop_retrying`.
 
 Tool methods return errors as strings starting with `❌`.
@@ -35,7 +35,7 @@ Tool methods return errors as strings starting with `❌`.
 
 ## Tool Call Limit per Turn (`MAX_FUNC_CALLS`)
 
-Each vendor helper defines `MAX_FUNC_CALLS` (20; 30 in the Mistral helper). `session[:call_depth_per_turn]` is reset to 0 when the user sends a message and increases with each round of tool calls. When the limit is reached, the helper ends the tool loop: most helpers send a "Maximum function call depth exceeded" notice and end the turn; the Claude helper removes `tools` and `tool_choice` so the model answers in text.
+Each vendor helper defines `MAX_FUNC_CALLS` (20); an app's `max_tool_rounds` lowers it (`BaseVendorHelper#tool_round_limit`). `session[:call_depth_per_turn]` is reset to 0 when the user sends a message and increases with each round of tool calls. When it reaches the limit, the helper's next request has no tools, so the model answers in text; a round beyond the limit ends the turn with a "Maximum function call depth exceeded" notice.
 
 ## Debugging
 

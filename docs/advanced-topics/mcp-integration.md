@@ -56,10 +56,12 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 - `monadic_second_opinion` — **grade**: ask one or more providers to score (1–10) and critique a response you already have
 - `monadic_confidence` — **assess by agreement**: fan a question out to several distinct providers and judge how much their independent answers agree, returning a confidence level (high/medium/low), the points of agreement and disagreement, and a recommendation (trust/verify/escalate)
 
-**Knowledge base (local PDF knowledge base)**
-- `monadic_search_kb` — semantic search over an imported knowledge base
-- `monadic_list_kb` — list imported documents
-- `monadic_import_kb` — import text or a PDF into a knowledge base
+**Knowledge Base** (the same [Knowledge Base](../apps/knowledge-base.md) the web interface uses)
+- `monadic_search_kb` — semantic search over the Knowledge Base
+- `monadic_list_kb` — list the entries of the Knowledge Base
+- `monadic_import_kb` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as a Global entry
+
+These tools read every entry by default (`all`); give an app name, such as `ChatOpenAI`, to read only that app's entries and the Global ones. The chat tools `monadic_query`, `monadic_parallel_query` and `monadic_confidence` use the Knowledge Base only when their `knowledge_base` argument is given: `all` searches every entry, and an app name searches that app's entries and the Global ones. They search on your computer and send the passages found to the provider with the question; without the argument, nothing from the Knowledge Base is sent.
 
 **Analysis (input)**
 - `monadic_analyze_image` — describe or answer questions about an image
@@ -67,7 +69,7 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 - `monadic_analyze_audio` — qualitative analysis of audio (e.g. music critique)
 - `monadic_analyze_video` — frame extraction, vision analysis, and audio transcription of a video
 
-**Generation (output saved to the shared volume `~/monadic/data`)**
+**Generation (each output is saved in a folder of its own under `mcp/` in the shared folder `~/monadic/data`; the result gives its path)**
 - `monadic_speak` — text-to-speech
 - `monadic_generate_code` — code generation via the code agent of the provider you name (`openai`, `anthropic` or `xai`)
 - `monadic_generate_image` — image generation

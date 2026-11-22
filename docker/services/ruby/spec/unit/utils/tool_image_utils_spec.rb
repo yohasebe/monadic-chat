@@ -21,6 +21,13 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
   let(:png_b64) { 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' }
   let(:data_url) { "data:image/png;base64,#{png_b64}" }
 
+  # The run folder an upload is written in.
+  let(:job) do
+    relative = 'conversations/c/artifacts/j_1'
+    FileUtils.mkdir_p(File.join(tmpdir, relative))
+    { path: File.join(tmpdir, relative), relative: relative }
+  end
+
   def session_with_image(data:, type: nil, title: 'photo.png')
     img = { 'data' => data, 'title' => title }
     img['type'] = type if type
@@ -28,11 +35,12 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
   end
 
   describe '.materialize_session_image' do
-    it 'writes an uploaded data URL to a temp file on the shared volume and returns the filename' do
+    it 'writes an uploaded data URL in the run folder and returns its path in the shared folder' do
       session = session_with_image(data: data_url)
-      filename = described_class.materialize_session_image(session)
+      filename = described_class.materialize_session_image(session, into: job)
 
-      expect(filename).to match(/\Avideo_gen_temp_\d+_[0-9a-f]+\.png\z/)
+      expect(filename).to match(%r{\Aconversations/c/artifacts/j_1/video_gen_temp_\d+_[0-9a-f]+\.png\z})
+      expect(Dir.children(tmpdir)).to eq(['conversations'])
       saved = File.join(tmpdir, filename)
       expect(File.exist?(saved)).to be true
       expect(File.binread(saved)).to eq(Base64.decode64(png_b64))
@@ -40,27 +48,21 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
 
     it 'derives the extension from a JPEG data URL' do
       session = session_with_image(data: "data:image/jpeg;base64,#{png_b64}")
-      filename = described_class.materialize_session_image(session)
+      filename = described_class.materialize_session_image(session, into: job)
       expect(filename).to end_with('.jpg')
     end
 
     it 'ignores the literal "image_path" placeholder and still resolves the upload' do
       session = session_with_image(data: data_url)
-      filename = described_class.materialize_session_image(session, image_path: 'image_path')
+      filename = described_class.materialize_session_image(session, image_path: 'image_path', into: job)
       # Upload takes precedence (image_path is only consulted when nil), and the
       # placeholder is never treated as a real filename.
-      expect(filename).to match(/\Avideo_gen_temp_/)
+      expect(File.basename(filename)).to match(/\Avideo_gen_temp_/)
     end
 
     it 'uses an explicit filename when no upload is present (and not the placeholder)' do
       expect(described_class.materialize_session_image({ messages: [] }, image_path: 'cat.jpg')).to eq('cat.jpg')
       expect(described_class.materialize_session_image({ messages: [] }, image_path: 'image_path')).to be_nil
-    end
-
-    it 'falls back to last_image_key when no upload and no explicit path' do
-      session = { messages: [], grok_last_video_image: 'prev.png' }
-      result = described_class.materialize_session_image(session, last_image_key: :grok_last_video_image)
-      expect(result).to eq('prev.png')
     end
 
     it 'returns nil when there is nothing to resolve' do
@@ -71,8 +73,15 @@ RSpec.describe Monadic::Utils::ToolImageUtils do
       huge = 'A' * (101 * 1024 * 1024)
       session = session_with_image(data: "data:image/png;base64,#{Base64.strict_encode64(huge)}")
       expect {
-        described_class.materialize_session_image(session)
+        described_class.materialize_session_image(session, into: job)
       }.to raise_error(Monadic::Utils::ToolImageUtils::ImageMaterializationError, /too large/)
+    end
+
+    it 'writes nothing without a run folder' do
+      expect {
+        described_class.materialize_session_image(session_with_image(data: data_url))
+      }.to raise_error(Monadic::Utils::ToolImageUtils::ImageMaterializationError, /no chat folder/)
+      expect(Dir.children(tmpdir)).to be_empty
     end
 
     it 'raises a materialization error when the shared dir is unavailable' do

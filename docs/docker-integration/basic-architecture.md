@@ -6,13 +6,28 @@ Both you and the AI agent can use the containers. You can ask the agent in natur
 
 The shared folder connects your computer and the containers: you place files there for the agent, and the agent saves the files it produces there.
 
-![Basic Architecture](../assets/images/basic-architecture.png ':size=800')
+![Monadic Chat architecture](../assets/images/figures/architecture.svg)
 
 ## Local Operation :id=local-operation
 
 - All components run on one computer: the containers, the web server, and the user interface
 - Every port is bound to `127.0.0.1` (localhost), so Monadic Chat is reachable only from that computer
 - Each browser tab is an independent conversation session (see [Multi-Tab Session Management](../advanced-topics/advanced-configuration.md#multi-tab-sessions))
+
+## Container Engine :id=container-engine
+
+Monadic Chat uses the engine that the `docker` command uses: the one named by `DOCKER_CONTEXT`, otherwise by `DOCKER_HOST`, otherwise the current Docker context (`docker context use`). The console names the engine and the context at startup, and the status bar shows the engine's name.
+
+- **Docker Desktop**, or **Docker Engine** on Linux, is the standard setup. When Docker Desktop is the chosen engine and is not running, Monadic Chat starts it.
+- Other engines that the `docker` command can use also work. On macOS, Monadic Chat has been checked with **Podman** and with **Colima** (Docker Engine in a Lima virtual machine). Such an engine needs:
+  - the `docker` command with its `compose` and `buildx` plugins
+  - the engine running before you press **Start** (Monadic Chat starts only Docker Desktop)
+  - memory for the containers: 8 GB for the engine's virtual machine runs all of them
+  - your home folder shared with the engine, so that `~/monadic` reaches the containers
+- Only an engine on this computer is used: a context or `DOCKER_HOST` that points to `ssh://` or `tcp://` is refused.
+- Each engine keeps its own images. After you switch engines, the first **Start** downloads and builds them again.
+
+Installing and setting up each engine is described in its own documentation.
 
 ## Standard Docker Containers :id=standard-containers
 
@@ -24,22 +39,22 @@ Runs the Monadic Chat server and the web interface. Every app needs it.
 ### Python Container (`monadic-chat-python-container`) :id=python-container
 Runs Python code, command-line tools, and JupyterLab for the apps.
 - **Port**: 8889 (JupyterLab)
-- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Syntax Tree, Concept Visualizer, Mermaid Grapher, DrawIO Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
+- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Concept Visualizer, Mermaid Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
 - Optional components (LaTeX, extra Python libraries, ImageMagick) are added with **Actions → Install Options**. See [Python Container](python-container.md).
 
 ### Selenium Container (`monadic-chat-selenium-container`) :id=selenium-container
 Runs a Chromium browser that the apps control to open web pages and take screenshots.
-- **Ports**: 4444 (Selenium), 7900 (browser view through **Open → Open noVNC**), 5900 (VNC)
-- **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher, DrawIO Grapher
+- **Ports**: 7900 (browser view through **Open → Open noVNC**). WebDriver (4444) is reached only from the other containers
+- **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher
 
 ### Qdrant Container (`monadic-chat-qdrant-container`) :id=qdrant-container
-Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge Base, the PDF Database, and the help data. See [Vector Database](vector-database.md).
+Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge Base and the help data. See [Vector Database](vector-database.md).
 
 ### Embeddings Container (`monadic-chat-embeddings-container`) :id=embeddings-container
-Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Knowledge Base, the PDF Database, and the help data. It runs on the CPU and needs no API key.
+Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Knowledge Base and the help data. It runs on the CPU and needs no API key.
 
 ### Privacy Container (`monadic-chat-privacy-container`) :id=privacy-container
-Detects personal information for the [Privacy Filter](../advanced-topics/privacy-filter.md), which replaces it with placeholders before text is sent to an API. It runs locally and needs no API key.
+Finds names for [Anonymization](../advanced-topics/anonymization.md), which replaces the words you choose with placeholders in the text a chat sends. It runs locally and needs no API key.
 
 ### Extractor Container (`monadic-chat-extractor-container`) :id=extractor-container
 Present only when the Knowledge Base Quality Pack is installed (**Actions → Install Options → Install Knowledge Base Quality Pack**). It extracts text from PDFs with [Docling](https://github.com/docling-project/docling), including layout analysis and OCR, when files are imported into the Knowledge Base. Without it, the Python container extracts the text of PDFs without OCR, so scanned, image-only PDFs yield no text.
@@ -60,17 +75,16 @@ These apps use only the Ruby container (plus Qdrant and Embeddings, which always
 
 **Python Container**:
 - Code execution (Code Interpreter, Jupyter Notebook)
-- Diagrams with LaTeX (Syntax Tree, Concept Visualizer)
+- Diagrams with LaTeX (Concept Visualizer)
 - Video analysis (Video Describer)
 - Knowledge Base file imports (PDF and Office files)
 
 **Selenium Container**:
 - Opening web pages and taking screenshots (Web Insight, Research Assistant, Auto Forge)
-- Diagram previews (Mermaid Grapher, DrawIO Grapher)
+- Diagram previews (Mermaid Grapher)
 
 **Qdrant + Embeddings Containers**:
 - Knowledge Base
-- PDF Database
 - Monadic Chat Help
 
 ?> To add your own containers, see [Adding Docker Containers](../advanced-topics/adding-containers.md).

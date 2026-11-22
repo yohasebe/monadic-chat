@@ -4,6 +4,7 @@ require 'json'
 require 'shellwords'
 require 'open3'
 require_relative '../../lib/monadic/utils/shared_path_guard'
+require_relative '../../lib/monadic/shared_tools/browser_owner'
 require 'fileutils'
 require_relative '../../lib/monadic/utils/environment'
 
@@ -74,15 +75,22 @@ module AutoForge
       result = nil
       puts "[AutoForgeDebugger] Executing: #{command}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
-      # Use send_command if available (when included in MonadicApp)
-      if respond_to?(:send_command)
-        output = send_command(command: command, container: "python")
-      else
-        # Fallback to direct docker exec (for standalone use)
-        output, _status = Open3.capture2e(
-          "docker", "exec", "-w", "/monadic/data", "monadic-chat-python-container",
-          "python", "/monadic/scripts/utilities/debug_html.py", container_html_path, "--json"
-        )
+      # The check opens a browser session of its own: it takes a slot.
+      output = begin
+        MonadicSharedTools::BrowserOwner.with_job do
+          # Use send_command if available (when included in MonadicApp)
+          if respond_to?(:send_command)
+            send_command(command: command, container: "python")
+          else
+            # Fallback to direct docker exec (for standalone use)
+            Open3.capture2e(
+              "docker", "exec", "-w", "/monadic/data", "monadic-chat-python-container",
+              "python", "/monadic/scripts/utilities/debug_html.py", container_html_path, "--json"
+            ).first
+          end
+        end
+      rescue MonadicSharedTools::BrowserOwner::Refused => e
+        return { 'success' => false, 'errors' => [e.message] }
       end
 
       begin

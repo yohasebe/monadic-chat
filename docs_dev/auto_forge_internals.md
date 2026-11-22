@@ -78,8 +78,7 @@ Auto Forge (MDSL `display_name` "Auto Forge") generates applications in two laye
 #### 5. Utilities (`auto_forge_utils.rb`)
 - Project name sanitization (Unicode support)
 - Directory management
-- Project search and listing
-- Cleanup operations
+- Project search and listing (the projects of the reply's chat)
 
 #### 6. Debugger (`auto_forge_debugger.rb`)
 - Selenium integration
@@ -117,14 +116,24 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ## File Management
 
 ### Directory Structure
+
+`AutoForge::Utils::PathConfig` (`utils/path_config.rb`) puts the projects in the folder of the chat the reply runs for (`Chats.work_chat`, the reply's chat scope); with no chat it raises `PathConfig::NoChat` and no project is made.
+
 ```
-~/monadic/data/auto_forge/
-├── [AppName]_[YYYYMMDD]_[HHMMSS]/
-│   ├── index.html
-│   └── .autoforge.json (metadata: created_at, project_name, base_name, …)
-├── .backups/
-└── .templates/
+conversations/<chat folder>/
+├── auto_forge/
+│   ├── [AppName]_[YYYYMMDD]_[HHMMSS]/
+│   │   ├── index.html
+│   │   └── .autoforge.json (metadata: created_at, project_name, base_name, …)
+│   └── .backups/
+└── revisions/<time>-before-<request id>/auto_forge/[AppName]_…/   (Workbench::Revision)
 ```
+
+### Turns and Projects
+
+- `AutoForgeUtils.create_project_directory` records the new project folder as made by the running reply (`PathConfig.record_made` → `Workbench::Made.add`): deleting that turn moves the project to the chat's `trash/` (`Workbench::TurnTrash`).
+- Before a reply changes a project an earlier turn made (`Orchestrator#forge_project` for an existing project, `generate_additional_file`, `apply_fix_with_backup`), `PathConfig.before_change` calls `Workbench::Revision.keep!`, which copies the project once per reply to `revisions/` and records `{ "path", "before" }`. The message keeps it as `workbench_revisions`; deleting the message, or a reply stopped before its message (`Made.close`), puts the copy back (`Revision.undo`).
+- A project path from the model is used only when it is inside this chat's `auto_forge/` folder (`Orchestrator#inside_project_base?`).
 
 ### Unicode Handling
 - Full UTF-8 support for project names
@@ -167,8 +176,8 @@ The context for modifications is kept in the session, under `@context[:auto_forg
   - Dependency manifests are offered when imports go beyond the per-language standard library set defined in `standard_libraries`.
   - Usage examples (USAGE.md) are suggested when argument parsing libraries (argparse, OptionParser, click, etc.) are detected.
   - A “custom asset” entry is always included to remind the orchestrator that arbitrary files can be generated on demand.
-- `generate_additional_file` re-validates project context (project path, type, and main file) before writing to disk.
-- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through `context[:codex_callback]`, which wraps `call_openai_code`, `claude_code_agent` or `call_grok_code`, using a rich prompt that includes the main script excerpt and existing files.
+- `generate_additional_file` works on the chat's project that `AutoForgeUtils.current_project` finds (the path or `project_name` given, else the newest); a project with an `index.html` is a web project and gets no additional files.
+- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through `resolve_text_generator`, the code agent of the variant's own provider (`forge_agent` in `auto_forge_{openai,claude,grok}.rb`, mapped by `CODE_AGENT_CALLS`), using a prompt that includes the main script excerpt and existing files. `apply_automatic_fixes` uses the same call.
 
 ## Error Handling
 

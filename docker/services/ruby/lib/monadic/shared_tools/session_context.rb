@@ -2,29 +2,24 @@
 
 # Session Context Management Tools for Monadic Chat
 #
-# Provides on-demand context tracking for conversational AI apps.
-# Context is stored server-side and displayed in the sidebar panel.
-#
-# Features:
-# - Normal text responses by default (faster, fewer tokens)
-# - Server-side context storage (reliable, persistent within session)
-# - Real-time sidebar display via WebSocket
-# - User can edit context directly in the sidebar
+# What a conversational app keeps of the conversation: topics, people and
+# notes, each an item of the app's state (Monadic::TurnState), so deleting
+# the turn that added or removed one takes that change back. The state is
+# shown to the user as a page on the work screen (Monadic::TurnState::Notes).
 #
 # Usage in MDSL:
 #   tools do
 #     import_shared_tools :session_context, visibility: "always"
 #   end
 
-require_relative 'monadic_session_state'
-require_relative '../utils/extra_logger'
+require_relative '../turn_state'
+require_relative '../turn_state/keeper'
 
 module MonadicSharedTools
   module SessionContext
     include MonadicHelper
-    include Monadic::SharedTools::MonadicSessionState
 
-    CONTEXT_KEY = :conversation_context
+    FIELDS = %w[topics people notes].freeze
 
     # Get current context from session
     #
@@ -41,20 +36,7 @@ module MonadicSharedTools
     #   #    }
     def get_context(session: nil)
       session ||= @session || Thread.current[:session]
-      result = JSON.parse(monadic_load_state(key: CONTEXT_KEY, default: default_context, session: session))
-
-      if result["success"]
-        {
-          success: true,
-          context: result["data"] || default_context
-        }
-      else
-        {
-          success: false,
-          error: result["error"],
-          context: default_context
-        }
-      end
+      { success: true, context: context_texts(session) }
     end
 
     # Update context with new information
@@ -63,55 +45,20 @@ module MonadicSharedTools
     # @param topics [Array<String>, nil] Topics to add
     # @param people [Array<String>, nil] People to add
     # @param notes [Array<String>, nil] Notes to add
-    # @param replace [Boolean] If true, replace instead of merge (default: false)
+    # @param replace [Boolean] If true, the three fields hold what is given and nothing else (default: false)
     # @return [Hash] Updated context
     # @example
     #   update_context(topics: ["Machine Learning"], notes: ["User prefers Python"])
     #   # => { success: true, context: { topics: [...], people: [...], notes: [...] } }
     def update_context(topics: nil, people: nil, notes: nil, replace: false, session: nil)
-      # Logged with EXTRA_LOGGING (it carries the context)
-      Monadic::Utils::ExtraLogger.log { "[SessionContext] update_context called with topics=#{topics.inspect}, people=#{people.inspect}, notes=#{notes.inspect}, replace=#{replace}" }
-      Monadic::Utils::ExtraLogger.log { "[SessionContext] session parameter received: #{session.nil? ? 'nil' : 'present'}" }
+      given = context_given(topics, people, notes)
 
-      session ||= @session || Thread.current[:session]
-      Monadic::Utils::ExtraLogger.log { "[SessionContext] session after fallback: #{session.nil? ? 'nil' : 'present'}" }
-
-      # Get current context (pass session to ensure consistency)
-      current = get_context(session: session)
-      current_ctx = current[:context] || default_context
-
-      # Build new context
-      new_context = if replace
-                      {
-                        "topics" => topics || [],
-                        "people" => people || [],
-                        "notes" => notes || []
-                      }
-                    else
-                      {
-                        "topics" => ((current_ctx["topics"] || []) + (topics || [])).uniq,
-                        "people" => ((current_ctx["people"] || []) + (people || [])).uniq,
-                        "notes" => ((current_ctx["notes"] || []) + (notes || [])).uniq
-                      }
-                    end
-
-      # Save to session
-      result = JSON.parse(monadic_save_state(key: CONTEXT_KEY, payload: new_context, session: session))
-
-      if result["success"]
-        # Broadcast context update to sidebar via WebSocket
-        broadcast_context_update(session, new_context)
-
-        {
-          success: true,
-          action: replace ? "replaced" : "merged",
-          context: new_context
-        }
-      else
-        {
-          success: false,
-          error: result["error"]
-        }
+      changed_context(session, replace ? "replaced" : "merged") do |now|
+        FIELDS.flat_map do |field|
+          added = (given[field] - now[field]).map { |text| context_change(field, text, 'set') }
+          left_out = replace ? (now[field] - given[field]).map { |text| context_change(field, text, 'remove') } : []
+          added + left_out
+        end
       end
     end
 
@@ -121,94 +68,95 @@ module MonadicSharedTools
     # @param people [Array<String>, nil] People to remove
     # @param notes [Array<String>, nil] Notes to remove
     # @return [Hash] Updated context
+    # An item is named by its text, or a person by the name before " - ".
+    # The items removed are those stored (by their own ids); what names none
+    # is said, and nothing at all removed is not a success.
     def remove_from_context(topics: nil, people: nil, notes: nil, session: nil)
       session ||= @session || Thread.current[:session]
-
-      current = get_context(session: session)
-      current_ctx = current[:context] || default_context
-
-      new_context = {
-        "topics" => (current_ctx["topics"] || []) - (topics || []),
-        "people" => (current_ctx["people"] || []) - (people || []),
-        "notes" => (current_ctx["notes"] || []) - (notes || [])
-      }
-
-      result = JSON.parse(monadic_save_state(key: CONTEXT_KEY, payload: new_context, session: session))
-
-      if result["success"]
-        # Broadcast context update to sidebar via WebSocket
-        broadcast_context_update(session, new_context)
-
-        {
-          success: true,
-          action: "removed",
-          context: new_context
-        }
-      else
-        {
-          success: false,
-          error: result["error"]
-        }
+      given = context_given(topics, people, notes)
+      Monadic::TurnState::Keeper.removing!(session)
+      not_found = []
+      result = changed_context(session, "removed") do |_now|
+        FIELDS.flat_map do |field|
+          items = Monadic::TurnState.items(session, field)
+          given[field].flat_map do |text|
+            found = items.select { |item| names_item?(field, item[:data].to_s, text) }
+            not_found << text if found.empty?
+            found.map { |item| item_removal(field, item[:id]) }
+          end
+        end.uniq
       end
+      return result if not_found.empty? || !result[:success]
+
+      removed_any = not_found.size < given.values.sum(&:size)
+      result.merge(success: removed_any, not_found: not_found,
+                   error: removed_any ? nil : "No note matched #{not_found.inspect}; nothing was removed.").compact
     end
 
     # Clear all context
     #
     # @return [Hash] Empty context confirmation
     def clear_context(session: nil)
-      update_context(replace: true, session: session)
+      session ||= @session || Thread.current[:session]
+      Monadic::TurnState::Keeper.removing!(session)
+      changed_context(session, "cleared") do |_now|
+        FIELDS.flat_map { |field| Monadic::TurnState.items(session, field).map { |item| item_removal(field, item[:id]) } }
+      end
     end
 
     private
 
-    # Broadcast context update to the client via WebSocket
-    # Sends only to the specific session, not to all clients
-    #
-    # @param session [Hash] The session object
-    # @param context [Hash] The updated context data
-    def broadcast_context_update(session, context)
-      session_id = session&.dig(:parameters, "session_id") ||
-                   session&.dig("parameters", "session_id") ||
-                   Thread.current[:websocket_session_id]
+    # What the model is given of the context with each request, as
+    # get_context returns it (Monadic::TurnState::ModelState). An app that
+    # keeps the context for its own use (DSL visibility "internal") names no
+    # load tool: the model has none.
+    def state_for_model(session)
+      internal = respond_to?(:settings) && settings.respond_to?(:[]) &&
+                 Array(settings[:internal_tool_names]).include?("get_context")
+      { data: context_texts(session), load_tool: internal ? nil : "get_context" }
+    end
 
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] broadcast_context_update called" }
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] session_id: #{session_id.inspect}" }
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] context: #{context.inspect}" }
-      end
+    # The page that shows the context on the work screen.
+    def state_notes
+      { title: "Context", lists: { "topics" => { label: "Topics" }, "people" => { label: "People" },
+                                   "notes" => { label: "Notes" } } }
+    end
 
-      unless session_id
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] No session_id found, skipping broadcast" }
-        return
-      end
+    def context_texts(session)
+      FIELDS.to_h { |field| [field, Monadic::TurnState.items(session, field).map { |item| item[:data] }] }
+    end
 
-      message = {
-        "type" => "context_update",
-        "context" => context,
-        "timestamp" => Time.now.to_f
-      }
-
-      # Use WebSocketHelper to send to specific session only
-      if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
-        WebSocketHelper.send_to_session(message.to_json, session_id)
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] Sent context_update to session #{session_id}" }
-      else
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] WebSocketHelper not available" }
-      end
-    rescue StandardError => e
-      # Log error but don't fail the context update
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] WebSocket broadcast error: #{e.message}" }
-        Monadic::Utils::ExtraLogger.log { "[SessionContext] Backtrace: #{e.backtrace.first(5).join("\n")}" }
+    def context_given(topics, people, notes)
+      { "topics" => topics, "people" => people, "notes" => notes }.transform_values do |value|
+        Array(value).map { |text| text.to_s.strip }.reject(&:empty?).uniq
       end
     end
 
-    def default_context
-      {
-        "topics" => [],
-        "people" => [],
-        "notes" => []
-      }
+    def names_item?(field, data, text)
+      return true if data == text
+
+      field == "people" && data.split(" - ", 2).first.to_s.strip == text.split(" - ", 2).first.to_s.strip
+    end
+
+    def item_removal(field, id)
+      { 'kind' => 'item', 'collection' => field, 'id' => id, 'op' => 'remove' }
+    end
+
+    # A text is the same item wherever it is added again.
+    def context_change(field, text, op)
+      change = { 'kind' => 'item', 'collection' => field, 'id' => Monadic::TurnState.text_id(text), 'op' => op }
+      op == 'set' ? change.merge('data' => text) : change
+    end
+
+    # One tool call's changes to the context, made together or not at all,
+    # and what the model is told of it.
+    def changed_context(session, action)
+      session ||= @session || Thread.current[:session]
+      changes = yield(context_texts(session))
+      Monadic::TurnState.change_all!(session, changes) unless changes.empty?
+      { success: true, action: action, context: context_texts(session) }
+    rescue Monadic::TurnState::Refused => e
+      { success: false, error: "Nothing was changed: #{e.message}." }
     end
   end
 end

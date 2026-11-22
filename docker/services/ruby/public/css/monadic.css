@@ -122,7 +122,7 @@ html, body, input, select, textarea {
 }
 
 button, .btn {
-  font-size: 13px;
+  font-size: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -193,7 +193,7 @@ textarea {
 
 /* Small buttons: slightly smaller font than base .btn (13px) */
 .btn-sm {
-  font-size: 12px;
+  font-size: inherit;
 }
 
 /* ============================================== */
@@ -259,7 +259,7 @@ textarea {
   font-weight: normal;
   min-width: 120px;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: inherit;
   line-height: 1.5;
   height: calc(1.5em + 0.5rem + 2px);
   vertical-align: middle;
@@ -617,7 +617,7 @@ textarea {
 /* Header label adjustments: ensure icon and text size remain balanced */
 
 #modeLabel, #dockerLabel, #systemLabel {
-  font-size: 0.85rem;
+  font-size: inherit;
 }
 
 #modeLabel i, #dockerLabel i, #systemLabel i {
@@ -643,7 +643,7 @@ img.base64-image {
 .func-stop,
 .func-delete,
 .func-edit,
-div.sourcecode-toggle,
+.sourcecode-toggle,
 #interaction-check-all,
 #interaction-uncheck-all,
 #interaction-toggle-all {
@@ -677,16 +677,21 @@ pre {
 
 /* START: SOURCECODE TOGGLE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
 
-div.sourcecode-toggle {
+.sourcecode-toggle {
+  display: block;
   color: #777;
   margin-top: 0.5em;
   margin-bottom: 0.75em;
-  font-size: 0.9em;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   user-select: none;
 }
 
-div.sourcecode-toggle i {
+.sourcecode-toggle i {
   margin-right: 0.5em;
 }
 
@@ -899,7 +904,7 @@ div[class*="alert-"]::after {
 
 span.status {
   font-family: var(--bs-font-sans-serif);
-  font-size: 0.8rem;
+  font-size: inherit;
   font-weight: 400;
   line-height: 1.5;
   color: #212529;
@@ -918,10 +923,6 @@ span.status.active {
 
 button.fixed-width {
   width: 140px;
-}
-
-.monadic-color {
-  color: var(--color-icon-primary);
 }
 
 /* START: ROLE COLOR IMPROVEMENTS - ADDED 2025-04-08 */
@@ -1080,7 +1081,7 @@ h5 i,
 
 #cancel_query span {
   color: #333;
-  font-size: 0.8rem;
+  font-size: inherit;
   font-weight: 500;
 }
 
@@ -1185,7 +1186,7 @@ blockquote ol {
 /* Legacy message-{type} classes removed - now using unified text-{type} system */
 
 .textbox-caption {
-  font-size: 0.9em;
+  font-size: inherit;
   color: #777;
 }
 
@@ -1202,7 +1203,8 @@ blockquote ol {
   display: inline-block;
 }
 
-div.sourcecode-toggle:hover {
+.sourcecode-toggle:hover,
+.sourcecode-toggle:focus-visible {
   color: #555;
   text-decoration: underline;
 }
@@ -1310,7 +1312,7 @@ div.sourcecode-toggle:hover {
 /* Ensure consistent button styling for all roles */
 
 .card-body .btn-sm {
-  font-size: 13px;
+  font-size: inherit;
   padding: 0.25rem 0.5rem;
   line-height: 1.5;
 }
@@ -1369,7 +1371,7 @@ div.diagram svg {
   width: 28px !important;
   height: 28px !important;
   padding: 5px 4px !important;
-  font-size: 14px !important;
+  font-size: inherit !important;
 }
 
 .abc-midi .abcjs-midi-progress-background {
@@ -1390,12 +1392,12 @@ div.diagram svg {
 }
 
 .abc-midi .abcjs-midi-tempo {
-  font-size: 10px !important;
+  font-size: inherit !important;
   width: 42px !important;
 }
 
 .abc-midi .abcjs-tempo-wrapper {
-  font-size: 10px !important;
+  font-size: inherit !important;
 }
 
 .generated-audio-player {
@@ -1457,7 +1459,7 @@ div.diagram svg {
 }
 
 .card-body table th {
-  font-size: 14px;
+  font-size: inherit;
   letter-spacing: 1px;
   text-transform: uppercase;
   background-color: var(--bg-hover);
@@ -1624,7 +1626,7 @@ legend {
   right: 8px; /* Positioned from right edge */
   height: 14px; /* Reduced height */
   line-height: 1; /* Reset line height */
-  font-size: 0.85em; /* Reduced font size */
+  font-size: inherit; /* Reduced font size */
   display: inline-block;
   opacity: var(--opacity-hover); /* Add slight transparency */
 }
@@ -1667,7 +1669,7 @@ legend {
   border: 1px solid #dee2e6;
   color: var(--json-label-primary);
   padding: 0.5rem;
-  font-size: 13px;
+  font-size: inherit;
   border-radius: 5px;
   cursor: pointer;
   transition: all var(--transition-fast) ease;
@@ -1718,7 +1720,7 @@ legend {
 
 .toggle-text {
   user-select: none;
-  font-size: 0.85em;
+  font-size: inherit;
   color: #777;
   cursor: pointer;
   margin-left: 0.5em;
@@ -1919,6 +1921,11 @@ legend {
   justify-content: space-between
 }
 
+/* A question with a sentence and a few buttons: as wide as that needs. */
+.modal-dialog.modal-confirm {
+  max-width: 26rem;
+}
+
 /* ─── Library: Knowledge Base Viewer modal ─────────────────────────── */
 /* The viewer surfaces a saved conversation verbatim, so it should feel
    like part of the chat surface rather than a stark dialog. We tint the
@@ -1991,7 +1998,7 @@ legend {
   cursor: pointer;
   list-style: revert;
   user-select: none;
-  font-size: 0.875rem;
+  font-size: inherit;
 }
 #library-viewer-messages details.library-viewer-system[open] summary {
   margin-bottom: 0.5rem;
@@ -2313,7 +2320,7 @@ pre code {
   margin-bottom: 1rem;
 }
 
-#monadic-info-panel, #ai-status-panel, #pdf-panel, #context-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+#monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   margin-bottom: 1rem;
@@ -2436,29 +2443,6 @@ h1 {
   display: block; /* Remove any default inline spacing */
 }
 
-#pdf-titles {
-  border: none;
-  background: transparent;
-}
-
-/* Local PDF row styling */
-
-.pdf-db-row {
-  background: #fff;
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  margin-bottom: 10px;
-}
-
-.pdf-db-row:hover {
-  background: #f7f7f7;
-}
-
-.pdf-db-name {
-  color: #555;
-}
-
 /* Custom dropdown styling */
 
 .custom-dropdown-group {
@@ -2472,7 +2456,7 @@ h1 {
   background-color: #f2f2f2;
   border-bottom: 1px solid #ddd;
   color: #666;
-  font-size: 0.85em;
+  font-size: inherit;
 }
 
 .custom-dropdown-group > span:first-child {
@@ -2496,7 +2480,7 @@ h1 {
   height: calc(1.5em + 0.5rem + 2px);
   display: flex;
   align-items: center;
-  font-size: 0.9em;
+  font-size: inherit;
 }
 
 .custom-dropdown-option i {
@@ -2582,7 +2566,7 @@ h1 {
   background-color: rgba(231, 76, 60, 0.8);
   color: white;
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: inherit;
   border-radius: 0 4px 0 4px;
   z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
@@ -2594,7 +2578,7 @@ h1 {
 }
 
 .mask-controls .btn {
-  font-size: 10px;
+  font-size: inherit;
   padding: 2px 6px;
   margin-right: 5px;
 }
@@ -2607,9 +2591,8 @@ h1 {
   background-color: #f8f8f8;
 }
 
-/* Generated images: shared frame styling + click affordance.
-   The actual click listener is attached dynamically in monadic.js;
-   cursor: pointer signals that the image opens in the lightbox. */
+/* Generated images: shared frame styling. One from the shared folder
+   opens on the work screen when clicked (workbench.js). */
 
 .generated_image img {
   background-color: white;
@@ -2621,21 +2604,6 @@ h1 {
   height: auto;
   display: inline-block;
   cursor: pointer;
-}
-
-/* Screenshot Lightbox */
-#screenshotLightbox .modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.85);
-}
-
-#screenshotLightbox .modal-content {
-  background: transparent !important;
-  overflow: visible !important;
-}
-
-#lightboxPrev:hover,
-#lightboxNext:hover {
-  background: rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Alternative selector for syntax tree SVGs if needed */
@@ -2787,7 +2755,7 @@ h1 {
 }
 
 .custom-dropdown-group.all-disabled .api-key-required {
-  font-size: 0.85em;
+  font-size: inherit;
   color: #999;
   font-weight: normal;
   margin-left: 8px;
@@ -3089,159 +3057,22 @@ img.base64-image,
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
-/* ============================================
-   Context Panel Styles
-   ============================================ */
-
-#context-panel {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.context-section {
-  margin-bottom: 0.5rem;
-  border: 1px solid var(--bs-border-color, #dee2e6);
-  border-radius: var(--border-radius, 4px);
-  overflow: hidden;
-}
-
-.context-section-header {
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-  background: var(--bs-tertiary-bg, #f8f9fa);
-  transition: background-color var(--transition-fast, 200ms) ease;
-  user-select: none;
-}
-
-.context-section-header:hover {
-  background: var(--bs-secondary-bg, #e9ecef);
-}
-
-.context-section-header i.toggle-icon {
-  transition: transform var(--transition-fast, 200ms) ease;
-}
-
-.context-section.collapsed .context-section-header i.toggle-icon {
-  transform: rotate(-90deg);
-}
-
-.context-section-content {
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid var(--bs-border-color, #dee2e6);
-}
-
-.context-section.collapsed .context-section-content {
-  display: none;
-}
-
-.context-item {
-  padding: 0.25rem 0.5rem;
-  margin: 0.25rem 0;
-  background: var(--bs-body-bg, #fff);
-  border: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.1));
-  border-radius: var(--border-radius, 4px);
-  font-size: 0.875rem;
-  word-break: break-word;
-}
-
-.context-items-list {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--bs-body-color, #212529);
-  word-break: break-word;
-}
-
-.context-badge {
-  font-size: 0.7rem;
-  min-width: 1.25rem;
-}
 
 /* Context Panel Turn Grouping */
 
-.context-items-grouped {
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.context-turn-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-}
-
-.context-turn-group.with-separator {
-  border-top: 1px dashed var(--bs-border-color, #dee2e6);
-  margin-top: 0.25rem;
-  padding-top: 0.5rem;
-}
-
-.context-turn-label {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--chip-neutral-color);
-  background: var(--chip-neutral-bg);
-  border: 1px solid var(--chip-neutral-border);
-  border-radius: 3px;
-  padding: calc(0.1rem - 1px) calc(0.35rem - 1px);
-  min-width: 1.5rem;
-  text-align: center;
-}
-
-.context-turn-items {
-  flex-grow: 1;
-  color: var(--bs-body-color);
-}
 
 /* Clickable turn labels */
 
-.context-turn-label.clickable {
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd);
-  color: white;
-  transform: scale(1.05);
-}
 
 /* Edited badge for re-extracted turns */
 
-.context-edited-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  color: #fd7e14;
-  margin-left: 2px;
-  opacity: 0.9;
-}
-
-.context-edited-badge i {
-  font-size: 0.55rem;
-}
-
-.context-turn-group.edited {
-  border-left: 2px solid #fd7e14;
-  padding-left: 6px;
-  margin-left: -8px;
-}
 
 /* Card turn number badge */
 
 .card-turn-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.65rem;
-  font-weight: 600;
   background: var(--chip-assistant-bg);
   color: var(--chip-assistant-color);
   border: 1px solid var(--chip-assistant-border);
-  padding: 1px 4px;
-  border-radius: 3px;
   margin-right: 8px;
   min-width: 22px;
   cursor: default;
@@ -3255,53 +3086,9 @@ img.base64-image,
   border-color: var(--chip-user-border);
 }
 
-/* Highlight effect when navigating to a card */
-
-.card.context-highlight {
-  animation: context-card-highlight 2s ease-out;
-}
-
-@keyframes context-card-highlight {
-  0% {
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.5);
-  }
-  100% {
-    box-shadow: none;
-  }
-}
-
-@keyframes context-card-highlight-dark {
-  0% {
-    box-shadow: 0 0 0 4px rgba(102, 178, 255, 0.5);
-  }
-  100% {
-    box-shadow: none;
-  }
-}
 
 /* Context Panel Loading Indicator */
 
-.context-loading-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 8px;
-  border-radius: 50%;
-  background-color: var(--accent-amber);
-  animation: context-loading-pulse 1.2s ease-in-out infinite;
-  vertical-align: middle;
-}
-
-@keyframes context-loading-pulse {
-  0%, 100% {
-    opacity: 0.4;
-    transform: scale(0.85);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
 
 /* Improvements for monadic context display */
 
@@ -3444,16 +3231,9 @@ img.base64-image,
 }
 
 .tool-group-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
   white-space: nowrap;
   cursor: default;
   transition: all 0.2s ease;
-  gap: 4px;
 }
 
 .tool-group-badge i {
@@ -3483,7 +3263,7 @@ img.base64-image,
 }
 
 .badge-category-label {
-  font-size: 11px;
+  font-size: inherit;
   font-weight: 600;
   color: #666;
   flex-shrink: 0;
@@ -3655,7 +3435,7 @@ img.base64-image,
 }
 
 #interaction-toggle-all {
-  font-size: 11px;
+  font-size: inherit;
   padding: 0.15rem 0.4rem;
   vertical-align: middle;
 }
@@ -3663,14 +3443,14 @@ img.base64-image,
 /* Enhanced dropdown styling */
 .enhanced-option {
   padding: 4px 8px;
-  font-size: 0.9em;
+  font-size: inherit;
 }
 
 .enhanced-separator {
   background-color: #f2f2f2;
   font-weight: bold;
   color: #666;
-  font-size: 0.85em;
+  font-size: inherit;
 }
 
 .enhanced-optgroup {
@@ -3763,13 +3543,59 @@ img.base64-image,
 }
 
 .btn-primary:hover {
-  background-color: #0056b3;
-  border-color: #0056b3;
+  background-color: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
 }
 
 .btn-primary:disabled {
   background-color: var(--btn-primary-disabled-bg);
   border-color: var(--btn-primary-disabled-bg);
+}
+
+.btn-success {
+  background-color: var(--btn-success-bg);
+  border-color: var(--btn-success-bg);
+  color: #fff;
+}
+
+.btn-success:focus {
+  box-shadow: 0 0 0 0.2rem var(--btn-success-focus-shadow-color);
+}
+
+.btn-success:active,
+.btn-success.active {
+  background-color: var(--btn-success-active-bg);
+  border-color: var(--btn-success-active-border);
+}
+
+/* Warning, danger, info and outlined danger buttons take the palette's
+   colors through Bootstrap's own button variables. Warning and info keep
+   dark text on their mid tone; danger is white on its strong tone; an
+   outlined danger is a soft red, not a filled one. */
+.btn-warning {
+  --bs-btn-bg: var(--pal-amber-mid); --bs-btn-border-color: var(--pal-amber-mid);
+  --bs-btn-hover-bg: var(--pal-amber-strong); --bs-btn-hover-border-color: var(--pal-amber-strong);
+  --bs-btn-active-bg: var(--pal-amber-strong-hover); --bs-btn-active-border-color: var(--pal-amber-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-amber-mid); --bs-btn-disabled-border-color: var(--pal-amber-mid);
+}
+.btn-info {
+  --bs-btn-bg: var(--pal-accent-mid); --bs-btn-border-color: var(--pal-accent-mid);
+  --bs-btn-hover-bg: var(--pal-accent-strong); --bs-btn-hover-border-color: var(--pal-accent-strong);
+  --bs-btn-active-bg: var(--pal-accent-strong-hover); --bs-btn-active-border-color: var(--pal-accent-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-accent-mid); --bs-btn-disabled-border-color: var(--pal-accent-mid);
+}
+.btn-danger {
+  --bs-btn-color: #fff; --bs-btn-hover-color: #fff; --bs-btn-active-color: #fff; --bs-btn-disabled-color: #fff;
+  --bs-btn-bg: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-strong);
+  --bs-btn-hover-bg: var(--pal-red-strong-hover); --bs-btn-hover-border-color: var(--pal-red-strong-hover);
+  --bs-btn-active-bg: var(--pal-red-strong-hover); --bs-btn-active-border-color: var(--pal-red-strong-hover);
+  --bs-btn-disabled-bg: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-mid);
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-line);
+  --bs-btn-hover-color: var(--pal-red-text); --bs-btn-hover-bg: var(--pal-red-soft); --bs-btn-hover-border-color: var(--pal-red-mid);
+  --bs-btn-active-color: var(--pal-red-text); --bs-btn-active-bg: var(--pal-red-soft); --bs-btn-active-border-color: var(--pal-red-mid);
+  --bs-btn-disabled-color: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-line);
 }
 
 /* Secondary button focus */
@@ -3819,7 +3645,7 @@ img.base64-image,
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  font-size: 0.875rem;
+  font-size: inherit;
   width: 250px;
   max-width: 250px;
   overflow: hidden;
@@ -3994,7 +3820,7 @@ img.base64-image,
 
 /* Tool execution status in temp card header */
 #tool-status {
-  font-size: 0.75rem;
+  font-size: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4008,245 +3834,12 @@ img.base64-image,
 #tool-status .fa-cog {
   color: #f59e0b;
 }
-
-/* Shared Folder panel: the toolbar and the preview sit on the panel
-   colour, the table head stays in view, rows show hover and choice. */
-#sharedFolderModal {
-  --sf-selected-bg: #dbe7f7;
-  --sf-selected-border: #8fb0dd;
-}
-#sharedFolderModal .sf-band {
-  background-color: var(--bg-panel);
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--border-radius-large);
-  padding: 0.5rem 0.75rem;
-}
-#sharedFolderModal .sf-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  font-weight: 600;
-  font-size: 0.85em;
-}
-#shared-folder-tbody tr > td {
-  transition: background-color 0.1s ease;
-}
-#shared-folder-tbody tr:hover > td {
-  background-color: var(--bg-hover);
-}
-#shared-folder-tbody tr.sf-selected > td {
-  background-color: var(--sf-selected-bg);
-}
-#shared-folder-tbody tr.sf-selected > td:first-child {
-  box-shadow: inset 3px 0 0 var(--sf-selected-border);
-}
-#shared-folder-tbody:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-blue) 60%, transparent);
-  outline-offset: 2px;
-}
-/* The keyboard's row, while the list has the focus. */
-#shared-folder-tbody:focus tr.sf-cursor > td {
-  border-top: 1px dashed var(--sf-selected-border);
-  border-bottom: 1px dashed var(--sf-selected-border);
-}
-#sharedFolderModal .sf-kind-folder { color: var(--accent-amber); }
-#sharedFolderModal .sf-kind-media { color: var(--accent-blue); }
-#sharedFolderModal .sf-kind-pdf { color: var(--accent-red); }
-#sharedFolderModal .sf-kind-other { color: var(--text-secondary); }
-#sharedFolderModal .modal-content { position: relative; }
-#sharedFolderModal .sf-folder-link {
-  color: inherit;
-  text-decoration: none;
-}
-#sharedFolderModal .sf-folder-link:hover {
-  color: var(--accent-blue);
-  text-decoration: underline;
-}
-/* Not d-flex: its !important would keep a hidden pager in view. */
-#sharedFolderModal .sf-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-/* Buttons take the Web UI's categories (grey moves around and acts on a
-   row, blue chooses, red moves to the Trash); next to each other they are
-   one height, whether they hold an icon, a count or words. */
-#sharedFolderModal .btn-sm {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  min-height: calc(1.5em + 0.5rem + 2px);
-}
-#sharedFolderModal .sf-preview-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background-color: rgba(0, 0, 0, 0.45);
-  border-radius: inherit;
-}
-/* The cards laid over the panel: the preview and the spinner while moving. */
-#sharedFolderModal .sf-preview-card,
-#sharedFolderModal .sf-busy-card {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-secondary);
-  border-radius: var(--border-radius-large);
-  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.3);
-}
-#sharedFolderModal .sf-preview-card {
-  width: 100%;
-  max-height: 100%;
-  overflow: auto;
-  padding: 0.75rem 1rem;
-}
-/* Long names wrap. On a narrow window only the table scrolls sideways
-   (there the head of the table no longer stays in view, as the box that
-   scrolls is then the table's own). */
-@media (max-width: 767.98px) {
-  #sharedFolderModal .sf-table-wrap {
-    overflow-x: auto;
-  }
-}
-#shared-folder-tbody td:first-child {
-  overflow-wrap: anywhere;
-  min-width: 12rem;
-}
-#sharedFolderModal .sf-preview-card pre { text-align: left; }
-/* Two bands: what is listed (search and filters), then what to do with it.
-   Each wraps as a whole group on a narrow panel; the width kept for what is
-   selected never shrinks, so the buttons beside it do not move. */
-#sharedFolderModal .sf-conditions,
-#sharedFolderModal .sf-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-#sharedFolderModal .sf-conditions .form-control,
-#sharedFolderModal .sf-conditions .form-select {
-  flex: 0 1 auto;
-}
-#sharedFolderModal .sf-choice-info {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex: 0 0 15rem;
-  min-width: 0;
-}
-#sharedFolderModal .sf-choice-info #shared-folder-selection {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-#sharedFolderModal .sf-actions .btn-sm {
-  white-space: nowrap;
-}
-#sharedFolderModal .sf-status {
-  color: var(--text-secondary);
-  padding: 0.25rem 0.5rem;
-}
-#sharedFolderModal .sf-status.sf-status-warn {
-  color: var(--text-primary);
-  background-color: color-mix(in srgb, var(--btn-warning) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--btn-warning) 45%, transparent);
-  border-radius: var(--border-radius);
-}
-#sharedFolderModal .sf-busy-card {
-  padding: 0.75rem 1.25rem;
-}
-
-/* Chat history: the latest chats in the sidebar, and the Chats tab of the
-   window it shares with the shared folder. */
-.history-recent-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: 0.25rem 0.375rem;
-  border-radius: var(--border-radius);
-  color: var(--text-primary);
-}
-.history-recent-item:hover,
-.history-recent-item:focus-visible {
-  background-color: var(--bg-hover);
-}
-.history-recent-item.is-open {
-  cursor: default;
-  color: var(--text-secondary);
-}
-.history-recent-name,
-.history-recent-topic {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.history-recent-name {
-  font-size: 0.875rem;
-}
-.history-recent-topic {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-#sharedFolderModal .manage-tabs {
-  border-bottom: 0;
-}
-#sharedFolderModal .history-name-cell {
-  min-width: 14rem;
-}
-#sharedFolderModal .history-name,
-#sharedFolderModal .history-topic {
-  overflow-wrap: anywhere;
-}
-#sharedFolderModal .history-open-badge {
-  background-color: var(--chip-neutral-bg);
-  border: 1px solid var(--chip-neutral-border);
-  color: var(--chip-neutral-color);
-  font-weight: normal;
-}
-
-  /* A Private chat makes no files: what would make them is hidden (the
-     server refuses it too). Set by WsPrivacyHandler. */
-  body.chat-private #doc,
-  body.chat-private #url,
-  body.chat-private #pdf-import,
-  body.chat-private #audio-upload {
-    display: none !important;
-  }
 } /* end @layer components */
 
 /* ============================================ */
 /* Dark Theme Layer: All dark mode overrides */
 /* ============================================ */
 @layer dark-theme {
-
-/* Shared Folder panel: hover and choice survive the dark table rule
-   (which clears cell backgrounds), with colours of the dark palette. */
-.dark-theme #sharedFolderModal {
-  --sf-selected-bg: #243a5a;
-  --sf-selected-border: #4a7bbf;
-}
-.dark-theme #shared-folder-tbody tr:hover > td {
-  background-color: var(--bg-hover);
-}
-.dark-theme #shared-folder-tbody tr.sf-selected > td {
-  background-color: var(--sf-selected-bg);
-}
-.dark-theme #sharedFolderModal .sf-table thead th {
-  background-color: var(--bg-secondary);
-}
-.dark-theme #sharedFolderModal .manage-tabs .nav-link.active {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-primary) var(--border-primary) transparent;
-  color: var(--text-primary);
-}
 
 
 /* ============================================== */
@@ -4763,85 +4356,9 @@ i.fas.fa-bolt,
   border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-/* Dark mode adjustments for context panel - use high specificity to override .shaded-panel rules */
-
-.dark-theme #context-panel .context-section {
-  border-color: var(--json-label-primary);
-  background: #1a1d20;
-}
-
-.dark-theme #context-panel .context-section-header {
-  background: #2b3035;
-}
-
-.dark-theme #context-panel .context-section-header span {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-section-header:hover {
-  background: #3a4045;
-}
-
-.dark-theme #context-panel .context-section-header i {
-  color: #adb5bd;
-}
-
-.dark-theme #context-panel .context-section-content {
-  background: #1a1d20;
-  border-top-color: var(--json-label-primary);
-}
-
-.dark-theme #context-panel .context-section-content div {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-item {
-  background: #212529;
-}
-
-.dark-theme #context-panel .context-items-list {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-badge {
-  background-color: #6c757d;
-  color: #fff;
-}
-
-.dark-theme #context-panel #context-legend {
-  color: #adb5bd;
-}
-
-.dark-theme #context-panel #context-legend span {
-  color: #adb5bd;
-}
 
 /* Dark mode for turn grouping */
 
-.dark-theme #context-panel .context-turn-items {
-  color: #dee2e6;
-}
-
-.dark-theme #context-panel .context-turn-group.with-separator {
-  border-top-color: var(--json-label-primary);
-}
-
-.dark-theme .context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd);
-  color: white;
-}
-
-.dark-theme .context-edited-badge {
-  color: #ffc107;
-}
-
-.dark-theme .context-turn-group.edited {
-  border-left-color: #ffc107;
-}
-
-.dark-theme .card.context-highlight {
-  animation: context-card-highlight-dark 2s ease-out;
-}
 
 .dark-theme .badge-category-label {
   color: #aaa;
@@ -4927,22 +4444,6 @@ i.fas.fa-bolt,
 
 .dark-theme #main-nav .nav-logo {
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
-}
-
-/* Dark mode: Delete buttons (red outline). Bootstrap's #dc3545 is dim on the
-   dark surfaces; the dark error color reads, with dark text when filled. */
-
-.dark-theme .btn-outline-danger {
-  --bs-btn-color: var(--status-error);
-  --bs-btn-border-color: var(--status-error);
-  --bs-btn-hover-color: var(--bg-body);
-  --bs-btn-hover-bg: var(--status-error);
-  --bs-btn-hover-border-color: var(--status-error);
-  --bs-btn-active-color: var(--bg-body);
-  --bs-btn-active-bg: var(--status-error);
-  --bs-btn-active-border-color: var(--status-error);
-  --bs-btn-disabled-color: var(--status-error);
-  --bs-btn-disabled-border-color: var(--status-error);
 }
 
 /* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
@@ -5409,7 +4910,7 @@ i.fas.fa-bolt,
   
   /* Reduce font size for labels */
   label, .form-label, .div-label {
-    font-size: 0.9em;
+    font-size: inherit;
   }
   
   /* Stack model parameters vertically */
@@ -5438,7 +4939,7 @@ i.fas.fa-bolt,
     width: auto;
     margin: 5px 10px 5px 0; /* Increased right margin for better spacing */
     padding: 6px 12px; /* Slightly increased padding */
-    font-size: 13px;
+    font-size: inherit;
   }
   
   /* Media/content buttons should be horizontal on mobile */
@@ -5458,7 +4959,7 @@ i.fas.fa-bolt,
     width: auto;
     margin: 5px 10px 5px 0;
     padding: 6px 12px;
-    font-size: 0.85em;
+    font-size: inherit;
     white-space: nowrap;
   }
   
@@ -5485,7 +4986,7 @@ i.fas.fa-bolt,
   /* AI User section improvements */
   .user-color.fw-bold {
     white-space: nowrap;
-    font-size: 0.9em;
+    font-size: inherit;
   }
   
   /* Make AI User section stack properly */
@@ -5502,14 +5003,14 @@ i.fas.fa-bolt,
   #ai_user_provider {
     max-width: 120px;
     margin-left: 5px;
-    font-size: 0.9em;
+    font-size: inherit;
   }
   
   /* Shrink Run button */
   #ai_user {
     padding: 4px 8px;
     min-width: 40px;
-    font-size: 0.85em;
+    font-size: inherit;
   }
   
   /* Improve speech input controls */
@@ -5524,7 +5025,7 @@ i.fas.fa-bolt,
     margin-right: 10px;
     margin-bottom: 10px;
     padding: 6px 12px;
-    font-size: 0.85em;
+    font-size: inherit;
   }
   
   /* Adjust amplitude display to be properly aligned with voice button */
@@ -5570,7 +5071,7 @@ i.fas.fa-bolt,
     height: auto;
     /* Removed min-height for more compact buttons */
     flex: 0 0 auto; /* Don't grow or shrink */
-    font-size: 13px; /* Match Electron main window buttons */
+    font-size: inherit; /* Match Electron main window buttons */
   }
   
   /* Adjust spacing between voice row and role row */
@@ -5594,7 +5095,7 @@ i.fas.fa-bolt,
     margin-bottom: 8px;
     margin-left: 0;
     padding-left: 0;
-    font-size: 0.85em;
+    font-size: inherit;
     text-align: left;
     clear: both; /* Ensure it appears below the buttons */
     order: 2; /* Place it after the buttons in flex layout */
@@ -5715,7 +5216,7 @@ i.fas.fa-bolt,
   }
   
   /* Optimize panel spacing on mobile */
-  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel, #pdf-panel {
+  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel {
     margin-bottom: 0.6rem; /* Further reduce space between panels */
     padding-top: 0.6rem; /* Less padding to reduce overall spacing */
     padding-bottom: 0.6rem;
@@ -5843,8 +5344,14 @@ i.fas.fa-bolt,
   /* Warning buttons - add background color change */
   .btn-warning:hover:not(:disabled),
   #reset:hover:not(:disabled) {
-    background-color: #e0a800;
-    border-color: #d39e00;
+    background-color: var(--pal-amber-strong);
+    border-color: var(--pal-amber-strong);
+  }
+
+  /* The voice button keeps its own colour on hover */
+  #voice.btn-warning:hover:not(:disabled) {
+    background-color: var(--voice-btn-hover-bg);
+    border-color: var(--voice-btn-hover-border);
   }
 
   /* Secondary buttons - add background color change */
@@ -5861,6 +5368,11 @@ i.fas.fa-bolt,
   #start-button:hover:not(:disabled) {
     background-color: var(--btn-primary-hover-bg);
     border-color: var(--btn-primary-hover-border);
+  }
+
+  .btn-success:hover:not(:disabled) {
+    background-color: var(--btn-success-hover-bg);
+    border-color: var(--btn-success-hover-border);
   }
 
   .dark-theme .btn-warning:hover:not(:disabled),
@@ -5903,8 +5415,7 @@ i.fas.fa-bolt,
 
 @media (max-width: 767px) {
   /* CRITICAL: Maintain scrollable area on mobile with minimal bottom padding */
-  #main.scrollable,
-  .col-md-8.order-md-1.scrollable {
+  #main.scrollable {
     max-height: calc(100vh - 65px);
     overflow-y: auto;
     padding-bottom: 20px;
@@ -5997,67 +5508,6 @@ i.fas.fa-bolt,
 }
 
 
-/* Shared Folder panel: the same categories as elsewhere (grey, blue,
-   red) in quieter tones. Kept here, after the hover rules above, since a
-   later layer wins over any selector in an earlier one. */
-#sharedFolderModal .btn-secondary {
-  background-color: #8a939e;
-  border-color: #8a939e;
-  color: #ffffff;
-}
-#sharedFolderModal .btn-primary {
-  background-color: #4a72b0;
-  border-color: #4a72b0;
-  color: #ffffff;
-}
-#sharedFolderModal .btn-danger {
-  background-color: #bf625e;
-  border-color: #bf625e;
-  color: #ffffff;
-}
-#sharedFolderModal .btn-secondary:hover:not(:disabled),
-#sharedFolderModal .btn-secondary:active {
-  background-color: #77818c;
-  border-color: #77818c;
-}
-#sharedFolderModal .btn-primary:hover:not(:disabled),
-#sharedFolderModal .btn-primary:active {
-  background-color: #43699f;
-  border-color: #43699f;
-}
-#sharedFolderModal .btn-danger:hover:not(:disabled),
-#sharedFolderModal .btn-danger:active {
-  background-color: #a9524e;
-  border-color: #a9524e;
-}
-.dark-theme #sharedFolderModal .btn-secondary {
-  background-color: #525c69;
-  border-color: #525c69;
-  color: #e5e7eb;
-}
-.dark-theme #sharedFolderModal .btn-primary {
-  background-color: #3f669f;
-  border-color: #3f669f;
-  color: #eef2f8;
-}
-.dark-theme #sharedFolderModal .btn-danger {
-  background-color: #9c4f4b;
-  border-color: #9c4f4b;
-  color: #f6eceb;
-}
-.dark-theme #sharedFolderModal .btn-secondary:hover:not(:disabled) {
-  background-color: #5f6a78;
-  border-color: #5f6a78;
-}
-.dark-theme #sharedFolderModal .btn-primary:hover:not(:disabled) {
-  background-color: #446ca6;
-  border-color: #446ca6;
-}
-.dark-theme #sharedFolderModal .btn-danger:hover:not(:disabled) {
-  background-color: #ab5955;
-  border-color: #ab5955;
-}
-
 } /* end @layer responsive */
 
 /* ============================================ */
@@ -6090,7 +5540,6 @@ i.fas.fa-bolt,
 }
 
 
-
 /* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
 
 /* Opacity utilities */
@@ -6107,50 +5556,11 @@ i.fas.fa-bolt,
 
 /* ── Collapsible Settings Header ─────────────────────────── */
 
-/* Toggle header is darker than the .shaded-panel body so its role as an
-   interactive control reads at a glance. The shade is derived by mixing panel
-   with page body color (darker than panel in both themes), keeping the
-   relative offset consistent across themes without a new variable. The first
-   declaration is a fallback for browsers without color-mix(). Blend ratios
-   are tuned so the resting state is clearly distinct (~17 RGB units darker
-   in light theme) without losing the "card" feel; hover deepens further
-   (~24 units). */
+/* The bar over the main column: the same strip as the side column's tabs. */
 #config-summary {
   background: var(--bg-hover, #e9ecef);
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
-  border: 1px solid var(--border-light, #dee2e6);
-  transition: background-color 0.15s ease;
-  user-select: none;
-  cursor: pointer;
-}
-
-#config-summary:hover {
-  background: var(--bg-hover, #e9ecef);
-  background: color-mix(in srgb, var(--bg-panel) 20%, var(--bg-body));
-}
-
-/* Before a session starts the settings are the whole screen, so collapsing
-   them reveals nothing — the summary bar is locked (JS removes data-bs-toggle)
-   and must not LOOK clickable either: no pointer, no chevron, no hover shift. */
-#config-summary.config-summary-locked {
-  cursor: default;
-}
-#config-summary.config-summary-locked:hover {
-  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
-}
-#config-summary.config-summary-locked .config-collapse-icon {
-  display: none;
-}
-
-.config-collapse-icon {
-  transition: transform 0.3s ease;
-  font-size: 0.85em;
-  color: var(--text-secondary, #6c757d);
-}
-
-/* Rotate chevron when config-body is expanded */
-#config-summary[aria-expanded="true"] .config-collapse-icon {
-  transform: rotate(180deg);
+  border: var(--border-width) solid var(--border-light);
 }
 
 .setting-locked {
@@ -6196,99 +5606,193 @@ i.fas.fa-bolt,
 }
 
 
-/* Privacy Filter indicator (Block C.2). Four states: ready/active/error.
-   OFF state hides the element via inline style="display:none". */
-.privacy-indicator {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.78em;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: default;
-  user-select: none;
-}
-.privacy-indicator.privacy-ready {
-  background-color: #f1f3f5;
-  color: #6c757d;
-}
-.privacy-indicator.privacy-active {
-  background-color: #d1f4dc;
-  color: #198754;
-}
-.privacy-indicator.privacy-error {
-  background-color: #f8d7da;
-  color: #b02a37;
-}
-.privacy-indicator i {
-  margin-right: 4px;
+/* The bar at the top of a column, with the space below it. The side
+   column's bar is its tabs at this height (their labels are one line), so
+   what stays under it knows where it ends. */
+:root { --side-pane-tabs-height: 46px; }
+.column-bar { padding-bottom: var(--spacing-sm); }
+
+/* Text is never smaller than the page's own: Bootstrap's small text and
+   the text of its small buttons and fields take the size around them (their
+   tighter padding stays). */
+small, .small,
+.btn-sm, .btn-group-sm > .btn,
+.form-control-sm, .form-select-sm,
+.input-group-sm > .form-control, .input-group-sm > .form-select,
+.input-group-sm > .input-group-text, .input-group-sm > .btn {
+  font-size: inherit;
 }
 
-/* Speech-to-speech session cost readout. Sits next to the privacy indicator
+/* A chat's word table: the panel above the message box. Text is the
+   page's own size; what does not fit opens on request (word-table-how). */
+.word-table-panel {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid #e5e5ea;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+}
+.word-table-head { display: flex; align-items: center; gap: 6px; }
+.word-table-icon-button {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #4f78b8;
+}
+.word-table-icon-button:hover { background-color: rgba(79, 120, 184, 0.12); }
+.word-table-how { margin: 8px 0 0; }
+.word-table-preview-wrap { position: relative; margin-top: 8px; }
+.word-table-preview {
+  padding: 8px 10px;
+  max-height: 12em;
+  min-height: 2.6em;
+  overflow-y: auto;
+  line-height: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background-color: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 4px;
+}
+.word-table-hidden {
+  padding: 2px 2px 2px 6px;
+  border-radius: 4px;
+  background-color: #dfe6f1;
+  color: inherit;
+}
+.word-table-type {
+  margin-right: 6px;
+  color: #3b639b;
+  font-weight: 600;
+  user-select: none;
+}
+.word-table-off {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7em;
+  height: 1.7em;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #6c757d;
+  vertical-align: middle;
+  user-select: none;
+}
+.word-table-off:hover { background-color: rgba(191, 98, 94, 0.14); color: #bf625e; }
+.word-table-add {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  background-color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.word-table-add-label { margin-right: 2px; font-weight: 600; }
+.word-table-add-problem { color: #a94442; }
+.word-table-type-select { width: auto; display: inline-block; }
+.word-table-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.word-table-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid #d5dbe3;
+  border-radius: 6px;
+  background-color: #fff;
+}
+.word-table-draft { border-style: dashed; border-color: #8a939e; }
+.word-table-kept { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; color: #5c636a; }
+.word-table-kept:empty { display: none; }
+.word-table-putback {
+  padding: 2px 10px;
+  border: 1px solid #d5dbe3;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+}
+.word-table-error { margin-top: 8px; color: #a94442; }
+.word-table-note { margin: 10px 0; color: #5c636a; }
+.word-table-status {
+  border: 1px solid var(--bdg-blue-bd);
+  background-color: var(--bdg-blue-bg);
+  color: var(--bdg-blue-fg);
+  white-space: nowrap;
+}
+.word-table-status.word-table-unavailable {
+  border-color: var(--bdg-red-bd);
+  background-color: var(--bdg-red-bg);
+  color: var(--bdg-red-fg);
+}
+/* What the next message carries: a chip per file under the message box,
+   and the same files above the work screen's items. A chip's name shows the
+   file on the work screen. */
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0 var(--spacing-xs) var(--spacing-xs) 0;
+}
+.attachment-chip-name {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--border-radius);
+  background: none;
+  color: inherit;
+  text-align: left;
+  min-width: 0;
+  justify-content: flex-start;
+}
+.attachment-chip-name:hover { background-color: var(--bg-hover, #e9ecef); }
+.workbench-drafts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }
+.workbench-drafts-label { color: var(--text-secondary); margin-right: var(--spacing-xs); }
+.workbench-draft { cursor: pointer; border-style: solid; }
+.workbench-draft[aria-pressed="true"] { border-color: var(--color-link); }
+#discourse .pdf-preview { cursor: pointer; }
+
+/* The buttons under the message box keep a gap when they wrap. */
+.message-tools { row-gap: 8px; }
+/* Voice input and its meter, beside the other tools (hidden by monadic.js
+   where the browser cannot record). */
+.voice-input { display: inline-flex; align-items: center; }
+/* A hidden word as the conversation shows it: its title says what was sent. */
+.word-table-shown { border-bottom: 1px dotted #4f78b8; cursor: help; }
+/* A shared folder path shown by its file name: its title is the whole path. */
+.short-path { border-bottom: 1px dotted var(--text-secondary); }
+.dark-theme .word-table-panel,
+.dark-theme .word-table-preview,
+.dark-theme .word-table-add,
+.dark-theme .word-table-word { background-color: #2b2f36; border-color: #454b55; }
+.dark-theme .word-table-hidden { background-color: #3f4b5e; color: #e5e5ea; }
+.dark-theme .word-table-type { color: #a9c1e8; }
+.dark-theme .word-table-note,
+.dark-theme .word-table-kept { color: #b8bec6; }
+.dark-theme .word-table-putback { border-color: #454b55; }
+.dark-theme .word-table-shown { border-bottom-color: #a9c1e8; }
+
+/* Speech-to-speech session cost readout. Sits next to the status line
    and follows its shape; hidden via inline style="display:none" until the
    first STS turn completes. Deliberately low-contrast: it is a standing
    reference figure, not an alert. */
 .sts-usage-indicator {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.78em;
-  font-weight: 500;
   white-space: nowrap;
   cursor: default;
   user-select: none;
-  background-color: #f1f3f5;
-  color: #6c757d;
+  background-color: var(--bdg-grey-bg);
+  border: 1px solid var(--bdg-grey-bd);
+  color: var(--bdg-grey-fg);
 }
 .sts-usage-indicator i {
   margin-right: 4px;
-}
-
-/* Privacy Filter auto-detected language badge — appears next to the
-   indicator label when LanguageDetector has locked the session to a
-   reliable detection (auto mode only). The badge inherits the host
-   indicator's color so it reads as a sub-element rather than competing
-   with the main "Privacy ON (N)" label. */
-.privacy-lang-badge {
-  display: inline-block;
-  margin-left: 4px;
-  padding: 0 5px;
-  border-radius: 8px;
-  font-size: 0.95em;
-  font-weight: 500;
-  background-color: rgba(255, 255, 255, 0.55);
-}
-.privacy-lang-badge i {
-  margin-right: 2px;
-  font-size: 0.85em;
-}
-.dark-theme .privacy-lang-badge {
-  background-color: rgba(0, 0, 0, 0.25);
-}
-
-/* Privacy Filter unmask highlight: applied to user / assistant card text
-   spans whose value is tracked in the per-session privacy registry.
-   Subtle by design — gray background carries the "this is a tracked
-   value" affordance, while the underline color encodes entity identity:
-   the SAME placeholder hashes to the SAME color slot (data-color="N"),
-   so the same name reads as the same color in every card.
-   Hover reveals the originating placeholder via the title attribute. */
-.privacy-unmasked {
-  background-color: rgba(0, 0, 0, 0.06);
-  border-bottom: 2px solid rgba(108, 117, 125, 0.7);
-  padding: 0 1px;
-  border-radius: 2px;
-  cursor: help;
-}
-.privacy-unmasked:hover {
-  background-color: rgba(0, 0, 0, 0.10);
-}
-.dark-theme .privacy-unmasked {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-bottom-color: rgba(173, 181, 189, 0.7);
-}
-.dark-theme .privacy-unmasked:hover {
-  background-color: rgba(255, 255, 255, 0.14);
 }
 
 /* Vocabulary ${TOKEN} decoration: clickable, opens the resolved path in the
@@ -6345,29 +5849,7 @@ i.fas.fa-bolt,
    right-aligns the chevron; the [aria-expanded="true"] rule rotates it). No
    bespoke rules are needed; default state is collapsed. */
 
-/* Per-entity color palette (8 slots). Slot is computed in JS as
-   hash(placeholder) % 8 so the same placeholder lands in the same slot
-   across every card. Light-theme values aim for ~600-shade Tailwind
-   tones (visible on white but not garish); dark-theme values shift to
-   ~400-shade so they read against the dark surface. */
-.privacy-unmasked[data-color="0"] { border-bottom-color: #2563eb; }  /* blue */
-.privacy-unmasked[data-color="1"] { border-bottom-color: #059669; }  /* green */
-.privacy-unmasked[data-color="2"] { border-bottom-color: #7c3aed; }  /* purple */
-.privacy-unmasked[data-color="3"] { border-bottom-color: #ea580c; }  /* orange */
-.privacy-unmasked[data-color="4"] { border-bottom-color: #db2777; }  /* pink */
-.privacy-unmasked[data-color="5"] { border-bottom-color: #0891b2; }  /* teal */
-.privacy-unmasked[data-color="6"] { border-bottom-color: #4f46e5; }  /* indigo */
-.privacy-unmasked[data-color="7"] { border-bottom-color: #ca8a04; }  /* amber */
-.dark-theme .privacy-unmasked[data-color="0"] { border-bottom-color: #60a5fa; }
-.dark-theme .privacy-unmasked[data-color="1"] { border-bottom-color: #34d399; }
-.dark-theme .privacy-unmasked[data-color="2"] { border-bottom-color: #a78bfa; }
-.dark-theme .privacy-unmasked[data-color="3"] { border-bottom-color: #fb923c; }
-.dark-theme .privacy-unmasked[data-color="4"] { border-bottom-color: #f472b6; }
-.dark-theme .privacy-unmasked[data-color="5"] { border-bottom-color: #22d3ee; }
-.dark-theme .privacy-unmasked[data-color="6"] { border-bottom-color: #818cf8; }
-.dark-theme .privacy-unmasked[data-color="7"] { border-bottom-color: #facc15; }
-
-/* Privacy Filter export dialog (Block D.3) — strength meter bar */
+/* Export dialog — strength meter bar */
 .privacy-strength-bar {
   width: 100%;
   height: 6px;
@@ -6386,17 +5868,16 @@ i.fas.fa-bolt,
 .privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
 .privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }
 
-/* App-capability gate (MDSL SSOT, Phase 4).
-   Body classes (app-cap-pf / app-cap-kb-save / app-cap-kb-search) are set by
+/* App-capability gate (MDSL SSOT).
+   Body classes (app-cap-kb-save / app-cap-kb-search) are set by
    applyAppCapabilityClasses() in monadic.js from per-app MDSL flags
-   (privacy_enabled, library_save, library_search); app-privacy-on is set
-   independently from live privacy state pushes.
+   (library_save, library_search).
 
-   The Knowledge Base panel and the Privacy Filter toggle stay VISIBLE on every
+   The Knowledge Base panel stays VISIBLE on every
    app. JS owns the disabled state + tooltip (applyAppCapabilityClasses for the
-   KB retrieval and Privacy toggles, updateSaveButtonAvailability for the Save
-   button), so a control a user expects is shown disabled-with-reason rather
-   than vanishing where it isn't supported — consistent across KB and Privacy.
+   KB retrieval toggle, updateSaveButtonAvailability for the Save button), so
+   a control a user expects is shown disabled-with-reason rather than vanishing
+   where it isn't supported.
    The classes remain available for any app-aware styling. */
 
 /* --- Confidence-via-agreement (Verify button) --------------------------- */
@@ -6407,7 +5888,7 @@ i.fas.fa-bolt,
 }
 .func-verify {
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: inherit;
   color: var(--color-link);
   user-select: none;
 }
@@ -6425,7 +5906,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 }
 .verify-result--pending {
   padding: 0.5rem 0.75rem;
-  font-size: 0.9rem;
+  font-size: inherit;
   color: var(--color-link);
 }
 .verify-header {
@@ -6440,23 +5921,17 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-caret { transition: transform 0.15s ease; font-size: 0.8rem; color: #6c757d; }
 .verify-collapsed .verify-caret { transform: rotate(-90deg); }
 .verify-collapsed .verify-body { display: none; }
-.verify-body { padding: 0 0.75rem 0.6rem 0.75rem; font-size: 0.9rem; }
+.verify-body { padding: 0 0.75rem 0.6rem 0.75rem; font-size: inherit; }
 .verify-row { margin-top: 0.4rem; }
 .verify-list { margin: 0.2rem 0 0.2rem 1.1rem; padding: 0; }
 .verify-rec { color: #6c757d; font-weight: 500; }
-.verify-weak { color: var(--accent-amber); font-weight: 500; }
+.verify-weak { color: var(--pal-amber-text); font-weight: 500; }
 .verify-muted { color: #6c757d; }
 .verify-error { color: var(--accent-red); }
 
 .verify-badge {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  background: #6c757d;
-  line-height: 1.2;
+  color: var(--bdg-grey-fg);
+  background: var(--bdg-grey-bg);
 }
 /* Confidence badge colors (.verify-badge--*) are defined with the rest of the
    badge rules near the end of this file; the colours are in tokens.css
@@ -6475,7 +5950,7 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   margin: 0.25rem 0 0.25rem 1rem;
   padding: 0.4rem 0.6rem;
   border-left: 2px solid var(--border-color);
-  font-size: 0.85rem;
+  font-size: inherit;
   color: #555;
 }
 .verify-panel-open .verify-panel-text { display: block; }
@@ -6485,25 +5960,20 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 .verify-panel-text > :last-child { margin-bottom: 0; }
 .verify-panel-text h1, .verify-panel-text h2, .verify-panel-text h3,
 .verify-panel-text h4, .verify-panel-text h5, .verify-panel-text h6 {
-  font-size: 0.95rem; font-weight: 700; margin: 0.5rem 0 0.25rem;
+  font-size: inherit; font-weight: 700; margin: 0.5rem 0 0.25rem;
 }
-.verify-panel-text table { font-size: 0.8rem; border-collapse: collapse; }
+.verify-panel-text table { font-size: inherit; border-collapse: collapse; }
 .verify-panel-text th, .verify-panel-text td {
   border: 1px solid var(--border-color); padding: 0.15rem 0.4rem;
 }
-.verify-panel-text pre { font-size: 0.8rem; overflow-x: auto; }
+.verify-panel-text pre { font-size: inherit; overflow-x: auto; }
 .verify-panel-raw { white-space: pre-wrap; margin: 0; font-family: inherit; }
 
 /* Verify: at-a-glance header chip */
 .verify-chip {
-  display: inline-block;
   margin-left: 0.5rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #fff;
-  background: #6c757d;
+  color: var(--bdg-grey-fg);
+  background: var(--bdg-grey-bg);
   cursor: pointer;
   vertical-align: middle;
 }
@@ -6512,24 +5982,53 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    One pill shape + size for every badge family, applied last so it overrides
    each family's original geometry. All families share the soft treatment
    (tint background + accent border + accent text) defined below. */
+/* Tags. Two shapes, one size and one weight everywhere: a pill for what
+   something is or how it stands (a feature, a state), and a box with
+   slightly rounded corners for a number or a short mark (a turn, "edited").
+   Colors come from the five families below (--bdg-*): blue for information
+   or a feature on, green for what went well, amber for a caution or a
+   setting's value, red for danger or failure, grey for the rest. */
 .mc-badge,
 .badge-tools,
 .badge-capabilities,
 .tool-group-badge,
 .verify-badge,
-.privacy-lang-badge {
+.verify-chip,
+.sts-usage-indicator,
+.word-table-status {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   padding: 0.22rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: inherit;
   font-weight: 600;
   line-height: 1.2;
   vertical-align: middle;
 }
-
-
+/* A tag in a card's title is the size of the role beside it, not of the
+   title's heading. */
+.card-header .card-title .mc-badge {
+  font-size: 1rem;
+}
+/* What an app has (its tools and capabilities, in the menu) is a list to
+   read, not a state to notice: regular weight. */
+.badge-tools,
+.badge-capabilities,
+.tool-group-badge {
+  font-weight: 400;
+}
+.mc-badge--mark,
+.card-turn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--border-radius);
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+}
 
 /* The app's own badge component. Markup uses `mc-badge mc-badge--<family>`
    instead of Bootstrap's `badge bg-*`: bootstrap.min.css is imported into
@@ -6650,27 +6149,27 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    (#e5e5ea/#f8f9fa). While live, the hue shifts to a muted brick with a
    soft pulse — "recording" without alarm-red urgency. */
 .btn-lc {
-  background-color: #6d5fa8;
-  border-color: #6d5fa8;
+  background-color: var(--btn-live-bg);
+  border-color: var(--btn-live-bg);
   color: #fff;
 }
 .btn-lc:hover, .btn-lc:focus {
-  background-color: #5d5090;
-  border-color: #5d5090;
+  background-color: var(--btn-live-hover-bg);
+  border-color: var(--btn-live-hover-bg);
   color: #fff;
 }
 .btn-lc.btn-lc-live {
-  background-color: #a94442;
-  border-color: #a94442;
+  background-color: var(--pal-red-strong);
+  border-color: var(--pal-red-strong);
   animation: lc-live-pulse 2s ease-in-out infinite;
 }
 .btn-lc.btn-lc-live:hover, .btn-lc.btn-lc-live:focus {
-  background-color: #8f3a38;
-  border-color: #8f3a38;
+  background-color: var(--pal-red-strong-hover);
+  border-color: var(--pal-red-strong-hover);
 }
 @keyframes lc-live-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(169, 68, 66, 0.35); }
-  50% { box-shadow: 0 0 0 6px rgba(169, 68, 66, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pal-red-strong) 35%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--pal-red-strong) 0%, transparent); }
 }
 
 /* Usage note shown while the conversation is empty (explicit Start/Stop
@@ -6704,17 +6203,33 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   margin-bottom: 0.5rem;
 }
 .lc-live-zone .lc-live-role {
-  font-size: 0.75rem;
-  color: var(--bs-secondary-color, #6c757d);
+  font-size: inherit;
   margin-bottom: 0.15rem;
+}
+.lc-live-zone .lc-live-role i {
+  margin-right: 0.4rem;
+}
+/* A zone in the colors of its role's card. */
+.lc-live-zone[data-role="user"] {
+  border-left-color: var(--color-user);
+  background-color: var(--bg-card-user);
+}
+.lc-live-zone[data-role="user"] .lc-live-role i {
+  color: var(--color-user);
+}
+.lc-live-zone[data-role="assistant"] {
+  border-left-color: var(--color-assistant);
+  background-color: var(--bg-card-assistant);
+}
+.lc-live-zone[data-role="assistant"] .lc-live-role i {
+  color: var(--color-assistant);
 }
 .lc-live-prev {
   opacity: 0.65;
 }
-#lc-live-current {
-  border-left-color: #6d5fa8;
-}
-#lc-live-current .lc-live-text {
+/* Both zones in the same size: what the user said is read as easily as the
+   reply. */
+.lc-live-zone .lc-live-text {
   font-size: 1.05rem;
 }
 
@@ -6742,22 +6257,840 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 }
 
 /* Type menu of the Mask button: a compact list of actions (not links). */
-.privacy-mark-menu {
+/* The two columns side by side (768 px and wider): the side column is
+   --side-pane-width of the row, the same for each of its panes, and the
+   conversation takes the rest; layout-controller.js sets the width from the
+   user's choice (#side-pane-splitter). The side column is never narrower
+   than its three tabs need (24rem) and leaves the conversation at least
+   22rem (--side-pane-basis, also where the border is drawn). Narrower than
+   768 px, the columns take turns at the full width, as Bootstrap's row
+   gives them. min-width: 0 keeps long content (a name, a table, a PDF) from
+   widening a column; it scrolls inside. */
+@media (min-width: 768px) {
+  #contents > .row {
+    --side-pane-width: 40%;
+    --side-pane-basis: min(max(var(--side-pane-width), 24rem), calc(100% - 22rem));
+    position: relative;
+    flex-wrap: nowrap;
+  }
+  #contents > .row > #menu {
+    order: 2;
+    flex: 0 0 var(--side-pane-basis);
+    width: var(--side-pane-basis);
+    max-width: var(--side-pane-basis);
+    min-width: 0;
+  }
+  #contents > .row > #main {
+    order: 1;
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+  /* The bars at the top of each column stay there, at its top edge, while
+     the column scrolls under them. Each sits in a square of the page's
+     color (column-bar), so what scrolls shows neither below a bar nor
+     outside its rounded corners. */
+  #contents > .row > #menu,
+  #contents > .row > #main {
+    padding-top: 0;
+  }
+  .column-bar {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    background-color: var(--bg-body);
+  }
+  /* A pane's search, order and selection controls stay under the side
+     column's bar while its list scrolls. */
+  .shared-files-pane .sfp-head {
+    position: sticky;
+    top: calc(var(--side-pane-tabs-height) + var(--spacing-sm));
+    z-index: 5;
+    /* Its controls' bottom margin stays inside it (flow-root), so the list
+       scrolls under that space, as wide as the space above the controls. */
+    display: flow-root;
+    background-color: var(--bg-body);
+  }
+}
+
+/* The border between the columns, dragged to set the side column's width:
+   in the row (not in a column that scrolls), over the gutter between the
+   columns. Hidden while the side column is, and below 768 px. */
+#side-pane-splitter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--side-pane-basis);
+  width: var(--spacing-sm);
+  transform: translateX(50%);
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 7;
+}
+#side-pane-splitter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: var(--border-width);
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+#side-pane-splitter:hover::after,
+#side-pane-splitter:focus-visible::after,
+body.side-pane-resizing #side-pane-splitter::after {
+  background: var(--focus-outline);
+  width: 3px;
+  transform: translateX(-1px);
+}
+#side-pane-splitter:focus-visible {
+  outline: none;
+}
+body.side-pane-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+@media (max-width: 767.98px) {
+  #side-pane-splitter {
+    display: none;
+  }
+}
+
+/* The Files and History tabs of the side column (shared-folder-panel.js,
+   history-panel.js): a list in the box of the other panels, with what is
+   done with it in bands above it and in small menus (row-menu.js). */
+.shared-files-pane .sfp-bar,
+.shared-files-pane .sfp-find,
+.shared-files-pane .sfp-band,
+.shared-files-pane .sfp-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.shared-files-pane .sfp-where {
+  flex: 1 1 auto;
   min-width: 0;
-  padding: 0.25rem 0;
-  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
 }
-
-.privacy-mark-menu .dropdown-item {
-  padding: 0.2rem 0.9rem;
-  line-height: 1.4;
-  color: var(--text-primary);
-  font-weight: 400;
-}
-
-.privacy-mark-menu .dropdown-item:hover,
-.privacy-mark-menu .dropdown-item:focus {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+.shared-files-pane .sfp-where a {
+  color: var(--text-secondary);
   text-decoration: none;
+}
+.shared-files-pane .sfp-where a:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.shared-files-pane .sfp-find input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.shared-files-pane .sfp-find select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+.shared-files-pane .sfp-find .btn {
+  flex: 0 0 auto;
+}
+/* The search box, the order and the buttons beside them are one height. */
+.shared-files-pane .sfp-find {
+  align-items: stretch;
+}
+/* The buttons that show only an icon are one size. */
+.shared-files-pane .sfp-icon-btn {
+  flex: 0 0 auto;
+  /* As tall as a field beside it (Bootstrap's small field: line, padding,
+     border), on any row of the pane. */
+  min-height: calc(1.5em + 0.5rem + 2px);
+  width: 2.5rem;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* The filter button while a kind or an age narrows the list. */
+.shared-files-pane .sfp-on {
+  box-shadow: 0 0 0 2px var(--focus-outline);
+}
+.shared-files-pane .sfp-band {
+  flex-wrap: wrap;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  font-size: inherit;
+}
+.shared-files-pane .sfp-band-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* A button that only dismisses (clearing a selection): the icon alone,
+   no fill or border. */
+.shared-files-pane .sfp-plain-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-plain-btn:hover,
+.shared-files-pane .sfp-plain-btn:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-primary);
+}
+.shared-files-pane .sfp-band-note {
+  flex: 1 0 100%;
+  color: var(--text-secondary);
+  font-size: inherit;
+}
+.shared-files-pane .sfp-status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  font-size: inherit;
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-status[hidden] {
+  display: none;
+}
+.shared-files-pane .sfp-status.sfp-status-warn {
+  color: var(--text-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: color-mix(in srgb, var(--btn-warning) 18%, transparent);
+  border-radius: var(--border-radius);
+}
+.shared-files-pane .sfp-status-close {
+  font-size: inherit;
+}
+.shared-files-pane .sfp-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--bg-panel);
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+}
+.shared-files-pane .sfp-list:empty {
+  display: none;
+}
+.shared-files-pane .sfp-list:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 1px;
+}
+.shared-files-pane .sfp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-xs) var(--spacing-xs) var(--spacing-sm);
+  border-top: var(--border-width) solid var(--border-light);
+}
+.shared-files-pane .sfp-row:first-child {
+  border-top: 0;
+}
+.shared-files-pane .sfp-row.sfp-selected {
+  background: color-mix(in srgb, var(--focus-outline) 14%, var(--bg-panel));
+}
+.shared-files-pane .sfp-list:focus .sfp-row.sfp-cursor {
+  box-shadow: inset 2px 0 0 var(--focus-outline);
+}
+/* The box before a row: faint until the row is hovered, selected or the
+   list has the focus, and always there (no hover on a touch screen). */
+.shared-files-pane .sfp-check {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  opacity: 0.45;
+}
+.shared-files-pane .sfp-check-none {
+  display: inline-block;
+}
+.shared-files-pane .sfp-row:hover .sfp-check,
+.shared-files-pane .sfp-row.sfp-selected .sfp-check,
+.shared-files-pane .sfp-list:focus .sfp-check {
+  opacity: 1;
+}
+.shared-files-pane .sfp-row.sfp-selected .sfp-check {
+  color: var(--focus-outline);
+}
+.shared-files-pane .sfp-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs);
+  background: none;
+  border: 0;
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: inherit;
+  text-align: left;
+}
+.shared-files-pane .sfp-name:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.shared-files-pane .sfp-name:focus-visible,
+.shared-files-pane .sfp-check:focus-visible,
+.shared-files-pane .sfp-row-menu:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 1px;
+}
+.shared-files-pane .sfp-name:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+}
+.shared-files-pane .sfp-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.shared-files-pane .sfp-label,
+.shared-files-pane .sfp-meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shared-files-pane .sfp-meta {
+  font-size: inherit;
+  color: var(--text-secondary);
+}
+.shared-files-pane .sfp-row-menu {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  border: 0;
+}
+.shared-files-pane .sfp-row-menu:hover,
+.shared-files-pane .sfp-row-menu[aria-expanded="true"] {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.shared-files-pane .sfp-foot {
+  justify-content: space-between;
+}
+.shared-files-pane .sfp-info {
+  font-size: inherit;
+  color: var(--text-secondary);
+}
+.shared-files-pane .sf-kind-folder { color: var(--accent-amber); }
+.shared-files-pane .sf-kind-media { color: var(--accent-blue); }
+.shared-files-pane .sf-kind-pdf { color: var(--accent-red); }
+.shared-files-pane .sf-kind-other { color: var(--text-secondary); }
+.history-pane .history-open-badge {
+  flex: 0 0 auto;
+}
+/* The chat shown now: a bar down its left edge in the palette's accent,
+   as its tag. */
+.history-pane .sfp-row.history-here {
+  box-shadow: inset 4px 0 0 var(--pal-accent-strong);
+}
+.history-pane .history-confirm-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* The small menus (row-menu.js): Bootstrap's dropdown, placed by its
+   button over everything. */
+.row-menu {
+  z-index: 1080;
+  width: max-content;
+  min-width: 12rem;
+  max-width: calc(100vw - 8px);
+}
+/* A menu's items each on their own line, their words at their left (the
+   rule for every button makes a button inline and centers what it holds). */
+.dropdown-menu .dropdown-item {
+  display: flex;
+  justify-content: flex-start;
+}
+.row-menu-panel {
+  padding: var(--spacing-sm) var(--spacing-md);
+  min-width: 15rem;
+}
+
+/* Side column tabs: Settings and the work screen (layout-controller.js).
+   The strip is the same box as #config-summary beside it (background,
+   border, height), so the tops of both columns line up. */
+#config-summary,
+.side-pane-tabs {
+  display: flex;
+  align-items: stretch;
+  min-height: var(--side-pane-tabs-height);
+  box-sizing: border-box;
+  padding: var(--spacing-xs);
+}
+#config-summary {
+  padding-right: var(--spacing-lg);
+}
+/* The main column's tabs are the side column's tabs. Before a session the
+   one tab is only a name: no hover, no pointer. */
+.summary-tabs {
+  display: flex;
+  align-self: stretch;
+  gap: var(--spacing-xs);
+}
+.summary-tab[aria-selected="true"],
+.side-pane-tab[aria-selected="true"] {
+  background: var(--bg-panel);
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.config-summary-locked .summary-tab {
+  pointer-events: none;
+}
+.side-pane-tabs {
+  gap: var(--spacing-xs);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+  border: var(--border-width) solid var(--border-light);
+}
+/* The work screen's tab while the notes of a reply are being updated. */
+.side-pane-tab-mark {
+  margin-left: 6px;
+  color: var(--text-secondary, #6c757d);
+}
+
+/* Something new on the work screen, kept until the work screen is shown. */
+.side-pane-tab-new {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  vertical-align: middle;
+}
+
+.side-pane-tab-new[hidden] {
+  display: none;
+}
+
+/* What the work screen says of the notes kept after a reply. */
+.workbench-notes-status {
+  color: var(--text-secondary, #6c757d);
+}
+
+.summary-tab,
+.side-pane-tab {
+  padding: 0 var(--spacing-md);
+  /* One line; a label longer than the column allows ends in an ellipsis. */
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: transparent;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--border-radius);
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+}
+.summary-tab:hover,
+.side-pane-tab:hover {
+  color: var(--text-primary);
+}
+.summary-tab:focus-visible,
+.side-pane-tab:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+/* The buttons under a work screen item (Save as, Reload, ...), apart. */
+.workbench-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+.workbench-actions:empty {
+  display: none;
+}
+/* The workbench in the work screen pane (workbench.js): its items (each
+   image with a remove button) and the one selected */
+.workbench-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  /* The same strip as the side column's tabs above it. */
+  padding: var(--spacing-xs);
+  background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+}
+.workbench-item {
+  max-width: 16rem;
+  padding: var(--spacing-xs) var(--spacing-md);
+  text-align: left;
+  background: transparent;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--border-radius);
+  color: var(--text-secondary);
+  font-size: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-item:hover {
+  color: var(--text-primary);
+}
+.workbench-item[aria-selected="true"] {
+  background: var(--bg-panel);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.workbench-item:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.workbench-item-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.workbench-item-remove {
+  width: 1.8em;
+  height: 1.8em;
+  min-width: 0;
+  margin-left: var(--border-width);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--border-radius);
+  color: var(--text-secondary);
+  line-height: 1;
+}
+.workbench-item-remove:hover {
+  background-color: rgba(191, 98, 94, 0.14);
+  color: #bf625e;
+}
+/* The buttons that step through the items show only an arrow. */
+.workbench-prev,
+.workbench-next {
+  width: 2.5rem;
+  min-width: 0;
+}
+.workbench-item-remove:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+.workbench-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--border-width) solid var(--border-light);
+}
+.workbench-zoomable {
+  cursor: zoom-in;
+}
+.workbench-zoomable:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+/* The image shown larger: the whole window, on a dark backdrop. */
+.workbench-zoom-dialog {
+  max-width: 95vw;
+}
+.workbench-zoom .modal-content {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  align-items: center;
+}
+#workbench-zoom-image {
+  max-width: 95vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: zoom-out;
+  background: #fff;
+  border-radius: var(--border-radius);
+}
+
+.workbench-video {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+}
+.workbench-audio {
+  display: block;
+  width: 100%;
+}
+.workbench-text {
+  max-height: 70vh;
+  overflow: auto;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  background: var(--bg-panel);
+}
+.workbench-lines {
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 3.5em;
+  font-family: var(--font-family-monospace, monospace);
+  font-size: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.workbench-lines li::marker {
+  color: var(--text-secondary);
+}
+
+/* A diagram in a chat card, drawn as an image (render-registry.js); it is
+   drawn on white as made */
+.render-wrap img.workbench-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: var(--border-radius);
+}
+
+/* A text file drawn (workbench-render.js): Markdown, a table, an image
+   made from SVG, a diagram or a chart, a page in a frame */
+.workbench-rendered {
+  max-height: 70vh;
+  overflow: auto;
+  outline-offset: 2px;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  background: var(--bg-panel);
+  padding: var(--spacing-sm);
+}
+/* A Jupyter notebook on the work screen (workbench-render.js): its cells in
+   order, the code of each with its run number, and what it showed. */
+.workbench-notebook {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.workbench-nb-cell {
+  min-width: 0;
+}
+.workbench-nb-prompt {
+  color: var(--text-secondary);
+  font-family: var(--font-family-monospace, monospace);
+}
+.workbench-nb-source,
+.workbench-nb-stream {
+  margin: 0;
+  padding: var(--spacing-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+}
+.workbench-nb-source {
+  background: color-mix(in srgb, var(--bg-panel) 60%, var(--bg-body));
+}
+.workbench-nb-stream {
+  margin-top: var(--spacing-xs);
+  border-style: dashed;
+}
+.workbench-nb-stderr {
+  color: var(--bdg-red-fg);
+  background: var(--bdg-red-bg);
+  border-color: var(--bdg-red-bd);
+}
+.workbench-nb-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: var(--spacing-xs);
+  background: #fff;
+}
+.workbench-nb-html {
+  margin-top: var(--spacing-xs);
+  overflow-x: auto;
+}
+.workbench-nb-note {
+  margin-top: var(--spacing-xs);
+  color: var(--text-secondary);
+}
+/* Markdown reads as a chat card's text does: the same color, line height
+   and spacing of paragraphs and lists (.card-text), with room around it. */
+.workbench-rendered .workbench-markdown {
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: 0.25rem 0.5rem 0.5rem;
+  /* A long address breaks where the column ends. */
+  overflow-wrap: anywhere;
+}
+.workbench-rendered .workbench-markdown p {
+  margin: 0.5em 0;
+}
+.workbench-rendered .workbench-markdown ul,
+.workbench-rendered .workbench-markdown ol {
+  margin: 1em 0;
+}
+.workbench-rendered .workbench-markdown li ul,
+.workbench-rendered .workbench-markdown li ol {
+  margin: 0.6em 0 0.4em 0;
+}
+.workbench-rendered .workbench-markdown li {
+  margin-bottom: 0.5em;
+}
+.workbench-rendered .workbench-markdown li:last-child {
+  margin-bottom: 0;
+}
+.workbench-rendered .workbench-markdown li > p:first-child {
+  margin-top: 0;
+}
+.workbench-rendered .workbench-markdown li > p:last-child {
+  margin-bottom: 0;
+}
+.workbench-rendered .workbench-markdown > :last-child {
+  margin-bottom: 0;
+}
+/* Headings step down in size from the page's title. */
+.workbench-rendered .workbench-markdown h1 {
+  font-size: 1.25em;
+  margin: 0.8em 0 0.5em 0;
+}
+.workbench-rendered .workbench-markdown h2 {
+  font-size: 1.1em;
+  margin: 0.9em 0 0.4em 0;
+}
+.workbench-rendered .workbench-markdown h3,
+.workbench-rendered .workbench-markdown h4,
+.workbench-rendered .workbench-markdown h5,
+.workbench-rendered .workbench-markdown h6 {
+  font-size: 1em;
+  margin: 0.8em 0 0.3em 0;
+}
+.workbench-rendered .workbench-markdown > :first-child {
+  margin-top: 0;
+}
+.workbench-rendered .workbench-markdown img {
+  max-width: 100%;
+}
+.workbench-rendered .workbench-markdown pre {
+  background: var(--bg-body);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  overflow: auto;
+}
+/* Drawings keep their own colors: they are drawn on white as made. */
+.workbench-rendered img.workbench-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  background: #fff;
+}
+.workbench-table-wrap {
+  overflow: auto;
+}
+.workbench-table {
+  margin-bottom: 0;
+  font-size: inherit;
+}
+.workbench-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+}
+.workbench-rendered:has(> .workbench-page) {
+  padding: 0;
+}
+.workbench-page {
+  display: block;
+  width: 100%;
+  height: 65vh;
+  border: 0;
+  background: #fff;
+}
+
+/* A PDF, a page at a time (workbench-pdf.js) */
+.workbench-pdf {
+  max-height: 75vh;
+  overflow: auto;
+  outline-offset: 2px;
+}
+.workbench-pdf-page {
+  position: relative;
+  width: max-content;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--border-light);
+}
+.workbench-pdf-page canvas {
+  display: block;
+}
+
+/* pdf.js's text layer, over the page (the rules follow pdf.js's
+   web/pdf_viewer.css, Apache License 2.0) */
+.workbench-pdf-page .textLayer {
+  color-scheme: only light;
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.workbench-pdf-page .textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.workbench-pdf-page .textLayer > :not(.markedContent),
+.workbench-pdf-page .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.workbench-pdf-page .textLayer .markedContent {
+  display: contents;
+}
+.workbench-pdf-page .textLayer span[role="img"] {
+  user-select: none;
+  cursor: default;
+}
+.workbench-pdf-page .textLayer ::selection {
+  background: rgba(0 0 255 / 0.25);
+  background: color-mix(in srgb, AccentColor, transparent 50%);
+  color: transparent;
+}
+.workbench-pdf-page .textLayer br::selection {
+  background: transparent;
+}
+.workbench-pdf-page .textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+.workbench-pdf-page .textLayer.selecting .endOfContent {
+  top: 0;
+}
+
+/* The chat's browser, as it draws (work-screen.js) */
+.work-screen-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--border-width) solid var(--border-light);
 }

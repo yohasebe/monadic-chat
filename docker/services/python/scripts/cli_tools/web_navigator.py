@@ -15,6 +15,8 @@ import time
 
 import requests
 
+import browser_display
+
 # Import trim utility (available alongside this script in cli_tools/)
 try:
     from screenshot_utils import trim_screenshot
@@ -22,18 +24,28 @@ except ImportError:
     trim_screenshot = None
 
 WEBDRIVER_URL = "http://selenium_service:4444"
-SESSION_FILE = "/monadic/data/.browser_session_id"
-SCREENSHOT_DIR = "/monadic/data"
+# Where screenshots and saved SVGs go: the folder the Monadic server names for
+# the chat (MONADIC_OUTPUT_DIR), never the top of the shared folder. Without
+# one (a manual run), a folder of the container's own.
+SCREENSHOT_DIR = os.environ.get("MONADIC_OUTPUT_DIR") or "/tmp/monadic-browser"
+# The browser session of a manual run (not --managed); kept in the container.
+SESSION_FILE = "/tmp/monadic-browser/.browser_session_id"
 VIEWPORT_WIDTH = 1280
 VIEWPORT_HEIGHT = 900
+# The WebDriver session the caller says this browser is (the Monadic server
+# keeps it for the chat that owns the browser). Without one, the session file.
+REQUESTED_SESSION = None
+# Managed by the Monadic server (--managed): the session file is never read,
+# written or removed; the server names every session.
+MANAGED = False
 
 
-def _wd(path, method="GET", body=None):
+def _wd(path, method="GET", body=None, timeout=30):
     """Send a request to WebDriver and return parsed JSON."""
     url = f"{WEBDRIVER_URL}{path}"
     headers = {"Content-Type": "application/json"}
     resp = requests.request(method, url, headers=headers,
-                            json=body, timeout=30)
+                            json=body, timeout=timeout)
     if resp.status_code >= 400:
         try:
             err = resp.json()
@@ -45,14 +57,52 @@ def _wd(path, method="GET", body=None):
     return resp.json()
 
 
+def _session_error(r):
+    """What a failed new-session request tells the caller. Every browser
+    session in use makes the request wait in Selenium's queue until it times
+    out; say so, rather than show WebDriver's text."""
+    if "new session request timed out" in json.dumps(r.get("error", "")).lower():
+        return ("No browser is free right now: every browser session is in use. "
+                "Try again when one of them has finished.")
+    return f"Failed to create session: {r['error']}"
+
+
 def _save_session(session_id):
     """Persist session ID to file."""
+    os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
     with open(SESSION_FILE, "w") as f:
         f.write(session_id)
 
 
+def _error_code(r):
+    """WebDriver's error code in a failed reply, or None."""
+    err = r.get("error")
+    if isinstance(err, dict) and isinstance(err.get("value"), dict):
+        return err["value"].get("error")
+    return None
+
+
+def _gone(r):
+    """True when WebDriver says the session does not exist (its error code,
+    not the HTTP status: an unknown command is a 404 too)."""
+    return "error" in r and _error_code(r) == "invalid session id"
+
+
+def _delete_session(sid):
+    """Closes a session. True when it is closed or was already gone."""
+    r = _wd(f"/session/{sid}", method="DELETE")
+    return "error" not in r or _gone(r)
+
+
 def _load_session():
-    """Load session ID from file, return None if missing or session is dead."""
+    """The session asked for (or the one in the file); None if missing or dead."""
+    if REQUESTED_SESSION:
+        # Only a session WebDriver says is gone counts as none; another error
+        # is left to the action, which reports it.
+        r = _wd(f"/session/{REQUESTED_SESSION}/url")
+        return None if _gone(r) else REQUESTED_SESSION
+    if MANAGED:
+        return None
     if not os.path.exists(SESSION_FILE):
         return None
     with open(SESSION_FILE, "r") as f:
@@ -65,6 +115,14 @@ def _load_session():
         _clear_session()
         return None
     return sid
+
+
+def _file_session():
+    """The session ID in the file, unchecked; None if there is none."""
+    if not os.path.exists(SESSION_FILE):
+        return None
+    with open(SESSION_FILE, "r") as f:
+        return f.read().strip() or None
 
 
 def _clear_session():
@@ -81,6 +139,7 @@ def _take_screenshot(session_id):
     img_data = base64.b64decode(r["value"])
     timestamp = int(time.time() * 1000)
     filename = f"browser_{timestamp}.png"
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     filepath = os.path.join(SCREENSHOT_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(img_data)
@@ -122,7 +181,12 @@ def _get_page_info(session_id):
 
         var tag = el.tagName.toLowerCase();
         var type = el.getAttribute('type') || '';
-        var text = (el.innerText || el.value || el.getAttribute('aria-label') ||
+        // What is typed in a password or another secret field is not read.
+        var secret = el.type === 'password' ||
+            (el.getAttribute('autocomplete') || '').split(' ').some(function (t) {
+                return ['current-password', 'new-password', 'one-time-code', 'cc-number', 'cc-csc'].indexOf(t) >= 0;
+            });
+        var text = (el.innerText || (secret ? '' : el.value) || el.getAttribute('aria-label') ||
                     el.getAttribute('title') || el.getAttribute('placeholder') || '').trim();
         if (text.length > 80) text = text.substring(0, 80) + '...';
         var href = el.getAttribute('href') || '';
@@ -241,27 +305,18 @@ def _get_page_info(session_id):
 def action_start(args):
     """Start a new browser session and navigate to URL.
     Supports headless (default) and non-headless modes."""
-    # Close any existing session first
-    old_sid = _load_session()
-    if old_sid:
-        _wd(f"/session/{old_sid}", method="DELETE")
+    # Unmanaged, close the session it replaces (one named, one left in the
+    # file). Managed, the server has closed it already.
+    if not MANAGED:
+        for old_sid in {REQUESTED_SESSION, _file_session()} - {None}:
+            _delete_session(old_sid)
         _clear_session()
 
     headless = getattr(args, 'headless', 'true') == 'true'
 
-    # Build Chrome options
-    chrome_args = [
-        "--no-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}",
-        "--force-device-scale-factor=2",
-        "--high-dpi-support=1",
-        "--hide-scrollbars"
-    ]
-
-    if headless:
-        chrome_args.append("--headless=new")
+    # A visible browser fills the desktop at scale 1 (browser_display.py)
+    chrome_args = browser_display.chrome_args(
+        visible=not headless, width=VIEWPORT_WIDTH, height=VIEWPORT_HEIGHT, scale=2)
 
     caps = {
         "capabilities": {
@@ -276,14 +331,31 @@ def action_start(args):
 
     r = _wd("/session", method="POST", body=caps)
     if "error" in r:
-        return {"success": False, "error": f"Failed to create session: {r['error']}"}
+        return {"success": False, "error": _session_error(r)}
 
     session_id = r["value"]["sessionId"]
-    _save_session(session_id)
+    try:
+        result = _open_page(session_id, args, headless)
+    except Exception as e:
+        # The caller never learns of this session: close it here.
+        _delete_session(session_id)
+        return {"success": False, "error": f"The browser started but the page could not be opened: {e}"}
+
+    if not MANAGED:
+        _save_session(session_id)
+    return result
+
+
+def _open_page(session_id, args, headless):
+    """Opens the start page in a new session; the start's result."""
+    if not headless:
+        _wd(f"/session/{session_id}/window/maximize", method="POST", body={})
 
     # Navigate to URL
     url = args.url or "about:blank"
-    _wd(f"/session/{session_id}/url", method="POST", body={"url": url})
+    r = _wd(f"/session/{session_id}/url", method="POST", body={"url": url})
+    if "error" in r:
+        raise RuntimeError(f"navigation failed: {r['error']}")
 
     # Wait for page load
     time.sleep(2)
@@ -303,6 +375,9 @@ def action_start(args):
     # Only include noVNC URL for non-headless mode
     if not headless:
         result["novnc_url"] = "http://localhost:7900"
+        # Where the page is on the desktop the person sees
+        result["display"] = browser_display.display_geometry(
+            lambda script: _execute_js(session_id, script).get("value"))
 
     return result
 
@@ -426,7 +501,8 @@ def action_type(args):
     // Dispatch events to trigger frameworks
     el.dispatchEvent(new Event('input', {bubbles: true}));
     el.dispatchEvent(new Event('change', {bubbles: true}));
-    return {found: true, tag: el.tagName, value: el.value.substring(0, 50)};
+    // A password field's value is not given back.
+    return {found: true, tag: el.tagName, value: el.type === 'password' ? '' : el.value.substring(0, 50)};
     """
     r = _execute_js(session_id, js, [selector, text])
 
@@ -626,6 +702,7 @@ def action_extract_svg(args):
     # Save SVG to file
     timestamp = int(time.time() * 1000)
     filename = f"diagram_{timestamp}.svg"
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
     filepath = os.path.join(SCREENSHOT_DIR, filename)
 
     with open(filepath, "w", encoding="utf-8") as f:
@@ -1064,14 +1141,34 @@ def action_forward(args):
     }
 
 
+def action_status(args):
+    """The sessions Selenium holds now and how many it allows."""
+    try:
+        r = _wd("/status", timeout=5)
+    except Exception as e:
+        return {"success": False, "error": f"Selenium status unavailable: {e}"}
+    if "error" in r:
+        return {"success": False, "error": f"Selenium status unavailable: {r['error']}"}
+    sessions, max_sessions = [], 0
+    for node in (r.get("value") or {}).get("nodes") or []:
+        max_sessions += node.get("maxSessions") or 0
+        for slot in node.get("slots") or []:
+            session = slot.get("session")
+            if session and session.get("sessionId"):
+                sessions.append(session["sessionId"])
+    return {"success": True, "sessions": sessions, "max_sessions": max_sessions}
+
+
 def action_stop(args):
     """Stop the browser session."""
-    session_id = _load_session()
+    session_id = REQUESTED_SESSION if MANAGED else _load_session()
     if not session_id:
         return {"success": True, "message": "No active session to stop."}
 
-    _wd(f"/session/{session_id}", method="DELETE")
-    _clear_session()
+    if not _delete_session(session_id):
+        return {"success": False, "error": "The browser session could not be closed."}
+    if not MANAGED:
+        _clear_session()
 
     return {
         "success": True,
@@ -1088,7 +1185,7 @@ def main():
                                  "check_render_error",
                                  "get_page_info", "annotate_elements",
                                  "scroll", "press_key", "select",
-                                 "back", "forward", "stop"],
+                                 "back", "forward", "stop", "status"],
                         help="Action to perform")
     parser.add_argument("--url", help="URL for start/navigate actions")
     parser.add_argument("--selector", help="CSS selector for click/type/press_key/select actions")
@@ -1103,8 +1200,15 @@ def main():
                         help="JSON array of CSS selectors for annotate_elements action")
     parser.add_argument("--headless", choices=["true", "false"], default="true",
                         help="Run browser in headless mode (default: true)")
+    parser.add_argument("--session-id",
+                        help="WebDriver session to use (unmanaged start: the one to close first)")
+    parser.add_argument("--managed", action="store_true",
+                        help="Sessions are named by the caller; the session file is not used")
 
     args = parser.parse_args()
+    global REQUESTED_SESSION, MANAGED
+    REQUESTED_SESSION = args.session_id
+    MANAGED = args.managed
 
     actions = {
         "start": action_start,
@@ -1124,10 +1228,30 @@ def main():
         "back": action_back,
         "forward": action_forward,
         "stop": action_stop,
+        "status": action_status,
     }
 
     result = actions[args.action](args)
+    _add_window(args.action, result)
     print(json.dumps(result, ensure_ascii=False))
+
+
+def _add_window(action, result):
+    """Managed, an action on a session reports the window it acts on now,
+    whether or not the action succeeded (the server shows that page on the
+    work screen); None when it cannot be told."""
+    if not MANAGED or action in ("stop", "status"):
+        return
+    sid = result.get("session_id") if action == "start" else REQUESTED_SESSION
+    if not sid:
+        return
+    result["window"] = None
+    try:
+        r = _wd(f"/session/{sid}/window", timeout=5)
+    except Exception:
+        return
+    if "error" not in r and isinstance(r.get("value"), str):
+        result["window"] = r["value"]
 
 
 if __name__ == "__main__":

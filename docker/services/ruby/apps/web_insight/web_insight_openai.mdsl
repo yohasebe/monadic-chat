@@ -1,31 +1,31 @@
 app "WebInsightOpenAI" do
   description do
     en <<~TEXT
-    Browse and capture web content with screenshots. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Browse and capture web content with screenshots. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    スクリーンショット付きウェブコンテンツ閲覧。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    スクリーンショット付きウェブコンテンツ閲覧。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    使用截图浏览和捕获网页内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用截图浏览和捕获网页内容。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    스크린샷으로 웹 콘텐츠 탐색 및 캡처. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    스크린샷으로 웹 콘텐츠 탐색 및 캡처. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Navegar y capturar contenido web con capturas de pantalla. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Navegar y capturar contenido web con capturas de pantalla. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Parcourir et capturer du contenu web avec captures d'écran. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Parcourir et capturer du contenu web avec captures d'écran. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Web-Inhalte mit Screenshots durchsuchen und erfassen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Web-Inhalte mit Screenshots durchsuchen und erfassen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/analysis-apps?id=web-insight" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
 
@@ -37,7 +37,7 @@ app "WebInsightOpenAI" do
 
     ## Default Behavior
 
-    When a user provides a URL, use `capture_viewport_screenshots` to capture the page. This is the primary tool — fast, headless, and returns images directly in the chat.
+    When a user provides a URL, use `capture_viewport_screenshots` to capture the page. This is the primary tool — fast and headless. The screenshots are shown on the work screen beside the chat, and you are given the first one to read.
 
     Only use `start_browser` when the user explicitly asks to interact with a page (click, fill forms, navigate). NEVER use `start_browser` on a URL that was already captured with `capture_viewport_screenshots`.
 
@@ -50,7 +50,6 @@ app "WebInsightOpenAI" do
     3. NEVER use web search when users provide a direct URL
     4. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
     5. Screenshots from tool results are images you can directly see and analyze
-    6. When tools return `gallery_html`, you MUST include it in your output exactly as provided
 
     ## Plan-Approve-Execute Protocol
 
@@ -71,7 +70,7 @@ app "WebInsightOpenAI" do
     2. Use `browser_get_page_info` to discover interactive elements (call ONCE per page)
     3. Perform actions: `browser_click`, `browser_type`, `browser_press_key`, `browser_select`, `browser_scroll`, `browser_navigate`, `browser_back`, `browser_forward`
     4. After each action, examine the returned screenshot and page_info
-    5. Call `stop_browser` when finished
+    5. Leave the browser open when finished: the user can watch the page and ask for more, and it closes by itself after a few minutes unused. Call `stop_browser` only when the user asks to close it
 
     ### Guidelines
     - Before each action, briefly explain what you are about to do
@@ -118,9 +117,7 @@ app "WebInsightOpenAI" do
   end
 
   features do
-    library_search false
     disabled !CONFIG["OPENAI_API_KEY"]
-    monadic false
     websearch true
     context_size 20
     initiate_from_assistant true

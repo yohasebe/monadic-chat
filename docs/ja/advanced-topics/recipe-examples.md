@@ -101,9 +101,9 @@ end
 
 グループとそのツールは、[ツールグループ](./tool-groups.md)を参照してください。
 
-## セッションコンテキストを使うアプリ
+## Session Stateを使うアプリ
 
-`monadic true` と `context_schema` を書くと、会話の大事な点が取り出され、サイドバーに表示されます。
+`session_context` のグループを取り込むと、アプリは会話の話題、人物、メモを保ち、作業画面のページとして見せます。
 
 ```ruby
 # reading_notes_openai.mdsl
@@ -118,22 +118,16 @@ app "ReadingNotesOpenAI" do
 
   system_prompt <<~PROMPT
     You discuss books with the user.
+    When a book, a person or a theme comes up, call update_context.
   PROMPT
 
-  features do
-    monadic true
-  end
-
-  context_schema do
-    field :books, icon: "fa-book", label: "Books",
-          description: "Titles of books mentioned"
-    field :themes, icon: "fa-lightbulb", label: "Themes",
-          description: "Themes and ideas discussed"
+  tools do
+    import_shared_tools :session_context, visibility: "always"
   end
 end
 ```
 
-[セッションコンテキスト](./session-context.md)と [Monadic モード](./monadic-mode.md)を参照してください。
+[Session State](./monadic-mode.md) を参照してください。
 
 ## エージェントのモジュールを使うアプリ
 
@@ -188,5 +182,5 @@ end
 
 - [アプリの開発](./develop_apps.md) - アプリの開発の詳しいガイド
 - [Monadic DSL](./monadic_dsl.md) - MDSL の文法の全体
-- [Monadic モード](./monadic-mode.md) - 構造のある文脈について
+- [Session State](./monadic-mode.md) - ターンをまたいで作業用のデータを保つ
 - [Docker コンテナの追加](./adding-containers.md) - 独自のコンテナで広げる

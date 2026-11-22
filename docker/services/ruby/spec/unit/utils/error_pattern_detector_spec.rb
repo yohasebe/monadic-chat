@@ -431,4 +431,98 @@ RSpec.describe ErrorPatternDetector do
       expect { described_class.mark_last_tool_errored(fresh_session) }.not_to raise_error
     end
   end
+
+  describe '.begin_turn' do
+    it 'does not count the tool calls of the turn before toward a cycle' do
+      session = { parameters: {} }
+      8.times { described_class.record_tool_call(session, 'list_files') }
+      expect(described_class.tool_call_cycle_detected?(session)).to be(true)
+      described_class.begin_turn(session)
+      expect(described_class.tool_call_cycle_detected?(session)).to be(false)
+    end
+
+    it 'lets a turn use tools after the turn before was stopped' do
+      session = { parameters: { 'stop_retrying' => true, 'model' => 'm' } }
+      described_class.begin_turn(session)
+      expect(session[:parameters]).to eq('model' => 'm')
+    end
+
+    it 'takes a session with no parameters' do
+      expect { described_class.begin_turn({}) }.not_to raise_error
+    end
+
+    it 'does not count the errors of the turn before toward a repeated error' do
+      session = { parameters: {} }
+      described_class.initialize_session(session)
+      described_class.add_error(session, 'Error: file not found', 'read_file')
+      described_class.begin_turn(session)
+      described_class.initialize_session(session)
+      2.times { described_class.add_error(session, 'Error: file not found', 'read_file') }
+      expect(described_class.should_stop_retrying?(session)).to be(false)
+    end
+  end
+
+  describe '.repeat_refusal' do
+    let(:session) { {} }
+
+    def call(name, arguments = {})
+      described_class.repeat_refusal(session, name, arguments)
+    end
+
+    it 'runs a call twice and refuses the third with the same arguments' do
+      expect(call('list_files', { 'path' => '.' })).to be_nil
+      expect(call('list_files', { 'path' => '.' })).to be_nil
+      expect(call('list_files', { 'path' => '.' })).to match(/\A❌ `list_files` was already called 2 times/)
+    end
+
+    it 'takes the same arguments in another order or with symbol keys as the same call' do
+      2.times { call('write', { 'name' => 'a', 'mode' => 'w' }) }
+      expect(call('write', { mode: 'w', name: 'a' })).to start_with('❌')
+    end
+
+    it 'runs a call with other arguments' do
+      2.times { call('write', { 'name' => 'a' }) }
+      expect(call('write', { 'name' => 'b' })).to be_nil
+    end
+
+    it 'runs a call again after the turn made a call it had not made before' do
+      2.times { call('look') }
+      expect(call('edit', { 'text' => 'one' })).to be_nil
+      expect(call('look')).to be_nil
+      expect(call('edit', { 'text' => 'two' })).to be_nil
+      expect(call('look')).to be_nil
+    end
+
+    it 'refuses when the same calls only alternate' do
+      results = 3.times.flat_map { [call('update', { 'x' => 1 }), call('put', { 'y' => 2 })] }
+      expect(results.first(5)).to all(be_nil)
+      expect(results.last).to start_with('❌')
+    end
+
+    it 'counts a new turn from the start' do
+      2.times { call('list_files') }
+      described_class.begin_turn(session)
+      expect(call('list_files')).to be_nil
+    end
+  end
+
+  describe '.note_arguments' do
+    let(:session) { { parameters: {} } }
+
+    def run(name, args)
+      described_class.record_tool_call(session, name)
+      described_class.note_arguments(session, name, args)
+    end
+
+    it 'does not take calls of one tool with different arguments for a cycle' do
+      %w[/ apps conversations helpers library scripts services data].each { |dir| run('list_files', { directory: dir }) }
+      run('list_files', { directory: 'more' })
+      expect(described_class.detect_tool_call_cycle(session)).to be_nil
+    end
+
+    it 'still takes the same call over and over for a cycle' do
+      9.times { run('list_files', { 'directory' => '/' }) }
+      expect(described_class.detect_tool_call_cycle(session)).to eq(['list_files'])
+    end
+  end
 end

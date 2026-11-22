@@ -2,6 +2,8 @@
 
 require "spec_helper"
 require "tmpdir"
+require "shellwords"
+require "json"
 require_relative "../../../lib/monadic/adapters/jupyter_helper"
 
 RSpec.describe "JupyterHelper" do
@@ -136,88 +138,135 @@ RSpec.describe "JupyterHelper" do
     end
   end
 
-  describe "#restart_jupyter_kernel" do
+  # The notebook commands run in the Python container; here, what the
+  # container answers is given, and what was asked of it is kept.
+  describe "notebook commands" do
     around do |example|
       Dir.mktmpdir('notebook-shared-') do |directory|
         @data_dir = File.realpath(directory)
-        File.write(File.join(@data_dir, 'test.ipynb'), '{"cells":[]}')
+        File.write(File.join(@data_dir, 'test.ipynb'), JSON.generate('cells' => []))
         example.run
       end
     end
+
+    let(:asked) { [] }
 
     before do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data_dir)
     end
 
-    it "returns error when filename is empty" do
-      result = helper.restart_jupyter_kernel(filename: "")
-      expect(result).to eq("Error: Filename is required.")
+    def answer(*replies)
+      allow(helper).to receive(:send_command) do |command:, timeout: nil, **_, &block|
+        asked << { command: command, timeout: timeout }
+        out, err, ok = replies.length > 1 ? replies.shift : replies.first
+        block.call(out, err, instance_double(Process::Status, success?: ok))
+      end
     end
 
-    it "sends restart command to Python container" do
-      allow(helper).to receive(:send_command).and_return("Kernel restarted")
-      result = helper.restart_jupyter_kernel(filename: "test.ipynb")
-      expect(result).to include("Successfully restarted kernel")
-      expect(helper).to have_received(:send_command).with(
-        hash_including(command: "jupyter nbconvert --clear-output --inplace /monadic/data/test.ipynb", container: "python")
-      )
-    end
-  end
-
-  describe "#interrupt_jupyter_execution" do
-    it "returns error when filename is empty" do
-      result = helper.interrupt_jupyter_execution(filename: "")
-      expect(result).to eq("Error: Filename is required.")
+    def argv(index = -1)
+      Shellwords.split(asked[index][:command])
     end
 
-    it "returns limitation message for valid filename" do
-      result = helper.interrupt_jupyter_execution(filename: "test.ipynb")
-      expect(result).to include("Direct kernel interrupt is not currently supported")
-    end
-  end
-
-  describe "#move_jupyter_cell" do
-    it "returns error when filename is empty" do
-      result = helper.move_jupyter_cell(filename: "", from_index: 0, to_index: 1)
-      expect(result).to eq("Error: Filename is required.")
+    def notebook_with(cells)
+      File.write(File.join(@data_dir, 'test.ipynb'), JSON.generate('cells' => cells))
     end
 
-    it "returns error for negative from_index" do
-      result = helper.move_jupyter_cell(filename: "test.ipynb", from_index: -1, to_index: 1)
-      expect(result).to eq("Error: Invalid indices.")
+    describe "#move_jupyter_cell" do
+      it "moves a cell at any position, by the container's own command" do
+        answer(["Moved cell 12 to position 3\n", "", true])
+        expect(helper.move_jupyter_cell(filename: "test", from_index: 12, to_index: "3")).to eq("Moved cell 12 to position 3.")
+        expect(argv).to eq(%w[jupyter_controller.py move test.ipynb 12 3])
+      end
+
+      it "says why the cell was not moved" do
+        answer(["", "Error: to_index 40 is out of range: the notebook has 12 cells (0 to 11)\n", false])
+        expect(helper.move_jupyter_cell(filename: "test.ipynb", from_index: 0, to_index: 40))
+          .to eq("Error: The cell was not moved. Error: to_index 40 is out of range: the notebook has 12 cells (0 to 11)")
+      end
+
+      it "asks nothing of the container for a missing notebook or positions that are not whole numbers from 0" do
+        answer(["", "", true])
+        expect(helper.move_jupyter_cell(filename: "", from_index: 0, to_index: 1)).to start_with("Error:")
+        expect(helper.move_jupyter_cell(filename: "missing.ipynb", from_index: 0, to_index: 1)).to start_with("Error:")
+        expect(helper.move_jupyter_cell(filename: "../test.ipynb", from_index: 0, to_index: 1)).to start_with("Error:")
+        [[-1, 0], [0, -1], ["one", 0], [0, 1.5]].each do |from, to|
+          expect(helper.move_jupyter_cell(filename: "test.ipynb", from_index: from, to_index: to)).to start_with("Error:")
+        end
+        expect(asked).to be_empty
+      end
     end
 
-    it "returns error for negative to_index" do
-      result = helper.move_jupyter_cell(filename: "test.ipynb", from_index: 0, to_index: -1)
-      expect(result).to eq("Error: Invalid indices.")
+    describe "#insert_jupyter_cells" do
+      it "inserts the cells as the container's notebook expects them" do
+        answer(["Inserted 1 cell(s) at position 0\n", "", true])
+        result = helper.insert_jupyter_cells(filename: "test.ipynb", index: 0, cells: [{ "type" => "code", "content" => "x = '$(id)'" }])
+        expect(result).to eq("Inserted 1 cell(s) at position 0.")
+        expect(argv[0..3]).to eq(%w[jupyter_controller.py insert test.ipynb 0])
+        expect(JSON.parse(argv[4])).to eq([{ "cell_type" => "code", "source" => "x = '$(id)'" }])
+      end
+
+      it "runs the whole notebook afterwards when asked, and says what the run found" do
+        notebook_with([{ "cell_type" => "code", "source" => "1/0",
+                         "outputs" => [{ "output_type" => "error", "ename" => "ZeroDivisionError", "evalue" => "division by zero", "traceback" => [] }] }])
+        answer(["Inserted 1 cell(s) at position 1\n", "", true], ["", "", true])
+        result = helper.insert_jupyter_cells(filename: "test.ipynb", index: 1, cells: [{ "type" => "code", "content" => "y" }], run: true)
+        expect(argv(1)).to include("--execute")
+        expect(result).to start_with("Inserted 1 cell(s) at position 1.")
+        expect(result).to include("Cell 0 (ZeroDivisionError)")
+      end
+
+      it "runs nothing when the cells were not inserted" do
+        answer(["", "Error: index 9 is out of range: the notebook has 0 cells (0 to 0)\n", false])
+        result = helper.insert_jupyter_cells(filename: "test.ipynb", index: 9, cells: [{ "type" => "code", "content" => "y" }], run: true)
+        expect(result).to start_with("Error: The cells were not inserted.")
+        expect(asked.length).to eq(1)
+      end
+
+      it "asks nothing of the container for no cells, a bad position or cells too large for one call" do
+        answer(["", "", true])
+        expect(helper.insert_jupyter_cells(filename: "test.ipynb", index: 0, cells: [])).to start_with("Error:")
+        expect(helper.insert_jupyter_cells(filename: "test.ipynb", index: -1, cells: [{ "type" => "code" }])).to start_with("Error:")
+        big = [{ "type" => "code", "content" => "x" * MonadicHelper::INSERT_LIMIT }]
+        expect(helper.insert_jupyter_cells(filename: "test.ipynb", index: 0, cells: big)).to include("too large")
+        expect(asked).to be_empty
+      end
     end
 
-    it "returns success message for valid parameters" do
-      result = helper.move_jupyter_cell(filename: "test.ipynb", from_index: 0, to_index: 1)
-      expect(result).to include("Successfully moved cell")
-    end
-  end
+    describe "#run_jupyter_cells" do
+      it "gives a run longer than any one cell may take" do
+        answer(["", "", true])
+        helper.run_jupyter_cells(filename: "test")
+        expect(asked.last[:timeout]).to be > MonadicHelper::JUPYTER_RUN_TIMEOUT
+      end
 
-  describe "#insert_jupyter_cells" do
-    it "returns error when filename is empty" do
-      result = helper.insert_jupyter_cells(filename: "", index: 0, cells: [{ "cell_type" => "code" }])
-      expect(result).to eq("Error: Filename is required.")
+      it "says a run that failed, ran out of time or was stopped did not finish" do
+        answer(["", "Timed out", false])
+        expect(helper.run_jupyter_cells(filename: "test.ipynb")).to eq("Error: The notebook could not be run to the end. Timed out")
+      end
+
+      it "says which cells raised errors in a run that finished" do
+        notebook_with([{ "cell_type" => "code", "source" => "ok", "outputs" => [] },
+                       { "cell_type" => "code", "source" => "boom",
+                         "outputs" => [{ "output_type" => "error", "ename" => "NameError", "evalue" => "boom", "traceback" => [] }] }])
+        answer(["", "", true])
+        result = helper.run_jupyter_cells(filename: "test.ipynb")
+        expect(result).to start_with("The cells have been executed.")
+        expect(result).to include("Cell 1 (NameError)")
+      end
     end
 
-    it "returns error when cells is empty" do
-      result = helper.insert_jupyter_cells(filename: "test.ipynb", index: 0, cells: [])
-      expect(result).to eq("Error: Cells are required.")
-    end
+    describe "#clear_jupyter_outputs" do
+      it "clears the outputs, and says no kernel was restarted" do
+        answer(["", "", true])
+        expect(helper.clear_jupyter_outputs(filename: "test.ipynb")).to eq("Cleared the outputs of test.ipynb.")
+        expect(asked.last[:command]).to eq("jupyter nbconvert --clear-output --inplace /monadic/data/test.ipynb")
+      end
 
-    it "returns error for negative index" do
-      result = helper.insert_jupyter_cells(filename: "test.ipynb", index: -1, cells: [{ "cell_type" => "code" }])
-      expect(result).to eq("Error: Invalid index.")
-    end
-
-    it "returns success message for valid parameters" do
-      cells = [{ "cell_type" => "code", "source" => "print('hello')" }]
-      result = helper.insert_jupyter_cells(filename: "test.ipynb", index: 0, cells: cells)
-      expect(result).to include("Successfully inserted")
+      it "says when the outputs were not cleared" do
+        answer(["", "boom", false])
+        expect(helper.clear_jupyter_outputs(filename: "test.ipynb")).to start_with("Error: Could not clear the outputs")
+        expect(helper.clear_jupyter_outputs(filename: "")).to eq("Error: Filename is required.")
+      end
     end
   end
 

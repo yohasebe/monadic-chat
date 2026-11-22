@@ -1,11 +1,15 @@
-require 'cgi'
+require 'shellwords'
 require_relative '../../lib/monadic/adapters/latex_helper'
+require_relative '../../lib/monadic/workbench/chat_output'
 
 # Shared tools for Concept Visualizer (provider-independent)
 module ConceptVisualizerTools
   include LatexHelper
 
-  def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english", session: nil)
+  # Compiles the TikZ in the Python container, in a run folder of the
+  # chat's folder (conversations/<folder>/artifacts/j_<id>/), which keeps
+  # the SVG and its LaTeX source; the SVG is shown on the work screen.
+  def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english", session: nil, workbench: nil)
     return "❌ TikZ code is required." if tikz_code.to_s.empty?
     return "❌ Diagram type is required." if diagram_type.to_s.empty?
     
@@ -34,10 +38,16 @@ module ConceptVisualizerTools
       latex_code = generate_complete_latex(tikz_code, language, diagram_type)
     end
     
+    app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
+    return "❌ The diagram could not be kept: there is no chat folder to keep it in." unless job
+
+    run_dir = File.join(Monadic::Utils::Environment::CONTAINER_DATA_PATH, job[:relative])
+
     # Create a shell script to compile LaTeX and convert to SVG
     script_code = <<~BASH
       #!/bin/bash
-      cd /monadic/data
+      cd #{Shellwords.escape(run_dir)} || exit 1
       
       # Check if LaTeX is available
       if ! command -v latex >/dev/null 2>&1; then
@@ -211,27 +221,8 @@ module ConceptVisualizerTools
         echo "SVG file preview (first 10 lines):"
         head -n 10 #{base_filename}.svg
 
-        # Generate PNG for visual self-verification via _image pipeline
-        echo "Generating PNG for visual verification..."
-        if [ -f #{base_filename}.dvi ]; then
-          # Prefer dvipng for direct DVI-to-PNG (higher quality)
-          if command -v dvipng >/dev/null 2>&1; then
-            dvipng -D 300 -T tight -bg Transparent -o #{base_filename}.png #{base_filename}.dvi 2>&1
-          elif command -v convert >/dev/null 2>&1; then
-            convert -density 300 #{base_filename}.svg #{base_filename}.png 2>&1
-          fi
-        elif command -v convert >/dev/null 2>&1; then
-          convert -density 300 #{base_filename}.svg #{base_filename}.png 2>&1
-        fi
-
-        if [ -f #{base_filename}.png ]; then
-          echo "PNG file created: #{base_filename}.png"
-        else
-          echo "PNG generation skipped (dvipng/convert not available)"
-        fi
-
-        # Clean up intermediate files but keep log for debugging
-        rm -f #{base_filename}.aux #{base_filename}.dvi #{base_filename}.pdf
+        # Only the SVG and its LaTeX source stay in the run folder
+        rm -f #{base_filename}.aux #{base_filename}.dvi #{base_filename}.pdf #{base_filename}.log #{base_filename}_original.tex
 
         # Show SVG statistics
         echo "Diagram statistics:"
@@ -243,6 +234,7 @@ module ConceptVisualizerTools
         echo "Error: Failed to generate diagram"
         echo "LaTeX log:"
         cat #{base_filename}.log 2>/dev/null || echo "No log file found"
+        rm -f #{base_filename}.* #{base_filename}_*
         exit 1
       fi
     BASH
@@ -257,25 +249,15 @@ module ConceptVisualizerTools
     # Handle both String and Hash return from run_code
     run_text = run_result.is_a?(Hash) ? run_result[:text] || run_result["text"] || run_result.to_s : run_result.to_s
 
-    # Return the filename if successful, with _image for visual verification
-    if run_text.include?("Successfully generated")
-      data_path = Monadic::Utils::Environment.data_path
-      png_path = File.join(data_path, "#{base_filename}.png")
-      if File.exist?(png_path)
-        # Store gallery HTML for server-side injection (bypasses LLM filename hallucination).
-        # No _image vision injection — avoids tool-call loops.
-        if session
-          gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{CGI.escapeHTML(base_filename.to_s)}.png\" /></div>"
-          session[:tool_html_fragments] ||= []
-          session[:tool_html_fragments] << gallery_html
-        end
-        "#{base_filename}.svg"
-      else
-        "#{base_filename}.svg"
-      end
-    else
-      "Error generating diagram: #{run_text}"
+    svg = File.join(job[:relative], "#{base_filename}.svg")
+    unless run_text.include?("Successfully generated") && Monadic::Workspace::Folders.real_path(svg)
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
+      return "Error generating diagram: #{run_text}"
     end
+
+    shown = Monadic::Workbench::ChatOutput.show(svg, workbench)
+    "#{Monadic::Workbench::ChatOutput.said('The diagram', svg, shown: shown)} " \
+      "Its LaTeX source is #{File.join(job[:relative], "#{base_filename}.tex")}."
   end
 
   def list_diagram_examples(category: nil)

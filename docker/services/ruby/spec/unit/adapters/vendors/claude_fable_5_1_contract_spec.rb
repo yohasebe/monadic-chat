@@ -23,7 +23,7 @@ RSpec.describe 'Claude Fable 5.1 request contract' do
       end
 
       # Drive the tool_choice branch the way a tool-capable, non-thinking
-      # request reaches it (monadic structured outputs or effort "none").
+      # request reaches it (effort "none").
       # The tools come from the app's settings, as in production; a
       # pre-set body["tools"] would be rebuilt from there and discarded.
       def pub_tool_choice(model)

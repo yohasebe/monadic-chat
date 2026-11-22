@@ -21,6 +21,8 @@ require_relative "../../utils/ssl_configuration"
 require_relative "../../utils/extra_logger"
 require_relative "../../utils/progress_broadcaster"
 require_relative "../../utils/tool_key_requirements"
+require_relative "../../workbench/offer"
+require_relative "../../workbench/chat_output"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -35,14 +37,14 @@ end
 #   - customtools variant prioritizes custom tools over built-in tools
 #
 # Gemini 3.5 Flash (gemini-3.5-flash; GA successor of the gemini-3-flash-preview line):
-#   - Full support for monadic mode + function calling simultaneously
+#   - Full support for structured JSON output + function calling simultaneously
 #   - No special workarounds required
 #
 # Gemini 2.5 (gemini-2.5-flash, gemini-2.5-pro) - Legacy Support:
 #   - Has limitation: cannot support function calling and structured JSON output simultaneously
 #   - Workaround code is preserved below for backward compatibility
 #   - For function calling: uses `reasoning_effort: minimal`
-#   - For structured JSON (monadic mode): omits reasoning_effort parameter
+#   - For structured JSON: omits reasoning_effort parameter
 #
 # Tool Management Strategy:
 #   - Info-gathering tools (read-only) are separated from action tools
@@ -50,6 +52,7 @@ end
 #
 module GeminiHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
@@ -63,7 +66,11 @@ module GeminiHelper
   # Supports optional image inputs (up to 14) for editing/conditioning:
   # images: array of { mime_type: "image/png", data: "<base64>" }
   # If images is nil, will fall back to images attached to the latest user message in session (if provided)
-  def generate_image_with_gemini_native(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+  # A run for a chat's workbench (out_dir, Monadic::Workbench::JobOutput)
+  # sends exactly the images it is given and writes the image in out_dir,
+  # leaving the session and the shared folder alone.
+  def generate_image_with_gemini_native(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil,
+                                        out_dir: nil)
     model ||= if defined?(Monadic::Utils::ModelSpec)
                 Monadic::Utils::ModelSpec.default_image_model("gemini")
               end
@@ -73,8 +80,8 @@ module GeminiHelper
 
     api_key = CONFIG["GEMINI_API_KEY"]
     return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
+    return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
 
-    shared_folder = Monadic::Utils::Environment.shared_volume
     model_id = IMAGE_GENERATION_MODELS[model] || model
 
     image_config = {}
@@ -88,54 +95,8 @@ module GeminiHelper
 
     parts = [{ text: prompt }]
 
-    # Check if user has uploaded new images in session
-    has_uploaded_images = false
-    if session && session[:messages]
-      has_uploaded_images = session[:messages].any? { |msg|
-        msg["role"] == "user" && msg["images"] && msg["images"].any?
-      }
-
-      Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Checking for user-uploaded images\n  has_uploaded_images: #{has_uploaded_images}" }
-    end
-
-    # Auto-attach last generated image (for iterative editing)
-    # ONLY if user hasn't uploaded new images (check both images param and session)
-    if session && session[:gemini3_last_image] && (images.nil? || images.empty?) && !has_uploaded_images
-      image_path = File.join(shared_folder, session[:gemini3_last_image])
-      # Read as a plain file of the shared folder, never through a link.
-      image_data = (Monadic::Utils::SharedPathGuard.read_bytes!(image_path) rescue nil)
-      if image_data
-        # Encode the last generated image
-        image_b64 = Base64.strict_encode64(image_data)
-
-        # Add to images parameter for processing
-        # Use format compatible with existing image processing (data URL format)
-        images ||= []
-        images = [images] unless images.is_a?(Array)
-        mime = case File.extname(session[:gemini3_last_image].to_s).downcase
-               when ".png" then "image/png"
-               when ".jpg", ".jpeg" then "image/jpeg"
-               when ".gif" then "image/gif"
-               when ".webp" then "image/webp"
-               else "image/png"
-               end
-        data_url = "data:#{mime};base64,#{image_b64}"
-        images << {
-          "data" => data_url,
-          "name" => session[:gemini3_last_image]
-        }
-
-        Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Auto-attached last generated image: #{session[:gemini3_last_image]}\n  This makes iterative editing work like 'editing uploaded image'" }
-
-        # Clear after attaching (one-time use)
-        session[:gemini3_last_image] = nil
-        # Don't clear duplicate flag here - it's managed by process_functions
-      else
-        Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Last generated image file not found: #{image_path}" }
-        # Clear the reference since file doesn't exist
-        session[:gemini3_last_image] = nil
-      end
-    end
+    # Only the images given go with a workbench run, none from the session
+    images = Array(images) if out_dir
 
     # Normalize image inputs: prefer explicit images param; fallback to session attachments
     inline_images = []
@@ -278,27 +239,7 @@ module GeminiHelper
               else "png"
               end
         filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
-        filepath = File.join(shared_folder, filename)
-        Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(b64))
-
-        # Add generated image to session for iterative editing
-        if session && session[:messages]
-          data_url = "data:#{mime};base64,#{b64}"
-          image_data = {
-            "title" => filename,
-            "data" => data_url
-          }
-
-          # Add as a new user message with the generated image
-          session[:messages] << {
-            "role" => "user",
-            "text" => "[Generated image: #{filename}]",
-            "images" => [image_data]
-          }
-
-          Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Added generated image to session\n  Filename: #{filename}\n  Session now has #{session[:messages].size} messages" }
-        end
-
+        Monadic::Workbench::JobOutput.write!(out_dir, filename, Base64.decode64(b64))
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
       end
 
@@ -326,8 +267,11 @@ module GeminiHelper
   # Python examples is the SDK's and is rejected with 400 here). The API may
   # still return MP3, so the saved file's extension follows the returned type. Uploaded images in the session
   # influence the composition (image-to-music, up to 10). Resolves the actual
-  # model id from providerDefaults.gemini.music (SSOT).
-  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil)
+  # model id from providerDefaults.gemini.music (SSOT). The track and its
+  # lyrics (a Markdown file) are kept in a run folder of the chat's folder
+  # (or of the MCP server) and shown on the work screen; without one, the
+  # track is not kept.
+  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil, workbench: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -344,8 +288,6 @@ module GeminiHelper
     pro_model  = music_models&.[](0) || "lyria-3.5"
     clip_model = music_models&.[](1) || "lyria-3-clip-preview"
     model_id = lyria_model.to_s.downcase == "clip" ? clip_model : pro_model
-
-    shared_folder = Monadic::Utils::Environment.shared_volume
 
     # Text prompt + any user-uploaded images for image-to-music (max 10).
     parts = [{ text: prompt }]
@@ -395,11 +337,20 @@ module GeminiHelper
     lyrics = format_lyria_lyrics(parts.filter_map { |p| p["text"] }.join("\n"))
 
     filename = "lyria_music_#{Time.now.to_i}_#{SecureRandom.hex(3)}.#{ext}"
-    filepath = File.join(shared_folder, filename)
-    Monadic::Utils::SharedPathGuard.write_file!(filepath, Base64.decode64(inline["data"]))
+    audio = Base64.decode64(inline["data"])
+    files = { filename => audio }
+    files["#{File.basename(filename, '.*')}_lyrics.md"] = "# Lyrics\n\n```text\n#{lyrics}\n```\n" unless lyrics.to_s.strip.empty?
+    app_name = session&.dig(:parameters, "app_name") || "MusicGeneratorGemini"
+    kept = Monadic::Workbench::ChatOutput.keep_and_show(session: session, workbench: workbench, app_name: app_name, files: files)
+    if kept
+      track, sheet = kept[:paths]
+      notice = Monadic::Workbench::ChatOutput.said("The track", track, shown: kept[:shown])
+      notice += " Its lyrics are beside it, as #{sheet}; do not repeat them in the reply." if sheet
+      return { success: true, service: "Google Lyria", path: track, lyrics_path: sheet, mime_type: mime,
+               model: model_id, prompt: prompt, notice: notice }.compact.to_json
+    end
 
-    { success: true, service: "Google Lyria", filename: filename, mime_type: mime, lyrics: lyrics,
-      model: model_id, prompt: prompt }.to_json
+    { success: false, service: "Google Lyria", error: "There is no chat folder to keep the track in." }.to_json
   rescue StandardError => e
     { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
       provider: "Gemini",
@@ -759,13 +710,12 @@ module GeminiHelper
     # Filter out "none" — Gemini doesn't support it; valid values are minimal/low/medium/high.
     # When "none", use the budget branch below to apply can_disable.
     gemini_reasoning = options["reasoning_effort"]
-    gemini_reasoning = nil if gemini_reasoning == "none"
-
-    if thinking_level_config && gemini_reasoning != nil
-      thinking_level = gemini_reasoning || options["thinking_level"] || thinking_level_config[:default]
-      is_thinking_model = true
+    if thinking_level_config && (gemini_reasoning || !Monadic::Utils::ModelSpec.get_thinking_budget(model))
+      thinking_level = gemini_thinking_level(model, gemini_reasoning || options["thinking_level"])
+      is_thinking_model = true if thinking_level
       Monadic::Utils::ExtraLogger.log { "GeminiHelper: Detected thinking-level model #{model} with thinking_level=#{thinking_level}" }
     end
+    gemini_reasoning = nil if gemini_reasoning == "none"
     
     # Thinking budget via reasoning_effort (for models with thinking_budget support)
     if !is_thinking_model && (gemini_reasoning || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
@@ -1230,16 +1180,18 @@ module GeminiHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
-    temperature = obj["temperature"]&.to_f
-    
-    # Handle max_tokens
-    max_tokens = obj["max_tokens"]&.to_i
+    # The settings of the message being answered, the same in every request
+    # of its answer. A temperature or an output limit the message does not
+    # name is not sent.
+    turn = Monadic::TurnSettings.current(obj)
+    temperature = turn.temperature
+    max_tokens = turn.max_tokens
 
-    context_size = obj["context_size"].to_i
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
     # Resolve model capabilities (web search, thinking, tools, streaming)
-    model_name = obj["model"]
+    model_name = turn.model
     caps = resolve_gemini_model_capabilities(obj, model_name)
     use_native_websearch = caps[:use_native_websearch]
     thinking_level = caps[:thinking_level]
@@ -1365,34 +1317,47 @@ module GeminiHelper
       # requires the model turn holding the functionCall (with its thoughtSignature)
       # to immediately precede the tool results; the results go under role "user"
       # (role "function" is accepted by 2.5 but rejected by Gemini 3 models).
-      fc_parts = obj["tool_results"].filter_map { |result|
-        fc = result["functionCall"]
-        next unless fc
-        part = { "functionCall" => fc }
-        part["thoughtSignature"] = result["thoughtSignature"] if result["thoughtSignature"]
-        part
-      }
-      if fc_parts.any?
-        last = body["contents"].last
-        if last && last["role"] == "model"
-          # Merge into the existing model turn (keeps role alternation valid)
-          (last["parts"] ||= []).concat(fc_parts)
-        else
-          body["contents"] << { "role" => "model", "parts" => fc_parts }
+      # Each round of the turn (the results of one round share its call
+      # depth): its calls, then their results, in order.
+      obj["tool_results"].chunk_while { |a, b| a["call_depth"] == b["call_depth"] }.each do |round|
+        fc_parts = round.filter_map do |result|
+          fc = result["functionCall"]
+          next unless fc
+
+          part = { "functionCall" => fc }
+          part["thoughtSignature"] = result["thoughtSignature"] if result["thoughtSignature"]
+          part
         end
+        if fc_parts.any?
+          last = body["contents"].last
+          if last && last["role"] == "model"
+            # Merge into the existing model turn (keeps role alternation valid)
+            (last["parts"] ||= []).concat(fc_parts)
+          else
+            body["contents"] << { "role" => "model", "parts" => fc_parts }
+          end
+        end
+
+        # The results as functionResponse parts under role "user"
+        parts = round.filter_map { |result| { "functionResponse" => result["functionResponse"] } if result["functionResponse"] }
+        body["contents"] << { "role" => "user", "parts" => parts } if parts.any?
       end
 
-      # Add tool results as functionResponse parts under role "user"
-      parts = obj["tool_results"].map { |result|
-        result["functionResponse"] ? { "functionResponse" => result["functionResponse"] } : nil
-      }.compact
-
-      if parts.any?
+      # Each look's image follows the results, in a user turn of its own
+      # that names the observation (Gemini's calls carry no id).
+      look_calls = obj["tool_results"].filter_map { |r| r["_look_call"] }
+      looks = workbench_looks_to_place(session, look_calls)
+      if looks.any?
         body["contents"] << {
           "role" => "user",
-          "parts" => parts
+          "parts" => looks.flat_map do |look|
+            [{ "text" => look.caption.to_s },
+             { "inlineData" => { "mimeType" => look.image.content_type, "data" => look.image.base64 } }]
+          end
         }
       end
+      ledger = workbench_look_ledger
+      workbench_looks_prepared(ledger.answering(look_calls)) if ledger
 
       # Inject screenshot image(s) as user message for vision-capable models
       # Supports multiple images for tiled screenshots
@@ -1426,7 +1391,7 @@ module GeminiHelper
       # to prevent infinite loops. However, some apps may need multiple sequential calls.
       
       # Check if this is a legacy Gemini 2.5 model (for backward compatibility)
-      is_legacy_gemini = obj["model"] && obj["model"].include?("2.5")
+      is_legacy_gemini = model_name && model_name.include?("2.5")
 
       # Check if this is a Jupyter app that needs multiple tool calls
       is_jupyter_app = app.to_s.include?("jupyter") ||
@@ -1439,7 +1404,7 @@ module GeminiHelper
         Monadic::Utils::ExtraLogger.log { "[Jupyter Termination Check] role=tool, tool_names=#{tool_names.inspect}" }
       end
 
-      # Gemini 3+ fully supports function calling with monadic mode
+      # Gemini 3+ fully supports function calling with structured JSON output
       # Gemini 2.5 also supports function calling (with some workarounds)
       if is_jupyter_app
         # Separate information-gathering tools from action tools
@@ -1539,7 +1504,7 @@ module GeminiHelper
       # (e.g., after parallel dispatch or verification sets call_depth_per_turn = FORCE_STOP_DEPTH).
       # Without this, Gemini ignores the "Do NOT call any more tools" text instruction
       # and attempts tool calls, which hit MAX_FUNC_CALLS and truncate the response.
-      if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= tool_round_limit(session, MAX_FUNC_CALLS)
         body.delete("tools")
         body.delete("toolConfig")
       end
@@ -1617,7 +1582,7 @@ module GeminiHelper
     end
     
     # Execute API call (endpoint selection, HTTP request, retry, error handling)
-    Monadic::Utils::ExtraLogger.log { "[api_request] role=#{role}, calling execute_gemini_api_call with model=#{obj["model"]}, contents_count=#{body["contents"]&.length}, tools_count=#{body["tools"]&.length}" }
+    Monadic::Utils::ExtraLogger.log { "[api_request] role=#{role}, calling execute_gemini_api_call with model=#{model_name}, contents_count=#{body["contents"]&.length}, tools_count=#{body["tools"]&.length}" }
     # Only the request is retried, so nothing before it (such as the
     # user card) is sent again, and only until part of the reply has reached
     # the browser. Each attempt sends a copy of the request body, which the
@@ -1651,10 +1616,28 @@ module GeminiHelper
   # --- Private helper methods extracted from api_request ---
 
   private
+  # The thinking level to send for a model with levels (model_spec.js
+  # thinking_level: [levels, default]): the requested one if the model takes
+  # it, else its default. "none" is nil where the catalog can turn thinking
+  # off by budget, else the lowest level. nil for a model without levels.
+  def gemini_thinking_level(model, requested)
+    config = Monadic::Utils::ModelSpec.get_thinking_level_options(model)
+    return nil unless config
+
+    levels = Array(config[:options]).map(&:to_s)
+    if requested.to_s == "none"
+      return nil if Monadic::Utils::ModelSpec.get_thinking_budget(model)&.[]("can_disable")
+
+      return levels.first
+    end
+    levels.include?(requested.to_s) ? requested.to_s : config[:default].to_s
+  end
+
 
   # Resolve model capabilities: web search, thinking, tools, streaming (SSOT-based)
   def resolve_gemini_model_capabilities(obj, model_name)
-    requested_websearch = obj["websearch"] == true || obj["websearch"] == "true"
+    turn = Monadic::TurnSettings.current(obj)
+    requested_websearch = turn.websearch == true
     spec_supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model_name)
     use_native_websearch = requested_websearch && spec_supports_websearch
     unless use_native_websearch
@@ -1665,17 +1648,19 @@ module GeminiHelper
     # Handle thinking models based on reasoning_effort or thinking_level
     thinking_level_config = Monadic::Utils::ModelSpec.get_thinking_level_options(model_name)
     thinking_level = nil
-    reasoning_effort = obj["reasoning_effort"]
+    reasoning_effort = turn.reasoning_effort
     # "none" is an application control, not an API thinking level. Preserve
     # it for the budget branch when the catalog permits disabling thinking.
     disable_thinking = reasoning_effort == "none" &&
       Monadic::Utils::ModelSpec.get_thinking_budget(model_name)&.[]("can_disable")
     reasoning_effort = nil if reasoning_effort == "none" && !disable_thinking
     if thinking_level_config && !disable_thinking
-      thinking_level = reasoning_effort || obj["thinking_level"] || thinking_level_config[:default]
+      thinking_level = gemini_thinking_level(model_name, turn.reasoning_effort || turn.thinking_level)
       reasoning_effort = nil  # Avoid mixing thinking_budget and thinking_level
     end
-    is_thinking_model = thinking_level_config ? true : (!reasoning_effort.nil? && !reasoning_effort.empty?)
+    # A model the catalog gives neither levels nor a budget is not asked to
+    # think, whatever effort came with the message.
+    is_thinking_model = thinking_level_config ? true : (!reasoning_effort.nil? && gemini_thinking_budget?(model_name))
 
     # Resolve tool capability (SSOT + optional legacy override)
     spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model_name, "tool_capability")
@@ -1701,6 +1686,10 @@ module GeminiHelper
     }
   end
 
+  def gemini_thinking_budget?(model_name)
+    !Monadic::Utils::ModelSpec.get_thinking_budget(model_name).nil?
+  end
+
   # Build the Gemini API request body (safety settings, generationConfig, thinkingConfig, systemInstruction)
   def build_gemini_request_body(obj:, model_name:, session:, context:, temperature:, max_tokens:,
                                 is_thinking_model:, thinking_level:, reasoning_effort:, tool_capable:,
@@ -1709,7 +1698,7 @@ module GeminiHelper
     # a user/MDSL temperature. No Gemini entry does — the Gemini 3 guide
     # mandates the default (1.0); lower values risk looping / degraded output —
     # yet MDSL-set temperatures were reaching the API here. Drop them.
-    if temperature && !Monadic::Utils::ModelSpec.supports_temperature?(model_name || obj["model"])
+    if temperature && !Monadic::Utils::ModelSpec.supports_temperature?(model_name || Monadic::TurnSettings.current(obj).model)
       temperature = nil
     end
 
@@ -1751,26 +1740,24 @@ module GeminiHelper
       # Surface the model's reasoning in the UI when "Show Thinking" is on.
       # Defaults to on; only an explicit false disables it. The streaming
       # handler emits parts with thought == true as "thinking" fragments.
-      include_thoughts = ![false, "false"].include?(obj["show_thinking"])
+      include_thoughts = Monadic::TurnSettings.current(obj).show_thinking != false
 
       # Thinking level (Gemini 3)
       if thinking_level
-        model_for_budget = model_name || obj["model"]
+        model_for_budget = model_name || Monadic::TurnSettings.current(obj).model
         thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model_for_budget)
-        budget_tokens = nil
-        if thinking_budget && thinking_budget["presets"] && thinking_budget["presets"][thinking_level]
-          budget_tokens = thinking_budget["presets"][thinking_level]
-        else
-          budget_tokens = thinking_level == "high" ? 20000 : 8000
-        end
-
-        body["generationConfig"]["thinkingConfig"] = {
-          "thinkingBudget" => budget_tokens,
-          "includeThoughts" => include_thoughts
-        }
+        # A level the catalog gives a budget for is sent as that budget;
+        # any other is sent as the level itself.
+        budget_tokens = thinking_budget&.dig("presets", thinking_level)
+        body["generationConfig"]["thinkingConfig"] =
+          if budget_tokens
+            { "thinkingBudget" => budget_tokens, "includeThoughts" => include_thoughts }
+          else
+            { "thinkingLevel" => thinking_level, "includeThoughts" => include_thoughts }
+          end
       # Thinking budget (for models with thinking_budget support)
       elsif is_thinking_model && reasoning_effort
-        model = obj["model"]
+        model = model_name || Monadic::TurnSettings.current(obj).model
 
         Monadic::Utils::ExtraLogger.log {
           tb = Monadic::Utils::ModelSpec.get_thinking_budget(model)
@@ -1840,10 +1827,12 @@ module GeminiHelper
   # Returns :has_pdf, :no_pdf, or an error array for early return
   def prepare_gemini_message_contents(body:, obj:, model_name:, session:, non_system_messages:, &block)
     body["contents"] = non_system_messages.compact.map do |msg|
-      {
-        "role" => translate_role(msg["role"]),
-        "parts" => [{ "text" => msg["text"] }]
-      }
+      parts = [{ "text" => msg["text"] }]
+      # What the work screen shows, as a text part of its own.
+      if (observation = observation_for(session, msg))
+        parts << { "text" => observation }
+      end
+      { "role" => translate_role(msg["role"]), "parts" => parts }
     end
 
     has_pdf_part = false
@@ -2123,8 +2112,10 @@ module GeminiHelper
         body.delete("toolConfig")
       end
 
-      # Check if user message contains URLs and add URL Context tool if needed
-      if role == "user" && message.is_a?(String) && message != ""
+      # A URL in the user's message: Gemini reads it itself (url_context),
+      # unless the request offers the app's own tools. The two cannot go in
+      # one request, and the app's tools then open the URL.
+      if role == "user" && message.is_a?(String) && message != "" && !has_function_declarations
         url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
         if use_native_websearch && message.match?(url_pattern)
           DebugHelper.debug("Gemini: URLs detected in message, adding URL Context tool", category: :api, level: :debug)
@@ -2185,59 +2176,39 @@ module GeminiHelper
     app_tools
   end
 
-  # Mask conversational text within Gemini's contents array. The body shape
-  # is contents = [{ role, parts: [{ text }, { inline_data }, ...] }]. Both
-  # "user" and "model" (assistant) parts with a String "text" key are
-  # masked. Inline data, file data, and function_call/response parts pass
-  # through untouched. See apply_privacy_to_messages for the rationale on
-  # masking past assistant turns.
-  private def apply_privacy_to_gemini_contents(contents, session, app_settings)
-    require_relative '../../utils/privacy/outbound'
-    outbound = Monadic::Utils::Privacy::Outbound
-    pipeline = privacy_pipeline_for(session, app_settings)
-    unless pipeline
-      # Words the user marked stay protected when the filter is off.
-      raise outbound::Refused, 'words were marked to be masked in this chat, but the Privacy Filter is off' if outbound.marked_terms?(session)
+  # One turn of a Gemini conversation, as sent to a chat with a word table
+  # (hide_words_in_request!). Text parts are what the user and the app
+  # wrote, and replies as the chat keeps them (put back): what the model
+  # writes in a round of tool calls is not sent again. A functionCall's
+  # args are the model's; a functionResponse's response is data. Thought
+  # parts, thought signatures, and inline and file data are left as they
+  # are (a word in them stops the request).
+  def hide_words_in_gemini_content(content, snapshot, budget)
+    return content unless content.is_a?(Hash) && %w[user model].include?((content[:role] || content["role"]).to_s)
 
-      return contents
+    parts_key = content.key?(:parts) ? :parts : "parts"
+    parts = content[parts_key]
+    return content unless parts.is_a?(Array)
+
+    content.merge(parts_key => parts.map { |part| hide_words_in_gemini_part(part, snapshot, budget) })
+  end
+
+  def hide_words_in_gemini_part(part, snapshot, budget)
+    return part unless part.is_a?(Hash)
+
+    holder = ->(names) { names.flat_map { |n| [n, n.to_sym] }.find { |k| part[k].is_a?(Hash) } }
+    if (call = holder.(%w[functionCall function_call]))
+      args_key = part[call].key?(:args) ? :args : "args"
+      return part.merge(call => part[call].merge(args_key => snapshot.data(part[call][args_key], origin: :model, budget: budget)))
     end
-
-    require_relative '../../utils/privacy/types'
-    mask_text = lambda do |text|
-      next text unless text.is_a?(String) && !text.empty?
-
-      pipeline.before_send_to_llm(Monadic::Utils::Privacy::RawMessage.new(text, "user", {})).text
+    if (response = holder.(%w[functionResponse function_response]))
+      response_key = part[response].key?(:response) ? :response : "response"
+      return part.merge(response => part[response].merge(response_key => snapshot.data(part[response][response_key], budget: budget)))
     end
-    # In a chat with words the user marked, what a function gave back
-    # (functionResponse.response) is masked like the conversation.
-    mask_tools = outbound.marked_terms?(session)
-    contents.map do |item|
-      role = item[:role] || item["role"]
-      # Gemini uses "model" for assistant turns; mask both directions so
-      # restored values from past turns do not leak as context.
-      next item unless %w[user model].include?(role.to_s)
-      parts_key = item.key?(:parts) ? :parts : "parts"
-      parts = item[parts_key]
-      next item unless parts.is_a?(Array)
+    return part if part[:thought] == true || part["thought"] == true
 
-      new_parts = parts.map do |part|
-        next part unless part.is_a?(Hash)
-        response_holder = %w[functionResponse function_response].find { |k| part[k].is_a?(Hash) } ||
-                          %i[functionResponse function_response].find { |k| part[k].is_a?(Hash) }
-        if mask_tools && response_holder
-          holder = part[response_holder]
-          response_key = holder.key?(:response) ? :response : "response"
-          next part.merge(response_holder => holder.merge(response_key => privacy_mask_value(holder[response_key], mask_text)))
-        end
-        text_key = part.key?(:text) ? :text : "text"
-        text = part[text_key]
-        next part unless text.is_a?(String) && !text.empty?
-        raw = Monadic::Utils::Privacy::RawMessage.new(text, "user", {})
-        masked = pipeline.before_send_to_llm(raw)
-        part.merge(text_key => masked.text)
-      end
-      item.merge(parts_key => new_parts)
-    end
+    text_key = part.key?(:text) ? :text : "text"
+    part[text_key].is_a?(String) ? part.merge(text_key => snapshot.raw(part[text_key], budget)) : part
   end
 
   # Execute the Gemini API call: endpoint selection, HTTP request with retries, error handling
@@ -2245,18 +2216,21 @@ module GeminiHelper
                               app:, session:, call_depth:, &block)
     # Use v1beta for thinking models or PDF handling, v1alpha for others
     endpoint = (is_thinking_model || has_pdf_part) ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
-    target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent"
+    model = Monadic::TurnSettings.current(obj).model
+    target_uri = "#{endpoint}/models/#{model}:streamGenerateContent?alt=sse"
 
     http = HTTP.headers(headers.merge("x-goog-api-key" => api_key))
 
-    # Privacy Filter: mask user-message PII before sending to Gemini. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["contents"].is_a?(Array)
-      body["contents"] = apply_privacy_to_gemini_contents(body["contents"], session, app_settings)
-    end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged). The conversation as it was
+    # before is what a request made again is made from.
+    unhidden = body["contents"]
+    hiding = hide_words_in_request!(body, session, keys: %w[contents], item: method(:hide_words_in_gemini_content))
+
+    # The tools as the model is offered them; what depends on them is
+    # settled after.
+    offer_tools!(body, session, app, provider: "gemini", model: model)
 
     # Final safety check: Remove toolConfig if no function_declarations exist
     has_any_function_declarations = body["tools"]&.any? { |tool|
@@ -2269,20 +2243,22 @@ module GeminiHelper
 
     res = nil
 
-    Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
     Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Sending POST to #{target_uri[0..80]}... body contents_count=#{body["contents"]&.length}" }
-    MAX_RETRIES.times do |attempt|
-      Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
-      if res.status.success?
-        Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Response status: #{res.status}" }
-        break
-      end
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do |attempt|
+        Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Attempt #{attempt + 1}/#{MAX_RETRIES}" } if attempt > 0
+        res = post_with_workbench_looks(session, provider: "gemini", model: model) do
+          http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
+              .post(target_uri, json: Monadic::Utils::GeminiRequest.without_storage(body))
+        end
+        if res.status.success?
+          Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Response status: #{res.status}" }
+          break
+        end
 
-      Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Non-success status: #{res.status}, retrying..." }
-      sleep RETRY_DELAY
+        Monadic::Utils::ExtraLogger.log { "[execute_gemini_api_call] Non-success status: #{res.status}, retrying..." }
+        sleep RETRY_DELAY
+      end
     end
 
     unless res&.status&.success?
@@ -2330,10 +2306,10 @@ module GeminiHelper
     # without adding cells, nudge it to continue by injecting a user message.
     if result.is_a?(Array) && result.first.is_a?(Hash) && result.first["gemini_jupyter_retry"]
       Monadic::Utils::ExtraLogger.log { "[Gemini Jupyter Retry] Nudging model to add cells" }
-      body["contents"] << {
+      body["contents"] = (hiding ? unhidden : body["contents"]) + [{
         "role" => "user",
         "parts" => [{ "text" => "The notebook has been created. Now add the requested code cells using add_jupyter_cells and execute them." }]
-      }
+      }]
       # execute_gemini_api_call internally calls process_json_data and
       # returns the final result array (not an HTTP response object).
       return execute_gemini_api_call(
@@ -2378,7 +2354,7 @@ module GeminiHelper
   public
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", workbench_loggable(query))
     
     # For media generator apps, we'll need special processing to remove code blocks
     is_media_generator = app.to_s.include?("image_generator") || 
@@ -2387,208 +2363,206 @@ module GeminiHelper
                          (session[:parameters]["app_name"].to_s.include?("Image Generator") || 
                           session[:parameters]["app_name"].to_s.include?("Video Generator"))
 
-    buffer = String.new
+    records = StreamRecords.new(:sse)
+    stream_error = nil
     texts = []
     fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     thinking_parts = []  # Store thinking content
     tool_calls = []
     finish_reason = nil
-    @grounding_html = nil  # Store grounding metadata HTML to append to response
-    @url_context_html = nil  # Store URL context metadata HTML to append to response
+    # The reply's sources, appended to it (the reply's own, not the app's:
+    # the app is shared by every chat).
+    grounding_html = nil
+    url_context_html = nil
     # Track usage metadata if provider returns it (non-streaming often)
     usage_prompt_tokens = nil
     usage_candidates_tokens = nil
     usage_total_tokens = nil
 
-    # Process streaming response chunks
-    res.each do |chunk|
-      # Check if we should stop processing due to STOP finish reason
-      break if finish_reason == "stop"
-      
-      chunk = chunk.force_encoding("UTF-8")
-      buffer << chunk
+    # Each record of the stream ("alt=sse": one JSON object per data line).
+    # A proc, not a lambda: its returns end the reply.
+    handle = proc do |json_obj|
 
-      if buffer.valid_encoding? == false
-        next
+      Monadic::Utils::ExtraLogger.log_json("Gemini streaming chunk", json_obj)
+
+      # Capture usage metadata if available
+      # Gemini may return usageMetadata with keys like promptTokenCount and candidatesTokenCount
+      usage_md = json_obj["usageMetadata"] || json_obj["usage_metadata"]
+      if usage_md.is_a?(Hash)
+        usage_prompt_tokens = usage_md["promptTokenCount"] || usage_md["prompt_tokens"] || usage_prompt_tokens
+        usage_candidates_tokens = usage_md["candidatesTokenCount"] || usage_md["completion_tokens"] || usage_candidates_tokens
+        # Some variants include totalTokenCount
+        usage_total_tokens = usage_md["totalTokenCount"] || (usage_prompt_tokens.to_i + usage_candidates_tokens.to_i if usage_prompt_tokens && usage_candidates_tokens) || usage_total_tokens
       end
 
-      begin
-        break if /\Rdata: [DONE]\R/ =~ buffer
-      rescue StandardError
-        next
-      end
+      candidates = json_obj["candidates"]
 
-      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
-      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
-      # that will become complete when the next chunk arrives
-      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      # buffer.encode!("UTF-8", "UTF-16")
-
-      if /^\[?(\{\s*"candidates":.*^\})\n/m =~ buffer
-        json = Regexp.last_match(1)
-        begin
-          json_obj = JSON.parse(json)
-
-          Monadic::Utils::ExtraLogger.log_json("Gemini streaming chunk", json_obj)
-
-          # Capture usage metadata if available
-          # Gemini may return usageMetadata with keys like promptTokenCount and candidatesTokenCount
-          usage_md = json_obj["usageMetadata"] || json_obj["usage_metadata"]
-          if usage_md.is_a?(Hash)
-            usage_prompt_tokens = usage_md["promptTokenCount"] || usage_md["prompt_tokens"] || usage_prompt_tokens
-            usage_candidates_tokens = usage_md["candidatesTokenCount"] || usage_md["completion_tokens"] || usage_candidates_tokens
-            # Some variants include totalTokenCount
-            usage_total_tokens = usage_md["totalTokenCount"] || (usage_prompt_tokens.to_i + usage_candidates_tokens.to_i if usage_prompt_tokens && usage_candidates_tokens) || usage_total_tokens
-          end
-
-          candidates = json_obj["candidates"]
-
-          candidates&.each do |candidate|
-            
-            # Check for URL Context metadata at candidate level
-            if candidate["urlContextMetadata"] &&
-               !candidate["urlContextMetadata"].empty? &&
-               @url_context_html.nil?
-              @url_context_html = build_url_context_html(candidate["urlContextMetadata"])
-            end
-            
-            # Check for grounding metadata at candidate level (skip empty objects)
-            if candidate["groundingMetadata"] &&
-               !candidate["groundingMetadata"].empty? &&
-               @grounding_html.nil?
-              @grounding_html = build_grounding_metadata_html(candidate["groundingMetadata"], source: "candidate")
-            end
-
-            finish_reason = candidate["finishReason"]
-            case finish_reason
-            when "MAX_TOKENS"
-              # Check if content is empty or contains only thinking signature
-              content_check = candidate["content"]
-              text_parts = content_check&.dig("parts")&.select { |p| p["text"] && !p["text"].empty? } || []
-
-              if text_parts.empty?
-                # Thinking consumed all tokens - return error
-                res = { "type" => "error", "content" => "The model's thinking process used all available tokens. Please try again with a simpler request." }
-                block&.call res
-                return [res]
-              end
-              finish_reason = "length"
-            when "STOP"
-              finish_reason = "stop"
-              # For thinking models, we should stop processing after receiving STOP
-              # to avoid infinite loops
-            when "SAFETY"
-              finish_reason = "safety"
-            when "CITATION"
-              finish_reason = "recitation"
-            when "MALFORMED_FUNCTION_CALL"
-              # Gemini returned a malformed function call
-              # With Gemini 3+ models, this should rarely occur
-              Monadic::Utils::ExtraLogger.log {
-                finish_message = candidate["finishMessage"]
-                "[MALFORMED_FUNCTION_CALL]\n  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
-              }
-
-              # If fragments were already streamed, complete the stream
-              if fragment_sequence > 0
-                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                block&.call res
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => texts.join } }] }]
-              end
-
-              # Return error message
-              error_msg = "The model attempted an invalid function call. Please try again or switch to a different model."
-              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-              block&.call res
-              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
-            else
-              finish_reason = nil
-            end
-
-            content = candidate["content"]
-
-            next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
-
-            content["parts"]&.each do |part|
-              # Process grounding metadata for web search results (part level)
-              if @grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
-                grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
-                @grounding_html = build_grounding_metadata_html(grounding_data, source: "part")
-                json_obj.delete("groundingMetadata") if json_obj["groundingMetadata"]
-              end
-              
-              # Check if this part contains thinking content
-              if part["thought"] == true && part["text"]
-                thinking_fragment = part["text"]
-                thinking_parts << thinking_fragment
-                
-                # Send thinking content as a special type (similar to Claude)
-                res = {
-                  "type" => "thinking",
-                  "content" => thinking_fragment
-                }
-                block&.call res
-                # Skip thinking content - it's internal reasoning, not output
-                next
-              end
-              
-              # Also check for modelThinking field (alternative format)
-              if part["modelThinking"] && part["modelThinking"]["thought"]
-                thinking_fragment = part["modelThinking"]["thought"]
-                thinking_parts << thinking_fragment
-                
-                res = {
-                  "type" => "thinking",
-                  "content" => thinking_fragment
-                }
-                block&.call res
-                # Skip this part
-                next
-              end
-              
-              if part["text"]
-                fragment = process_gemini_stream_part(part["text"], session: session, is_media_generator: is_media_generator)
-                next if fragment.nil?
-
-                texts << fragment
-
-                if fragment.length > 0
-                  res = {
-                    "type" => "fragment",
-                    "content" => fragment,
-                    "sequence" => fragment_sequence,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => fragment_sequence == 0
-                  }
-                  fragment_sequence += 1
-                  block&.call res
-                end
-
-              elsif part["functionCall"]
-
-                fc = part["functionCall"].dup
-                # Gemini 3 returns a thoughtSignature as a sibling of functionCall.
-                # It must be echoed back verbatim on the reconstructed model turn or
-                # the follow-up request is rejected. Carried on an internal key so
-                # name/args consumers are unaffected.
-                fc["_thoughtSignature"] = part["thoughtSignature"] if part["thoughtSignature"]
-                tool_calls << fc
-                res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
-                block&.call res
-              end
-            end
-          end
-        rescue JSON::ParserError
-          # if the JSON parsing fails, the next chunk should be appended to the buffer
-          # and the loop should continue to the next iteration
+      candidates&.each do |candidate|
+        
+        # Check for URL Context metadata at candidate level
+        if candidate["urlContextMetadata"] &&
+           !candidate["urlContextMetadata"].empty? &&
+           url_context_html.nil?
+          url_context_html = build_url_context_html(candidate["urlContextMetadata"])
         end
-        buffer = String.new
+        
+        # Check for grounding metadata at candidate level (skip empty objects)
+        if candidate["groundingMetadata"] &&
+           !candidate["groundingMetadata"].empty? &&
+           grounding_html.nil?
+          grounding_html = build_grounding_metadata_html(candidate["groundingMetadata"], source: "candidate")
+        end
+
+        finish_reason = candidate["finishReason"]
+        case finish_reason
+        when "MAX_TOKENS"
+          # Check if content is empty or contains only thinking signature
+          content_check = candidate["content"]
+          text_parts = content_check&.dig("parts")&.select { |p| p["text"] && !p["text"].empty? } || []
+
+          if text_parts.empty?
+            # Thinking consumed all tokens - return error
+            res = { "type" => "error", "content" => "The model's thinking process used all available tokens. Please try again with a simpler request." }
+            block&.call res
+            return [res]
+          end
+          finish_reason = "length"
+        when "STOP"
+          finish_reason = "stop"
+          # For thinking models, we should stop processing after receiving STOP
+          # to avoid infinite loops
+        when "SAFETY"
+          finish_reason = "safety"
+        when "CITATION"
+          finish_reason = "recitation"
+        when "MALFORMED_FUNCTION_CALL"
+          # Gemini returned a malformed function call
+          # With Gemini 3+ models, this should rarely occur
+          Monadic::Utils::ExtraLogger.log {
+            finish_message = candidate["finishMessage"]
+            "[MALFORMED_FUNCTION_CALL]\n  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
+          }
+
+          # The calls that arrived whole before the malformed one are run;
+          # the model is asked again with their results.
+          if tool_calls.any?
+            finish_reason = "stop"
+            next
+          end
+
+          # If fragments were already streamed, complete the stream
+          if fragment_sequence > 0
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => texts.join } }] }]
+          end
+
+          # Return error message
+          error_msg = "The model attempted an invalid function call. Please try again or switch to a different model."
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+          return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
+        else
+          finish_reason = nil
+        end
+
+        content = candidate["content"]
+
+        next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
+
+        content["parts"]&.each do |part|
+          # Process grounding metadata for web search results (part level)
+          if grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
+            grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
+            grounding_html = build_grounding_metadata_html(grounding_data, source: "part")
+            json_obj.delete("groundingMetadata") if json_obj["groundingMetadata"]
+          end
+          
+          # Check if this part contains thinking content
+          if part["thought"] == true && part["text"]
+            thinking_fragment = part["text"]
+            thinking_parts << thinking_fragment
+            
+            # Send thinking content as a special type (similar to Claude)
+            res = {
+              "type" => "thinking",
+              "content" => thinking_fragment
+            }
+            block&.call res
+            # Skip thinking content - it's internal reasoning, not output
+            next
+          end
+          
+          # Also check for modelThinking field (alternative format)
+          if part["modelThinking"] && part["modelThinking"]["thought"]
+            thinking_fragment = part["modelThinking"]["thought"]
+            thinking_parts << thinking_fragment
+            
+            res = {
+              "type" => "thinking",
+              "content" => thinking_fragment
+            }
+            block&.call res
+            # Skip this part
+            next
+          end
+          
+          if part["text"]
+            fragment = process_gemini_stream_part(part["text"], session: session, is_media_generator: is_media_generator)
+            next if fragment.nil?
+
+            texts << fragment
+
+            if fragment.length > 0
+              res = {
+                "type" => "fragment",
+                "content" => fragment,
+                "sequence" => fragment_sequence,
+                "timestamp" => Time.now.to_f,
+                "is_first" => fragment_sequence == 0
+              }
+              fragment_sequence += 1
+              block&.call res
+            end
+
+          elsif part["functionCall"]
+
+            fc = part["functionCall"].dup
+            # Gemini 3 returns a thoughtSignature as a sibling of functionCall.
+            # It must be echoed back verbatim on the reconstructed model turn or
+            # the follow-up request is rejected. Carried on an internal key so
+            # name/args consumers are unaffected.
+            fc["_thoughtSignature"] = part["thoughtSignature"] if part["thoughtSignature"]
+            tool_calls << fc
+            res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+            block&.call res
+          end
+        end
       end
-      
-    rescue StandardError => e
-      # Log error but continue processing
-      Monadic::Utils::ExtraLogger.log { "[Gemini] Error processing JSON data chunk: #{e.message}" }
     end
+
+    catch(:gemini_stream_end) do
+      read = lambda do |data, _event|
+        throw :gemini_stream_end if finish_reason == "stop"
+
+        json_obj = JSON.parse(data)
+        if json_obj["error"]
+          stream_error = json_obj["error"].is_a?(Hash) ? json_obj["error"]["message"] : json_obj["error"]
+          Monadic::Utils::ExtraLogger.log { "[Gemini] streaming error record: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stream_error.to_s)}" }
+          throw :gemini_stream_end
+        end
+        handle.call(json_obj)
+      rescue JSON::ParserError
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Unreadable record skipped (#{data.bytesize} bytes)" }
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Error processing JSON data chunk: #{e.message}" }
+      end
+
+      res.each { |chunk| records.feed(chunk, &read) }
+      records.finish(&read)
+    end
+
+    return StreamRecords.error_reply("Gemini", stream_error, &block) if stream_error
 
 
     result = []
@@ -2620,6 +2594,8 @@ module GeminiHelper
 
       fallback = generate_gemini_fallback_response(session: session, &block)
       result = fallback[:result]
+      # Made from what tools gave, not written by the model.
+      result_from_tools = true
       finish_reason = fallback[:finish_reason] if fallback[:finish_reason]
     else
       result = texts
@@ -2669,7 +2645,7 @@ module GeminiHelper
       end
 
       session[:call_depth_per_turn] += 1
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
         error_content = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Gemini",
           message: "Maximum function call depth exceeded"
@@ -2736,7 +2712,10 @@ module GeminiHelper
         ) }]
       end
 
-      if result && new_results
+      if Monadic::Workbench::Offer.ended_reply?(new_results)
+        # An image on the workbench ended the reply as it is
+        new_results
+      elsif result && new_results
         assemble_gemini_final_result(
           result: result, new_results: new_results,
           tool_calls: tool_calls, session: session, &block
@@ -2753,7 +2732,7 @@ module GeminiHelper
           # the tool output (e.g. Music Analyst's critique/features) over a blank
           # message; fall back to empty content to keep suppressing the error.
           surfaced = surfaced_tool_text(session)
-          [{ "choices" => [{ "message" => { "content" => surfaced || "" } }] }]
+          replies_as_is([{ "choices" => [{ "message" => { "content" => surfaced || "" } }] }])
         else
           [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
         end
@@ -2765,21 +2744,23 @@ module GeminiHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
 
-      # Join the result and check if it needs unwrapping
-      final_content = result.join("")
+      # Join the result and check if it needs unwrapping. In a chat with a
+      # word table, what the model wrote is put back here, before what the
+      # search found is added, and the reply is shown as it is.
+      final_content = result_from_tools ? result.join("") : Monadic::Utils::Privacy::Words.put_back(result.join(""))
       
       # Check if the entire response is a single Markdown code block and unwrap it
       final_content = unwrap_single_markdown_code_block(final_content)
 
       # Append URL context metadata HTML if present
-      if @url_context_html
-        final_content += "\n\n" + @url_context_html
+      if url_context_html
+        final_content += "\n\n" + url_context_html
         Monadic::Utils::ExtraLogger.log { "[Gemini] Appended URL context metadata HTML to final response" }
       end
       
       # Append grounding metadata HTML if present
-      if @grounding_html
-        final_content += "\n\n" + @grounding_html
+      if grounding_html
+        final_content += "\n\n" + grounding_html
         Monadic::Utils::ExtraLogger.log { "[Gemini] Appended grounding metadata HTML to final response\n[Gemini] Final content length: #{final_content.length}" }
       else
         Monadic::Utils::ExtraLogger.log { "[Gemini] No grounding HTML to append" }
@@ -2816,7 +2797,7 @@ module GeminiHelper
         response_data["choices"][0]["message"]["thinking"] = merged_thinking
       end
       
-      [response_data]
+      replies_as_is([response_data])
     else
       # Empty result case - check if Jupyter tools completed successfully
       # This happens when Gemini returns an empty response after tool execution
@@ -3065,10 +3046,9 @@ module GeminiHelper
       if fragment =~ /```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im
         fragment = fragment.gsub(/```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im, '\1')
       end
-    # Extract HTML from code blocks for media generator and code interpreter apps
+    # Extract HTML from code blocks for media generator apps
     elsif !session[:parameters]["app_name"].to_s.include?("Jupyter") &&
-       (is_media_generator || session[:parameters]["app_name"].to_s.include?("Code Interpreter") ||
-        session[:parameters]["app_name"].to_s.include?("Video Generator")) && fragment.include?("```")
+       (is_media_generator || session[:parameters]["app_name"].to_s.include?("Video Generator")) && fragment.include?("```")
       if session[:parameters]["app_name"].to_s.include?("Video Generator")
         if fragment =~ /<div class="(?:prompt|generated_video)">.*?<\/div>/im
           html_pattern = /<div.*?>.*?<\/div>|<p.*?>.*?<\/p>/im
@@ -3214,10 +3194,18 @@ module GeminiHelper
 
   # Assemble the final result combining initial text with tool call results
   def assemble_gemini_final_result(result:, new_results:, tool_calls:, session:, &block)
+    # A request that failed ends the reply as its error, not as its text.
+    return new_results if new_results.is_a?(Array) && new_results.first.is_a?(Hash) && new_results.first["type"] == "error"
+
     begin
       # More robust handling of different response structures
+      # In a chat with a word table, each part of the reply is put back with
+      # the words of the request it came from (what tools gave is shown as
+      # it is), and the reply is then shown as it is (replies_as_is below).
       if new_results.is_a?(Array) && new_results[0].is_a?(Hash) && new_results[0]["choices"]
-        tool_result_content = new_results.dig(0, "choices", 0, "message", "content").to_s.strip
+        tool_result_content = Monadic::Utils::Privacy::Words.restore_reply(
+          new_results[0], new_results.dig(0, "choices", 0, "message", "content").to_s
+        ).strip
       else
         tool_result_content = new_results.to_s.strip
       end
@@ -3249,7 +3237,7 @@ module GeminiHelper
       jupyter_tools = %w[
         create_and_populate_jupyter_notebook add_jupyter_cells create_jupyter_notebook
         get_jupyter_cells_with_results delete_jupyter_cell update_jupyter_cell
-        insert_jupyter_cells move_jupyter_cell restart_jupyter_kernel run_jupyter
+        insert_jupyter_cells move_jupyter_cell clear_jupyter_outputs run_jupyter
       ]
       is_jupyter_tool = tool_calls.any? { |tc| jupyter_tools.include?(tc["name"]) }
 
@@ -3316,7 +3304,7 @@ module GeminiHelper
         result = []
       end
 
-      final_result = result.join("").strip
+      final_result = Monadic::Utils::Privacy::Words.put_back(result.join("")).strip
 
       # Special handling for video generation
       if tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) }
@@ -3353,9 +3341,9 @@ module GeminiHelper
 
       final_message = { "content" => final_result }
       final_message["thinking"] = tool_result_thinking unless tool_result_thinking.strip.empty?
-      [{ "choices" => [{ "message" => final_message }] }]
+      replies_as_is([{ "choices" => [{ "message" => final_message }] }])
     rescue StandardError => e
-      result_text = result.join("").strip
+      result_text = Monadic::Utils::Privacy::Words.put_back(result.join("")).strip
       result_text = "" if result_text.include?("No response was received")
 
       if tool_calls.any? { |tc| GeminiHelper.gemini_video_tool?(tc["name"]) }
@@ -3366,7 +3354,7 @@ module GeminiHelper
         final_result = result_text.empty? ? error_message : result_text + "\n\n" + error_message
       end
 
-      [{ "choices" => [{ "message" => { "content" => final_result } }] }]
+      replies_as_is([{ "choices" => [{ "message" => { "content" => final_result } }] }])
     end
   end
 
@@ -3395,80 +3383,59 @@ module GeminiHelper
     }
     
     # Process each tool call
-    tool_calls.each do |tool_call|
+    ended = nil
+    tool_calls.each_with_index do |tool_call, index|
       function_name = tool_call["name"]
       record_tool_call(session, function_name)
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
       begin
-        Monadic::Utils::ExtraLogger.log { "[process_functions] Preparing args for #{function_name}" }
-        argument_hash = prepare_gemini_tool_arguments(tool_call, app, function_name, session)
+        argument_hash = prepare_gemini_tool_arguments(tool_call, function_name)
 
-        Monadic::Utils::ExtraLogger.log { "[process_functions] Invoking #{function_name} with #{argument_hash.keys.inspect}" }
-        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-        function_return = if refusal
-          # Run only the tools offered to the model in the latest request.
-          refusal
-        elsif function_name == "request_tool"
-          Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-            session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: argument_hash
-          )
-        else
-          invoke_gemini_tool_function(app, function_name, argument_hash)
-        end
-        Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{function_return.to_s[0..200]}" }
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        # Extract TTS text from tool parameters if tts_target is configured
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session
+        # Gemini's calls carry no id: the look a result is (if any) is known
+        # by one made here, kept beside the result and never sent.
+        made_id = "call_#{SecureRandom.hex(6)}"
+        run = run_tool_call(
+          app, session, function_name, argument_hash, call_id: made_id,
+          error_text: ->(e) { gemini_tool_error_text(e, function_name, &block) }, &block
         )
+        function_return = run.value
+        Monadic::Utils::ExtraLogger.log { "[process_functions] #{function_name} returned #{workbench_loggable(function_return).to_s[0..200]}" }
 
         # Process the returned content
         if function_return
           content = handle_media_generation_result(function_name, function_return, session)
+          result = gemini_tool_result(tool_call, content, call_depth)
 
-          # Check for repeated errors before adding to tool results
-          if handle_function_error(session, content, function_name, &block)
-            # Stop retrying - add result and skip to loop exit
-            session_params["tool_results"] << {
-              "functionResponse" => {
-                "name" => function_name,
-                "response" => {
-                  "name" => function_name,
-                  "content" => content
-                }
-              },
-              "functionCall" => { "name" => function_name, "args" => tool_call["args"] || {} },
-              "thoughtSignature" => tool_call["_thoughtSignature"],
-              "call_depth" => call_depth
-            }
+          # The same error too often: the round ends with what the tool said.
+          if run.stop
+            session_params["tool_results"] << result
             next
           end
 
-          # Add to tool results and debug
-          session_params["tool_results"] << {
-            "functionResponse" => {
-              "name" => function_name,
-              "response" => {
-                "name" => function_name,
-                "content" => content
-              }
-            },
-            "functionCall" => { "name" => function_name, "args" => tool_call["args"] || {} },
-            "thoughtSignature" => tool_call["_thoughtSignature"],
-            "call_depth" => call_depth  # Track call_depth to prevent duplicates within same turn
-          }
+          result["_look_call"] = made_id if function_return.is_a?(Monadic::Workbench::Look::Result)
+          session_params["tool_results"] << result
 
-          # Tool result added (debug logging removed)
+          if function_return.is_a?(Monadic::Workbench::Offered) && function_return.for?(session)
+            ended = [function_return, index]
+            break
+          end
         end
       rescue StandardError => e
-        handle_gemini_tool_execution_error(e, function_name, argument_hash, session_params, &block)
+        handle_gemini_tool_execution_error(e, tool_call, call_depth, session_params, &block)
       end
+    end
+
+    # An image was put on the workbench: the reply's work is done. The other
+    # calls are not run (each gets its own result, after its own call), and
+    # the reply ends without asking the model. Outside the rescue above: a
+    # failure to send the reply is not a failure of the tool that ran.
+    if ended
+      offered, index = ended
+      tool_calls.drop(index + 1).each do |skipped|
+        session_params["tool_results"] << gemini_tool_result(skipped, Monadic::Workbench::Offered.not_executed, call_depth)
+      end
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
     end
 
     # For Image/Video Generator apps, skip the recursive api_request after successful generation
@@ -3490,16 +3457,20 @@ module GeminiHelper
 
               # Check if this is a video file
               if filename.to_s.end_with?(".mp4")
-                # Send the video HTML directly to the client
-                video_html = <<~HTML
-                  <div class="prompt" style="margin-bottom: 15px;">
-                    <b>Prompt</b>: #{CGI.escapeHTML(prompt.to_s)}
-                  </div>
+                # Send the video HTML directly to the client: in a chat, a
+                # line saying it is on the work screen.
+                shown = parsed["path"] ? Monadic::Workbench::ChatOutput.chat_line("The video", parsed["path"]) : <<~HTML
                   <div class="generated_video">
                     <video controls width="600">
                       <source src="/data/#{CGI.escapeHTML(filename.to_s)}" type="video/mp4" />
                     </video>
                   </div>
+                HTML
+                video_html = <<~HTML
+                  <div class="prompt" style="margin-bottom: 15px;">
+                    <b>Prompt</b>: #{CGI.escapeHTML(prompt.to_s)}
+                  </div>
+                  #{shown}
                 HTML
 
                 res = { "type" => "fragment", "content" => video_html, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
@@ -3512,7 +3483,7 @@ module GeminiHelper
                 Monadic::Utils::ExtraLogger.log { "Gemini: Sent video HTML directly, skipping recursive api_request\n  Filename: #{filename}" }
 
                 # Return the HTML as the result
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+                return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }])
               else
                 # Send the image HTML directly to the client
                 image_html = <<~HTML
@@ -3534,7 +3505,7 @@ module GeminiHelper
                 Monadic::Utils::ExtraLogger.log { "Gemini: Sent image HTML directly, skipping recursive api_request\n  Filename: #{filename}" }
 
                 # Return the HTML as the result
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+                return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }])
               end
             end
           rescue JSON::ParserError
@@ -3571,7 +3542,7 @@ module GeminiHelper
             Monadic::Utils::ExtraLogger.log { "Gemini: Sent video HTML directly, skipping recursive api_request\n  Filename: #{video_filename}" }
 
             # Return the HTML as the result
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }])
           end
         end
 
@@ -3590,7 +3561,7 @@ module GeminiHelper
 
             Monadic::Utils::ExtraLogger.log { "Gemini: Media generation returned error, skipping recursive api_request\n  Error: #{error_msg}" }
 
-            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+            return replies_as_is([{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }])
           rescue JSON::ParserError
             # Continue to normal flow if parsing fails
           end
@@ -3599,11 +3570,11 @@ module GeminiHelper
     end
 
     # Stop if repeated errors detected
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     # Make the API request with the tool results
     Monadic::Utils::ExtraLogger.log { "[process_functions] Making recursive api_request('tool') with #{session[:parameters]['tool_results']&.length || 0} tool results, call_depth=#{call_depth}" }
@@ -3615,40 +3586,28 @@ module GeminiHelper
 
   private
 
+  # A call's result as kept for the next request: the model's own call
+  # (its arguments and thought signature, unchanged) with its response.
+  def gemini_tool_result(tool_call, content, call_depth)
+    name = tool_call["name"]
+    {
+      "functionResponse" => { "name" => name, "response" => { "name" => name, "content" => content } },
+      "functionCall" => { "name" => name, "args" => tool_call["args"] || {} },
+      "thoughtSignature" => tool_call["_thoughtSignature"],
+      "call_depth" => call_depth # Track call_depth to prevent duplicates within same turn
+    }
+  end
+
   # 3a: Parse, symbolize, and prepare tool arguments from a Gemini tool call
-  def prepare_gemini_tool_arguments(tool_call, app, function_name, session)
-    # Parse arguments from the tool call
-    argument_hash = tool_call["args"] || {}
+  def prepare_gemini_tool_arguments(tool_call, function_name)
+    argument_hash = (tool_call["args"] || {}).transform_keys(&:to_sym)
 
-    # Convert string keys to symbols for method calling
-    argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-      memo[k.to_sym] = v
-      memo
-    end
-
-    # Check if Gemini wrapped arguments in an "options" key and unwrap them
+    # Gemini sometimes wraps the arguments in an "options" key
     if argument_hash.keys == [:options] && argument_hash[:options].is_a?(Hash)
-      argument_hash = argument_hash[:options]
-      # Convert the unwrapped hash keys to symbols as well
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        memo[k.to_sym] = v
-        memo
-      end
+      argument_hash = argument_hash[:options].transform_keys(&:to_sym)
     end
 
-    # Expand vocabulary ${TOKEN}s (e.g. ${SHARED}) before the tool runs; before
-    # :session injection so the session object is never walked. No-op without
-    # a vocabulary block.
-    argument_hash = expand_tool_args_for_vocabulary(argument_hash, session, APPS[app]&.settings)
-
-    # Inject session for tools that need it (e.g., monadic state tools, image generators)
-    # Check if the method accepts a :session parameter and inject it if so
-    method_obj = APPS[app]&.method(function_name.to_sym) rescue nil
-    if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-      argument_hash[:session] = session
-    end
-
-    # Special handling for tavily_search to ensure proper parameter mapping
+    # tavily_search by the names its method takes
     if function_name == "tavily_search"
       clean_args = {}
       clean_args[:query] = argument_hash[:query] || argument_hash[:q] if argument_hash[:query] || argument_hash[:q]
@@ -3659,24 +3618,21 @@ module GeminiHelper
     argument_hash
   end
 
-  # 3b: Look up and invoke the tool function on the app instance or self
-  def invoke_gemini_tool_function(app, function_name, argument_hash)
-    function_return = if APPS[app] && APPS[app].respond_to?(function_name.to_sym)
-      APPS[app].public_send(function_name.to_sym, **argument_hash)
-    elsif respond_to?(function_name.to_sym)
-      public_send(function_name.to_sym, **argument_hash)
-    else
-      raise NoMethodError, "Function '#{function_name}' not found in app or helper"
-    end
-
-    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
-
-    function_return
+  # 3b: What an exception in a tool becomes: its result for the model, said
+  # in the chat as well.
+  def gemini_tool_error_text(e, function_name, &block)
+    error_message = Monadic::Utils::ErrorFormatter.tool_error(provider: "Gemini", tool_name: function_name, message: e.message)
+    Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
+    block&.call({ "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>",
+                  "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true })
+    error_message
   end
 
   # 3c: Process tool return value for media generators and standard functions
   def handle_media_generation_result(function_name, function_return, session)
-    if GeminiHelper.gemini_video_tool?(function_name)
+    if function_return.is_a?(Monadic::Workbench::Offered) || function_return.is_a?(Monadic::Workbench::Look::Result)
+      function_return.to_s
+    elsif GeminiHelper.gemini_video_tool?(function_name)
       # The generator's JSON: success with the saved videos, or a message.
       parsed_json = begin
         function_return.is_a?(String) ? JSON.parse(function_return) : function_return
@@ -3691,7 +3647,6 @@ module GeminiHelper
     elsif function_name == "generate_image_with_gemini"
       image_success = false
       error_message = nil
-      generated_filename = nil
 
       begin
         if function_return.is_a?(String)
@@ -3699,12 +3654,6 @@ module GeminiHelper
 
           if parsed_json["success"] && parsed_json["filename"]
             image_success = true
-            generated_filename = parsed_json["filename"]
-
-            session[:gemini3_last_image] = generated_filename
-            session[:gemini3_duplicate_check] = true
-
-            Monadic::Utils::ExtraLogger.log { "ImageGeneratorGemini: Saved last generated image: #{generated_filename}\n  Set duplicate check flag" }
           else
             error_message = parsed_json["error"]
             image_success = false
@@ -3726,43 +3675,23 @@ module GeminiHelper
     else
       # Standard handling for other functions
       if function_return.is_a?(Hash) && function_return[:_image]
-        session[:pending_tool_images] = Array(function_return[:_image])
+        (session[:pending_tool_images] ||= []).concat(Array(function_return[:_image]))
         clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
         content = JSON.generate(clean_return)
       else
         content = function_return.is_a?(String) ? function_return : function_return.to_json
       end
 
-      if function_return.is_a?(Hash) && function_return[:gallery_html]
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << function_return[:gallery_html]
-      end
-
       content
     end
   end
 
-  # 3d: Handle errors during tool function execution
-  def handle_gemini_tool_execution_error(e, function_name, argument_hash, session_params, &block)
-    error_message = Monadic::Utils::ErrorFormatter.tool_error(
-      provider: "Gemini",
-      tool_name: function_name,
-      message: e.message
-    )
-    Monadic::Utils::ExtraLogger.log { "[Gemini] #{error_message}" }
-
-    session_params["tool_results"] << {
-      "functionResponse" => {
-        "name" => function_name,
-        "response" => {
-          "name" => function_name,
-          "content" => error_message
-        }
-      }
-    }
-
-    res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>", "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
-    block&.call res
+  # 3d: A failure around a tool's run (its arguments, what is made of its
+  # result): the error answers the call, after that call and its signature,
+  # like any other result.
+  def handle_gemini_tool_execution_error(e, tool_call, call_depth, session_params, &block)
+    error_message = gemini_tool_error_text(e, tool_call["name"], &block)
+    session_params["tool_results"] << gemini_tool_result(tool_call, error_message, call_depth)
   end
 
   def translate_role(role)
@@ -3815,16 +3744,24 @@ module GeminiHelper
 
   # Generates a video with Gemini Omni (scripts/generators/video_generator_gemini.rb):
   # text-to-video, or image-to-video from an image in the shared folder or one
-  # uploaded with the message. One video, 720p, 3 to 10 seconds.
-  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil)
+  # uploaded with the message. One video, 720p, 3 to 10 seconds. In a chat,
+  # the video is saved in a run folder of the chat's folder and shown on the
+  # work screen; without one, none is made.
+  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil,
+                                 workbench: nil)
     # An uploaded image lives in the session as a data URL and is written to
     # the shared folder for the generator; a failure is reported instead of
     # silently making a text-to-video.
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                    app_name: session&.dig(:parameters, "app_name") || "VideoGeneratorGemini")
+    unless job
+      return { "success" => false, "message" => "There is no chat folder to keep the video in.", "original_prompt" => prompt }.to_json
+    end
+
     begin
-      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(
-        session, image_path: image_path, last_image_key: :gemini_last_video_image
-      )
+      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json
     end
 
@@ -3833,9 +3770,10 @@ module GeminiHelper
     parts += ["-a", aspect_ratio.to_s] unless aspect_ratio.to_s.strip.empty?
     parts += ["-d", duration.to_s] unless duration.to_s.strip.empty?
     parts += ["--negative-prompt", negative_prompt.to_s] unless negative_prompt.to_s.strip.empty?
+    parts += ["--out-dir", job[:path]]
     if final_image_path && !final_image_path.empty?
       parts += ["-i", final_image_path]
-      session[:gemini_last_video_image] = File.basename(final_image_path) if session
+      Monadic::Utils::ToolImageUtils.remember_image(self, session, final_image_path)
     end
 
     begin
@@ -3854,9 +3792,13 @@ module GeminiHelper
       result = { "success" => false, "message" => result.to_s } unless result.is_a?(Hash)
       result["original_prompt"] ||= prompt
       session[:gemini_last_video_filename] = result["filename"] if session && result["success"] && result["filename"]
+      taken = result["success"] && Monadic::Workbench::ChatOutput.take(job, result["filename"], workbench, "The video")
+      result["path"], result["notice"] = taken.values_at(:path, :notice) if taken
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       result.to_json
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Gemini] Error executing command: #{e.message}" }
+      Monadic::Workbench::ChatOutput.drop_if_empty(job)
       { "success" => false, "message" => "Error executing video generation command: #{e.message}", "original_prompt" => prompt }.to_json
     ensure
       # Only the file this process wrote from an upload is removed.
@@ -3867,9 +3809,10 @@ module GeminiHelper
   # The name this tool had with Veo. Its Veo-only settings have no Omni
   # counterpart and are said to be ignored rather than dropped silently.
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: nil, number_of_videos: nil, person_generation: nil,
-                              negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
+                              negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil, workbench: nil)
     result_json = generate_video_with_gemini(prompt: prompt, image_path: image_path, aspect_ratio: aspect_ratio,
-                                             duration: duration_seconds, negative_prompt: negative_prompt, session: session)
+                                             duration: duration_seconds, negative_prompt: negative_prompt, session: session,
+                                             workbench: workbench)
     ignored = { "veo_model" => veo_model, "person_generation" => person_generation }.reject { |_, v| v.to_s.strip.empty? }.keys
     ignored << "number_of_videos (one video is made)" if number_of_videos.to_i > 1
     return result_json if ignored.empty?
@@ -3922,7 +3865,7 @@ module GeminiHelper
     INSTRUCTIONS
   end
 
-  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", aspect_ratio: nil, image_size: nil, session: nil)
+  def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", aspect_ratio: nil, image_size: nil, session: nil, out_dir: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -3931,7 +3874,8 @@ module GeminiHelper
     begin
       api_key = CONFIG["GEMINI_API_KEY"]
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
-      
+      return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
+
       # For editing operations, force use of Gemini model (Imagen doesn't support editing)
       if operation == "edit"
         model = "gemini"
@@ -3943,7 +3887,7 @@ module GeminiHelper
       if Monadic::Utils::ModelSpec.get_model_property(model, "image_generation") == true ||
          ["gemini-3.1-flash-image-preview", "gemini-3-pro-image-preview"].include?(model)
         # Pass session to support image editing
-        return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session)
+        return generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size, session: session, out_dir: out_dir)
       end
 
       # The :predict path, used when the selected model is one this helper maps.
@@ -3951,11 +3895,12 @@ module GeminiHelper
       # models, which take the generateContent branch above — so this is
       # effectively dormant until an Imagen-style model returns.
       if IMAGE_GENERATION_MODELS.key?(model) && operation == "generate"
-        return generate_image_with_imagen_direct(prompt: prompt, model: model)
+        return generate_image_with_imagen_direct(prompt: prompt, model: model, out_dir: out_dir)
       end
       
-      # Set up shared folder path
-      shared_folder = Monadic::Utils::Environment.shared_volume
+      return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
+
+      shared_folder = out_dir
       
       # Prepare the request body with corrected structure
       request_body = {
@@ -3979,36 +3924,7 @@ module GeminiHelper
         end
 
         if user_messages_with_images.empty?
-          # Check for last generated image if no uploaded image found
-          if session[:gemini3_last_image]
-             filename = session[:gemini3_last_image]
-             filepath = File.join(shared_folder, filename)
-             # Read as a plain file of the shared folder, never through a link.
-             image_data_binary = (Monadic::Utils::SharedPathGuard.read_bytes!(filepath) rescue nil)
-             if image_data_binary
-               base64_data = Base64.strict_encode64(image_data_binary)
-               
-               # Determine mime type from extension
-               extension = File.extname(filename).downcase
-               mime_type = case extension
-                           when ".png" then "image/png"
-                           when ".jpg", ".jpeg" then "image/jpeg"
-                           when ".webp" then "image/webp"
-                           else "image/png"
-                           end
-               
-               images = [{
-                 "name" => filename,
-                 "data" => "data:#{mime_type};base64,#{base64_data}"
-               }]
-             else
-               # Clear stale reference
-               session[:gemini3_last_image] = nil
-               return { success: false, error: "Previous generated image file not found: #{filename}" }.to_json
-             end
-          else
-            return { success: false, error: "No image found for editing. Please upload an image first or generate one." }.to_json
-          end
+          return { success: false, error: "No image found for editing. Please upload an image first or generate one." }.to_json
         else
           latest_message = user_messages_with_images.last
           images = latest_message["images"]
@@ -4172,7 +4088,7 @@ module GeminiHelper
   # conversational generateContent path). No Imagen model is currently reachable
   # — 4.0 sunset on 2026-08-17 — so this is dormant and `model` has no default:
   # a caller must name the model it means, rather than inheriting a dead one.
-  def generate_image_with_imagen_direct(prompt:, model:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT")
+  def generate_image_with_imagen_direct(prompt:, model:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT", out_dir: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -4182,8 +4098,9 @@ module GeminiHelper
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
 
 
-      # Set up shared folder path
-      shared_folder = Monadic::Utils::Environment.shared_volume
+      return { success: false, error: "There is no chat folder to keep the image in." }.to_json unless out_dir
+
+      shared_folder = out_dir
 
       # Prepare the request body for Imagen
       request_body = {

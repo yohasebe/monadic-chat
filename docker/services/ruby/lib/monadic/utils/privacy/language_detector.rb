@@ -6,7 +6,7 @@ require_relative '../string_utils'
 module Monadic
   module Utils
     module Privacy
-      # Detects the conversation language for Privacy Filter when the sidebar
+      # Detects the conversation language for finding names when the sidebar
       # is set to "auto". Operates on user-typed text received via WebSocket
       # (handle_ws_streaming) BEFORE any vendor adapter reconstructs the
       # messages array. This matters because vendor adapters can inject
@@ -16,9 +16,8 @@ module Monadic
       # session to the wrong language.
       #
       # Locking happens once per session and persists in
-      # session[:monadic_state][:privacy][:detection]. The detection state is
-      # stripped on persist (Registry.strip_for_persist) and re-runs after
-      # any conversation reset / re-import — same lifecycle as the registry.
+      # session[:monadic_state][:privacy][:detection] (the language words are
+      # searched in), and re-runs after a conversation reset or import.
       module LanguageDetector
         module_function
 
@@ -91,6 +90,19 @@ module Monadic
           state[:reliable] = true
           state[:locked] = true
           state
+        end
+
+        # The installed language to look for names in this text with: the one
+        # chosen for the chat, or else the text's own, or else English.
+        def language_of(text, session)
+          chosen = locked_language(session)
+          params = session[:parameters] || session['parameters'] || {}
+          chosen ||= params['conversation_language'] unless auto_mode?(session)
+          return chosen if chosen && installed_languages.include?(chosen)
+
+          result = ::StringUtils.detect_language_with_confidence(text)
+          code = result.is_a?(Hash) ? result[:code] : nil
+          installed_languages.include?(code) ? code : 'en'
         end
 
         # True when sidebar conversation_language is "auto" (or unset).

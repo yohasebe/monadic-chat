@@ -45,6 +45,14 @@ function effortSuppressesThinking(spec, currentEffort) {
   return currentEffort === 'none';
 }
 
+// How the Show Thinking toggle starts. What the app or the user set is kept.
+// With nothing set, the thinking is shown, except with Ollama, where the
+// toggle also decides whether the model thinks at all and thinking is slow.
+function showThinkingAtStart(setting, provider) {
+  if (setting !== undefined && setting !== null) return setting !== false && setting !== 'false';
+  return provider !== 'Ollama';
+}
+
 function getEl(id) {
   return (typeof $id === 'function') ? $id(id) : document.getElementById(id);
 }
@@ -111,6 +119,7 @@ function wireShowThinkingEffortLink() {
 const ThinkingEffortLink = {
   effortBumpForThinking,
   effortSuppressesThinking,
+  showThinkingAtStart,
   syncShowThinkingToEffort,
   wireShowThinkingEffortLink
 };

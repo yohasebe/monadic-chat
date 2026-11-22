@@ -11,10 +11,8 @@ RSpec.describe SecondOpinionAgent do
   
   let(:agent) { test_class.new }
 
-  # Dogfood regression (2026-06-10): the orchestrator LLM re-typed the
-  # evaluator model name from memory and fabricated an outdated one. The
-  # identity now rides inside the comments (which the system prompt requires
-  # to be relayed as given), so there is nothing left to re-type.
+  # The evaluator's identity is part of the comments, which the system
+  # prompt requires to be relayed as given.
   describe "#append_evaluator_line" do
     it "embeds the exact evaluator model and provider at the end of the comments" do
       result = agent.append_evaluator_line("Solid analysis.", "claude", "claude-sonnet-4-6")
@@ -66,9 +64,9 @@ RSpec.describe SecondOpinionAgent do
     context "model defaults" do
       it "uses correct default models for each provider" do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-5-5")
-        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-6.1-sol")
+        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-6.1-terra")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-3.8-flash")
-        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.7")
+        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4.3")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-4")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-plus-05-2026")
         expect(agent.send(:determine_provider_and_model, "deepseek", nil)[1]).to eq("deepseek-flash")
@@ -83,7 +81,7 @@ RSpec.describe SecondOpinionAgent do
       
       it "handles empty model strings by using defaults" do
         expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-sonnet-5-5")
-        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-6.1-sol")
+        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-6.1-terra")
       end
     end
     
@@ -314,39 +312,6 @@ RSpec.describe SecondOpinionAgent do
     
     it "raises an error for unknown providers" do
       expect { agent.send(:get_provider_helper, "unknown") }.to raise_error("Unknown provider: unknown")
-    end
-  end
-
-  # When the parent session has an active privacy pipeline, the inline
-  # query/response sent to other providers must be masked. Without this,
-  # picking Second Opinion in a privacy-on session would quietly fan out
-  # raw PII to providers the user did not expect.
-  describe "#mask_for_second_opinion" do
-    let(:fake_pipeline) do
-      double('Pipeline').tap do |p|
-        allow(p).to receive(:before_send_to_llm) do |raw|
-          masked = raw.text.gsub(/Alice/, '<<PERSON_1>>')
-          double('MaskedMessage', text: masked)
-        end
-      end
-    end
-
-    it "masks the text via the pipeline" do
-      result = agent.send(:mask_for_second_opinion, "Email Alice today.", fake_pipeline, "user")
-      expect(result).to eq("Email <<PERSON_1>> today.")
-    end
-
-    it "propagates the error so the second opinion fails fail-closed" do
-      broken = double('Pipeline')
-      allow(broken).to receive(:before_send_to_llm).and_raise('boom')
-      expect {
-        agent.send(:mask_for_second_opinion, "Email Alice.", broken, "user")
-      }.to raise_error('boom')
-    end
-
-    it "passes nil/empty inputs through unchanged" do
-      expect(agent.send(:mask_for_second_opinion, nil, fake_pipeline, "user")).to be_nil
-      expect(agent.send(:mask_for_second_opinion, "", fake_pipeline, "user")).to eq("")
     end
   end
 end

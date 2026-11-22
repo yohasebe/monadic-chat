@@ -405,17 +405,11 @@ RSpec.describe "App Helpers Integration", type: :integration do
       attempt = 0
 
       while attempt < max_attempts
-        begin
-          selenium_url = "http://localhost:4444/wd/hub/status"
-          uri = URI(selenium_url)
-          response = Net::HTTP.get_response(uri)
-          if response.code == "200"
-            puts "✅ Selenium container ready for web scraping tests"
-            break
-          end
-        rescue => e
-          puts "⏳ Waiting for Selenium... (#{attempt + 1}/#{max_attempts})" if ENV['DEBUG_CONTAINERS']
+        if DockerContainerManager.selenium_ready?
+          puts "✅ Selenium container ready for web scraping tests"
+          break
         end
+        puts "⏳ Waiting for Selenium... (#{attempt + 1}/#{max_attempts})" if ENV['DEBUG_CONTAINERS']
 
         attempt += 1
         if attempt >= max_attempts

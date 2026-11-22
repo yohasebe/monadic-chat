@@ -97,7 +97,14 @@ RSpec.describe 'Claude Opus 5.5 request contract' do
   # Opus 5.5 cannot turn thinking off. Omitting `thinking` for "none" ran the
   # default effort (medium), more than "low"; the lowest effort is what
   # "none" can mean here, and it keeps block_binding.
-  [{ effort: 'none' }, { effort: 'high', monadic: true }].each do |options|
+  %w[user tool].each do |role|
+    it "sends the effort asked for to a monadic app on #{role}" do
+      _, body = request(effort: 'high', monadic: true, role: role)
+      expect(body['output_config']).to eq('effort' => 'high')
+    end
+  end
+
+  [{ effort: 'none' }].each do |options|
     %w[user tool].each do |role|
       it "sends the lowest effort when reasoning off is requested for #{options.inspect} on #{role}" do
         headers, body = request(**options, role: role)

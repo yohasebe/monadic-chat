@@ -134,6 +134,9 @@ function listModels(models, openai = false, opts = {}) {
     const spec = (typeof window !== 'undefined' && window.modelSpec) ? window.modelSpec[m] : null;
     if (!spec) return true;
     if (spec.supports_speech_to_speech) return allowSts;
+    // A chat model that can also transcribe (it has a context window, e.g.
+    // gemini-3.8-flash) stays: only speech and music models are dropped.
+    if (spec.context_window) return true;
     return !(spec.stt_capability || spec.tts_capability || spec.music_capability ||
              spec.supports_realtime_streaming);
   });
@@ -414,24 +417,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Update AI Assistant info badge when model is loaded
   if (params.model) {
     const selectedModel = params.model;
-    // Extract provider from app_name parameter
-    let provider = "OpenAI";
-    if (params.app_name && apps[params.app_name] && apps[params.app_name].group) {
-      const group = apps[params.app_name].group.toLowerCase();
-      if (group.includes("anthropic") || group.includes("claude")) {
-        provider = "Anthropic";
-      } else if (group.includes("gemini") || group.includes("google")) {
-        provider = "Google";
-      } else if (group.includes("cohere")) {
-        provider = "Cohere";
-      } else if (group.includes("mistral") || group.includes("pixtral") || group.includes("ministral") || group.includes("magistral") || group.includes("devstral") || group.includes("voxtral") || group.includes("mixtral")) {
-        provider = "Mistral";
-      } else if (group.includes("deepseek")) {
-        provider = "DeepSeek";
-      } else if (group.includes("grok") || group.includes("xai")) {
-        provider = "xAI";
-      }
-    }
+    // The provider of the app's group (getProviderFromGroup in monadic.js).
+    const group = params.app_name && apps[params.app_name] ? apps[params.app_name].group : null;
+    const provider = typeof window.getProviderFromGroup === 'function' ? window.getProviderFromGroup(group) : 'OpenAI';
     // Update the badge in the AI User section
     const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
     const aiAssistantInfo = $id("ai-assistant-info");
@@ -803,9 +791,10 @@ window.loadParams = function(params, calledFor = "loadParams") {
 
           // Set value with safety: coerce to first available if default not supported
           let effortValue;
-          if (reasoning_effort && availableOptions.includes(reasoning_effort)) {
-            effortValue = reasoning_effort;
-          } else if (reasoning_effort === 'none' || reasoning_effort === 'minimal') {
+          const saved = ReasoningMapper.savedChoice(provider, params) || reasoning_effort;
+          if (saved && availableOptions.includes(saved)) {
+            effortValue = saved;
+          } else if (saved === 'none' || saved === 'minimal') {
             // The app asks for as little reasoning as possible, but this model
             // cannot switch it off (e.g. Claude Opus 5.5). The options are listed
             // from lowest to highest, so take the lowest rather than the model's
@@ -854,15 +843,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // layer of the same guard (house pattern: belt and suspenders).
     if (spec["supports_thinking"] && !document.body.classList.contains('lc-app')) {
       $show(thinkingContainer);
-      // Restore from params if available, default to unchecked (thinking off).
-      // Users can opt in via the toggle; default off avoids slow responses
-      // from models with expensive thinking (e.g. Ollama qwen3-vl:8b-thinking).
-      if (showThinkingCb) {
-        if (params["show_thinking"] !== undefined) {
-          showThinkingCb.checked = params["show_thinking"] !== false && params["show_thinking"] !== "false";
-        } else {
-          showThinkingCb.checked = false;
-        }
+      if (showThinkingCb && window.ThinkingEffortLink) {
+        showThinkingCb.checked = window.ThinkingEffortLink.showThinkingAtStart(params["show_thinking"], provider);
       }
     } else {
       $hide(thinkingContainer);
@@ -1033,8 +1015,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
 }
 
 function resetParams() {
-  const pdfTitles = $id("pdf-titles");
-  if (pdfTitles) pdfTitles.innerHTML = '';
   // Use a local copy of originalParams to avoid reference issues
   const originalParamsCopy = originalParams ? JSON.parse(JSON.stringify(originalParams)) : {};
   params = Object.assign({}, originalParamsCopy);
@@ -1050,20 +1030,19 @@ function resetParams() {
       return !!value;
     });
 
-    const pdfPanel = $id("pdf-panel");
-    const pdfVisible = (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"]));
-    $toggle(pdfPanel, pdfVisible);
-    // The list was cleared at the top of resetParams; re-fetch so the panel
-    // shows the current PDFs (or the "No PDFs imported" empty state) instead of
-    // a bare blank region until the user manually refreshes.
-    if (pdfVisible && window.ws && typeof window.sendPdfWsMessage === "function") {
-      window.sendPdfWsMessage({ message: "PDF_TITLES" });
-    }
     const audioUpload = $id("audio-upload");
     $toggle(audioUpload, toBool(params["audio_upload"]));
     // Reset the flag after loading is complete
     window.isLoadingParams = false;
   }, 500);
+}
+
+// A model's input limit: the last number of its context window, which the
+// catalog writes as [max] or [min, max]. The default for a model with none.
+function maxInputTokensOf(spec) {
+  const range = spec ? spec["context_window"] : null;
+  const max = Array.isArray(range) ? range[range.length - 1] : range;
+  return Number.isFinite(max) && max > 0 ? max : DEFAULT_MAX_INPUT_TOKENS;
 }
 
 function setParams() {
@@ -1096,18 +1075,15 @@ function setParams() {
     params["library_rag_enabled"] = libRagEl.checked;
   }
 
-  // Privacy Filter session toggle lives on the backend only — see
-  // ws-privacy-handler.js. Putting it in params would shadow the
-  // health-checked authoritative state on the next submit.
-
   const websearchEl = $id("websearch");
   const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;
-  if (websearchEl && websearchEl.checked && modelSpec[params["model"]]?.["tool_capability"]) {
-    params["websearch"] = true;
-  } else {
-    params["websearch"] = false;
-  }
+  // The interface language, for what an app writes in the user's own
+  // language (Language Practice's advice).
+  params["ui_language"] = document.cookie.match(/ui-language=([^;]+)/)?.[1] || "en";
+  // What the user chose: whether the model can search (by itself or with a
+  // tool) is the server's to decide.
+  params["websearch"] = !!(websearchEl && websearchEl.checked);
 
   // Handle reasoning/thinking parameters with provider-specific mapping
   const reasoningEffortEl = $id("reasoning-effort");
@@ -1214,11 +1190,7 @@ function setParams() {
   params["auto_speech"] = spAutoSpeech ? spAutoSpeech.checked : false;
 
   const spec = modelSpec[params["model"]];
-  if (spec && spec["context_window"]) {
-    params["max_input_tokens"] = spec["context_window"][1];
-  } else {
-    params["max_input_tokens"] = DEFAULT_MAX_INPUT_TOKENS;
-  }
+  params["max_input_tokens"] = maxInputTokensOf(spec);
 
   if (spec && spec["tool_capability"]) {
     params["tool_capability"] = spec["tool_capability"];
@@ -1276,10 +1248,6 @@ function checkParams() {
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
-  // Detect iOS/iPadOS
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
   // True when the current chat has at least one user/assistant turn
   // worth saving — system-only sessions (no exchange yet) shouldn't
   // offer "Save & Reset" because there is nothing to preserve.
@@ -1288,64 +1256,58 @@ function resetEvent(_event, resetToDefaultApp = false) {
     return window.messages.some(m => m && (m.role === 'user' || m.role === 'assistant'));
   })();
 
-  // For iOS devices, bypass the modal and use standard confirm dialog
-  if (isIOS) {
-    if (confirm("Are you sure you want to reset the chat?")) {
+  // The same translated modal on every platform (iOS included), with the
+  // "Save to Knowledge Base" choice when there is something to save.
+  const resetModal = $id("resetConfirmation");
+  const saveAndResetBtn = $id("resetSaveAndConfirm");
+  if (saveAndResetBtn) {
+    // Only surface the third button when the user has something to
+    // preserve AND the current app actually supports saving to the
+    // Knowledge Base. Without the capability check, apps with
+    // `library_save false` (e.g. Music Analyst) leaked a save path here
+    // even though the main Save button is correctly disabled — an
+    // asymmetry between the two save entry points.
+    const kbSaveEligible = !!(window.libraryPanel
+      && typeof window.libraryPanel.isCurrentAppKbSaveEligible === 'function'
+      && window.libraryPanel.isCurrentAppKbSaveEligible());
+    saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
+  }
+  if (resetModal) {
+    bootstrap.Modal.getOrCreateInstance(resetModal).show();
+    resetModal.addEventListener("shown.bs.modal", function () {
+      const resetConfirmed = $id("resetConfirmed");
+      if (resetConfirmed) resetConfirmed.focus();
+    }, { once: true });
+  }
+  const resetConfirmedBtn = $id("resetConfirmed");
+  if (resetConfirmedBtn) {
+    resetConfirmedBtn.onclick = function (event) {
+      event.preventDefault();
       doResetActions(resetToDefaultApp);
-    }
-  } else {
-    // For other platforms, use the Bootstrap modal
-    const resetModal = $id("resetConfirmation");
-    const saveAndResetBtn = $id("resetSaveAndConfirm");
-    if (saveAndResetBtn) {
-      // Only surface the third button when the user has something to
-      // preserve AND the current app actually supports saving to the
-      // Knowledge Base. Without the capability check, apps with
-      // `library_save false` (e.g. Music Analyst) leaked a save path here
-      // even though the main Save button is correctly disabled — an
-      // asymmetry between the two save entry points.
-      const kbSaveEligible = !!(window.libraryPanel
-        && typeof window.libraryPanel.isCurrentAppKbSaveEligible === 'function'
-        && window.libraryPanel.isCurrentAppKbSaveEligible());
-      saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
-    }
-    if (resetModal) {
-      bootstrap.Modal.getOrCreateInstance(resetModal).show();
-      resetModal.addEventListener("shown.bs.modal", function () {
-        const resetConfirmed = $id("resetConfirmed");
-        if (resetConfirmed) resetConfirmed.focus();
-      }, { once: true });
-    }
-    const resetConfirmedBtn = $id("resetConfirmed");
-    if (resetConfirmedBtn) {
-      resetConfirmedBtn.onclick = function (event) {
-        event.preventDefault();
-        doResetActions(resetToDefaultApp);
-      };
-    }
-    if (saveAndResetBtn) {
-      saveAndResetBtn.onclick = function (event) {
-        event.preventDefault();
-        // Defer to the same modal the sidebar Save button opens so the
-        // user can edit the title, pick a scope, and see the LLM-suggested
-        // title — the previous direct-LIBRARY_SAVE path skipped all three.
-        if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
-        const m = $id("resetConfirmation");
-        const open = function () { window.libraryPanel.openSaveModal(); };
-        if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-          const inst = bootstrap.Modal.getInstance(m);
-          if (inst) {
-            // Wait for the reset modal to fully hide before showing the
-            // save modal — overlapping shows produce stacked backdrops
-            // that block both dialogs in Bootstrap 5.
-            m.addEventListener('hidden.bs.modal', open, { once: true });
-            inst.hide();
-            return;
-          }
+    };
+  }
+  if (saveAndResetBtn) {
+    saveAndResetBtn.onclick = function (event) {
+      event.preventDefault();
+      // Defer to the same modal the sidebar Save button opens so the
+      // user can edit the title, pick a scope, and see the LLM-suggested
+      // title — the previous direct-LIBRARY_SAVE path skipped all three.
+      if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
+      const m = $id("resetConfirmation");
+      const open = function () { window.libraryPanel.openSaveModal(); };
+      if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const inst = bootstrap.Modal.getInstance(m);
+        if (inst) {
+          // Wait for the reset modal to fully hide before showing the
+          // save modal — overlapping shows produce stacked backdrops
+          // that block both dialogs in Bootstrap 5.
+          m.addEventListener('hidden.bs.modal', open, { once: true });
+          inst.hide();
+          return;
         }
-        open();
-      };
-    }
+      }
+      open();
+    };
   }
 }
 
@@ -1386,11 +1348,6 @@ function doResetActions(resetToDefaultApp = false) {
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
   window.safeWsSend({ "message": "LOAD", "ui_language": uiLanguage });
-
-  // Reset Context Panel for monadic apps
-  if (typeof ContextPanel !== "undefined" && ContextPanel.resetContext) {
-    ContextPanel.resetContext();
-  }
 
   // The speech-to-speech cost readout is per-conversation. This is the live
   // reset path — ws-audio-queue.js's resetSessionState also clears it but has
@@ -1571,9 +1528,6 @@ function doResetActions(resetToDefaultApp = false) {
     return !!value;
   });
 
-  const drMonadicBadge = $id("monadic-badge");
-  $toggle(drMonadicBadge, toBool(apps[currentApp]["monadic"]));
-
   const drToolsBadge = $id("tools-badge");
   $toggle(drToolsBadge, apps[currentApp]["tools"]);
 
@@ -1673,18 +1627,6 @@ document.addEventListener("DOMContentLoaded", function() {
         WorkflowViewer.loadApp(selectedApp);
       }
 
-      // Show/hide Context Panel based on monadic setting
-      if (typeof ContextPanel !== "undefined" && apps && apps[selectedApp]) {
-        const isMonadic = apps[selectedApp]["monadic"] === true ||
-                          apps[selectedApp]["monadic"] === "true";
-        if (isMonadic) {
-          // Get context_schema from app settings if defined
-          const contextSchema = apps[selectedApp]["context_schema"] || null;
-          ContextPanel.show(selectedApp, contextSchema);
-        } else {
-          ContextPanel.hide();
-        }
-      }
     });
   }
 
@@ -1801,3 +1743,32 @@ if (typeof module !== 'undefined' && module.exports) {
     // isFileInputsSupportedForModel, isResponsesApiModel → model-capabilities.js
   };
 }
+
+// The Start button as it is for a chat that has not begun (start) or one
+// that goes on (continue): its words, its icon and its color differ.
+function setStartButtonMode(continuing) {
+  // A chat that can be continued is offered by the tabs over the column too.
+  if (window.MainTabs && window.MainTabs.mode() !== 'active') {
+    window.MainTabs.setMode(continuing ? 'ready' : 'none');
+  }
+  const apply = () => {
+    const t = (key, fallback) => {
+      const v = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t(key) : null;
+      return v && v !== key ? v : fallback;
+    };
+    const label = $id('start-label');
+    if (label) {
+      label.textContent = continuing
+        ? t('ui.session.continueSession', 'Continue Session')
+        : t('ui.session.startSession', 'Start Session');
+    }
+    const button = $id('start');
+    if (!button) return;
+    button.classList.toggle('btn-primary', !continuing);
+    button.classList.toggle('btn-success', !!continuing);
+    const icon = button.querySelector('i');
+    if (icon) icon.className = continuing ? 'fas fa-play' : 'fas fa-rocket';
+  };
+  if (window.i18nReady) window.i18nReady.then(apply); else apply();
+}
+window.setStartButtonMode = setStartButtonMode;

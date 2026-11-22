@@ -157,6 +157,21 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
       expect(newly).to eq([])
     end
 
+    it "goes by the setting of the message being answered, not by a toggle changed since" do
+      unlock = lambda do |sent_with, now|
+        session = { parameters: { "websearch" => now } }
+        context = Monadic::Workspace::RequestContext.new(
+          chat_id: "c", parameters: session[:parameters], settings: Monadic::TurnSettings.of("websearch" => sent_with)
+        )
+        Monadic::Workspace::RequestContext.with(context) do
+          described_class.unlock_request(session: session, app_name: app_name, app_settings: app_settings,
+                                         request_key: "web_search_tools")
+        end
+      end
+      expect(unlock.call(false, true)).to eq([])
+      expect(unlock.call(true, false)).not_to eq([])
+    end
+
     it "hides web_search_tools from visible_tools when the toggle is off" do
       expect(visible_with(ws_off)).not_to include(*web_tools)
       expect(visible_with(ws_off)).to include("request_tool")

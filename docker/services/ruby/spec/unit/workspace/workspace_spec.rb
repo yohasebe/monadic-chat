@@ -287,7 +287,7 @@ RSpec.describe 'Per-chat workspaces' do
     end
 
     before do
-      closed_socket = double('connection', read: nil)
+      closed_socket = double('connection', read: nil, write: nil, flush: nil) # the first view is written to it
       allow(Async::WebSocket::Adapters::Rack).to receive(:open) { |_env, &block| block.call(closed_socket) }
     end
 

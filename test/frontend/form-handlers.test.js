@@ -89,70 +89,6 @@ beforeEach(() => {
 });
 
 describe('Form Handlers', () => {
-  describe('uploadPdf', () => {
-    it('should validate PDF file type', async () => {
-      // Override FormData implementation for this test
-      const origFormData = global.FormData;
-      const formAppendMock = jest.fn();
-
-      class MockFormData {
-        constructor() {
-          this.append = formAppendMock;
-        }
-      }
-
-      global.FormData = MockFormData;
-
-      // Mock fetch to resolve with success
-      global.fetch = createFetchMock();
-
-      // Create a mock PDF file
-      const pdfFile = { type: 'application/pdf' };
-
-      // Call the function
-      await formHandlers.uploadPdf(pdfFile, 'Test PDF');
-
-      // Verify FormData was created and append was called
-      expect(formAppendMock).toHaveBeenCalledWith('pdfFile', pdfFile);
-      expect(formAppendMock).toHaveBeenCalledWith('pdfTitle', 'Test PDF');
-
-      expect(global.fetch).toHaveBeenCalled();
-      const fetchCalls = global.fetch.mock.calls;
-      expect(fetchCalls[0][0]).toBe('/pdf');
-      expect(fetchCalls[0][1].method).toBe('POST');
-
-      // Restore original FormData
-      global.FormData = origFormData;
-    });
-
-    it('should reject non-PDF files', async () => {
-      // Create a mock non-PDF file
-      const textFile = { type: 'text/plain' };
-
-      // Use a try-catch block instead of expecting a rejection
-      try {
-        await formHandlers.uploadPdf(textFile, 'Invalid file');
-        // If we reach here, the test should fail
-        expect('this should not be reached').toBe('test should have thrown');
-      } catch (error) {
-        // Verify the error message
-        expect(error.message).toBe('Please select a PDF file');
-      }
-    });
-
-    it('should reject null file input', async () => {
-      // Use a try-catch block instead of expecting a rejection
-      try {
-        await formHandlers.uploadPdf(null, 'Missing file');
-        // If we reach here, the test should fail
-        expect('this should not be reached').toBe('test should have thrown');
-      } catch (error) {
-        // Verify the error message
-        expect(error.message).toBe('Please select a PDF file to upload');
-      }
-    });
-  });
-
   describe('convertDocument', () => {
     it('should process document conversion', async () => {
       // Override FormData implementation for this test
@@ -366,96 +302,6 @@ describe('Form Handlers', () => {
     });
   });
 
-  describe('uploadAudioFile', () => {
-    it('should upload audio file with correct parameters', async () => {
-      const origFormData = global.FormData;
-      const formAppendMock = jest.fn();
-
-      class MockFormData {
-        constructor() {
-          this.append = formAppendMock;
-        }
-      }
-
-      global.FormData = MockFormData;
-
-      // Mock fetch to resolve with success
-      global.fetch = createFetchMock({ success: true, filename: 'song.mp3' });
-
-      const audioFile = { name: 'song.mp3', type: 'audio/mpeg' };
-      await formHandlers.uploadAudioFile(audioFile);
-
-      expect(formAppendMock).toHaveBeenCalledWith('audioFile', audioFile);
-      expect(global.fetch).toHaveBeenCalled();
-      expect(global.fetch.mock.calls[0][0]).toBe('/upload_audio');
-      expect(global.fetch.mock.calls[0][1].method).toBe('POST');
-
-      global.FormData = origFormData;
-    });
-
-    it('should upload MIDI file', async () => {
-      const origFormData = global.FormData;
-      const formAppendMock = jest.fn();
-
-      class MockFormData {
-        constructor() {
-          this.append = formAppendMock;
-        }
-      }
-
-      global.FormData = MockFormData;
-
-      // Mock fetch to resolve with success
-      global.fetch = createFetchMock({ success: true, filename: 'piece.mid' });
-
-      const midiFile = { name: 'piece.mid', type: 'audio/midi' };
-      await formHandlers.uploadAudioFile(midiFile);
-
-      expect(formAppendMock).toHaveBeenCalledWith('audioFile', midiFile);
-      expect(global.fetch).toHaveBeenCalled();
-
-      global.FormData = origFormData;
-    });
-
-    it('should reject null file input', async () => {
-      try {
-        await formHandlers.uploadAudioFile(null);
-        expect('this should not be reached').toBe('test should have thrown');
-      } catch (error) {
-        expect(error.message).toBe('Please select an audio or MIDI file');
-      }
-    });
-
-    it('should use AbortController for timeout', async () => {
-      const origFormData = global.FormData;
-      class MockFormData {
-        constructor() { this.append = jest.fn(); }
-      }
-      global.FormData = MockFormData;
-
-      // Mock fetch and capture the signal option. Shape mirrors what
-      // monadicFetch reads from the response.
-      global.fetch = jest.fn().mockImplementation((url, options) => {
-        expect(options.signal).toBeDefined();
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          headers: { get: (n) => n.toLowerCase() === 'content-type' ? 'application/json' : null },
-          text: () => Promise.resolve(JSON.stringify({ success: true, filename: 'test.wav' })),
-          json: () => Promise.resolve({ success: true, filename: 'test.wav' })
-        });
-      });
-
-      const audioFile = { name: 'test.wav', type: 'audio/wav' };
-      await formHandlers.uploadAudioFile(audioFile);
-
-      expect(global.fetch).toHaveBeenCalled();
-
-      global.FormData = origFormData;
-    });
-  });
-
   describe('setupUrlValidation', () => {
     it('should add validators to URL inputs', () => {
       // Create mock elements
@@ -589,6 +435,41 @@ describe('Form Handlers', () => {
 
       // Verify cleanup was called
       expect(cleanupFn).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('importNotice', () => {
+  const formHandlers = require('../../docker/services/ruby/public/js/monadic/form-handlers.js');
+  const t = (key) => ({
+    'ui.messages.sessionImported': 'Imported.',
+    'ui.messages.stateDropped': '{n} entries were left out.'
+  })[key];
+
+  it('says the session was imported', () => {
+    expect(formHandlers.importNotice({ success: true, state_dropped: 0 }, t)).toBe('Imported.');
+    expect(formHandlers.importNotice({ success: true }, t)).toBe('Imported.');
+  });
+
+  it('says how many entries of the app state were left out', () => {
+    expect(formHandlers.importNotice({ success: true, state_dropped: 2 }, t)).toBe('Imported. 2 entries were left out.');
+  });
+
+  it('has its own words without a translator', () => {
+    expect(formHandlers.importNotice({ state_dropped: 1 }, null)).toContain('1 entries');
+  });
+});
+
+describe('the dropped-state notice in every language', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const text = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/public/js/i18n/translations.js'), 'utf8');
+  const blocks = text.split(/\n {2}(?=\w\w: \{\n {4}ui: \{)/).slice(1);
+
+  it('names the count in each of the seven languages', () => {
+    expect(blocks.map((b) => b.slice(0, 2))).toEqual(['en', 'ja', 'zh', 'ko', 'es', 'fr', 'de']);
+    blocks.forEach((block) => {
+      expect(block).toMatch(/stateDropped: "[^"]*\{n\}[^"]*"/);
     });
   });
 });

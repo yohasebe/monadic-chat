@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="411" height="306" viewBox="0 0 411 306" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Kinds of status</title>
+  <defs>
+    <symbol id="i-solid-ban" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M367 35 100 303 367 35 100 303Q65 255 64 192Q66 110 120 56Q174 2 256 0Q319 1 367 35ZM413 81Q447 129 448 192Q446 274 392 328Q338 382 256 384Q193 383 145 348L413 81ZM0 192Q1 262 34 320Q68 378 128 414Q189 448 256 448Q323 448 384 414Q444 378 478 320Q511 262 512 192Q511 122 478 64Q444 6 384 -30Q323 -64 256 -64Q189 -64 128 -30Q68 6 34 64Q1 122 0 192Z"/></symbol>
+    <symbol id="i-solid-circle-check" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M256 -64Q326 -63 384 -30Q442 4 478 64Q512 125 512 192Q512 259 478 320Q442 380 384 414Q326 447 256 448Q186 447 128 414Q70 380 34 320Q0 259 0 192Q0 125 34 64Q70 4 128 -30Q186 -63 256 -64ZM369 239 241 111 369 239 241 111Q224 97 207 111L143 175Q129 192 143 209Q160 223 177 209L224 162L335 273Q352 287 369 273Q383 256 369 239Z"/></symbol>
+    <symbol id="i-solid-circle-exclamation" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M256 -64Q326 -63 384 -30Q442 4 478 64Q512 125 512 192Q512 259 478 320Q442 380 384 414Q326 447 256 448Q186 447 128 414Q70 380 34 320Q0 259 0 192Q0 125 34 64Q70 4 128 -30Q186 -63 256 -64ZM256 320Q278 318 280 296V184Q278 162 256 160Q234 162 232 184V296Q234 318 256 320ZM224 96Q224 110 233 119Q242 128 256 128Q270 128 279 119Q288 110 288 96Q288 82 279 73Q270 64 256 64Q242 64 233 73Q224 82 224 96Z"/></symbol>
+    <symbol id="i-solid-pencil-alt" viewBox="0 -448 512 512"><path transform="scale(1 -1)" d="M410 217 422 228 410 217 422 228 388 262 326 324 292 358 280 347 258 324 59 125Q43 109 36 88L1 -33Q-3 -46 7 -56Q17 -66 31 -63L151 -27Q173 -21 189 -5L388 194L410 217ZM160 49 151 26 160 49 151 26Q145 21 138 19L59 -4L82 74Q85 81 89 87L112 96V64Q113 50 128 48H160ZM363 429 348 415 363 429 348 415 326 392 314 381 348 347 410 285 444 251 455 262 478 285 493 299Q511 319 511 345Q511 370 493 390L453 429Q434 448 408 448Q383 448 363 429ZM315 261 171 117 315 261 171 117Q160 108 149 117Q139 129 149 140L293 284Q304 293 315 284Q325 273 315 261Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="410" height="305" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="20" width="340" height="36" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-circle-check" x="34.0" y="31.0" width="14.0" height="14" fill="#326a4c"/>
+  <text x="56.0" y="43.0" font-size="13" fill="#326a4c">Ready for input</text>
+  <circle cx="382.0" cy="38.0" r="9" fill="#2a2e33"/>
+  <text x="382.0" y="42.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <rect x="20" y="66" width="340" height="36" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-pencil-alt" x="34.0" y="77.0" width="14.0" height="14" fill="#765917"/>
+  <text x="56.0" y="89.0" font-size="13" fill="#765917">RESPONDING</text>
+  <circle cx="382.0" cy="84.0" r="9" fill="#2a2e33"/>
+  <text x="382.0" y="88.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <rect x="20" y="112" width="340" height="36" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-ban" x="34.0" y="123.0" width="14.0" height="14" fill="#765917"/>
+  <text x="56.0" y="135.0" font-size="13" fill="#765917">Operation canceled</text>
+  <circle cx="382.0" cy="130.0" r="9" fill="#2a2e33"/>
+  <text x="382.0" y="134.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <rect x="20" y="158" width="340" height="36" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-circle-exclamation" x="34.0" y="169.0" width="14.0" height="14" fill="#8f2f3a"/>
+  <text x="56.0" y="181.0" font-size="13" fill="#8f2f3a">Start a conversation first</text>
+  <circle cx="382.0" cy="176.0" r="9" fill="#2a2e33"/>
+  <text x="382.0" y="180.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <rect x="20" y="204" width="340" height="36" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-circle-check" x="34.0" y="215.0" width="14.0" height="14" fill="#335d93"/>
+  <text x="56.0" y="227.0" font-size="13" fill="#335d93">Connected</text>
+  <circle cx="382.0" cy="222.0" r="9" fill="#2a2e33"/>
+  <text x="382.0" y="226.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+  <rect x="20" y="250" width="340" height="36" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <use href="#i-solid-circle-check" x="34.0" y="261.0" width="14.0" height="14" fill="#6b737b"/>
+  <text x="56.0" y="273.0" font-size="13" fill="#6b737b">Voice recognition finished</text>
+  <circle cx="382.0" cy="268.0" r="9" fill="#2a2e33"/>
+  <text x="382.0" y="272.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+</svg>

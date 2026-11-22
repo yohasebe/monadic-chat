@@ -9,12 +9,12 @@ RSpec.describe MDSLSchema do
       expect(described_class::PROPERTIES).to include(
         :description, :icon, :display_name, :system_prompt,
         :provider, :model, :temperature, :context_size,
-        :monadic, :image, :pdf, :images, :messages
+        :image, :pdf, :images, :messages
       )
     end
     
     it 'correctly categorizes boolean properties' do
-      boolean_props = %i[disabled monadic easy_submit auto_speech 
+      boolean_props = %i[disabled easy_submit auto_speech 
                          initiate_from_assistant image pdf jupyter math 
                          websearch stream vision reasoning ai_user]
       
@@ -95,7 +95,7 @@ RSpec.describe MDSLSchema do
     it 'returns correct types for properties' do
       expect(described_class.type_of('temperature')).to eq(:float)
       expect(described_class.type_of('context_size')).to eq(:integer)
-      expect(described_class.type_of('monadic')).to eq(:boolean)
+      expect(described_class.type_of('jupyter')).to eq(:boolean)
       expect(described_class.type_of('images')).to eq(:array)
       expect(described_class.type_of('parameters')).to eq(:hash)
       expect(described_class.type_of('content')).to eq(:string_or_hash)
@@ -114,7 +114,7 @@ RSpec.describe MDSLSchema do
   
   describe '.boolean?' do
     it 'identifies boolean properties' do
-      expect(described_class.boolean?('monadic')).to be true
+      expect(described_class.boolean?('jupyter')).to be true
       expect(described_class.boolean?('easy_submit')).to be true
       expect(described_class.boolean?('easySubmit')).to be true  # alias
     end
@@ -137,7 +137,7 @@ RSpec.describe MDSLSchema do
     end
     
     it 'returns false for non-protected properties' do
-      expect(described_class.protected?('monadic')).to be false
+      expect(described_class.protected?('jupyter')).to be false
       expect(described_class.protected?('temperature')).to be false
       expect(described_class.protected?('model')).to be false
     end
@@ -146,10 +146,10 @@ RSpec.describe MDSLSchema do
   describe '.validate' do
     context 'boolean validation' do
       it 'validates boolean values' do
-        expect(described_class.validate('monadic', true)).to be true
-        expect(described_class.validate('monadic', false)).to be true
-        expect(described_class.validate('monadic', 'true')).to be false
-        expect(described_class.validate('monadic', 1)).to be false
+        expect(described_class.validate('jupyter', true)).to be true
+        expect(described_class.validate('jupyter', false)).to be true
+        expect(described_class.validate('jupyter', 'true')).to be false
+        expect(described_class.validate('jupyter', 1)).to be false
       end
     end
     
@@ -226,11 +226,11 @@ RSpec.describe MDSLSchema do
   describe '.coerce' do
     context 'boolean coercion' do
       it 'coerces values to boolean' do
-        expect(described_class.coerce('monadic', 'true')).to be true
-        expect(described_class.coerce('monadic', 'false')).to be false
-        expect(described_class.coerce('monadic', 1)).to be true
-        expect(described_class.coerce('monadic', 0)).to be false
-        expect(described_class.coerce('monadic', nil)).to be false
+        expect(described_class.coerce('jupyter', 'true')).to be true
+        expect(described_class.coerce('jupyter', 'false')).to be false
+        expect(described_class.coerce('jupyter', 1)).to be true
+        expect(described_class.coerce('jupyter', 0)).to be false
+        expect(described_class.coerce('jupyter', nil)).to be false
       end
     end
     
@@ -301,7 +301,7 @@ RSpec.describe MDSLSchema do
       props = described_class.boolean_properties
       
       # Check canonical names are included
-      expect(props).to include('monadic', 'easy_submit', 'auto_speech')
+      expect(props).to include('jupyter', 'easy_submit', 'auto_speech')
       
       # Check aliases are included
       expect(props).to include('easySubmit', 'autoSpeech')

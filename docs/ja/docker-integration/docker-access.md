@@ -35,19 +35,19 @@ Start の後、コンソールには動いているコンテナと、それぞ�
   docker exec -it monadic-chat-selenium-container bash
   ```
 
-- **Privacy コンテナ**（`monadic-chat-privacy-container`）：Privacy Filter のための個人情報の検出
+- **Privacy コンテナ**（`monadic-chat-privacy-container`）：匿名化のための名前の検出
   ```shell
   docker exec -it monadic-chat-privacy-container bash
   ```
 
-- **Extractor コンテナ**（`monadic-chat-extractor-container`）：Knowledge Base Quality Pack の文書の抽出（インストールしたときだけあります）
+- **Extractor コンテナ**（`monadic-chat-extractor-container`）：Knowledge Base 品質パックの文書の抽出（インストールしたときだけあります）
   ```shell
   docker exec -it monadic-chat-extractor-container bash
   ```
 
 ## JupyterLab
 
-**Actions → Start JupyterLab** で、Python コンテナの共有フォルダ（`/monadic/data`）で JupyterLab が起動します。JupyterLab の Launcher で `Terminal` をクリックすると、コンテナのシェルが開きます。[JupyterLab との連携](jupyterlab.md)を参照してください。
+**アクション → JupyterLab を開く** で、Python コンテナの共有フォルダ（`/monadic/data`）で動く JupyterLab が開きます。JupyterLab の Launcher で `Terminal` をクリックすると、コンテナのシェルが開きます。[JupyterLab との連携](jupyterlab.md)を参照してください。
 
 ## よく使う操作
 

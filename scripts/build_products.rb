@@ -4,7 +4,7 @@
 # database, which HelpDumpGuard checks), and the bytes each one must have.
 #
 # The expected bytes come from the sources, never from the file on disk:
-# vendor files from the hashes pinned in assets_list.sh, and the two bundles
+# vendor files from the hashes pinned in assets_list.sh, and the bundles
 # from building them again from the commit. A file that was merely present
 # used to be enough. 1.0.0-beta.37 shipped the JS bundle of the commit before
 # its last, and an HTML error page saved as a highlight.js theme.
@@ -19,11 +19,17 @@ module BuildProducts
   ASSETS_LIST = "#{RUBY}/bin/assets_list.sh"
   JS_BUNDLE = "#{RUBY}/public/js/monadic.bundle.min.js"
   MAXGRAPH = "#{VENDOR}/js/maxgraph.bundle.js"
+  # The worker the work screen draws charts in, and the licenses of what it
+  # holds (scripts/vega/build.mjs).
+  VEGA_WORKER = "#{VENDOR}/vega/vega-worker.mjs"
+  VEGA_LICENSES = "#{VENDOR}/vega/LICENSES.txt"
   # katex.min.css loads its fonts from fonts/ beside it.
   FONT_LINK = "#{VENDOR}/css/fonts"
   FONT_LINK_TARGET = '../fonts'
   # The package.json script that builds each bundle.
-  BUILT = { JS_BUNDLE => 'build:js', MAXGRAPH => 'build:maxgraph' }.freeze
+  BUILT = {
+    JS_BUNDLE => 'build:js', MAXGRAPH => 'build:maxgraph', VEGA_WORKER => 'build:vega', VEGA_LICENSES => 'build:vega'
+  }.freeze
 
   module_function
 
@@ -54,8 +60,8 @@ module BuildProducts
       begin
         modules = File.join(root, 'node_modules')
         File.symlink(modules, File.join(tree, 'node_modules')) if File.directory?(modules)
+        BUILT.values.uniq.each { |script| run(tree, 'npm', 'run', '--silent', script) }
         built = BUILT.to_h do |path, script|
-          run(tree, 'npm', 'run', '--silent', script)
           out = File.join(tree, path)
           raise "npm run #{script} did not write #{path}" unless File.file?(out)
 

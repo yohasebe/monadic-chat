@@ -36,9 +36,11 @@ The lists of apps below name the built-in apps that import each group.
 **Apps using this**: Code Interpreter, Jupyter Notebook, Math Tutor, Research Assistant
 
 #### File Operations (3 tools)
-- Read files from the shared folder
-- Write or append to files in the shared folder
-- List files in the shared folder
+- Read files of the chat, or files you put in the shared folder
+- Write or append to files in the chat's work folder (`conversations/…/work/`), whatever place the AI names; the result gives the path each file was saved at
+- List files of the chat's work folder, or of a folder you made in the shared folder
+
+These tools do not read, write or list other chats' folders.
 
 **Apps using this**: Every app gets this group automatically.
 
@@ -88,9 +90,9 @@ The lists of apps below name the built-in apps that import each group.
 #### Session Context (4 tools)
 - Get, update, and clear the conversation context (topics, people, notes)
 - Remove specific items from the context
-- The context is shown in the sidebar panel
+- The context is shown as a page on the work screen; see [State Notes](./monadic-mode.md#state-notes)
 
-**Apps using this**: Chat Plus
+**Apps using this**: Chat
 
 ### Groups With Requirements
 
@@ -105,6 +107,10 @@ The lists of apps below name the built-in apps that import each group.
 **Apps using this**: Web Insight, AutoForge, Research Assistant (OpenAI, Claude, Gemini, Grok)
 
 The Selenium container starts with Monadic Chat. If the group is not shown, wait for startup to finish; if the Selenium image is missing, run **Actions → Build All** to download it.
+
+Up to three browser sessions can be open at once (for example a chat's browser beside a diagram preview). When all of them are in use, a request for another is refused after a few seconds instead of waiting.
+
+Each chat has its own interactive browser session, and up to two chats can have one at a time. A chat's browser is closed when you press **Reset**, switch to another app, import a conversation or continue another chat from the history, and when it has not been used for 5 minutes.
 
 #### Video Analysis (1 tool)
 **Requires**: an app on OpenAI, Anthropic, Gemini, or xAI, with that provider's API key
@@ -206,12 +212,12 @@ app "MyAssistantOpenAI" do
   # Groups the app can reach for when the conversation calls for them.
   reachable_skills :web_search_tools, :image_analysis
 
-  # Or reach for the curated pool of read-only safe groups in one line:
+  # Or reach for the curated pool of safe groups in one line:
   # reachable_skills :safe
 end
 ```
 
-`reachable_skills :group_a, :group_b` is the same as importing each group with `import_shared_tools :group_a, visibility: "conditional"`. `reachable_skills :safe` expands to the read-only groups: Web Search, File Reading, Image Analysis, Video Analysis, Audio Transcription, Session Context, Verification and Planning.
+`reachable_skills :group_a, :group_b` is the same as importing each group with `import_shared_tools :group_a, visibility: "conditional"`. `reachable_skills :safe` expands to Web Search, File Reading, Image Analysis, Video Analysis, Audio Transcription, Session Context, Verification and Planning. None of them writes files; Session Context changes the chat's own notes.
 
 Acquired skills are kept when a session is exported and restored when it is imported, so a saved conversation resumes with the same tools.
 

@@ -34,7 +34,7 @@ RSpec.describe "Streaming across a chat change" do
     allow(host).to receive(:initialize_token_counting).and_return(nil)
     allow(host).to receive(:sts_session_capable?).and_return(false)
     thread = host.send(:handle_ws_streaming, nil, { "message" => "describe the video", "app_name" => "FakeApp" }, session, queue)
-    thread&.join
+    wait_for_answer_made(thread)
   end
 
   it "drops what arrives after a Reset, records nothing, and still ends the turn on the page" do
@@ -44,7 +44,8 @@ RSpec.describe "Streaming across a chat change" do
     expect(sent).to include("BEFORE")
     expect(sent).not_to include("AFTER")
     expect(queue).to be_empty
-    expect(JSON.parse(broadcasts.last)["type"]).to eq("streaming_complete")
+    last_two = broadcasts.last(2).map { |m| JSON.parse(m).values_at("type", "outcome") }
+    expect(last_two).to eq([["streaming_complete", nil], ["reply_state", "no_reply"]])
   end
 
   it "delivers a turn whose chat did not change" do

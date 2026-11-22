@@ -18,11 +18,6 @@
  * @param {Object} data - Message data with content array of message objects
  */
 function handlePastMessages(data) {
-  // Whether the chat is Private comes with its words: noted before they
-  // are held, so they are not stored if it is.
-  if (window.WsPrivacyHandler && typeof window.WsPrivacyHandler.notePrivate === 'function') {
-    window.WsPrivacyHandler.notePrivate(data);
-  }
   const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
   // The conversation is replaced: edits waiting for an answer have nothing
   // left to put back.
@@ -129,6 +124,11 @@ function handlePastMessages(data) {
         if (discourseEl && userCard) {
           discourseEl.appendChild(userCard);
         }
+        // What a reply that ended without its message looked at in the
+        // work screen, as the user's message records it.
+        if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(msg.workbench_looks)) {
+          window.Workbench.drawLooks(msg.mid, msg.workbench_looks);
+        }
         break;
       }
       case "assistant": {
@@ -156,6 +156,17 @@ function handlePastMessages(data) {
         );
         if (discourseEl && assistantCard) {
           discourseEl.appendChild(assistantCard[0] || assistantCard);
+        }
+        // What the reply made, as the message records it (a message
+        // without a record clears what was drawn for its id).
+        if (window.Workbench) {
+          window.Workbench.drawRecord(msg.mid, Array.isArray(msg.artifacts) ? msg.artifacts : []);
+          if (typeof window.Workbench.drawLooks === 'function') {
+            window.Workbench.drawLooks(msg.mid, Array.isArray(msg.workbench_looks) ? msg.workbench_looks : []);
+          }
+          if (typeof window.Workbench.drawShown === 'function') {
+            window.Workbench.drawShown(msg.mid, Array.isArray(msg.workbench_shown) ? msg.workbench_shown : []);
+          }
         }
         // Restore a persisted verification verdict, if the message carries one.
         if (msg.verify && typeof window.renderVerifyConfidence === 'function') {
@@ -223,31 +234,28 @@ function handlePastMessages(data) {
   setStats(formatInfo(serverMessages), "info");
 
   const hasConversation = serverMessages.some((m) => m.role !== "system");
-  const labelPromise = window.i18nReady || Promise.resolve();
-  labelPromise.then(() => {
-    var startLabelEl = $id("start-label");
-    if (startLabelEl) {
-      if (hasConversation) {
-        const continueText =
-          typeof webUIi18n !== "undefined" && webUIi18n.initialized
-            ? webUIi18n.t("ui.session.continueSession")
-            : "Continue Session";
-        startLabelEl.textContent = continueText;
-      } else {
-        const startText =
-          typeof webUIi18n !== "undefined" && webUIi18n.initialized
-            ? webUIi18n.t("ui.session.startSession")
-            : "Start Session";
-        startLabelEl.textContent = startText;
-      }
-    }
-  });
+  // A chat taken in (an import, a chat from the history) replaces the one
+  // shown: the column goes back to its settings, to be continued from there.
+  if (data["from_import"] && typeof window.enterSettingsMode === 'function') window.enterSettingsMode();
+  if (typeof window.setStartButtonMode === 'function') window.setStartButtonMode(hasConversation);
 
   const connectedText =
     typeof webUIi18n !== "undefined" && webUIi18n.initialized
       ? webUIi18n.t("ui.messages.connected")
       : "Connected";
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
+
+  // A reply the lost connection cut off is told once, when the conversation
+  // is drawn again after reconnecting; the notice is not part of the saved
+  // conversation, so the next redraw of it leaves the notice out.
+  if (window._replyInterrupted) {
+    window._replyInterrupted = false;
+    const interruptedText =
+      typeof webUIi18n !== "undefined" && webUIi18n.initialized
+        ? webUIi18n.t("ui.messages.replyInterrupted")
+        : "The connection was lost before the reply was complete. Send the message again.";
+    setAlert(interruptedText, "error");
+  }
 
   if (typeof window.updateAIUserButtonState === 'function') {
     window.updateAIUserButtonState(serverMessages);
@@ -398,8 +406,9 @@ function handleEditSuccess(data) {
       applyToggle(cardEl);
     }
 
-    if (toBool(p["mermaid"])) {
-      applyMermaid(cardEl);
+    // Diagrams are drawn for every app (render-registry.js).
+    if (window.Renderers) {
+      window.Renderers.apply(cardEl);
     }
 
     if (typeof applyDrawIO === 'function') {
@@ -507,8 +516,9 @@ function handleDisplaySample(data) {
     applyToggle(lastCard);
   }
 
-  if (toBool(p["mermaid"])) {
-    applyMermaid(lastCard);
+  // Diagrams are drawn for every app (render-registry.js).
+  if (window.Renderers) {
+    window.Renderers.apply(lastCard);
   }
 
   if (typeof applyDrawIO === 'function') {

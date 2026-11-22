@@ -1,31 +1,31 @@
 app "CodingAssistantOpenAI" do
   description do
     en <<~TEXT
-    Programming help with code suggestions and explanations. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Programming help with code suggestions and explanations. <a href="https://yohasebe.github.io/monadic-chat/#/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    コードの提案と説明によるプログラミング支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    コードの提案と説明によるプログラミング支援。 <a href="https://yohasebe.github.io/monadic-chat/#/ja/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    提供代码建议和解释的编程帮助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    提供代码建议和解释的编程帮助。 <a href="https://yohasebe.github.io/monadic-chat/#/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    코드 제안과 설명을 통한 프로그래밍 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    코드 제안과 설명을 통한 프로그래밍 지원. <a href="https://yohasebe.github.io/monadic-chat/#/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Ayuda de programación con sugerencias y explicaciones de código. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Ayuda de programación con sugerencias y explicaciones de código. <a href="https://yohasebe.github.io/monadic-chat/#/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Aide à la programmation avec suggestions et explications de code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Aide à la programmation avec suggestions et explications de code. <a href="https://yohasebe.github.io/monadic-chat/#/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Programmierhilfe mit Code-Vorschlägen und Erklärungen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Programmierhilfe mit Code-Vorschlägen und Erklärungen. <a href="https://yohasebe.github.io/monadic-chat/#/apps/coding-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   
@@ -44,9 +44,10 @@ app "CodingAssistantOpenAI" do
   1. Use `read_file_from_shared_folder` to read existing files
   2. Use `write_file_to_shared_folder` to create or update files
   3. Use `list_files_in_shared_folder` to explore the directory structure
+  Files you write are kept in this chat's work folder, whatever place you name; the result gives the path each was saved at (saved_as). Use that path afterwards and give it to the user.
 
   ## Using OpenAI Code Agent
-  For complex coding tasks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
+  For complex coding tasks, you can delegate to OpenAI Code using `openai_code_agent`.
   This specialized model excels at:
   - Writing complete applications
   - Complex refactoring
@@ -76,6 +77,7 @@ app "CodingAssistantOpenAI" do
   
   llm do
     provider "openai"
+    model "gpt-6.1-sol"
     reasoning_effort "low"
     temperature 0.0
 
@@ -95,6 +97,7 @@ app "CodingAssistantOpenAI" do
   display_name "Coding Assistant"
  
   features do
+    work_screen "code"
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false

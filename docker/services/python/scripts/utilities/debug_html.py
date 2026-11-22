@@ -5,6 +5,7 @@ Analyzes HTML files for errors and functionality using Selenium
 """
 
 import argparse
+import os
 import json
 import sys
 import time
@@ -170,11 +171,18 @@ def debug_html(html_path):
             # Set a reasonable viewport size
             driver.set_window_size(1280, 900)
             time.sleep(0.5)
+            # Beside the page it checks (the project's folder in the chat's
+            # folder), never at the top of the shared folder; the path given
+            # back is the one in the shared folder.
+            page_dir = os.path.dirname(os.path.realpath(html_path))
+            shared = "/monadic/data"
+            if not page_dir.startswith(shared + "/"):
+                raise RuntimeError("The page is not in the shared folder")
             screenshot_filename = f"autoforge_debug_{int(time.time())}.png"
-            screenshot_path = f"/monadic/data/{screenshot_filename}"
+            screenshot_path = os.path.join(page_dir, screenshot_filename)
             driver.save_screenshot(screenshot_path)
             if Path(screenshot_path).exists():
-                results['screenshot'] = screenshot_filename
+                results['screenshot'] = os.path.relpath(screenshot_path, shared)
                 results['viewport'] = {'width': 1280, 'height': 900}
         except Exception as e:
             results['warnings'].append({

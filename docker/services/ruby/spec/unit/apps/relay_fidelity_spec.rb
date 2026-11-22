@@ -44,7 +44,7 @@ RSpec.describe 'Relay-fidelity prompt guardrails' do
     end
   end
 
-  describe 'Music Lab (all variants)' do
+  describe 'Music Tutor (all variants)' do
     variants(apps_root, 'music_lab', 'music_lab_*.mdsl').each do |path|
       context File.basename(path) do
         let(:content) { File.read(path) }

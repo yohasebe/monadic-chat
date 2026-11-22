@@ -3,11 +3,9 @@
  *
  * Handles session-level WebSocket messages that don't involve
  * streaming state or audio playback:
- * - context_extraction_started / context_update: Context panel lifecycle
  * - language_updated: Conversation language changes with RTL support
  * - processing_status / system_info: System message display
  * - stt: Speech-to-text completion
- * - pdf_titles / pdf_deleted: PDF document management
  * - change_status: Message active/inactive status toggle
  * - success: Generic success notifications
  * - sample_success: Sample message addition confirmation
@@ -16,36 +14,6 @@
  */
 (function() {
 'use strict';
-
-/**
- * Handle "context_extraction_started" WebSocket message.
- * Shows loading state in the context panel.
- * @param {Object} _data - Message data (unused)
- */
-function handleContextExtractionStarted(_data) {
-  if (typeof ContextPanel !== "undefined") {
-    ContextPanel.showLoading();
-    if (window.debugWebSocket) console.log("[WS] Context extraction started");
-  }
-}
-
-/**
- * Handle "context_update" WebSocket message.
- * Updates context panel with extracted data and optional schema.
- * @param {Object} data - Message data with context and optional schema
- */
-function handleContextUpdate(data) {
-  if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-    WorkflowViewer.setStage('context');
-  }
-  if (typeof ContextPanel !== "undefined") {
-    ContextPanel.hideLoading();
-    if (data.context) {
-      ContextPanel.updateContext(data.context, data.schema || null);
-      if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
-    }
-  }
-}
 
 /**
  * Handle "language_updated" WebSocket message.
@@ -323,71 +291,6 @@ function handleSTT(data) {
 }
 
 /**
- * Handle "pdf_titles" WebSocket message.
- * Renders the PDF list with delete buttons.
- * @param {Object} data - Message data with content array of title strings
- */
-function handlePDFTitles(data) {
-  const rows = data["content"].map((title, index) => {
-    const safeTitle = String(title).replace(/</g, '&lt;');
-    return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom pdf-db-row">`
-         +   `<span class="pdf-db-name">${safeTitle}</span>`
-         +   `<button id='pdf-del-${index}' type='button' class='btn btn-sm btn-outline-secondary'>`
-         +     `<i class='fa-regular fa-trash-can text-secondary'></i>`
-         +   `</button>`
-         + `</div>`;
-  }).join("");
-  const noPdfsText = (typeof getTranslation === 'function') ? getTranslation('ui.noPdfsLocal', 'No PDFs imported') : 'No PDFs imported';
-  var pdfTitlesEl = $id('pdf-titles');
-  if (pdfTitlesEl) pdfTitlesEl.innerHTML = rows || `<span class='text-secondary'>${noPdfsText}</span>`;
-
-  data["content"].forEach((title, index) => {
-    var delBtn = $id('pdf-del-' + index);
-    if (delBtn) {
-      delBtn.onclick = function() {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-        if (isIOS) {
-          const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
-          if (confirm(`${base} ${title}?`)) {
-            window.sendPdfWsMessage({ message: "DELETE_PDF", contents: title });
-          }
-        } else {
-          var modalEl = $id('pdfDeleteConfirmation');
-          if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
-          var pdfToDeleteEl = $id('pdfToDelete');
-          if (pdfToDeleteEl) pdfToDeleteEl.textContent = title;
-          var confirmBtn = $id('pdfDeleteConfirmed');
-          if (confirmBtn) {
-            confirmBtn.onclick = function(event) {
-              event.preventDefault();
-              window.sendPdfWsMessage({ message: "DELETE_PDF", contents: title });
-              if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-              if (pdfToDeleteEl) pdfToDeleteEl.textContent = "";
-            };
-          }
-        }
-      };
-    }
-  });
-}
-
-/**
- * Handle "pdf_deleted" WebSocket message.
- * Shows deletion result and refreshes PDF list.
- * @param {Object} data - Message data with res and content
- */
-function handlePDFDeleted(data) {
-  if (data["res"] === "success") {
-    setAlert(`<i class='fa-solid fa-circle-check'></i> ${data["content"]}`, "info");
-  } else {
-    setAlert(data["content"], "error");
-  }
-  window.sendPdfWsMessage({ message: "PDF_TITLES" });
-}
-
-/**
  * Handle "change_status" WebSocket message.
  * Toggles active/inactive class on message cards.
  * @param {Object} data - Message data with content array of {mid, active} objects
@@ -446,16 +349,12 @@ function handleSampleSuccess(data) {
 
 // Export for browser environment
 window.WsSessionHandler = {
-  handleContextExtractionStarted,
-  handleContextUpdate,
   handleLanguageUpdated,
   handleProcessingStatus,
   handleSystemInfo,
   handleSTT,
   handleSTTPartial,
   clearSTTPartialOverlay,
-  handlePDFTitles,
-  handlePDFDeleted,
   handleChangeStatus,
   handleSuccess,
   handleSampleSuccess

@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor, clipboard } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor, clipboard, Notification } = require('electron');
 const updater = require('./updater');
 const { injectUpdateButton } = require('./update-ui');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
@@ -15,10 +15,14 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
+const keyCheck = require('./key_check');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
+const { copyAddressItems } = require('./context_menu_copy');
+const { createPullProgress } = require('./pull_progress');
+const { statusAfterClose } = require('./command_status');
 const { writeStreamNoFollow, readStreamNoFollow, openReadNoFollow } = require('./no_follow_files');
 const { monadicShEnv, monadicInvocation } = require('./monadic_env');
-const { keepWarnings, createLineBuffer } = require('./build_output');
+const { keepWarnings, createLineBuffer, versionsIn, translateStartFailure } = require('./build_output');
 const designTokens = require('./design_tokens');
 const { createThemeSync } = require('./theme_sync');
 const { createFitHandler } = require('./fit_window');
@@ -97,6 +101,43 @@ let menuBarModeActive = false;
 
 // Internal browser window reference and opener
 let webviewWindow = null;
+// Answers that finish while the Web UI window is hidden (background_reply.js).
+const { BackgroundReplyState } = require('./background_reply');
+const backgroundReply = new BackgroundReplyState();
+// Notices shown and not yet dismissed (kept so they are not collected), with
+// the page generation each was made for.
+const backgroundNotices = new Map();
+// Closing, hiding and showing the Web UI window
+// (background_reply_controller.js); main passes in what touches Electron.
+const { createBackgroundReplyController } = require('./background_reply_controller');
+const backgroundReplyController = createBackgroundReplyController({
+  state: backgroundReply,
+  getWindow: () => webviewWindow,
+  send: (channel, payload) => {
+    if (webviewWindow && !webviewWindow.isDestroyed()) webviewWindow.webContents.send(channel, payload);
+  },
+  apply: ({ muted, throttle }) => {
+    if (!webviewWindow || webviewWindow.isDestroyed()) return;
+    webviewWindow.webContents.setAudioMuted(muted);
+    webviewWindow.webContents.setBackgroundThrottling(throttle);
+  },
+  askToClose: async (win) => {
+    const result = await dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: [i18n.t('menu.closeWebUI'), i18n.t('dialogs.cancel')],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+      title: i18n.t('dialogs.backgroundHoldFailedTitle'),
+      message: i18n.t('dialogs.backgroundHoldFailedTitle'),
+      detail: i18n.t('dialogs.backgroundHoldFailedMessage')
+    });
+    return result.response === 0;
+  },
+  notify: (noticeKey, binding) => showBackgroundNotice(noticeKey, binding),
+  closeNotices: () => closeBackgroundNotices(),
+  menuChanged: () => updateContextMenu()
+});
 // noVNC viewer window reference
 let novncWindow = null;
 // State for in-page search to filter invisible matches
@@ -113,13 +154,48 @@ function isAppUrl(value) {
     return false;
   }
 }
+
+// The policy the app window adds to every response of the app's server.
+const APP_CSP = [
+  "default-src 'self' http://localhost:4567 http://127.0.0.1:4567",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://localhost:4567 http://127.0.0.1:4567",
+  "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567",
+  "style-src-elem 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567",
+  "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567",
+  "img-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
+  "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567 https://paulrosen.github.io",
+  "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
+  "worker-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
+  "child-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
+  "object-src 'none'"
+].join('; ');
+
+// The headers of a response of the app's server with the app's policy
+// added. A policy the server sent is kept beside it (every policy of a
+// response applies, so a response the server locked down, such as a
+// worker or a file served in a sandbox, stays as the server made it).
+// Other responses are left as they are.
+function withAppPolicy(headers, url) {
+  if (!isAppUrl(url)) return headers;
+  const out = {};
+  const sent = [];
+  Object.keys(headers || {}).forEach((name) => {
+    if (name.toLowerCase() === 'content-security-policy') {
+      [].concat(headers[name]).forEach((value) => { if (value) sent.push(String(value)); });
+    } else {
+      out[name] = headers[name];
+    }
+  });
+  out['Content-Security-Policy'] = [...sent, APP_CSP];
+  return out;
+}
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
       // Force reload for restart
       webviewWindow.webContents.reload();
     }
-    webviewWindow.focus();
+    showWebViewWindow();
     return;
   }
 
@@ -134,40 +210,17 @@ function openWebViewWindow(url, forceReload = false) {
   // writing the local origin in here would let any page loaded in this
   // window pass as the app.
 
-  // Modify CSP headers to allow localhost resources
+  // The app's policy on every response of the app's server, beside any the
+  // server sent (withAppPolicy).
   customSession.webRequest.onHeadersReceived(
     { urls: ['http://localhost:4567/*', 'http://127.0.0.1:4567/*'] },
     (details, callback) => {
-      const responseHeaders = { ...details.responseHeaders };
-
+      let responseHeaders = details.responseHeaders;
       try {
-        const targetUrl = new URL(details.url);
-        const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
-        if (allowedLocalHosts.has(host)) {
-          // Remove restrictive CSP if present and replace with a locked-down localhost policy
-          delete responseHeaders['content-security-policy'];
-          delete responseHeaders['Content-Security-Policy'];
-
-          const csp = [
-            "default-src 'self' http://localhost:4567 http://127.0.0.1:4567",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://localhost:4567 http://127.0.0.1:4567",
-            "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
-            "style-src-elem 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
-            "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com",
-            "img-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
-            "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567 https://paulrosen.github.io",
-            "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
-            "worker-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
-            "child-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
-            "object-src 'none'"
-          ].join('; ');
-
-          responseHeaders['Content-Security-Policy'] = [csp];
-        }
+        responseHeaders = withAppPolicy(details.responseHeaders, details.url);
       } catch (e) {
         console.warn('Failed to apply CSP for response', e);
       }
-
       callback({ responseHeaders });
     }
   );
@@ -216,6 +269,11 @@ function openWebViewWindow(url, forceReload = false) {
       const host = origin ? `${origin.hostname}:${origin.port || (origin.protocol === 'https:' ? '443' : '80')}` : '';
       const isLocalAllowed = origin && allowedLocalHosts.has(host);
 
+      // Not while the window is held in the background (closed during an answer).
+      if (allowedPermissions.includes(permission) && backgroundReplyController.blocksMedia()) {
+        callback(false);
+        return;
+      }
       if (allowedPermissions.includes(permission) && isLocalAllowed) {
         console.log(`Approving permission request for: ${permission} from ${host}`);
         callback(true);
@@ -437,10 +495,109 @@ function openWebViewWindow(url, forceReload = false) {
       // Let all other keyboard events pass through to the webview
     }
   });
+  // Closing hides the window: the conversation stays, and an answer still
+  // running comes in.
+  webviewWindow.on('close', (event) => {
+    const allowed = backgroundReplyController.onClose({
+      quitting: forceQuit,
+      updating: !!(updater.isInstallInProgress && updater.isInstallInProgress())
+    });
+    if (!allowed) event.preventDefault();
+  });
+  webviewWindow.webContents.on('did-start-navigation', (details) => {
+    if (details && details.isMainFrame && !details.isSameDocument) backgroundReplyController.pageNavigating();
+  });
+  webviewWindow.webContents.on('render-process-gone', () => backgroundReplyController.pageCrashed());
   webviewWindow.on('closed', () => {
     webviewWindow = null;
+    backgroundReplyController.windowClosed();
   });
 }
+
+// Show the Web UI window again: from the tray, a notice, or opening it.
+function showWebViewWindow() {
+  backgroundReplyController.show();
+}
+
+// Close the Web UI window for good, also while an answer is running.
+function closeWebViewWindow() {
+  if (webviewWindow && !webviewWindow.isDestroyed()) webviewWindow.destroy();
+}
+
+function backgroundNoticesEnabled() {
+  try {
+    return (loadSettings() || {}).BACKGROUND_REPLY_NOTIFICATIONS !== 'false';
+  } catch (_) {
+    return true;
+  }
+}
+
+function closeBackgroundNotices() {
+  for (const notice of backgroundNotices.keys()) {
+    try { notice.close(); } catch (_) { /* already gone */ }
+  }
+  backgroundNotices.clear();
+}
+
+// A fixed text only: nothing of the conversation goes into a notice. A
+// click shows the window only if it is the same window and the notice still
+// applies to its page (background_reply_controller.js).
+function showBackgroundNotice(messageKey, binding) {
+  if (!webviewWindow || !backgroundNoticesEnabled() || !Notification.isSupported()) return;
+  const notice = new Notification({ title: 'Monadic Chat', body: i18n.t(`messages.${messageKey}`), silent: false });
+  backgroundNotices.set(notice, { win: webviewWindow, binding });
+  const forget = () => backgroundNotices.delete(notice);
+  notice.on('click', () => {
+    const made = backgroundNotices.get(notice);
+    forget();
+    if (!made || made.win !== webviewWindow || made.win.isDestroyed()) return;
+    if (backgroundReplyController.noticeStillApplies(made.binding)) showWebViewWindow();
+  });
+  notice.on('close', forget);
+  notice.on('failed', forget);
+  notice.show();
+}
+
+// Messages from the Web UI's own top frame only.
+function fromWebViewPage(event) {
+  return !!(webviewWindow && !webviewWindow.isDestroyed() && event.sender === webviewWindow.webContents &&
+    event.senderFrame === event.sender.mainFrame && isAppUrl(event.senderFrame.url));
+}
+
+ipcMain.on('background-reply:ready', (event) => {
+  if (!fromWebViewPage(event)) return;
+  event.sender.send('background-reply:hello', backgroundReplyController.onReady());
+});
+
+// What the page sends is checked for its form here; which page and which
+// operation it answers, in the controller.
+function pageInfo(info) {
+  if (!info || typeof info !== 'object') return null;
+  return {
+    generation: info.generation,
+    op: info.op,
+    running: info.running,
+    pending: info.pending
+  };
+}
+
+ipcMain.on('background-reply:report', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onReport(pageInfo(info));
+});
+ipcMain.on('background-reply:held', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onHeld(pageInfo(info));
+});
+ipcMain.on('background-reply:released', (event, info) => {
+  if (fromWebViewPage(event)) backgroundReplyController.onReleased(pageInfo(info));
+});
+ipcMain.on('background-reply:finished', (event, info) => {
+  if (!fromWebViewPage(event) || !info || typeof info !== 'object') return;
+  backgroundReplyController.onFinished({
+    generation: info.generation,
+    requestId: typeof info.requestId === 'string' ? info.requestId.slice(0, 64) : '',
+    outcome: ['done', 'no_reply', 'lost'].includes(info.outcome) ? info.outcome : 'no_reply'
+  });
+});
 
 
 let dockerInstalled = false;
@@ -467,6 +624,13 @@ function showDockerMissingNotice() {
   writeToScreen(formatMessage('warning', `messages.dockerNotInstalled.${platform}`) + '<hr />');
 }
 let wsl2Installed = false;
+
+// PATH with the folders a Docker CLI is installed in on macOS, after the
+// app's own (the same folders monadic.sh adds).
+function dockerSearchPath() {
+  const extra = ['/usr/local/bin', '/opt/homebrew/bin', path.join(os.homedir(), '.docker', 'bin')];
+  return [process.env.PATH || '', ...extra].filter(Boolean).join(':');
+}
 
 let dotenv;
 if (app.isPackaged) {
@@ -641,13 +805,52 @@ class DockerManager {
     });
   }
 
+  // The engine the Docker CLI chooses, as monadic.sh resolves it (the same
+  // place every command runs, inside WSL on Windows): { origin, context,
+  // desktop, answers, engine, refused }, or null when it cannot be asked.
+  runtimeInfo() {
+    return new Promise((resolve) => {
+      exec(monadicCmd('runtime'), { timeout: 20000 }, (error, stdout) => {
+        if (error) return resolve(null);
+        const info = {};
+        for (const line of stdout.split('\n')) {
+          const at = line.indexOf('=');
+          // Shown in the console's HTML: plain characters only (a context
+          // name is the user's own text).
+          if (at > 0) info[line.slice(0, at).trim()] = line.slice(at + 1).trim().replace(/[^\w .,:()\/@+-]/g, '');
+        }
+        resolve(info);
+      });
+    });
+  }
+
   async ensureDockerDesktopRunning() {
-    // Check Docker Desktop status
+    const runtime = await this.runtimeInfo();
+    if (runtime && runtime.refused) {
+      noticeInMainWindow(formatMessage('warning', 'messages.dockerRefused', { reason: runtime.refused }) + '<hr />');
+      return;
+    }
+    if (runtime && runtime.answers === '1' && runtime.engine) {
+      const engine = runtime.product || runtime.engine;
+      writeToScreen(runtime.context
+        ? formatMessage('info', 'messages.dockerEngineContext', { engine, context: runtime.context })
+        : formatMessage('info', 'messages.dockerEngine', { engine }));
+    }
+    // The engine's name for the indicator (display only): what it calls
+    // itself, or, when it does not answer, Docker for Docker Desktop's
+    // context and the context's name otherwise.
+    if (runtime) noteEngineName(runtime);
+    // Check the engine's status
     const st = await this.checkStatus();
     if (!st && process.platform === 'linux' && this.accessDenied) {
       // Starting Docker cannot help: it is running, but not for this user.
       // Shown in the main window rather than a modal dialog, which would
       // cover the window at startup.
+      noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
+      return;
+    }
+    if (!st && runtime && runtime.desktop !== '1') {
+      // Another engine is chosen: its owner starts it.
       noticeInMainWindow(formatMessage('warning', this.dockerUnavailableMessageKey()) + '<hr />');
       return;
     }
@@ -690,8 +893,10 @@ class DockerManager {
           });
         });
       } else if (os.platform() === 'darwin') {
-        exec('/usr/local/bin/docker -v', function (err, stdout) {
-          dockerInstalled = stdout.includes('docker') || stdout.includes('Docker');
+        // The Docker CLI where Docker Desktop, Homebrew and other runtimes
+        // put it; an app opened from the Finder has a short PATH.
+        exec('docker -v', { env: { ...process.env, PATH: dockerSearchPath() } }, function (err, stdout) {
+          dockerInstalled = !err && (stdout.includes('docker') || stdout.includes('Docker'));
           dockerMissing = !dockerInstalled;
           if (!dockerInstalled) {
             reportDockerMissing();
@@ -776,12 +981,36 @@ class DockerManager {
               }
             });
             
+            // Image downloads: their layer lines become one line on the
+            // console, updated in place (the log files keep every line).
+            const pulls = createPullProgress();
+            let pullShownAt = 0;
+            const showPull = (done) => {
+              const now = Date.now();
+              if (!done && now - pullShownAt < 250) return;
+              pullShownAt = now;
+              const { bytes, text: size } = pulls.progress();
+              // Without a size yet (a small image arrives in one step), none is said.
+              const key = done ? (bytes ? 'messages.pullDone' : 'messages.pullDoneNoSize')
+                : (bytes ? 'messages.pullProgress' : 'messages.pullProgressNoSize');
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pull-progress', { done, text: i18n.t(key, { size }) });
+              }
+              if (done) pulls.reset();
+            };
+
             // Handled a whole line at a time (a marker or a warning cut
             // between two chunks would otherwise be missed or lost).
             const stdoutLines = createLineBuffer(function (output) {
+              // The image download lines leave the block (see pulls).
+              const { rest, took } = pulls.filter(output);
+              if (took) showPull(false);
+              if (!rest) return;
+              if (pulls.active()) showPull(true);
+              output = rest;
               
               // Translate Docker messages before displaying
-              let translatedOutput = output;
+              let translatedOutput = translateStartFailure(output, (key) => i18n.t(key));
               
               // Handle HTML messages with specific patterns
               if (output.includes('Custom Ruby setup script')) {
@@ -839,14 +1068,14 @@ class DockerManager {
                   translatedOutput = `[HTML]: <p>${i18n.t('messages.systemAvailableAt')}: ${urlMatch[0]}</p>`;
                 }
               } else if (output.includes('Monadic Chat app v') && output.includes('Container image v')) {
-                // Extract versions - include all characters until whitespace or end of line
-                const appVersionMatch = output.match(/Monadic Chat app v([^\s]+)/);
-                const containerVersionMatch = output.match(/Container image v([^\s]+)/);
-                if (appVersionMatch && containerVersionMatch) {
+                const versions = versionsIn(output);
+                if (versions) {
                   // Styled version info with visual separation
                   const appLabel = i18n.t('messages.versionInfoApp');
                   const containerLabel = i18n.t('messages.versionInfoContainer');
-                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
+                  const containerVersion = versions.container
+                    ? `v${versions.container}` : i18n.t('messages.containerNotBuilt');
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span class="msg-version-app" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${versions.app}</strong></span><span class="msg-version-container" style="border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-cubes" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>${containerVersion}</strong></span></p>`;
                 }
               }
 
@@ -948,21 +1177,18 @@ class DockerManager {
 
             subprocess.on('close', function (code) {
               stdoutLines.flush();
+              if (pulls.active()) showPull(true);
               if (code !== 0) {
                 dialog.showErrorBox(i18n.t('dialogs.error'), i18n.t('dialogs.dockerCommandFailed', { code }));
               }
 
-              // Don't update status here for 'start'/'build' commands - wait for SERVER STARTED
-              if (command !== 'start' && command !== 'build') {
-                currentStatus = statusAfterCommand;
-                updateTrayImage(statusAfterCommand);
-                updateStatusIndicator(statusAfterCommand);
-                updateContextMenu(false);
-              } else if (command === 'build' && (code !== 0 || !serverStartedReceived)) {
-                // Build failed or containers didn't start — set to Stopped
-                currentStatus = 'Stopped';
-                updateTrayImage('Stopped');
-                updateStatusIndicator('Stopped');
+              // A command that starts the server leaves the status to the
+              // check after SERVER STARTED, or ends Stopped without that line.
+              const ended = statusAfterClose({ command, code, serverStarted: serverStartedReceived, statusAfterCommand });
+              if (ended) {
+                currentStatus = ended;
+                updateTrayImage(ended);
+                updateStatusIndicator(ended);
                 updateContextMenu(false);
               }
 
@@ -1536,9 +1762,12 @@ function initializeApp() {
       // Useful extras
       showSaveImageAs: true,
       showCopyImage: true,
-      showCopyImageAddress: true,
       showInspectElement: true,
-      showSearchWithGoogle: false
+      showSearchWithGoogle: false,
+      // Addresses are copied as plain text (see context_menu_copy.js)
+      showCopyLink: false,
+      showCopyImageAddress: false,
+      prepend: (_actions, props) => copyAddressItems(props, clipboard)
     });
 
     // Menu Bar Mode: show Dock (and menu bar) when any window is focused,
@@ -1703,11 +1932,8 @@ function initializeApp() {
               'Building', 'Stopped', false);
             break;
           // JupyterLab commands
-          case 'start-jupyter':
-            openMainWindow();
-            dockerManager.runCommand('start-jupyter',
-              formatMessage(null, 'messages.startingJupyterLab'),
-              'Starting', 'Running');
+          case 'open-jupyter':
+            openJupyterLab();
             break;
           case 'stop-jupyter':
             openMainWindow();
@@ -1820,10 +2046,9 @@ function initializeApp() {
           break;
 
         case 'hide-browser':
-          // Hide (background) internal browser window
-          if (webviewWindow && !webviewWindow.isDestroyed()) {
-            webviewWindow.hide();
-          }
+          // Hide (background) internal browser window, the same way closing
+          // it does.
+          backgroundReplyController.hideRequested();
           break;
 
         default:
@@ -2291,6 +2516,11 @@ function updateContextMenu(disableControls = false) {
           openMainWindow();
         }
       },
+      // The Web UI window kept in the background after it was closed.
+      ...(backgroundReply.hidden ? [
+        { label: i18n.t('menu.showWebUI'), click: () => showWebViewWindow() },
+        { label: i18n.t('menu.closeWebUI'), click: () => closeWebViewWindow() }
+      ] : []),
       {
         label: i18n.t('menu.openBrowser'),
         click: () => {
@@ -2561,11 +2791,8 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: i18n.t('menu.startJupyterLab'),
-            click: () => {
-              openMainWindow();
-              dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
-            },
+            label: i18n.t('menu.openJupyterLab'),
+            click: () => openJupyterLab(),
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
           {
@@ -2649,8 +2876,7 @@ function updateApplicationMenu() {
             label: i18n.t('menu.exportDocumentDB'),
             click: async () => {
               // The plain export contains every saved conversation and
-              // PDF in plaintext, regardless of whether Privacy Filter
-              // was active when each item was saved. Strongly steer the
+              // PDF in plaintext. Strongly steer the
               // user toward the encrypted variant; "Export Plain" is
               // still available but explicit.
               const result = await dialog.showMessageBox(mainWindow, {
@@ -2897,13 +3123,12 @@ function writeToScreen(text) {
   }
 }
 
-// The console's first message: what to have running, and how to start
+// The console's first message: how to start (whether the container engine
+// runs is shown by the indicator, and said when it does not)
 function openingMessageHtml() {
-  const tipKey = process.platform === 'linux' ? 'messages.standaloneModeTipLinux' : 'messages.standaloneModeTip';
   return `
     [HTML]: 
     <p><b>Monadic Chat</b></p>
-    <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t(tipKey)}</p>
     <p>${i18n.t('messages.pressStartButton')}</p>
     <hr />`;
 }
@@ -2968,13 +3193,13 @@ ipcMain.handle('get-translations', async (_e, lang) => {
 // light value is unchanged; dark is the page's dark body (tokens.css
 // --bg-body).
 function consoleBackground() {
-  return nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#f0f0f0';
+  return nativeTheme.shouldUseDarkColors ? '#18191b' : '#f0f0f0';
 }
 
 // The settings window's own background: its page's body color in light and
 // in dark (tokens.css --bg-panel).
 function settingsBackground() {
-  return nativeTheme.shouldUseDarkColors ? '#2a2a2a' : '#f5f5f7';
+  return nativeTheme.shouldUseDarkColors ? '#25272a' : '#f5f5f7';
 }
 
 function createMainWindow() {
@@ -3037,6 +3262,7 @@ function createMainWindow() {
     }
     mainWindowLoaded = true;
     pendingMainWindowNotices.splice(0).forEach(html => writeToScreen(html));
+    sendEngineName();
     
     // Send interface language to Web UI
     const envPath = getEnvPath();
@@ -3291,6 +3517,27 @@ function openBrowser(url, outside = false, forceOpen = false) {
   }, interval);
 }
 
+// JupyterLab in the system browser: started first unless it answers
+// (run_jupyter.sh), then opened only once it answers.
+const JUPYTER_URL = 'http://127.0.0.1:8889';
+
+function jupyterAnswers() {
+  return new Promise((resolve) => {
+    const request = require('http').get(`${JUPYTER_URL}/api/status`, { timeout: 3000 }, (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+    request.on('timeout', () => request.destroy());
+    request.on('error', () => resolve(false));
+  });
+}
+
+async function openJupyterLab() {
+  openMainWindow();
+  await dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
+  if (await jupyterAnswers()) shell.openExternal(`${JUPYTER_URL}/lab/tree`);
+}
+
 function openNoVNCWindow() {
   if (novncWindow && !novncWindow.isDestroyed()) {
     novncWindow.focus();
@@ -3532,7 +3779,7 @@ function computePendingContainerBuilds(imageStatus = null) {
   const env = readEnvFile(getEnvPath());
   const snapshots = readBuildOptionsSnapshots();
   const truthy = (v) => String(v ?? '').toLowerCase() === 'true';
-  // PRIVACY_FILTER defaults to ON when unset (Privacy Filter is part of the default build set).
+  // PRIVACY_FILTER defaults to ON when unset (the Privacy container is part of the default build set).
   const privacyEnabled = String(env.PRIVACY_FILTER ?? 'true').toLowerCase() !== 'false';
   const notBuilt = (service, snapshot) =>
     imageStatus ? !imageStatus[service] : !snapshot;
@@ -3577,7 +3824,7 @@ function computePendingContainerBuilds(imageStatus = null) {
   if (privacyEnabled && notBuilt('privacy', snapshots.privacy_service)) {
     result.push({
       container: 'privacy_service',
-      label: 'Privacy Filter',
+      label: i18n.t('dialogs.pendingBuilds.privacyContainer'),
       changed: null,
       buildCommand: 'build_privacy_container',
       minutes: '3–5'
@@ -3860,83 +4107,6 @@ function checkPendingUpdates() {
   return false;
 }
 
-// Update ENV file settings; if a key is missing, set default value (do not override TTS_DICT_PATH if present)
-function checkAndUpdateEnvFile() {
-    const envPath = getEnvPath();
-    if (!envPath) return false;
-
-    let envConfig = readEnvFile(envPath);
-
-    // Set default values if not already specified
-    if (!envConfig.ROUGE_THEME) {
-        envConfig.ROUGE_THEME = 'github:light';
-    }
-
-    // STT_MODEL is now managed via Web UI Cookie, not ENV config
-
-    if (!envConfig.EMBEDDING_MODEL) {
-        envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
-    }
-
-    // Load default models from model_spec.js providerDefaults (SSOT)
-    const modelSpecPath = app.isPackaged
-        ? path.join(process.resourcesPath, 'app', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js')
-        : path.join(__dirname, '..', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js');
-    try {
-        const modelSpec = require(modelSpecPath);
-        const defaults = modelSpec.providerDefaults || {};
-
-        const providerMap = {
-            'OPENAI_DEFAULT_MODEL': 'openai',
-            'ANTHROPIC_DEFAULT_MODEL': 'anthropic',
-            'COHERE_DEFAULT_MODEL': 'cohere',
-            'GEMINI_DEFAULT_MODEL': 'gemini',
-            'MISTRAL_DEFAULT_MODEL': 'mistral',
-            'GROK_DEFAULT_MODEL': 'xai',
-            'DEEPSEEK_DEFAULT_MODEL': 'deepseek'
-        };
-
-        for (const [envVar, providerKey] of Object.entries(providerMap)) {
-            if (!envConfig[envVar] && defaults[providerKey]?.chat?.[0]) {
-                envConfig[envVar] = defaults[providerKey].chat[0];
-            }
-        }
-    } catch (error) {
-        console.error('Warning: Could not load providerDefaults from model_spec.js:', error.message);
-    }
-
-    // Do not override TTS_DICT_PATH if it already exists
-    if (envConfig.TTS_DICT_PATH === undefined) {
-        envConfig.TTS_DICT_PATH = '';
-    }
-
-    if (envConfig.EXTRA_LOGGING === undefined) {
-      envConfig.EXTRA_LOGGING = 'false';
-    }
-
-    // Port settings are no longer user-configurable
-    // Docker containers use hardcoded ports
-    envConfig.RUBY_PORT = '4567';
-    envConfig.JUPYTER_PORT = '8889';
-
-    // Check for the presence of any API key
-    const api_list = [
-        'OPENAI_API_KEY',
-        'ANTHROPIC_API_KEY',
-        'COHERE_API_KEY',
-        'GEMINI_API_KEY',
-        'XAI_API_KEY',
-        'DEEPSEEK_API_KEY',
-        'ELEVENLABS_API_KEY',
-        'TAVILY_API_KEY'
-    ];
-    const hasApiKey = api_list.some(key => envConfig[key]);
-    
-    // Save updated config to file
-    writeEnvFile(envPath, envConfig);
-    return hasApiKey;
-}
-
 // Save the settings received from the settings UI
 function saveSettings(data) {
     const envPath = getEnvPath();
@@ -4039,6 +4209,60 @@ function isSettingsSender(event) {
 ipcMain.on('request-settings', (event) => {
   if (!isSettingsSender(event)) return;
   sendSettingsToRenderer(event.sender);
+});
+
+// providerDefaults from model_spec.js, or null when it cannot be read.
+function loadProviderDefaults() {
+  const modelSpecPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js')
+    : path.join(__dirname, '..', 'docker', 'services', 'ruby', 'public', 'js', 'monadic', 'model_spec.js');
+  try {
+    return require(modelSpecPath).providerDefaults || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Checks the key typed in a Settings row (saved or not) with its provider.
+// An op:// reference is read from 1Password: the value already read for the
+// same reference is reused, and any other is read once for this check only,
+// never added to the values handed to the Ruby container. One check at a
+// time, so 1Password prompts do not pile up. The answer carries status codes
+// and default model ids only.
+let keyCheckQueue = Promise.resolve();
+const keyChecksInFlight = new Set();
+ipcMain.handle('check-api-key', async (event, payload) => {
+  if (!isSettingsSender(event)) return null;
+  const envKey = payload && typeof payload.envKey === 'string' ? payload.envKey : '';
+  const value = payload && typeof payload.value === 'string' ? payload.value.trim() : '';
+  if (!Object.prototype.hasOwnProperty.call(keyCheck.PROVIDERS, envKey)) return { status: 'unsupported' };
+  if (keyChecksInFlight.has(envKey)) return { status: 'busy' };
+  keyChecksInFlight.add(envKey);
+  const run = keyCheckQueue.then(async () => {
+    try {
+      let key = value;
+      if (opReferences.isReference(value)) {
+        key = secretCache.lookup(envKey, value);
+        if (!key) {
+          const { value: read, failure } = await opReferences.resolveOne(value);
+          if (!read) return { status: 'opFailed', reason: failure || 'failed' };
+          key = read;
+        }
+      }
+      return await keyCheck.checkKey({
+        envKey,
+        key,
+        providerDefaults: loadProviderDefaults(),
+        env: loadSettings()
+      });
+    } catch (_) {
+      return { status: 'unexpected' };
+    } finally {
+      keyChecksInFlight.delete(envKey);
+    }
+  });
+  keyCheckQueue = run.catch(() => {});
+  return run;
 });
 
 // Handle check-for-updates request from settings window
@@ -4706,6 +4930,29 @@ let lastDockerStatusCheckTime = 0;
 const DOCKER_STATUS_CHECK_INTERVAL = 2000; // Check every 2 seconds for better responsiveness
 
 let lastSecretDeliveryCheck = 0;
+// The container engine's name (display only): what the engine calls itself,
+// or, while it does not answer, Docker for Docker Desktop's context and the
+// context's name otherwise. A name not from the engine is asked again once
+// the engine answers.
+let engineName = null;
+let engineNameFromEngine = false;
+let engineNameAsking = false;
+let engineNameAskedAt = 0;
+// The CLI's context can change while the app runs: the name is asked again
+// now and then.
+const ENGINE_NAME_RECHECK_MS = 60000;
+
+function noteEngineName(runtime) {
+  engineNameFromEngine = Boolean(runtime.product);
+  engineName = runtime.product || (runtime.desktop === '1' ? 'Docker' : runtime.context) || 'Docker';
+  sendEngineName();
+}
+
+function sendEngineName() {
+  if (engineName && mainWindow && !mainWindow.isDestroyed() && mainWindowLoaded) {
+    mainWindow.webContents.send('engine-name', engineName);
+  }
+}
 async function updateDockerStatus() {
   const now = Date.now();
   // Only perform check if enough time has passed since last check
@@ -4721,6 +4968,14 @@ async function updateDockerStatus() {
   }
   if (dockerInstalled) {
     const status = await dockerManager.checkStatus();
+    if (status && !engineNameAsking &&
+        (!engineNameFromEngine || now - engineNameAskedAt >= ENGINE_NAME_RECHECK_MS)) {
+      engineNameAsking = true;
+      engineNameAskedAt = now;
+      dockerManager.runtimeInfo()
+        .then((runtime) => { if (runtime) noteEngineName(runtime); })
+        .finally(() => { engineNameAsking = false; });
+    }
     // The Ruby container can be restarted outside a Start (rebuilds,
     // restarts of dependent services); its new instance needs the values too.
     if (status && secretCache.hasValues() && now - lastSecretDeliveryCheck >= 5000) {
@@ -4730,6 +4985,7 @@ async function updateDockerStatus() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       // Pass Docker status to UI (running or not)
       mainWindow.webContents.send('docker-desktop-status-update', status);
+      sendEngineName();
       // if status is false, meaning Docker Desktop is not running,
       // update the context menu and buttons only if the current status is not "Stopped"
       if (!status && currentStatus !== 'Stopped') {

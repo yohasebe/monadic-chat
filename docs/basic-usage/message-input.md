@@ -2,7 +2,15 @@
 
 After starting the server and selecting an app and configuring it, click the **Start Session** button to display the following screen.
 
-<!-- SCREENSHOT: Message input interface showing text area, Send button, Speech Input button, Image/PDF upload button, Text from file button, Text from URL button, and Role selector -->
+![Buttons under the message box](../assets/images/figures/input-buttons.svg)
+
+1. **Image** (or **Attach file**, depending on the model): attaches an image or a PDF to the message. See [Uploading Images](#uploading-images).
+2. **Text from file**: reads the text of a document into the message. See [Reading Text from Document Files](#reading-text-from-document-files).
+3. **Open URL**: opens a web page on the work screen, or reads its text into the message. See [Opening a URL](#reading-text-from-urls).
+4. **Anonymize**: finds names in the message and lets you choose what to hide. See [Anonymize](#anonymize).
+5. **Speech Input**: records your voice and writes what you said into the message. See [Speech Input](#speech-input).
+6. **Send**: sends the message.
+7. **Clear**: empties the message box.
 
 Enter a message in the text area and click the **Send** button to send it. For voice input, see [Speech Input](#speech-input) below.
 
@@ -10,27 +18,38 @@ Enter a message in the text area and click the **Send** button to send it. For v
 
 ?> The **Role** selector sets the role of the message. Normally, select **User**. **User (to add to past messages)** and **Assistant (to add to past messages)** add a message to the conversation without sending it, and **System (to provide additional direction)** adds an instruction. For more information, see the [FAQ](../faq/faq-user-interface.md).
 
+![The Role selector](../assets/images/figures/role-selector.svg)
+
+1. **User**: an ordinary message, sent to the AI.
+2. **User (to add to past messages)**: added to the conversation as your message, without being sent.
+3. **Assistant (to add to past messages)**: added to the conversation as the AI's reply, without being sent.
+4. **System (to provide additional direction)**: added to the conversation as an instruction.
+
 ## Uploading Images :id=uploading-images
 
 Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Cohere, DeepSeek, and Ollama vision models).
 
 Click **Image** (or **Image/PDF** for models that support PDF) to select an image. Supported formats: JPG, JPEG, PNG, GIF, WebP. Up to 5 images can be attached to a message.
 
-<!-- SCREENSHOT: File upload dialog showing image format options (JPG, JPEG, PNG, GIF, WebP) -->
+![Files attached to a message](../assets/images/figures/attachments.svg)
+
+1. The attached file. Click its name to look at it before sending.
+2. Removes the file from the message.
 
 After uploading the image, a thumbnail of the uploaded image appears below the message input area with a delete button (×). The image is sent along with your text prompt, and the attachments are cleared once the message is sent.
 
 Attached images are downscaled in the browser before sending (long side up to 2000px, short side up to 768px). For full-resolution analysis of fine details, place the image file in the shared folder instead and ask the AI to analyze it — apps with the image-analysis skill read the original file directly and can be asked to use original fidelity.
 
-<!-- SCREENSHOT: Chat showing user message with attached image thumbnail and AI response analyzing the image content -->
+![A sent message with attachments](../assets/images/figures/sent-attachments.svg)
+
+1. An image, shown in the card of the message it was sent with.
+2. A PDF, shown by its name.
 
 ## Uploading PDFs :id=uploading-pdfs
 
 Some providers (OpenAI, Anthropic Claude, Google Gemini) support PDF uploads. Click the **Image/PDF** button to attach a PDF file.
 
 ?> **Anthropic Claude**: Claude apps support direct PDF upload for AI content recognition.
-
-<!-- SCREENSHOT: Chat showing user message with attached PDF file indicator and AI response discussing the PDF content -->
 
 The PDF is sent with the message it is attached to, and stays in the conversation history for later turns.
 
@@ -52,15 +71,26 @@ In apps that analyze video or transcribe audio, the **Image** button also takes 
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 
-Click the **Text from file** button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
+Click the **Text from file** button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). The file is kept in the chat's folder (`conversations/…/inputs/`).
 
-<!-- SCREENSHOT: File selection dialog allowing user to choose a document file, with extracted text appearing in the message input area -->
+![The Text from file dialog](../assets/images/figures/file-dialog.svg)
 
-## Reading Text from URLs :id=reading-text-from-urls
+## Opening a URL :id=reading-text-from-urls
 
-Click the **Text from URL** button to enter a URL. The content at that URL is loaded into the text area in Markdown format.
+Click **Open URL** below the message box and enter an address that starts with `http://` or `https://`.
 
-<!-- SCREENSHOT: URL input dialog where user enters a web address, with extracted content appearing as Markdown in the message input area -->
+- **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there.
+- **Take in as text** reads the page's text into the message box in Markdown format.
+
+![The Open URL dialog](../assets/images/figures/url-dialog.svg)
+
+1. The address of the page.
+2. **Take in as text**: reads the page's text into your message.
+3. **Open in the work screen**: opens the page on the work screen.
+
+## Anonymize :id=anonymize
+
+Click **Anonymize** beside the message box to choose words (such as names) that the chat replaces with placeholders in what it sends. Only text is covered: images, file contents, files and pages that code or the browser reads, voice, names not chosen and what was already sent are not. See [Anonymization](../advanced-topics/anonymization.md).
 
 ## Speech Input :id=speech-input
 
@@ -70,11 +100,14 @@ To use voice input, click the **Speech Input** button to start voice input, and 
 
 [Live Conversation](../apps/chat-apps.md#live-conversation) does not use this path: it has neither text input nor a Speech Input button — the microphone streams continuously while the session is open.
 
-<!-- SCREENSHOT: Message input area during voice recording showing animated waveform and Stop button -->
+![Voice input](../assets/images/figures/voice-input.svg)
+
+1. What you said is written into the message box.
+2. The confidence of the last transcription, when the speech-to-text model returns one.
+3. While recording, the **Speech Input** button reads **Stop**. Click it to end the recording.
+4. The level of your voice.
 
 With speech-to-text models that report it, **Last Speech-to-Text p-value** is displayed after voice input: the confidence of the transcription, on a scale from 0 to 1. The closer it is to 1, the more confident the result.
-
-<!-- SCREENSHOT: Message input area showing transcribed text with p-value confidence score displayed below -->
 
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 
@@ -89,7 +122,11 @@ A streaming mode is available for the **GPT Realtime Whisper ⚡** entry in the 
 - When you click **Stop**, the final transcript is appended to whatever you had in the text area, and the grey preview clears.
 - **Easy submit** sends the message once, with the final transcript only — not with intermediate partials.
 
-<!-- SCREENSHOT: Message input area during realtime streaming — grey italic partial text visible inside the textarea while the user is speaking -->
+![Live transcript in the message box](../assets/images/figures/realtime-text.svg)
+
+1. The text you typed.
+2. The live preview of what is being heard, in grey.
+3. Stops the recording.
 
 **When to use streaming vs batch.** Streaming mode gives immediate visual feedback during long utterances and is well-suited for live note-taking or dictation flows. The standard batch path is more cost-efficient for short utterances, and every other model in the dropdown uses it.
 
@@ -97,7 +134,7 @@ A streaming mode is available for the **GPT Realtime Whisper ⚡** entry in the 
 
 **Provider support.** Realtime streaming transcription is available via OpenAI only. Other STT models on the dropdown use the batch path. This transcription feature is separate from the speech-to-speech conversation in [Live Conversation](../apps/chat-apps.md#live-conversation), which is available for OpenAI, xAI, and Gemini.
 
-!> **Privacy Filter interaction.** Audio captured by Speech Input is sent to the provider of the Speech-to-Text model you selected, before any Privacy Filter masking applies. Privacy Filter operates on the **text** sent to the LLM after transcription completes — it does not mask the audio itself. If your audio contains personally identifiable information that you do not want to send to that provider, type the message instead of dictating it.
+!> **Anonymization.** Audio captured by Speech Input is sent as it is to the provider of the Speech-to-Text model you selected; [Anonymization](../advanced-topics/anonymization.md) hides words only in the text a chat sends. If your audio contains words you do not want to send to that provider, type the message instead of dictating it.
 
 ## Text-to-Speech Playback
 

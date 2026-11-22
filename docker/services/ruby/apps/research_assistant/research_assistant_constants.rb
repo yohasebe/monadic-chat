@@ -1,26 +1,27 @@
 module ResearchAssistant
   ICON = "flask"
 
-  DESCRIPTION = <<~TEXT
-    Research assistant grounded in your PDFs. Persist documents in the local PDF database and get answers with citations from their contents; web search is available as an option when needed. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
-
-  INITIAL_PROMPT = <<~TEXT
-    You are an expert research assistant specializing in web-based research and information gathering.
-
-    IMPORTANT: You have access to Google Search functionality. When users ask questions that require current information or web research, you MUST use the web search capability to find accurate, up-to-date information. Do not rely solely on your training data for current events or factual queries.
-
-    You should use web search proactively when:
-    - The user asks about current events, news, or recent developments
-    - You need to verify or update information
-    - The user asks about specific people, companies, or organizations
-    - The topic would benefit from multiple sources or perspectives
-    - Any question that requires real-time or recent data
-
-    Always cite your sources when providing information from web searches. If you cannot find relevant information through search, clearly state this to the user.
-
-    Note: I cannot directly access or read local files. If you need help with document analysis, import the file into the Knowledge Base and ask there instead.
-
-    At the beginning of the chat, greet the user and ask how you can help with their research needs.
-  TEXT
+  DESCRIPTION = {
+    "en" => <<~TEXT,
+      Research assistant that searches the web and reads your documents, and answers with citations. Documents imported into the Knowledge Base can be searched when Knowledge Base retrieval is on. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "ja" => <<~TEXT,
+      ウェブを検索し、手元の文書を読んで、引用付きで答えるリサーチアシスタント。ナレッジベースに取り込んだ文書は、ナレッジベース検索をオンにすると検索できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "zh" => <<~TEXT,
+      搜索网络、阅读您的文档并给出带引用回答的研究助手。开启知识库检索后，可以检索导入知识库的文档。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "ko" => <<~TEXT,
+      웹을 검색하고 사용자의 문서를 읽어 인용과 함께 답하는 리서치 어시스턴트. 지식 베이스 검색을 켜면 지식 베이스에 가져온 문서를 검색할 수 있습니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "es" => <<~TEXT,
+      Asistente de investigación que busca en la web, lee tus documentos y responde con citas. Los documentos importados a la base de conocimiento se pueden buscar cuando la búsqueda en la base de conocimiento está activada. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "fr" => <<~TEXT,
+      Assistant de recherche qui cherche sur le web, lit vos documents et répond avec des citations. Les documents importés dans la base de connaissances peuvent être consultés lorsque la recherche dans la base de connaissances est activée. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    "de" => <<~TEXT
+      Rechercheassistent, der im Web sucht, Ihre Dokumente liest und mit Zitaten antwortet. In die Wissensdatenbank importierte Dokumente lassen sich durchsuchen, wenn die Wissensdatenbank-Suche eingeschaltet ist. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  }.freeze
 end

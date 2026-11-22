@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Erforderlich für Concept Visualizer / Syntax Tree",
+        "help": "Erforderlich für Concept Visualizer",
         "items": { "install": "LaTeX installieren (Minimalsatz für Diagramme)" }
       },
       "python": {
@@ -71,12 +71,13 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe (nur CPU)",
-          "transformers": "transformers (nur CPU)"
+          "transformers": "transformers (nur CPU)",
+          "plotlyStatic": "Statische Plotly-Bilder (kaleido + Chromium)"
         }
       },
       "music": {
         "title": "Musikanalyse",
-        "help": "Erforderlich für Music Lab. Installiert Audioanalyse-Bibliotheken (Akkorderkennung, Tempo-/Tonarterkennung usw.).",
+        "help": "Erforderlich für Music Tutor und Music Analyst. Installiert Audioanalyse-Bibliotheken (Akkorderkennung, Tempo-/Tonarterkennung usw.).",
         "items": {
           "librosa": "librosa + madmom"
         }
@@ -97,6 +98,8 @@
     "restart": "Neustarten",
     "openConsole": "Konsole öffnen",
     "openBrowser": "Browser öffnen",
+    "showWebUI": "Web UI anzeigen",
+    "closeWebUI": "Web UI schließen",
     "openNoVNC": "noVNC öffnen",
     "openSharedFolder": "Gemeinsamen Ordner öffnen",
     "openConfigFolder": "Config-Ordner öffnen",
@@ -117,28 +120,37 @@
     "updateUserContainers": "Benutzer-Container aktualisieren",
     "startSeleniumContainer": "Selenium-Container starten",
     "stopSeleniumContainer": "Selenium-Container stoppen",
-    "startJupyterLab": "JupyterLab starten",
+    "openJupyterLab": "JupyterLab öffnen",
     "stopJupyterLab": "JupyterLab stoppen",
     "importDocumentDB": "Document DB importieren",
     "exportDocumentDB": "Document DB exportieren",
-    "open": "Öffnen",
-    "openConsole": "Konsole öffnen"
+    "open": "Öffnen"
   },
   "tray": {
     "show": "Anzeigen",
     "quit": "Beenden"
   },
   "messages": {
-    "dockerNotRunning": "Docker Desktop läuft nicht. Bitte starten Sie Docker Desktop und versuchen Sie es erneut.",
+    "dockerNotRunning": "Docker läuft nicht. Starten Sie Docker Desktop (oder die Docker-kompatible Umgebung, die Sie verwenden) und versuchen Sie es erneut.",
     "dockerPermissionDenied": "Docker läuft, aber dieser Benutzer darf es nicht verwenden. Fügen Sie Ihren Benutzer der Gruppe docker hinzu (sudo usermod -aG docker $USER) und melden Sie sich ab und wieder an. Unter Omarchy führen Sie stattdessen omarchy-setup-security-sudoless-docker aus. Die Mitgliedschaft in der Gruppe docker entspricht Root-Rechten.",
     "dockerEngineNotRunning": "Docker läuft nicht. Starten Sie den Docker-Dienst (sudo systemctl start docker) oder Docker Desktop und versuchen Sie es erneut.",
     "noInternetAtStartup": "Beim Start wurde keine Internetverbindung gefunden. Lokale Modelle, Einstellungen und Dateien funktionieren weiterhin; Cloud-KI-Anbieter, das Herunterladen von Container-Images und die Suche nach Updates benötigen eine Verbindung. Starten Sie Monadic Chat neu, sobald Sie online sind.",
-    "dockerNotRunningStart": "Docker Desktop läuft nicht. Bitte starten Sie Docker Desktop und drücken Sie die <b>Start</b>-Taste.",
+    "dockerNotRunningStart": "Docker läuft nicht. Starten Sie Docker Desktop (oder die Docker-kompatible Umgebung, die Sie verwenden) und drücken Sie die <b>Start</b>-Taste.",
+    "dockerRefused": "Docker kann nicht verwendet werden: {{reason}}.",
+    "dockerEngine": "Container-Engine: {{engine}}",
+    "dockerEngineContext": "Container-Engine: {{engine}} (Docker-Kontext: {{context}})",
+    "pullProgress": "Container-Images werden heruntergeladen… {{size}}",
+    "pullDone": "Container-Images heruntergeladen ({{size}})",
+    "pullProgressNoSize": "Container-Images werden heruntergeladen…",
+    "pullDoneNoSize": "Container-Images heruntergeladen",
+    "containerNotBuilt": "noch nicht erstellt",
     "systemInitComplete": "Systeminitialisierung abgeschlossen",
     "openingBrowser": "Browser wird geöffnet.",
     "openBrowserManually": "Bitte öffnen Sie den Browser manuell unter http://localhost:4567",
     "browserOpenFailed": "Automatisches Öffnen des Browsers fehlgeschlagen. Bitte öffnen Sie manuell durch Navigation zu: http://localhost:4567",
     "serverVerifyFailed": "Konnte nicht überprüfen, ob der Server läuft. Bitte überprüfen Sie den Docker-Status und versuchen Sie einen Neustart.",
+    "rubyNotStarted": "Der Ruby-Container wurde nicht gestartet, daher läuft Monadic Chat nicht.",
+    "fixAndStartAgain": "Beheben Sie die Ursache und drücken Sie erneut <b>Start</b>.",
     "errorConnecting": "Fehler beim Verbinden mit dem Server. Bitte überprüfen Sie den Docker-Status und versuchen Sie einen Neustart.",
     "newVersionAvailable": "Eine neue Version ({{version}}) ist verfügbar (aktuell: {{current}}).",
     "downloadAndInstall": "Herunterladen & installieren",
@@ -152,6 +164,9 @@
     "serverNotRunning": "Der Server läuft nicht. Bitte starten Sie zuerst den Server.",
     "serverStoppedAfterSleep": "Der Server wurde nach dem Ruhezustand/Aufwachen des Systems gestoppt. Bitte starten Sie den Server neu.",
     "quittingMonadicChat": "Monadic Chat wird beendet . . .",
+    "backgroundReplyDone": "Die Antwort ist eingetroffen.",
+    "backgroundReplyFailed": "Die Antwort ist nicht eingetroffen. Prüfen Sie die Web UI.",
+    "backgroundReplyLost": "Die Verbindung wurde unterbrochen. Prüfen Sie die Web UI.",
     "monadicChatPreparing": "Monadic Chat wird vorbereitet . . .",
     "dockerNotInstalled": {
       "darwin": "Docker wurde nicht gefunden. Installieren Sie Docker Desktop for Mac, starten Sie es und drücken Sie dann <b>Start</b>.",
@@ -185,8 +200,6 @@
     "importingDocumentDB": "Document DB wird importiert . . .",
     "exportingDocumentDB": "Document DB wird exportiert . . .",
     "stoppingDockerServices": "Docker-Dienste werden gestoppt . . .",
-    "standaloneModeTip": "Bitte stellen Sie sicher, dass Docker Desktop läuft, während Sie Monadic Chat verwenden.",
-    "standaloneModeTipLinux": "Bitte stellen Sie sicher, dass Docker läuft, während Sie Monadic Chat verwenden.",
     "pressStartButton": "Drücken Sie die <b>Start</b>-Taste, um den Server zu initialisieren.",
     "checkingForUpdates": "Suche nach Updates...",
     "serverRunningOnPort": "Der Server läuft auf Port 4567. Browser wird geöffnet.",
@@ -241,7 +254,7 @@
     "cancel": "Abbrechen",
     "yes": "Ja",
     "no": "Nein",
-    "dockerNotRunning": "Docker läuft nicht. Bitte starten Sie zuerst Docker Desktop.",
+    "dockerNotRunning": "Docker läuft nicht. Bitte starten Sie zuerst Docker Desktop (oder die Docker-kompatible Umgebung, die Sie verwenden).",
     "dockerStarting": "Docker Desktop wird gestartet...",
     "dockerStartFailed": "Docker Desktop konnte nicht gestartet werden. Bitte starten Sie es manuell und versuchen Sie es erneut.",
     "containersStarting": "Docker-Container werden gestartet...",
@@ -250,6 +263,8 @@
     "containersUpdating": "Docker-Container werden aktualisiert...",
     "quitConfirmTitle": "Monadic Chat beenden",
     "quitConfirmMessage": "Docker-Container laufen derzeit. Möchten Sie sie vor dem Beenden stoppen?",
+    "backgroundHoldFailedTitle": "Stopp des Mikrofons nicht bestätigt",
+    "backgroundHoldFailedMessage": "Monadic Chat konnte nicht bestätigen, dass Mikrofon und Audio gestoppt wurden, daher bleibt die Web UI geöffnet. Jetzt schließen? Die Unterhaltung darin geht verloren.",
     "stopContainers": "Container stoppen",
     "quitDirectly": "Direkt beenden",
     "confirmRemoveDockerData": "Löschen bestätigen",
@@ -260,7 +275,7 @@
     "seleniumWillNotStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat NICHT gestartet.",
     "exportDbConfirmTitle": "Dokument-Datenbank exportieren",
     "exportDbConfirmMessage": "Gesamte Dokument-Datenbank exportieren?",
-    "exportDbConfirmDetail": "Der Export enthält alle gespeicherten Unterhaltungen und PDF-Dokumente. Verschlüsselung der Ausgabe wird dringend empfohlen — ohne Verschlüsselung werden alle in der Datenbank gespeicherten persönlichen Informationen im Klartext in die Datei geschrieben.",
+    "exportDbConfirmDetail": "Der Export enthält alle in der Wissensdatenbank gespeicherten Unterhaltungen und alle PDF-Dokumente. Der Unterhaltungsverlauf ist nicht enthalten. Verschlüsselung der Ausgabe wird dringend empfohlen — ohne Verschlüsselung werden alle in der Datenbank gespeicherten persönlichen Informationen im Klartext in die Datei geschrieben.",
     "exportDbEncrypted": "Verschlüsseln und exportieren",
     "exportDbPlain": "Im Klartext exportieren",
     "exportDbPassphraseTitle": "Passphrase für verschlüsselten Export festlegen",
@@ -270,7 +285,7 @@
     "exportDbEncryptedFailed": "Verschlüsselung fehlgeschlagen. Das Klartext-Tarball (monadic-qdrant.tar.gz) bleibt erhalten.",
     "importDbConfirmTitle": "Dokument-Datenbank importieren",
     "importDbConfirmMessage": "Aktuelle Dokument-Datenbank durch importierte Datei ersetzen?",
-    "importDbConfirmDetail": "Der Import ÜBERSCHREIBT alle aktuell gespeicherten Unterhaltungen, PDFs und Knowledge-Base-Einträge. Die aktuellen Daten können nach dem Import nicht wiederhergestellt werden. Stellen Sie sicher, dass die Datei (~/monadic/data/monadic-qdrant.tar.gz oder monadic-qdrant.tar.gz.enc) aus einer vertrauenswürdigen Quelle stammt.",
+    "importDbConfirmDetail": "Der Import ÜBERSCHREIBT alle in der Wissensdatenbank gespeicherten Unterhaltungen, PDFs und anderen Knowledge-Base-Einträge. Der Unterhaltungsverlauf bleibt unverändert. Die aktuellen Daten können nach dem Import nicht wiederhergestellt werden. Stellen Sie sicher, dass die Datei (~/monadic/data/monadic-qdrant.tar.gz oder monadic-qdrant.tar.gz.enc) aus einer vertrauenswürdigen Quelle stammt.",
     "importDbContinue": "Ersetzen und importieren",
     "importDbPassphraseTitle": "Dokument-Datenbank entschlüsseln",
     "importDbPassphraseHint": "Geben Sie die beim Export verwendete Passphrase ein.",
@@ -328,6 +343,7 @@
       "notBuilt": "noch nicht erstellt",
       "optionsChanged": "Optionen geändert ({{options}})",
       "pythonContainer": "Python-Container",
+      "privacyContainer": "Privacy-Container (Namenserkennung)",
       "minutes": "{{range}} Min."
     }
   }

@@ -222,24 +222,17 @@ module WebSocketHelper
   end
 
   private def handle_ws_library_save(connection, obj, session)
-    # Defense in depth: Privacy Filter and Knowledge Base save are
-    # mutually exclusive at the app level. Apps that declare
-    # `privacy do; enabled true; end` in their MDSL have library_save
-    # forced to false by lib/monadic/dsl.rb#finalize_capabilities!, and
-    # the frontend hides the Save button accordingly. A stale tab or
-    # programmatic client could still hit this path, so reject the save
-    # before any storage side-effect to keep restored PII off disk.
-    # The session of a real chat is a Rack session object, not a Hash: read it by key.
-    # A Private chat whose filter could not be started is refused too: it
-    # stays Private (nothing of it is kept), with the filter off.
-    if session.respond_to?(:key?) &&
-       (session[:_privacy_pipeline] || session[:_privacy_session_enabled] == true ||
-        (defined?(Monadic::History::Policy) && Monadic::History::Policy.private?(session)))
-      Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: Privacy Filter is active in this session" }
+    # A chat that hides words is not saved: the Knowledge Base would keep its
+    # words, and a search from another chat would send them unhidden. The
+    # page disables Save for it; this refuses a stale tab or another client
+    # before anything is stored. The session of a real chat is a Rack session
+    # object, not a Hash: read it by key.
+    if session.respond_to?(:key?) && Monadic::Utils::Privacy::Words.marked?(session)
+      Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SAVE rejected: the chat hides words" }
       send_to_client(connection, {
         'type' => 'library_saved', 'res' => 'failure',
-        'content' => 'Knowledge Base save is disabled in a Private chat and while the Privacy Filter is active. ' \
-                     'Use Privacy Export to retain this conversation.'
+        'content' => 'A chat that hides words cannot be saved to the Knowledge Base. ' \
+                     'Export the conversation to keep it.'
       })
       return
     end
@@ -368,13 +361,13 @@ module WebSocketHelper
 
     params = (session && (session[:parameters] || session['parameters'])) || {}
     app_name = (params['app_name'] || params[:app_name]).to_s
-    # Hand the privacy pipeline to TitleSuggester so the suggestion LLM
-    # call mirrors the user's chosen masking. Without it, the suggester
-    # echoes raw PII back into the proposed title even when the chat
-    # path itself is masked.
-    # Not suggested from unmasked text when the filter is on but cannot mask.
+    # A chat with a word table hides its words in the suggestion request, so
+    # the title does not bring them back unhidden.
+    words = nil
     begin
-      pipeline = Monadic::Utils::Privacy::Outbound.pipeline!(session)
+      require_relative '../privacy/words'
+      words = Monadic::Utils::Privacy::Words.table(session) if session
+      Monadic::Utils::Privacy::Outbound.chat_session!(session) unless words
     rescue Monadic::Utils::Privacy::Outbound::Refused => e
       send_to_client(connection, { 'type' => 'library_title_suggested', 'res' => 'failure',
                                    'content' => "No title was suggested: #{e.message}." })
@@ -383,8 +376,8 @@ module WebSocketHelper
     title = Monadic::Library::TitleSuggester.suggest(
       messages: messages,
       app_name: app_name,
-      pipeline: pipeline,
-      session: session
+      session: session,
+      words: words
     )
 
     send_to_client(connection, {

@@ -38,7 +38,7 @@ If your desktop environment offered to integrate the AppImage into your applicat
 
 <!-- tabs:end -->
 
-<!-- SCREENSHOT: Monadic Chat menu showing the File menu with the Remove Images/Containers/Data option -->
+![The File menu](../assets/images/figures/menu-file.svg)
 
 ## User Data :id=user-data
 

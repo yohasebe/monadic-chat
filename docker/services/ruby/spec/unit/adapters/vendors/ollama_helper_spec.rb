@@ -10,6 +10,62 @@ RSpec.describe OllamaHelper do
     end.new
   end
 
+  describe 'reading the stream' do
+    def read(chunks)
+      out = []
+      res = helper.send(:process_json_data, "ChatOllama", { parameters: {}, messages: [] }, chunks, 0) { |r| out << r }
+      [res.dig(0, "choices", 0, "message", "content"), out]
+    end
+
+    let(:records) do
+      [{ "message" => { "content" => "Grüß" } }, { "message" => { "content" => " dich" } },
+       { "message" => { "content" => "" }, "done" => true }].map { |r| "#{JSON.generate(r)}\n" }
+    end
+
+    it 'reads several records that arrive in one chunk' do
+      expect(read([records.join]).first).to eq("Grüß dich")
+    end
+
+    it 'reads a record split across chunks, even inside a character' do
+      bytes = records.join.b
+      cut = bytes.index("ü".b) + 1
+      expect(read([bytes[0...cut], bytes[cut..]]).first).to eq("Grüß dich")
+    end
+
+    it 'reads a last record that has no newline' do
+      expect(read([records.join.chomp]).first).to eq("Grüß dich")
+    end
+
+    it 'ends with an error when the stream reports one, without running the tools it named' do
+      chunks = [%({"message":{"tool_calls":[{"function":{"name":"write_section","arguments":{}}}]}}\n),
+                %({"error":"model runner stopped"}\n)]
+      out = []
+      res = helper.send(:process_json_data, "ChatOllama", { parameters: {}, messages: [] }, chunks, 0) { |r| out << r }
+      expect(res.first).to include("type" => "error")
+      expect(res.first["content"]).to include("model runner stopped")
+      expect(out.map { |r| r["type"] }).to eq(["error"])
+    end
+  end
+
+  describe 'a tool round' do
+    let(:call) { { "function" => { "name" => "write_section", "arguments" => { "section" => "draft" } } } }
+
+    it 'keeps the reasoning and the tool calls of the assistant' do
+      entry = helper.send(:tool_round_entry, { "role" => "assistant", "content" => "", "thinking" => "Draft it.", "tool_calls" => [call] }, {})
+      expect(entry).to include("thinking" => "Draft it.", "tool_calls" => [call])
+    end
+
+    it 'names the tool of each result' do
+      entry = helper.send(:tool_round_entry, { "role" => "tool", "tool_name" => "write_section", "content" => "{}" }, {})
+      expect(entry).to include("role" => "tool", "tool_name" => "write_section", "content" => "{}")
+    end
+
+    it 'adds neither to a user message' do
+      entry = helper.send(:tool_round_entry, { "role" => "user", "text" => "Write it" }, {})
+      expect(entry.keys).to contain_exactly("role", "content")
+    end
+  end
+
   describe 'constants' do
     describe 'DEFAULT_MODEL' do
       it 'is defined as a non-empty string' do
@@ -268,6 +324,25 @@ RSpec.describe OllamaHelper do
     it 'returns nil when json_schema is missing the schema key' do
       rf = { "type" => "json_schema", "json_schema" => {} }
       expect(helper.send(:translate_response_format_for_ollama, rf)).to be_nil
+    end
+  end
+
+  describe '#supports_tools?' do
+    it 'is true when Ollama reports the tools capability' do
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+        .and_return({ capabilities: ["completion", "tools"], context_length: 8192, fetched_at: Time.now })
+      expect(helper.send(:supports_tools?, "any-model")).to be true
+    end
+
+    it 'is false when Ollama reports a model without it' do
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).with("any-model")
+        .and_return({ capabilities: ["completion", "vision"], context_length: 8192, fetched_at: Time.now })
+      expect(helper.send(:supports_tools?, "any-model")).to be false
+    end
+
+    it 'takes the model to be able to when Ollama gives no report' do
+      allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return(nil)
+      expect(helper.send(:supports_tools?, "any-model")).to be true
     end
   end
 
@@ -604,6 +679,27 @@ RSpec.describe OllamaHelper do
     it 'returns an Array' do
       result = OllamaHelper.list_models
       expect(result).to be_a(Array)
+    end
+  end
+
+  describe 'the end of a streamed reply' do
+    let(:session) { { parameters: { "app_name" => "SpecApp", "model" => "m" }, messages: [], call_depth_per_turn: 0 } }
+
+    def read(last)
+      records = [{ "message" => { "role" => "assistant", "content" => "Part" }, "done" => false }, last]
+      helper.process_json_data("SpecApp", session, [records.map { |r| "#{JSON.generate(r)}\n" }.join], 0) { |_| }
+    end
+
+    it 'ends a reply cut at the length limit as such, with its usage' do
+      result = read({ "message" => { "role" => "assistant", "content" => "" }, "done" => true, "done_reason" => "length",
+                      "prompt_eval_count" => 12, "eval_count" => 30 })
+      expect(result.first.dig("choices", 0, "finish_reason")).to eq("length")
+      expect(result.first["usage"]).to eq("prompt_tokens" => 12, "completion_tokens" => 30, "total_tokens" => 42)
+    end
+
+    it 'ends a finished reply as stopped' do
+      result = read({ "message" => { "role" => "assistant", "content" => "" }, "done" => true, "done_reason" => "stop" })
+      expect(result.first.dig("choices", 0, "finish_reason")).to eq("stop")
     end
   end
 end

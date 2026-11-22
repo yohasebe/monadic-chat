@@ -12,7 +12,6 @@ require_relative '../../../lib/monadic/agents/audio_transcription_agent'
 require_relative '../../../lib/monadic/agents/image_analysis_agent'
 require_relative '../../../lib/monadic/agents/video_analyze_agent'
 require_relative '../../../lib/monadic/utils/gemini_omni_video'
-require_relative '../../../lib/monadic/agents/context_extractor_agent'
 require_relative '../../../lib/monadic/shared_tools/parallel_dispatch'
 require_relative '../../../lib/monadic/utils/websocket'
 require_relative '../../../lib/monadic/utils/websocket/sts_stream_handler'
@@ -80,7 +79,6 @@ RSpec.describe 'Gemini request transport invariants' do
   end
 
   it 'authenticates streaming chat at the transport boundary' do
-    allow(helper).to receive(:privacy_enabled_for?).and_return(false)
     allow(helper).to receive(:process_json_data).and_return([])
     helper.send(:execute_gemini_api_call, headers: { 'Content-Type' => 'application/json' },
                 body: { 'contents' => [] }, obj: { 'model' => 'gemini-test' }, api_key: key,
@@ -232,19 +230,13 @@ RSpec.describe 'Gemini request transport invariants' do
     end
     after { FileUtils.rm_rf(@shared) }
 
-    it 'authenticates context extraction in headers' do
-      host = Class.new { include ContextExtractorAgent }.new
-      host.send(:call_gemini_api, 'gemini-test', 'Hello', key)
-      expect_header_auth
-    end
-
     it 'authenticates native image generation in headers' do
-      helper.generate_image_with_gemini_native(prompt: 'Hello', model: 'gemini-3.1-flash-image')
+      helper.generate_image_with_gemini_native(prompt: 'Hello', model: 'gemini-3.1-flash-image', out_dir: @shared)
       expect_header_auth
     end
 
     it 'authenticates the legacy image generation entry point in headers' do
-      helper.generate_image_with_gemini(prompt: 'Hello')
+      helper.generate_image_with_gemini(prompt: 'Hello', out_dir: @shared)
       expect_header_auth
     end
 
@@ -262,14 +254,15 @@ RSpec.describe 'Gemini request transport invariants' do
     end
 
     it 'authenticates Imagen in headers' do
-      helper.generate_image_with_imagen_direct(prompt: 'Hello', model: 'imagen-test')
+      helper.generate_image_with_imagen_direct(prompt: 'Hello', model: 'imagen-test', out_dir: @shared)
       expect_header_auth
     end
 
     it 'authenticates music generation in headers' do
       helper.generate_music_with_lyria(prompt: 'Hello')
       expect_header_auth
-      expect(Dir.children(@shared)).to all(start_with('lyria_music_'))
+      # No chat here: the track is not kept, and nothing lands at the top.
+      expect(Dir.children(@shared)).to be_empty
     end
   end
 

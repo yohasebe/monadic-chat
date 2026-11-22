@@ -37,7 +37,7 @@ function isCurrent(data) {
 
 const LOCKED_IDS = ["message", "send", "clear", "image-file", "voice", "doc", "url", "ai_user", "select-role"];
 // Also locked by the AI User button itself when it sends the request.
-const CLICK_LOCKED_IDS = ["audio-upload", "pdf-import"];
+const CLICK_LOCKED_IDS = ["audio-upload"];
 
 function unlockControls() {
   $id('cancel_query').style.setProperty('display', 'none', 'important');

@@ -24,7 +24,10 @@ const SET_BY_THE_SCRIPTS = new Set([
   'HOST_OS', 'MONADIC_ROOT_DIR', 'MONADIC_VERSION', 'GEMS_FINGERPRINT', 'SUDO_USER',
   'PIPESTATUS', 'SECONDS', 'FORCE_REBUILD', 'MONADIC_RUBY_CONTAINER', 'MONADIC_CHAT_IMAGE_TAG',
   // Paths and hashes of ~/monadic/config/{py,rb}setup.sh, computed by the script
-  'MONADIC_PYSETUP_FILE', 'MONADIC_RBSETUP_FILE', 'MONADIC_PYSETUP_SHA', 'MONADIC_RBSETUP_SHA'
+  'MONADIC_PYSETUP_FILE', 'MONADIC_RBSETUP_FILE', 'MONADIC_PYSETUP_SHA', 'MONADIC_RBSETUP_SHA',
+  // Docker's own choice of engine, from the app's environment like Docker's
+  // CLI reads it (not from the env file)
+  'DOCKER_CONTEXT'
 ]);
 
 function readFromEnvironment() {

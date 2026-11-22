@@ -3,7 +3,6 @@
 require 'spec_helper'
 require 'monadic/library'
 require_relative '../../../../lib/monadic/utils/websocket/library_handler'
-require_relative '../../../../lib/monadic/history/policy'
 
 # Behaviour tests for the WebSocket Library handlers. We instantiate a
 # host class that mixes in WebSocketHelper and stub:
@@ -241,11 +240,10 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     it 'forwards LIBRARY_SUGGEST_TITLE to the suggester and reports success' do
       session = { parameters: { 'app_name' => 'ChatOpenAI' } }
       messages = [{ 'role' => 'user', 'text' => 'Hi' }, { 'role' => 'assistant', 'text' => 'Hello!' }]
-      # The handler also forwards session[:_privacy_pipeline] (nil here
-      # because no pipeline is set up in this fixture) and the chat itself
-      # (whose marked words the request is checked for).
+      # The handler also forwards the chat itself (whose hidden words the
+      # request is checked for).
       allow(Monadic::Library::TitleSuggester).to receive(:suggest)
-        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: nil, session: session)
+        .with(messages: messages, app_name: 'ChatOpenAI', session: session, words: nil)
         .and_return('Friendly hello')
 
       host.send(:handle_ws_library_suggest_title, connection,
@@ -255,21 +253,6 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['type']).to eq('library_title_suggested')
       expect(msg['res']).to eq('success')
       expect(msg['title']).to eq('Friendly hello')
-    end
-
-    it 'passes the privacy pipeline to the suggester when one is active' do
-      pipeline = double('Pipeline')
-      session = {
-        parameters: { 'app_name' => 'ChatOpenAI' },
-        _privacy_pipeline: pipeline
-      }
-      messages = [{ 'role' => 'user', 'text' => 'Hi' }]
-      expect(Monadic::Library::TitleSuggester).to receive(:suggest)
-        .with(messages: messages, app_name: 'ChatOpenAI', pipeline: pipeline, session: session)
-        .and_return('Masked title')
-
-      host.send(:handle_ws_library_suggest_title, connection,
-                { 'contents' => { 'messages' => messages } }, session)
     end
 
     it 'reports failure when the suggester returns nil (key missing / LLM error)' do
@@ -340,28 +323,22 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['content']).to match(/No messages/)
     end
 
-    context 'when Privacy Filter is active in the session' do
-      it 'rejects the save with a clear failure message (defense in depth for the PF×KB exclusion)' do
-        # The frontend hides the Save button on PF apps, but a stale tab
-        # or programmatic client could still hit this path. Reject before
-        # any storage side-effect to keep restored PII off disk.
+    context 'when the chat hides words' do
+      it 'rejects the save with a clear failure message before anything is stored' do
+        # The page disables Save for such a chat, but a stale tab or another
+        # client could still send it.
         expect(Monadic::Library::Manager).not_to receive(:import_from_text)
-
-        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, { _privacy_pipeline: double('Pipeline') })
-
-        msg = replies.first
-        expect(msg['res']).to eq('failure')
-        expect(msg['content']).to match(/Privacy Filter is active/)
-      end
-
-      it 'rejects the save of a Private chat whose filter could not be started' do
-        expect(Monadic::Library::Manager).not_to receive(:import_from_text)
-        session = { chat_id: 'chat-x' }
-        Monadic::History::Policy.mark_private!(session)
+        words = Monadic::Utils::Privacy::Words
+        session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
+        words.start!(session)
 
         host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, session)
 
-        expect(replies.first['res']).to eq('failure')
+        msg = replies.first
+        expect(msg['res']).to eq('failure')
+        expect(msg['content']).to match(/hides words/)
+      ensure
+        words::LOCK.synchronize { words::TABLES.clear }
       end
     end
   end

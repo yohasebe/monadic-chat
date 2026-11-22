@@ -101,7 +101,7 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
     end
 
     context 'for OpenAI instruction-mode (openai-tts-4o)' do
-      it 'returns the sentinel-prefix variant by default (non-Monadic app)' do
+      it 'asks for a leading <<TTS: block' do
         addendum = described_class.prompt_addendum_for('openai-tts-4o')
         expect(addendum).to include('<<TTS:')
         expect(addendum).to include('>>')
@@ -109,39 +109,22 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
         expect(addendum).to include('Tone:')
       end
 
-      it 'returns the JSON-sibling variant when app_is_monadic: true' do
-        addendum = described_class.prompt_addendum_for('openai-tts-4o', app_is_monadic: true)
-        expect(addendum).to include('tts_instructions')
-        expect(addendum).to include('"message"')
-        expect(addendum).not_to include('<<TTS:')
-      end
-
-      # Both variants must teach the LLM to escalate directive intensity
+      # The addendum must teach the LLM to escalate directive intensity
       # to match reply intensity. Without this guidance the LLM defaults to
       # mild adjectives ("warm and playful") even for dramatic content,
       # which the TTS engine interprets as only slight variation.
-      it 'includes intensity-matching guidance in both variants' do
-        [
-          described_class.prompt_addendum_for('openai-tts-4o'),
-          described_class.prompt_addendum_for('openai-tts-4o', app_is_monadic: true)
-        ].each do |addendum|
-          expect(addendum).to match(/match.{0,30}intensity/i)
-          expect(addendum).to include('visceral')
-          # A selection of the recommended body-state verbs.
-          expect(addendum).to include('breathless')
-          expect(addendum).to include('gasping')
-          expect(addendum).to include('trembling')
-        end
-      end
-
-      it 'includes a dramatic-amusement example in the sentinel variant' do
+      it 'includes intensity-matching guidance' do
         addendum = described_class.prompt_addendum_for('openai-tts-4o')
-        expect(addendum).to include('strong amusement')
-        expect(addendum).to match(/breathless.{0,60}laughter/i)
+        expect(addendum).to match(/match.{0,30}intensity/i)
+        expect(addendum).to include('visceral')
+        # A selection of the recommended body-state verbs.
+        expect(addendum).to include('breathless')
+        expect(addendum).to include('gasping')
+        expect(addendum).to include('trembling')
       end
 
-      it 'includes a dramatic-amusement example in the JSON variant' do
-        addendum = described_class.prompt_addendum_for('openai-tts-4o', app_is_monadic: true)
+      it 'includes a dramatic-amusement example' do
+        addendum = described_class.prompt_addendum_for('openai-tts-4o')
         expect(addendum).to include('strong amusement')
         expect(addendum).to match(/breathless.{0,60}laughter/i)
       end
@@ -191,29 +174,6 @@ RSpec.describe Monadic::Utils::TtsMarkerVocabulary do
 
       it 'permits the LLM to use markers, directive, both, or neither per turn' do
         expect(addendum).to match(/markers only.{0,80}both.{0,40}neither/im)
-      end
-
-      context 'in a Monadic app (JSON replies)' do
-        let(:monadic) { described_class.prompt_addendum_for('gemini-flash', app_is_monadic: true) }
-
-        it 'asks for the directive in the tts_instructions field, not a <<TTS: block' do
-          expect(monadic).to include('`tts_instructions`')
-          expect(monadic).not_to match(/^<<TTS:/)
-          expect(monadic).not_to include('at the very start of the response')
-          expect(monadic).to include('"tts_instructions":')
-        end
-
-        it 'keeps the inline markers and the attribute template' do
-          expect(monadic).to include('[whispers]')
-          expect(monadic).to include('Voice:')
-        end
-
-        it 'gives an example the extractor reads' do
-          example = monadic[/^\{\n.*?^\}/m].sub('{ ... your app\'s usual context fields ... }', '{}')
-          message, instructions = Monadic::Utils::TtsInstructionExtractor.extract(example, app_is_monadic: true)
-          expect(instructions).to start_with('Voice: breathless')
-          expect(message).not_to include('<<TTS:')
-        end
       end
 
       it 'applies to all Gemini TTS provider dropdown values' do

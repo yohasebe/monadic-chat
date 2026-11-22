@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="759" height="206" viewBox="0 0 759 206" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>Live Conversation controls</title>
+  <defs>
+    <symbol id="i-solid-play" viewBox="0 -448 384 512"><path transform="scale(1 -1)" d="M73 409Q49 423 25 410Q1 396 0 368V16Q1 -12 25 -26Q49 -39 73 -25L361 151Q383 165 384 192Q383 218 361 233L73 409Z"/></symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="758" height="205" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <text x="20.0" y="52.7" font-size="13" fill="#58616b">Voice</text>
+  <rect x="67.7" y="34.0" width="110.0" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <text x="76.7" y="52.7" font-size="13" fill="#2a2e33">alloy</text>
+  <path d="M159.7 46.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <circle cx="98.8" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="98.8" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <text x="197.7" y="52.7" font-size="13" fill="#58616b">Speed</text>
+  <rect x="245.3" y="45.5" width="90" height="5" rx="2.5" fill="#dadee2"/><circle cx="303.3" cy="48.0" r="7" fill="#3a68a6"/>
+  <text x="341.3" y="52.7" font-size="13" fill="#58616b">1.0</text>
+  <circle cx="281.4" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="281.4" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <rect x="385.1" y="41.0" width="14" height="14" rx="3" fill="#ffffff" stroke="#ced4da"/>
+  <text x="405.1" y="52.7" font-size="13" fill="#2a2e33">Cards while talking</text>
+  <circle cx="470.4" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="470.4" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <rect x="575.8" y="41.0" width="14" height="14" rx="3" fill="#ffffff" stroke="#ced4da"/>
+  <text x="595.8" y="52.7" font-size="13" fill="#2a2e33">Search and compute</text>
+  <circle cx="657.1" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="657.1" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+  <text x="20.0" y="114.7" font-size="13" fill="#58616b">Turn detection</text>
+  <rect x="139.0" y="96.0" width="198.6" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <text x="148.0" y="114.7" font-size="13" fill="#2a2e33">By silence (default)</text>
+  <path d="M319.6 108.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <circle cx="178.8" cy="83.0" r="9" fill="#2a2e33"/>
+  <text x="178.8" y="87.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+  <rect x="20.0" y="158.0" width="75.4" height="28" rx="4" fill="#5e3fa6"/>
+  <use href="#i-solid-play" x="29.0" y="165.5" width="9.8" height="13" fill="#ffffff"/>
+  <text x="43.8" y="176.7" font-size="13" fill="#ffffff">Start</text>
+  <circle cx="57.7" cy="145.0" r="9" fill="#2a2e33"/>
+  <text x="57.7" y="149.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">6</text>
+</svg>

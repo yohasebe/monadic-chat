@@ -197,7 +197,7 @@ if [ ${#MISSING_CONTAINERS[@]} -ne 0 ]; then
     max_attempts=20
     attempt=0
     while [ $attempt -lt $max_attempts ]; do
-      if curl -s http://localhost:4444/wd/hub/status > /dev/null 2>&1; then
+      if docker exec monadic-chat-selenium-container curl -sf http://localhost:4444/wd/hub/status > /dev/null 2>&1; then
         echo "   ✓ Selenium is ready!"
         break
       fi

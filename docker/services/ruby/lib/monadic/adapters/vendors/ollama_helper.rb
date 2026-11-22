@@ -1,3 +1,4 @@
+require_relative '../../utils/content_free_logging'
 require 'http'
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/usage_normalizer"
@@ -6,9 +7,11 @@ require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/extra_logger"
 require_relative "../../shared_tools/tavily_definitions"
+require_relative "../../workbench/caller"
 
 module OllamaHelper
   include BaseVendorHelper
+  prepend Monadic::Utils::Privacy::Words::Requests
   include MonadicPerformance
   include FunctionCallErrorHandler
   define_timeouts "OLLAMA", open: 5, read: 600, write: 60
@@ -24,11 +27,7 @@ module OllamaHelper
   #
   # Registration policy: tools are added to body["tools"] only when
   # TAVILY_API_KEY is configured AND the user has toggled web search
-  # on for this app instance. Tool calling is a hard requirement for
-  # Monadic Chat's Ollama support (see memory
-  # `feedback_ollama_tool_calling_required.md`) — if the model can't
-  # tool call, the user is running an unsupported Ollama model and
-  # many other features would already be broken anyway.
+  # on for this app instance, and only for a model that can call tools.
   WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
   WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
 
@@ -125,7 +124,9 @@ module OllamaHelper
       return nil unless res.status.success?
 
       data = JSON.parse(res.body)
-      capabilities = data["capabilities"].is_a?(Array) ? data["capabilities"] : []
+      # A server that reports no capabilities says nothing of the model.
+      reported = data["capabilities"].is_a?(Array)
+      capabilities = reported ? data["capabilities"] : []
 
       # context_length is nested under model_info with arch-specific prefix
       # (e.g. "qwen3vl.context_length", "llama.context_length"). We scan for
@@ -142,6 +143,7 @@ module OllamaHelper
 
       entry = {
         capabilities: capabilities,
+        reported: reported,
         context_length: context_length,
         fetched_at: Time.now
       }
@@ -274,6 +276,11 @@ module OllamaHelper
 
     body.merge!(options)
     body["model"] = model if body["model"].to_s.strip.empty?
+    # Ollama reads the output limit as options.num_predict.
+    limit = [body.delete("max_completion_tokens"), body.delete("max_tokens")].compact.first
+    if limit
+      body["options"] = { "num_predict" => limit.to_i }.merge(body["options"].is_a?(Hash) ? body["options"] : {})
+    end
     http = HTTP.headers(headers)
 
     res = nil
@@ -304,7 +311,7 @@ module OllamaHelper
       end
     end
 
-    return "Error: Ollama is not reachable. (#{last_error.message})" if last_error
+    return "Error: Ollama is not reachable. (#{Monadic::Utils::ErrorFormatter.scrub_identifiers(last_error.message)})" if last_error
 
     if res&.status&.success?
       parsed = JSON.parse(res.body)
@@ -316,8 +323,10 @@ module OllamaHelper
       rescue StandardError
         res.body.to_s
       end
-      Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error}" }
-      "ERROR: #{error}"
+      Monadic::Utils::ExtraLogger.log do
+        Monadic::Utils::ContentFreeLogging.active? ? "[Ollama API Error] #{res.status}" : "[Ollama API Error] #{error}"
+      end
+      "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(error.to_s)}"
     end
   rescue StandardError => e
     "Error: The request could not be completed. (#{e.message})"
@@ -328,6 +337,9 @@ module OllamaHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:tool_call_sequence] = []
+      # The turn's tool rounds so far go back with every later request of
+      # the turn, so the model sees what it has already done.
+      session[:parameters]&.delete("function_returns")
       # Reset the cross-round reasoning accumulator. Reasoning models emit their
       # trace before a tool call; process_functions recurses with a fresh local
       # thinking_texts, so without accumulating here only the final round's
@@ -337,12 +349,15 @@ module OllamaHelper
     end
 
     session[:messages].delete_if do |msg|
-      msg["role"] == "assistant" && msg["content"].to_s == ""
+      msg["role"] == "assistant" && msg["text"].to_s == ""
     end
 
     obj = session[:parameters]
     app = obj["app_name"]
-    model = obj["model"]
+    # The settings of the message being answered, the same in every request
+    # of its answer.
+    turn = Monadic::TurnSettings.current(obj)
+    model = turn.model
 
     # Validate model exists
     available_models = list_models
@@ -353,20 +368,20 @@ module OllamaHelper
       return [res]
     end
 
-    temperature = obj["temperature"].to_f
-    context_size = obj["context_size"].to_i
+    context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
     # Proactive Tavily gate (mirrors Cohere / DeepSeek / Mistral). If
     # TAVILY_API_KEY is absent the UI toggle is silently treated as
     # off — the tools are never registered, the system prompt does
     # not advertise them, and the LLM cannot try to call them. The
-    # gate is required because Ollama models that can tool-call (the
-    # only supported Ollama models — see
-    # feedback_ollama_tool_calling_required.md) will otherwise dispatch
-    # tavily_search and surface "Tavily API key is not configured"
-    # mid-conversation.
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?(obj)
+    # gate is required because a model that can call tools would
+    # otherwise call tavily_search and surface "Tavily API key is not
+    # configured" mid-conversation.
+    # A model that calls no tools is neither given the search tools nor
+    # told of them.
+    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
+                supports_tools?(model)
 
     message = obj["message"].to_s
 
@@ -411,26 +426,24 @@ module OllamaHelper
     }
 
     body = {
-      "model" => obj["model"],
+      "model" => model,
       "stream" => true,
-      "options" => {
-        "temperature" => temperature,
-      }
+      "options" => chat_options(turn)
     }
 
-    # Enable thinking for models that support it. For Ollama, the Show Thinking
-    # toggle is the sole control (Ollama has no reasoning_effort API parameter —
-    # only binary think on/off). The toggle defaults to OFF in the UI; users can
-    # switch it ON to see the model's thinking.
-    show_thinking = obj["show_thinking"]
-    show_thinking_off = [false, "false"].include?(show_thinking)
-    if !show_thinking_off && supports_thinking?(obj["model"])
-      body["think"] = true
-    end
+    # For Ollama, the Show Thinking toggle is the sole control (Ollama has no
+    # reasoning_effort API parameter — only binary think on/off), and it is
+    # off unless the user turned it on. A model that can think is told either
+    # way: left unsaid, it thinks.
+    think = think_parameter(turn)
+    body["think"] = think unless think.nil?
 
-    # Add tool definitions if available and within call depth limit
+    # Add tool definitions if available and within call depth limit. A model
+    # that cannot call tools gets none: the same app then holds a plain
+    # conversation with it.
     tools_config = obj["tools"]
-    if tools_config && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
+    tools_allowed = supports_tools?(model) && session[:call_depth_per_turn].to_i < tool_round_limit(session, MAX_FUNC_CALLS)
+    if tools_config && tools_allowed
       formatted_tools = format_tools_for_ollama(tools_config)
       # Ollama sources tools from obj["tools"] (frontend), so PTD filtering must
       # run here: hide conditional tools not yet unlocked, then annotate the
@@ -454,7 +467,7 @@ module OllamaHelper
     # whether the app declares any tools of its own. The call-depth
     # cap above still applies — once the limit is reached, neither
     # app tools nor websearch tools are sent (the model must wrap up).
-    if websearch && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
+    if websearch && tools_allowed
       body["tools"] ||= []
       body["tools"].concat(WEBSEARCH_TOOLS)
     end
@@ -470,6 +483,7 @@ module OllamaHelper
     end
 
     messages_containing_img = false
+    takes_images = !known_without_vision?(model)
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
       # Apply unified system prompt injector to first system message
@@ -490,12 +504,15 @@ module OllamaHelper
 
         message = { "role" => msg["role"], "content" => augmented_text }
       else
-        message = { "role" => msg["role"], "content" => msg["text"] }
+        # What the work screen shows follows the message's text.
+        message = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(msg["text"], observation_for(session, msg)) }
       end
 
       # A user message keeps its images when the request returns tool
-      # results too: the answer is written by that later request.
-      if msg["images"] && (role == "user" || msg["role"] == "user")
+      # results too: the answer is written by that later request. A model
+      # known to take no images gets the text alone (images sent to an
+      # earlier model of the chat included).
+      if msg["images"] && takes_images && (role == "user" || msg["role"] == "user")
         message["images"] = msg["images"]&.map do |img|
           img["data"].split(",")[1]
         end
@@ -504,84 +521,101 @@ module OllamaHelper
       message
     end
 
-    # Handle initiate_from_assistant case where only system message exists
-    if body["messages"].length == 1 && body["messages"][0]["role"] == "system"
-      body["messages"] << {
-        "role" => "user",
-        "content" => "Please proceed according to your system instructions and introduce yourself."
-      }
-    end
+    # Handle initiate_from_assistant case where only system message exists:
+    # the greeting, which takes no suffix.
+    greeting_request = { "role" => "user",
+                         "content" => "Please proceed according to your system instructions and introduce yourself." }
+    is_initial_greeting = body["messages"].length == 1 && body["messages"][0]["role"] == "system"
+    body["messages"] << greeting_request.dup if is_initial_greeting
 
     if role == "tool"
       # When processing tool results, use the function_returns context
       # which includes the full conversation + assistant tool_calls + tool responses
       if obj["function_returns"]
-        body["messages"] = obj["function_returns"].compact.map do |msg|
-          { "role" => msg["role"], "content" => msg["content"] || msg["text"] || "" }
+        # The system message keeps what was added to it above.
+        system_message = body["messages"].find { |m| m["role"] == "system" }
+        returns = with_workbench_looks(obj["function_returns"].compact, session,
+                                       tool_id: ->(m) { m["role"] == "tool" ? m["_look_call"] : nil }) do |looks|
+          parts = looks.map { |l| workbench_look_parts(l) }
+          { "_look_message" => true, "role" => "user", "content" => parts.map { |p| p[:text] }.join("\n"),
+            "images" => parts.filter_map { |p| p[:image]&.base64 } }
+        end
+        body["messages"] = returns.map do |msg|
+          if msg["_look_message"]
+            msg.except("_look_message")
+          elsif msg["role"] == "system" && system_message
+            system_message
+          else
+            tool_round_entry(msg, session, images: takes_images)
+          end
         end
       end
-    elsif role == "user"
-      # Use unified system prompt injector for user message augmentation
-      if body["messages"].last && body["messages"].last["content"]
-        augmented_content = Monadic::Utils::SystemPromptInjector.augment_user_message(
-          base_message: body["messages"].last["content"],
-          session: session,
-          options: {
-            prompt_suffix: settings[:prompt_suffix]
-          }
+      # A greeting's request goes with its rounds too.
+      if body["messages"].none? { |m| m["role"] == "user" }
+        system_index = body["messages"].index { |m| m["role"] == "system" } || -1
+        body["messages"].insert(system_index + 1, greeting_request.dup)
+      end
+    end
+
+    # The turn's message takes the suffix in every request of the turn, also
+    # those that send tool results back after it (it is the last user message
+    # before the turn's first tool call).
+    unless is_initial_greeting
+      first_call = body["messages"].index { |m| m["tool_calls"] } || body["messages"].length
+      turn_message = body["messages"][0...first_call].reverse.find { |m| m["role"] == "user" }
+      if turn_message && turn_message["content"]
+        turn_message["content"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: turn_message["content"], session: session, options: { prompt_suffix: obj["prompt_suffix"] }
         )
-        body["messages"].last["content"] = augmented_content
       end
     end
 
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Privacy Filter: mask user-message PII before sending to Ollama. No-op
-    # when the app does not declare `privacy do; enabled true; end` in MDSL.
-    # Ollama uses the OpenAI-compatible chat shape (body["messages"]).
     app_settings = (defined?(APPS) && APPS[app]) ? APPS[app].settings : nil
-    if privacy_enabled_for?(app_settings, session) && body["messages"].is_a?(Array)
-      body["messages"] = apply_privacy_to_messages(body["messages"], session, app_settings)
-    end
-    # Words the user marked: masked wherever they are in the body, or nothing is sent.
-    protect_marked_words!(body, session, app_settings)
+    # A chat with a word table hides its words with it (each attempt below
+    # is sent only while the table is unchanged).
+    hiding = hide_words_in_request!(body, session)
 
     res = nil
     last_error = nil
-    MAX_RETRIES.times do |attempt|
-      begin
-        # Re-resolve endpoint on each retry (cache may have been cleared)
-        current_endpoint = OllamaHelper.find_endpoint
-        unless current_endpoint
-          last_error = StandardError.new("Ollama endpoint not found")
-          Monadic::Utils::ExtraLogger.log { "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" }
-          sleep RETRY_DELAY
-          next
-        end
-        target_uri = "#{current_endpoint}/chat"
+    Monadic::Utils::Privacy::Words.sending(hiding&.first, hiding&.last) do
+      MAX_RETRIES.times do |attempt|
+        begin
+          # Re-resolve endpoint on each retry (cache may have been cleared)
+          current_endpoint = OllamaHelper.find_endpoint
+          unless current_endpoint
+            last_error = StandardError.new("Ollama endpoint not found")
+            Monadic::Utils::ExtraLogger.log { "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" }
+            sleep RETRY_DELAY
+            next
+          end
+          target_uri = "#{current_endpoint}/chat"
 
-        Monadic::Utils::ToolDispatchGuard.record!(session, app, body["tools"])
-        res = http.timeout(connect: open_timeout,
-                           write: write_timeout,
-                           read: read_timeout).post(target_uri, json: body)
-        if res.status.success?
-          last_error = nil
-          break
+          offer_tools!(body, session, app, provider: "ollama", model: body["model"])
+          res = post_with_workbench_looks(session, provider: "ollama", model: body["model"]) do
+            http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
+          end
+          if res.status.success?
+            last_error = nil
+            break
+          end
+          sleep RETRY_DELAY
+        rescue HTTP::Error, HTTP::TimeoutError => e
+          last_error = e
+          Monadic::Utils::ExtraLogger.log { "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" }
+          OllamaHelper.reset_endpoint_cache
+          sleep RETRY_DELAY
         end
-        sleep RETRY_DELAY
-      rescue HTTP::Error, HTTP::TimeoutError => e
-        last_error = e
-        Monadic::Utils::ExtraLogger.log { "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" }
-        OllamaHelper.reset_endpoint_cache
-        sleep RETRY_DELAY
       end
     end
 
     if last_error
       error_message = "Ollama is not reachable. Please ensure Ollama is running. (#{last_error.message})"
       Monadic::Utils::ExtraLogger.log { "[Ollama] #{error_message}" }
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      res = { "type" => "error",
+              "content" => Monadic::Utils::ErrorFormatter.network_error(provider: "Ollama", message: error_message) }
       block&.call res
       return [res]
     end
@@ -593,7 +627,8 @@ module OllamaHelper
         res.body.to_s
       end
       Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error_report}" }
-      res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
+      message = error_report.is_a?(Hash) ? (error_report["error"] || error_report).to_s : error_report.to_s
+      res = { "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(provider: "Ollama", message: message) }
       block&.call res
       return [res]
     end
@@ -613,79 +648,101 @@ module OllamaHelper
 
     obj = session[:parameters]
 
-    # Show Thinking toggle: default to true when unset, disable only on an
-    # explicit false/"false". Some thinking models ignore the `think:false`
+    # Show Thinking toggle. Some thinking models ignore the `think:false`
     # request parameter so we filter at emit time regardless.
-    show_thinking_param = obj["show_thinking"]
-    show_thinking_enabled = show_thinking_param.nil? ||
-                             ![false, "false"].include?(show_thinking_param)
+    turn = Monadic::TurnSettings.current(obj)
+    show_thinking_enabled = turn.show_thinking == true
 
-    buffer = String.new
+    records = StreamRecords.new(:ndjson)
+    usage = nil
+    stream_error = nil
     texts = []
     thinking_texts = []
     accumulated_tool_calls = []
     finish_reason = nil
     fragment_sequence = 0
 
-    body.each do |chunk|
-      begin
-        buffer << chunk
-        json = JSON.parse(buffer)
-        buffer = String.new
-        finish_reason = json["done"] ? "stop" : nil
-
-        # Detect tool calls (Ollama sends them in the done:true chunk)
-        if json.dig("message", "tool_calls")
-          json["message"]["tool_calls"].each do |tc|
-            accumulated_tool_calls << tc
-          end
-          Monadic::Utils::ExtraLogger.log { "Tool calls detected: #{accumulated_tool_calls.length}" }
-        end
-
-        # Thinking fragment (Ollama 0.9+ separate `thinking` field when think:true)
-        # A single chunk may carry either `content` or `thinking` (or neither),
-        # so we check and dispatch each independently.
-        #
-        # Respect the user's "Show Thinking" toggle: skip emitting thinking
-        # fragments to the frontend when disabled. Some Ollama models
-        # (e.g. qwen3-vl:*-thinking) emit reasoning regardless of the `think`
-        # API parameter, so backend-side filtering is the reliable place to
-        # honor the user's UI preference. The fragments are still accumulated
-        # internally so `reasoning_content` remains available.
-        thinking_fragment = json.dig("message", "thinking").to_s
-        if !thinking_fragment.empty?
-          emit_thinking = show_thinking_enabled
-          if emit_thinking
-            res = { "type" => "thinking", "content" => thinking_fragment }
-            block&.call res
-          end
-          thinking_texts << thinking_fragment
-        end
-
-        content_fragment = json.dig("message", "content").to_s
-        if !content_fragment.empty?
-          res = {
-            "type" => "fragment",
-            "content" => content_fragment,
-            "sequence" => fragment_sequence,
-            "timestamp" => Time.now.to_f,
-            "is_first" => fragment_sequence == 0
-          }
-
-          Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{content_fragment.length}, content=#{content_fragment.inspect}" }
-
-          fragment_sequence += 1
-          block&.call res
-          texts << content_fragment
-        end
-      rescue JSON::ParserError
-        # Incomplete JSON, continue buffering
+    # Ollama streams one JSON record per line; a chunk of the body can hold
+    # several records or part of one, so records are read by line.
+    handle = lambda do |json|
+      # An error after the stream began arrives as a record of its own.
+      if json["error"]
+        stream_error ||= json["error"].to_s
+        next
       end
+
+      # A reply cut at the length limit ends as such, so the user can ask for more.
+      finish_reason = (json["done_reason"] == "length" ? "length" : "stop") if json["done"]
+      if json["done"]
+        usage = { "prompt_tokens" => json["prompt_eval_count"], "completion_tokens" => json["eval_count"] }.compact
+        usage["total_tokens"] = usage.values.sum unless usage.empty?
+      end
+
+      # Detect tool calls (Ollama sends them in the done:true chunk)
+      if json.dig("message", "tool_calls")
+        json["message"]["tool_calls"].each do |tc|
+          accumulated_tool_calls << tc
+        end
+        Monadic::Utils::ExtraLogger.log { "Tool calls detected: #{accumulated_tool_calls.length}" }
+      end
+
+      # Thinking fragment (Ollama 0.9+ separate `thinking` field when think:true)
+      # A single chunk may carry either `content` or `thinking` (or neither),
+      # so we check and dispatch each independently.
+      #
+      # Respect the user's "Show Thinking" toggle: skip emitting thinking
+      # fragments to the frontend when disabled. Some Ollama models
+      # (e.g. qwen3-vl:*-thinking) emit reasoning regardless of the `think`
+      # API parameter, so backend-side filtering is the reliable place to
+      # honor the user's UI preference. The fragments are still accumulated
+      # internally so `reasoning_content` remains available.
+      thinking_fragment = json.dig("message", "thinking").to_s
+      if !thinking_fragment.empty?
+        emit_thinking = show_thinking_enabled
+        if emit_thinking
+          res = { "type" => "thinking", "content" => thinking_fragment }
+          block&.call res
+        end
+        thinking_texts << thinking_fragment
+      end
+
+      content_fragment = json.dig("message", "content").to_s
+      if !content_fragment.empty?
+        res = {
+          "type" => "fragment",
+          "content" => content_fragment,
+          "sequence" => fragment_sequence,
+          "timestamp" => Time.now.to_f,
+          "is_first" => fragment_sequence == 0
+        }
+
+        Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{content_fragment.length}, content=#{content_fragment.inspect}" }
+
+        fragment_sequence += 1
+        block&.call res
+        texts << content_fragment
+      end
+    end
+
+    read = lambda do |line|
+      handle.call(JSON.parse(line))
+    rescue JSON::ParserError
+      Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Unreadable record skipped (#{line.bytesize} bytes)" }
+    end
+
+    body.each do |chunk|
+      records.feed(chunk, &read)
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error: #{e.message}" }
       Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       # Connection dropped mid-stream — invalidate cached endpoint
       OllamaHelper.reset_endpoint_cache
+    end
+    records.finish(&read)
+
+    if stream_error
+      Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error record: #{stream_error}" }
+      return StreamRecords.error_reply("Ollama", stream_error, &block)
     end
 
     Monadic::Utils::ExtraLogger.log { "Total fragments processed: #{texts.length}\nTool calls accumulated: #{accumulated_tool_calls.length}" }
@@ -694,17 +751,21 @@ module OllamaHelper
     if accumulated_tool_calls.any?
       session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
 
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
-        res = { "type" => "error", "content" => "ERROR: Maximum function call depth exceeded (#{MAX_FUNC_CALLS})" }
+      if session[:call_depth_per_turn] > tool_round_limit(session, MAX_FUNC_CALLS)
+        res = { "type" => "error", "content" => "ERROR: Maximum function call depth exceeded (#{tool_round_limit(session, MAX_FUNC_CALLS)})" }
         block&.call res
         return [res]
       end
 
-      # Build context from current session messages for tool result re-invocation
-      context_size = obj["context_size"].to_i
-      context = [session[:messages].first]
-      if session[:messages].size > 1
-        context += session[:messages][1..].last(context_size)
+      # Build context from current session messages for tool result
+      # re-invocation, as the model reads them (a user message's attachments
+      # described after its text, as in the request for the message).
+      # In a later round of the turn, the rounds before it are there already.
+      context_size = turn.context_size.to_i
+      context = Array(obj["function_returns"]).dup
+      if context.empty?
+        context = [session[:messages].first]
+        context += model_facing_context(session[:messages][1..].last(context_size)) if session[:messages].size > 1
       end
 
       # Add assistant message with tool_calls to context
@@ -717,6 +778,9 @@ module OllamaHelper
           }
         }
       end
+      # The round's reasoning goes back with its calls (Ollama's tool use
+      # with thinking models expects thinking, content and calls together).
+      assistant_msg["thinking"] = thinking_texts.join("") unless thinking_texts.empty?
       context << assistant_msg
 
       # Carry this round's reasoning across the tool-call recursion (which
@@ -749,13 +813,16 @@ module OllamaHelper
                else
                  "#{accumulated}\n\n#{thinking_result}"
                end
-      message["reasoning_content"] = merged unless merged.strip.empty?
+      # Kept off the reply while the toggle is off (a model that thinks
+      # regardless still returns its reasoning).
+      message["reasoning_content"] = merged unless merged.strip.empty? || !show_thinking_enabled
       result = {
         "choices" => [{
           "message" => message,
           "finish_reason" => finish_reason
         }]
       }
+      result["usage"] = usage if usage && !usage.empty?
       [result]
     else
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
@@ -764,13 +831,34 @@ module OllamaHelper
     end
   end
 
+  # A message of a tool round as Ollama reads it. The user's message (a
+  # session message here) keeps what the work screen shows, and its images
+  # where the model takes them;
+  # the assistant's message keeps its reasoning and the tool calls it made, and each result
+  # names its tool, or the model sees results of calls it never made and
+  # makes them again.
+  def tool_round_entry(msg, session, images: true)
+    content = msg["content"] || msg["text"] || ""
+    entry = { "role" => msg["role"], "content" => Monadic::Workbench::Observation.appended(content, observation_for(session, msg)) }
+    if images && msg["role"] == "user" && msg["images"].is_a?(Array) && !msg["images"].empty?
+      entry["images"] = msg["images"].filter_map { |img| img["data"].to_s.split(",")[1] }
+    end
+    if msg["role"] == "assistant"
+      entry["thinking"] = msg["thinking"] if msg["thinking"]
+      entry["tool_calls"] = msg["tool_calls"] if msg["tool_calls"]
+    end
+    entry["tool_name"] = msg["tool_name"] if msg["role"] == "tool" && msg["tool_name"]
+    entry
+  end
+
   def process_functions(app, session, tool_calls, context, call_depth, &block)
     obj = session[:parameters]
 
     res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
     block&.call res
 
-    tool_calls.each do |tool_call|
+    tool_images = []
+    tool_calls.each_with_index do |tool_call, index|
       function_name = tool_call.dig("function", "name")
       next unless function_name
 
@@ -795,64 +883,56 @@ module OllamaHelper
         memo[k.to_sym] = v
       end
 
-      # Expand vocabulary ${TOKEN}s before the tool runs; before :session
-      # injection so the session object is never walked. No-op without vocabulary.
-      converted = expand_tool_args_for_vocabulary(converted, session, APPS[app]&.settings)
-
-      # Inject session for tools that need it
-      method_obj = APPS[app].method(function_name.to_sym) rescue nil
-      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-        converted[:session] = session
-      end
-
-      begin
-        refusal = Monadic::Utils::ToolDispatchGuard.refusal(session, app, function_name)
-        function_return = if refusal
-                           # Run only the tools offered to the model in the latest request;
-                           # this also covers calls parsed from the text.
-                           refusal
-                         elsif function_name == "request_tool"
-                           Monadic::Utils::ProgressiveToolManager.handle_request_tool(
-                             session: session, app_name: app, app_settings: (APPS[app]&.settings || {}), argument_hash: converted
-                           )
-                         elsif converted.empty?
-                           APPS[app].public_send(function_name.to_sym)
-                         else
-                           APPS[app].public_send(function_name.to_sym, **converted)
-                         end
-      rescue StandardError => e
-        function_return = "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"
-      end
-
-      # Collect gallery HTML for tool-generated images
-      if function_return.is_a?(Hash) && function_return[:gallery_html]
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << function_return[:gallery_html]
-      end
-
-      # Check for repeated errors
-      if handle_function_error(session, function_return, function_name, &block)
-        context << {
-          "role" => "tool",
-          "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-        }
-        next
-      end
-
+      # Ollama's tool calls carry no id: the look a result is (if any) is
+      # known by one made here, kept beside the result and never sent.
+      made_id = "call_#{SecureRandom.hex(6)}"
+      result = run_tool_call(
+        app, session, function_name, converted, call_id: made_id,
+        error_text: ->(e) { "ERROR: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}" }, &block
+      )
+      function_return = result.value
+      tool_images.concat(result.images) if result.images
+      returned = result.images ? result.without_private_keys : function_return
       context << {
         "role" => "tool",
-        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-      }
+        "tool_name" => function_name,
+        "content" => returned.is_a?(Hash) || returned.is_a?(Array) ? JSON.generate(returned) : returned.to_s,
+        "_look_call" => (made_id if !result.stop && function_return.is_a?(Monadic::Workbench::Look::Result))
+      }.compact
+
+      # An image was put on the work screen: the reply ends, and the calls
+      # not run are answered as such.
+      next unless (offered = take_offer(session))
+
+      tool_calls.drop(index + 1).each do |skipped|
+        context << { "role" => "tool", "tool_name" => skipped.dig("function", "name"),
+                     "content" => Monadic::Workbench::Offered.not_executed }
+      end
+      obj["function_returns"] = context
+      return Monadic::Workbench::Offer.end_reply(offered, &block)
+    end
+
+    # Images a tool made for the model (a screenshot) go with the results,
+    # to a model that takes images.
+    if tool_images.any? && supports_vision?(Monadic::TurnSettings.current(obj).model)
+      images = tool_images.filter_map do |name|
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(name)
+        { "data" => "data:#{img[:media_type]};base64,#{img[:base64_data]}" } if img
+      end
+      if images.any?
+        context << { "role" => "user", "content" => "[Tool-generated image. Verify the visual output before presenting results.]",
+                     "images" => images }
+      end
     end
 
     obj["function_returns"] = context
 
     # Stop if repeated errors detected
-    if should_stop_for_errors?(session)
-      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res
-      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
-    end
+    return stop_reply(session, &block) if should_stop_for_errors?(session)
+
+    # The tool that takes the reply's text ended the reply.
+    ended = Monadic::Utils::TtsTextExtractor.reply_ended(session, &block)
+    return ended if ended
 
     sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)
@@ -860,11 +940,53 @@ module OllamaHelper
 
   private
 
+  # Whether the model can call tools, as Ollama reports it (/api/show);
+  # without that report the model is taken to be able to.
+  def supports_tools?(model_name)
+    return true unless model_name.is_a?(String)
+    caps = OllamaHelper.fetch_model_capabilities(model_name)
+    # Tools are offered where the local server could not be asked, or
+    # reports no capabilities.
+    caps && caps[:reported] != false ? caps[:capabilities].include?("tools") : true
+  end
+
+  # Whether an Ollama model takes images (the vision capability).
+  def supports_vision?(model_name)
+    caps = model_name.is_a?(String) && OllamaHelper.fetch_model_capabilities(model_name)
+    caps ? caps[:capabilities].include?("vision") : false
+  end
+
+  # Whether the local server says the model takes no images. Not so where
+  # it could not be asked or reports no capabilities: the chat's images are
+  # then sent as they are.
+  def known_without_vision?(model_name)
+    caps = model_name.is_a?(String) && OllamaHelper.fetch_model_capabilities(model_name)
+    caps && caps[:reported] != false ? !caps[:capabilities].include?("vision") : false
+  end
+
   # Detect whether an Ollama model supports the `think:true` parameter.
   # Primary source: Ollama's /api/show endpoint returns a `capabilities`
   # array per model (e.g. ["completion","vision","tools","thinking"]).
   # Fallback: if the API call fails, fall back to a name-based heuristic
   # so thinking-named models still work when Ollama is temporarily flaky.
+  # The options of a chat request, of the turn's settings. A message that
+  # names no temperature is sent with 0; Ollama reads the output limit as
+  # num_predict, and without a limit none is sent.
+  def chat_options(turn)
+    options = { "temperature" => turn.temperature || 0.0 }
+    options["num_predict"] = turn.max_tokens if turn.max_tokens
+    options
+  end
+
+  # The `think` value of a request: true or false for a model that can
+  # think, nil (not sent) for one that cannot. The model's thinking is
+  # asked for only when the message says to show it: with no setting (the
+  # toggle not on the page yet, a request from outside the page) it is off,
+  # as the toggle starts.
+  def think_parameter(turn)
+    supports_thinking?(turn.model) ? turn.show_thinking == true : nil
+  end
+
   def supports_thinking?(model_name)
     return false unless model_name.is_a?(String)
     caps = OllamaHelper.fetch_model_capabilities(model_name)

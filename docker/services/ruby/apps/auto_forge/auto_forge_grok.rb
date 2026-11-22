@@ -11,7 +11,12 @@ class AutoForgeGrok < MonadicApp
   include AutoForgeTools
   include Monadic::Agents::GrokCodeAgent
 
+  # The code agent of this app's provider, for everything it generates.
+  def forge_agent
+    :grok
+  end
+
   def generate_application(spec:)
-    super(spec: spec, agent: :grok)
+    super(spec: spec, agent: forge_agent)
   end
 end

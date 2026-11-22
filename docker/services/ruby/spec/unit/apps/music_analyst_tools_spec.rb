@@ -32,6 +32,22 @@ RSpec.describe MusicAnalystTools do
       expect(tool.critique_audio(file_path: "perf.mp3")).to eq("critique text")
     end
 
+    it 'reads a file attached to the chat from where the chat keeps it' do
+      id = Monadic::Workspace::Ids.generate(:attachment)
+      tool.define_singleton_method(:resolve_audio_attachment) do |_id, _session|
+        { relative_path: "conversations/c1/attachments/perf.mp3", path: "/kept/perf.mp3" }
+      end
+      allow(AudioAnalysisAgent).to receive(:analyze) { |audio_path:, **| audio_path }
+      expect(tool.critique_audio(attachment_id: id)).to eq("/kept/perf.mp3")
+    end
+
+    it 'says why an attached file cannot be used' do
+      tool.define_singleton_method(:resolve_audio_attachment) do |_id, _session|
+        raise Monadic::Workspace::Attachments::Unusable.new(:unknown, "No such attachment.")
+      end
+      expect(tool.critique_audio(attachment_id: Monadic::Workspace::Ids.generate(:attachment))).to match(/❌.*No such attachment/)
+    end
+
     it 'weaves a requested focus into the prompt' do
       allow(Monadic::Utils::Environment).to receive(:data_path).and_return("/monadic/data")
       allow(AudioAnalysisAgent).to receive(:analyze) { |prompt:, **_| prompt }
@@ -150,15 +166,15 @@ RSpec.describe MusicAnalystTools do
   end
 
   describe '#analyze_audio_features' do
-    # The audio path is gated on the optional Audio Analysis package; treat it
+    # The audio path is gated on the optional Music Analysis package; treat it
     # as installed for the formatting/parsing tests below.
     before { stub_const("CONFIG", { "PYOPT_LIBROSA" => "true" }) }
 
-    it 'points the user to Install Options when the Audio Analysis package is off (audio file)' do
+    it 'points the user to Install Options when the Music Analysis package is off (audio file)' do
       stub_const("CONFIG", { "PYOPT_LIBROSA" => "false" })
       expect(tool).not_to receive(:send_command)
       result = tool.analyze_audio_features(file_path: "song.mp3")
-      expect(result).to match(/❌.*Audio Analysis package/)
+      expect(result).to match(/❌.*Music Analysis package/)
       expect(result).to match(/Install Options/)
     end
 
@@ -202,7 +218,7 @@ RSpec.describe MusicAnalystTools do
       allow(tool).to receive(:send_command).and_return(json)
 
       result = tool.analyze_audio_features(file_path: "song.mid")
-      expect(result).to include("Tracks: Piano, Bass")
+      expect(result).to include("Tracks: Piano (Acoustic Grand), Bass")
     end
 
     it 'drops spurious brief No-Chord blips but keeps longer N.C. spans (and survives nil duration)' do

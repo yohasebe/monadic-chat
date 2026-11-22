@@ -63,25 +63,16 @@ Gem::Specification.new do |spec|
   spec.add_dependency "http-form_data"
   spec.add_dependency "i18n_data"
   spec.add_dependency "json_schemer", "~> 2.3"
-  spec.add_dependency "matrix"
-  spec.add_dependency "method_source"
   spec.add_dependency "nokogiri", "~> 1.18"
   # spec.add_dependency "oj"
   spec.add_dependency "optimist"
   spec.add_dependency "ostruct"
-  spec.add_dependency "pandoc-ruby"
-  spec.add_dependency "parallel"
-  spec.add_dependency "parslet"
-  # Conversation history store; pinned: the image installs from this file without the lock.
+  # Conversation history store
   spec.add_dependency "sqlite3", "2.9.6"
   spec.add_dependency "twitter_cldr"
   spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "rake"
-  spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "sinatra", "~> 4.2"
   spec.add_dependency "falcon", "~> 0.51"
   spec.add_dependency "tiktoken_ruby", "~> 0.0.15"
-
-  # Uncomment to use RSyntaxTree
-  # spec.add_dependency "rsyntaxtree"
 end

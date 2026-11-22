@@ -202,56 +202,30 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       params = MonadicSharedTools::LibrarySearch::Tools.instance_method(:library_search).parameters
       expect(params.map(&:last)).to include(:session)
     end
+  end
 
-    it 'masks PII in the formatted result when Privacy Filter is active' do
-      # Knowledge Base entries are stored unmasked. When PF is on, the
-      # tool result must pass through the same Privacy Pipeline that
-      # masks user-role messages so library_search cannot become a
-      # back-channel that leaks PII to the LLM.
-      pipeline = double('pipeline', enabled?: true)
-      expect(pipeline).to receive(:before_send_to_llm) do |raw|
-        # Sanity: the snippet text reaches the pipeline as a tool-role
-        # message so backends can route it correctly.
-        expect(raw.role).to eq('tool')
-        expect(raw.text).to include('returned snippet')
-        Monadic::Utils::Privacy::MaskedMessage.new('MASKED RESULT', 'tool', {})
-      end
-      host.instance_variable_set(:@session, {
-        parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' },
-        _privacy_pipeline: pipeline
-      })
-      out = host.library_search(query: 'q')
-      expect(out).to eq('MASKED RESULT')
+  describe 'in a chat that hides its words with a word table' do
+    let(:host) { Class.new { include MonadicSharedTools::LibrarySearch::Tools }.new }
+    let(:words) { Monadic::Utils::Privacy::Words }
+    let(:session) do
+      { parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' } }
+        .tap { |s| Monadic::Workspace::Chats.start_new!(s) }
     end
 
-    it 'returns the formatted result unchanged when Privacy Filter is inactive' do
-      pipeline = double('pipeline', enabled?: false)
-      expect(pipeline).not_to receive(:before_send_to_llm)
-      host.instance_variable_set(:@session, {
-        parameters: { 'library_rag_enabled' => true },
-        _privacy_pipeline: pipeline
-      })
-      out = host.library_search(query: 'q')
-      expect(out).to include('Found 1 relevant passage')
+    before do
+      words.start!(session).confirm!('Ada Lovelace', 'PERSON')
+      allow(Monadic::Library::Retriever).to receive(:cascade_search).and_return([
+        { text: 'Ada Lovelace wrote the notes', conversation_id: 'conv-1', turn_idx: 0, speaker_role: 'human',
+          start_message_id: 'm-1', score: 0.9, conversation_title: 'T', conversation_source: 'chat',
+          conversation_language: 'en' }
+      ])
     end
 
-    it 'withholds results (fail-closed) and reports degradation when masking raises' do
-      # The pipeline's own default is on_failure: :block. Falling back to
-      # the raw output here would send unmasked PII to the provider exactly
-      # when the privacy backend is broken — the one state the feature is
-      # supposed to protect against.
-      pipeline = double('pipeline', enabled?: true)
-      allow(pipeline).to receive(:before_send_to_llm).and_raise(StandardError, 'boom')
-      allow(Monadic::Utils::DegradationNotifier).to receive(:report)
-      host.instance_variable_set(:@session, {
-        parameters: { 'library_rag_enabled' => true },
-        _privacy_pipeline: pipeline
-      })
-      out = host.library_search(query: 'q')
-      expect(out).to eq(MonadicSharedTools::LibrarySearch::WITHHELD_MESSAGE)
-      expect(out).not_to include('returned snippet')
-      expect(Monadic::Utils::DegradationNotifier).to have_received(:report)
-        .with(hash_including(component: 'privacy', severity: :error))
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    it 'gives the passages as saved (they are hidden as the next request is sent)' do
+      out = host.library_search(query: 'notes', session: session)
+      expect(out).to include('Ada Lovelace wrote the notes')
     end
   end
 

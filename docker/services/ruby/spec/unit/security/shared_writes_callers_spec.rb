@@ -40,7 +40,10 @@ RSpec.describe "Writes into the shared folder" do
       FileUtils.mkdir_p(File.join(@root, "video_gen_temp_x"))
       expect(utils.discard_materialized("video_gen_temp_x/../../outside/report.txt")).to be(false)
       outside_unchanged
-      name = utils.write_data_url_to_shared("data:image/png;base64,#{Base64.strict_encode64('PNG')}", "image/png")
+      job_dir = File.join(@root, "conversations", "c", "artifacts", "j_1")
+      FileUtils.mkdir_p(job_dir)
+      job = { path: job_dir, relative: "conversations/c/artifacts/j_1" }
+      name = utils.write_data_url_to_shared("data:image/png;base64,#{Base64.strict_encode64('PNG')}", "image/png", into: job)
       expect(File.exist?(File.join(@root, name))).to be(true)
       expect(utils.discard_materialized(name)).to be(true)
       expect(File.exist?(File.join(@root, name))).to be(false)

@@ -189,38 +189,38 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     context "with features" do
       it "builds capability badges from features" do
         settings = {
-          features: { monadic: true, math: true }
+          features: { jupyter: true, math: true }
         }
 
         result = described_class.build_all_badges(settings)
 
         expect(result[:capabilities].size).to eq(2)
-        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("monadic", "math")
+        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("jupyter", "math")
       end
 
       it "marks user-controlled features correctly" do
         settings = {
-          features: { math: true, monadic: true }
+          features: { math: true, jupyter: true }
         }
 
         result = described_class.build_all_badges(settings)
 
         math_badge = result[:capabilities].find { |b| b[:id] == "math" }
-        monadic_badge = result[:capabilities].find { |b| b[:id] == "monadic" }
+        jupyter_badge = result[:capabilities].find { |b| b[:id] == "jupyter" }
 
         expect(math_badge[:user_controlled]).to be true
-        expect(monadic_badge[:user_controlled]).to be false
+        expect(jupyter_badge[:user_controlled]).to be false
       end
 
       it "filters out features not in BADGE_WORTHY_FEATURES" do
         settings = {
-          features: { monadic: true, internal_flag: true }
+          features: { jupyter: true, internal_flag: true }
         }
 
         result = described_class.build_all_badges(settings)
 
-        # Only monadic should be included
-        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("monadic")
+        # Only jupyter should be included
+        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("jupyter")
       end
     end
 
@@ -273,7 +273,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     context "with both features and agents" do
       it "combines features and backend models" do
         settings = {
-          features: { monadic: true, image: true },
+          features: { jupyter: true, image: true },
           agents: { code_generator: "gpt-5-codex" }
         }
 
@@ -288,18 +288,6 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     end
 
     context "with feature name aliases" do
-      it "normalizes pdf_vector_storage to pdf" do
-        settings = {
-          features: { pdf_vector_storage: true }
-        }
-
-        result = described_class.build_all_badges(settings)
-
-        pdf_badge = result[:capabilities].find { |b| b[:id] == "pdf" }
-        expect(pdf_badge).not_to be_nil
-        expect(pdf_badge[:label]).to eq("pdf input")
-      end
-
       it "normalizes pdf_upload to pdf" do
         settings = {
           features: { pdf_upload: true }
@@ -320,14 +308,6 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
 
       expect(normalized[:image]).to be true
       expect(normalized[:websearch]).to be true
-    end
-
-    it "maps pdf_vector_storage to pdf" do
-      features = { pdf_vector_storage: true }
-      normalized = described_class.normalize_feature_names(features)
-
-      expect(normalized[:pdf]).to be true
-      expect(normalized[:pdf_vector_storage]).to be true # Original preserved
     end
 
     it "maps pdf_upload to pdf" do
@@ -372,7 +352,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     end
 
     it "handles strings without underscores" do
-      expect(described_class.format_label("monadic")).to eq("monadic")
+      expect(described_class.format_label("jupyter")).to eq("jupyter")
     end
   end
 end

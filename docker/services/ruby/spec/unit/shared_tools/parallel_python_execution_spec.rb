@@ -24,8 +24,11 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
     Class.new do
       include MonadicSharedTools::ParallelPythonExecution
 
+      attr_reader :runs
+
       # Stub run_code to simulate Python execution
-      def run_code(code:, command:, extension:)
+      def run_code(code:, command:, extension:, session: nil, workbench: nil)
+        (@runs ||= []) << { session: session, workbench: workbench }
         '{"success": true, "output": "mock output"}'
       end
 
@@ -48,6 +51,13 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
   end
 
   describe "#parallel_run_code" do
+    it "runs each task with the reply's session and chat, so each keeps what it makes in the chat's folder" do
+      workbench = Struct.new(:chat_id).new("chat")
+      app.parallel_run_code(tasks: valid_tasks, session: session, workbench: workbench)
+      expect(app.runs.size).to eq(2)
+      expect(app.runs).to all(include(session: session, workbench: workbench))
+    end
+
     context "input validation" do
       it "returns error for nil tasks" do
         result = app.parallel_run_code(tasks: nil, session: session)
@@ -128,10 +138,10 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
 
       it "passes python command and py extension to run_code" do
         expect(app).to receive(:run_code)
-          .with(code: "print('statistics')", command: "python", extension: "py")
+          .with(code: "print('statistics')", command: "python", extension: "py", session: session, workbench: nil)
           .and_return('{"success": true}')
         expect(app).to receive(:run_code)
-          .with(code: "print('chart')", command: "python", extension: "py")
+          .with(code: "print('chart')", command: "python", extension: "py", session: session, workbench: nil)
           .and_return('{"success": true}')
         app.parallel_run_code(tasks: valid_tasks, session: session)
       end

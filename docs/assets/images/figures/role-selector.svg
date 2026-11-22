@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="479" height="194" viewBox="0 0 479 194" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+  <title>The Role selector</title>
+  <defs>
+
+  </defs>
+  <rect x="0.5" y="0.5" width="478" height="193" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <text x="20.0" y="38.7" font-size="13" fill="#58616b">Role</text>
+  <rect x="61.7" y="20.0" width="367.2" height="28.0" rx="5" fill="#ffffff" stroke="#ced4da"/>
+  <text x="70.7" y="38.7" font-size="13" fill="#2a2e33">User</text>
+  <path d="M410.9 32.0 l4 5 l4 -5 z" fill="#6e7781"/>
+  <rect x="61.7" y="54" width="367.2" height="120" rx="5" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="65.7" y="58" width="359.2" height="28" rx="3" fill="#eef0f2"/>
+  <text x="73.7" y="77.0" font-size="13" fill="#2a2e33">User</text>
+  <circle cx="446.9" cy="72.0" r="9" fill="#2a2e33"/>
+  <text x="446.9" y="76.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
+  <text x="73.7" y="105.0" font-size="13" fill="#2a2e33">User (to add to past messages)</text>
+  <circle cx="446.9" cy="100.0" r="9" fill="#2a2e33"/>
+  <text x="446.9" y="104.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">2</text>
+  <text x="73.7" y="133.0" font-size="13" fill="#2a2e33">Assistant (to add to past messages)</text>
+  <circle cx="446.9" cy="128.0" r="9" fill="#2a2e33"/>
+  <text x="446.9" y="132.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">3</text>
+  <text x="73.7" y="161.0" font-size="13" fill="#2a2e33">System (to provide additional direction)</text>
+  <circle cx="446.9" cy="156.0" r="9" fill="#2a2e33"/>
+  <text x="446.9" y="160.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
+</svg>

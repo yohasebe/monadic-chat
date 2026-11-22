@@ -8,7 +8,7 @@
 
   ---
 
-**🎯 Features** · [Multimodal Input](https://yohasebe.github.io/monadic-chat/#/basic-usage/message-input#uploading-images) · [PDF Knowledge Base](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#provider-capabilities) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/apps/coding-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/apps/chat-apps#voice-chat) · [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter)
+**🎯 Features** · [Multimodal Input](https://yohasebe.github.io/monadic-chat/#/basic-usage/message-input#uploading-images) · [Knowledge Base](https://yohasebe.github.io/monadic-chat/#/apps/knowledge-base) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#provider-capabilities) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/apps/coding-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/apps/chat-apps#voice-chat) · [Anonymization](https://yohasebe.github.io/monadic-chat/#/advanced-topics/anonymization)
 
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · xAI · DeepSeek · Ollama
 
@@ -16,7 +16,7 @@
 
   ---
 
-  <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/basic-architecture.png" width="800px" alt="Monadic Chat Architecture">
+  <img src="docs/assets/images/figures/architecture.svg" width="800px" alt="Monadic Chat architecture">
 
 </div>
 
@@ -85,12 +85,12 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 - **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
 - **📄 PDF Knowledge Base**: Store and query documents locally with Qdrant + on-device embeddings — no API key required
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, and Grok
-- **🔒 Privacy Filter** (opt-in): Mask PII locally before sending to AI providers; restore in the response. Supports 9 languages via Microsoft Presidio + spaCy. See [Privacy Filter](https://yohasebe.github.io/monadic-chat/#/advanced-topics/privacy-filter).
+- **🔒 Anonymization**: Choose the words (such as names) a chat replaces with placeholders in the text it sends to AI providers; replies come back with the words put back. Names are found locally with Microsoft Presidio + spaCy in 9 languages. Images, voice and the chat history are not anonymized. See [Anonymization](https://yohasebe.github.io/monadic-chat/#/advanced-topics/anonymization).
 - **🔄 Automatic Updates**: In-app notifications and seamless update downloads
 
 ### Featured Applications
 
-Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · Knowledge Base · Image Generator · Music Generator · Language Practice
+Chat · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · Knowledge Base · Image Generator · Music Generator · Language Practice
 
 📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps)
 
@@ -122,3 +122,5 @@ Yoichiro HASEBE
 ## License
 
 This software is available as open source under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+The instrument sounds that play ABC scores are from the FluidR3 GM sound font by Frank Wen, licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/us/), as rendered in [midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts) (MIT License).

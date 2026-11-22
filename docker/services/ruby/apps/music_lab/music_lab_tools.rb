@@ -1,44 +1,48 @@
 require 'json'
 require 'shellwords'
+require_relative '../../lib/monadic/workbench/chat_output'
+require_relative '../../lib/monadic/utils/music_features'
 
 module MusicLabTools
-  def play_chord(chord_name:, voicing: nil, instrument: nil, octave: nil, session: nil)
+  include Monadic::Utils::MusicFeatures
+
+  def play_chord(chord_name:, voicing: nil, instrument: nil, octave: nil, session: nil, workbench: nil)
     params = { "chord_name" => chord_name }
     params["voicing"] = voicing if voicing
     params["instrument"] = instrument if instrument
     params["octave"] = octave if octave
 
-    run_music_action("chord", params, session)
+    run_music_action("chord", params, session, workbench)
   end
 
-  def play_scale(scale_name:, root:, octave: nil, direction: nil, instrument: nil, session: nil)
+  def play_scale(scale_name:, root:, octave: nil, direction: nil, instrument: nil, session: nil, workbench: nil)
     params = { "scale_name" => scale_name, "root" => root }
     params["octave"] = octave if octave
     params["direction"] = direction if direction
     params["instrument"] = instrument if instrument
 
-    run_music_action("scale", params, session)
+    run_music_action("scale", params, session, workbench)
   end
 
-  def play_interval(root:, interval:, octave: nil, instrument: nil, session: nil)
+  def play_interval(root:, interval:, octave: nil, instrument: nil, session: nil, workbench: nil)
     params = { "root" => root, "interval" => interval }
     params["octave"] = octave if octave
     params["instrument"] = instrument if instrument
 
-    run_music_action("interval", params, session)
+    run_music_action("interval", params, session, workbench)
   end
 
-  def play_progression(chords:, tempo: nil, instrument: nil, bars_per_chord: nil, octave: nil, session: nil)
+  def play_progression(chords:, tempo: nil, instrument: nil, bars_per_chord: nil, octave: nil, session: nil, workbench: nil)
     params = { "chords" => chords }
     params["tempo"] = tempo if tempo
     params["instrument"] = instrument if instrument
     params["bars_per_chord"] = bars_per_chord if bars_per_chord
     params["octave"] = octave if octave
 
-    run_music_action("progression", params, session)
+    run_music_action("progression", params, session, workbench)
   end
 
-  def generate_backing_track(chords:, tempo: nil, style: nil, bars: nil, instruments: nil, octave: nil, melody: nil, melody_instrument: nil, melody_style: nil, melody_seed: nil, session: nil)
+  def generate_backing_track(chords:, tempo: nil, style: nil, bars: nil, instruments: nil, octave: nil, melody: nil, melody_instrument: nil, melody_style: nil, melody_seed: nil, session: nil, workbench: nil)
     params = { "chords" => chords }
     params["tempo"] = tempo if tempo
     params["style"] = style if style
@@ -50,79 +54,56 @@ module MusicLabTools
     params["melody_style"] = melody_style if melody_style
     params["melody_seed"] = melody_seed if melody_seed
 
-    run_music_action("backing", params, session)
+    run_music_action("backing", params, session, workbench)
   end
 
-  # Audio (not MIDI) analysis needs the optional Audio Analysis package
-  # (librosa + madmom). MIDI uses pretty_midi and self-reports, so it is not
-  # gated here.
-  AUDIO_EXTS_NEEDING_LIBROSA = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
+  # The features measured from an uploaded audio or MIDI file.
+  def analyze_audio_file(file_path: nil, attachment_id: nil, session: nil, workbench: nil)
+    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
+    return "Error: #{file[:error]}" if file[:error]
 
-  def analyze_audio_file(file_path:, session: nil)
-    ext = File.extname(file_path.to_s).delete_prefix(".").downcase
-    if AUDIO_EXTS_NEEDING_LIBROSA.include?(ext) && !audio_analysis_package_enabled?
-      return "❌ Objective audio analysis needs the optional Audio Analysis package " \
-             "(librosa + madmom). Enable it under Actions → Install Options and rebuild " \
-             "the Python container."
-    end
-    # Normalize path to /monadic/data/ (the shared folder inside the container)
-    container_path = if file_path.start_with?("/monadic/data")
-                       file_path
-                     else
-                       "/monadic/data/#{file_path}"
-                     end
+    result = measure_music_features(file)
+    return result["error"] if result["package_needed"]
 
-    params = { "file_path" => container_path }
-    json_params = JSON.generate(params)
-    cmd = "python3 /monadic/scripts/music/music_analyzer.py analyze --params #{Shellwords.escape(json_params)}"
-    stdout = send_command(command: cmd, container: "python")
-    result = parse_music_result(stdout)
-
-    if result.is_a?(Hash) && result["success"]
-      format_analysis_result(result)
-    else
-      error_msg = result.is_a?(Hash) ? result["error"] : "Unknown error"
-      "Error: #{error_msg}"
-    end
+    result["success"] ? format_analysis_result(result) : "Error: #{result['error'] || 'Unknown error'}"
   rescue => e
     "Error: Audio analysis failed: #{e.message}"
   end
 
   private
 
-  # The optional "librosa + madmom" install option (Actions → Install Options)
-  # is recorded as PYOPT_LIBROSA in the runtime config; gate on it to give an
-  # actionable message instead of a cryptic analyzer crash.
-  def audio_analysis_package_enabled?
-    defined?(CONFIG) && CONFIG.respond_to?(:[]) &&
-      CONFIG["PYOPT_LIBROSA"].to_s.strip.downcase == "true"
-  end
-
-  def run_music_action(action, params, session)
+  def run_music_action(action, params, session, workbench)
     cmd = build_music_command(action, params)
     stdout = send_command(command: cmd, container: "python")
     result = parse_music_result(stdout)
 
     if result.is_a?(Hash) && result["success"]
-      # Store ABC notation as HTML fragment for post-response injection via session.
-      # The helper's generic tool_html_fragments mechanism will append this after the model's text.
-      # ABCJS in the browser handles rendering and MIDI playback via WebAudio synthesis.
-      if result["abc"] && session
-        abc_html = "<div class=\"abc-code\"><pre>#{result["abc"]}</pre></div>"
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << abc_html
-      end
-
-      # Return text description for the model (no ABC — it's injected separately)
       text = "#{result['description']}\n"
       text += "Notes: #{result['notes'].join(', ')}\n" if result["notes"]&.any?
-      text
+      result["abc"] ? text + keep_score(result["abc"], action, session, workbench) : text
     else
       error_msg = result.is_a?(Hash) ? result["error"] : "Unknown error"
       "Error: #{error_msg}"
     end
   rescue => e
     "Error: Music generation failed: #{e.message}"
+  end
+
+  # Keeps the ABC as a .abc file in a run folder of the chat's folder and
+  # shows it on the work screen, which draws the score. The
+  # file is named after the tune's title (its T: line).
+  def keep_score(abc, action, session, workbench)
+    app_name = (session && session.dig(:parameters, "app_name")) || self.class.name
+    job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench, app_name: app_name)
+    return "The score could not be kept: there is no chat folder to keep it in." unless job
+
+    title = abc[/^T:(.+)$/, 1].to_s.gsub(/[^\p{L}\p{N} _.-]/, "").strip[0, 60]
+    title = action if title.empty? || title.start_with?(".")
+    path = Monadic::Workbench::ChatOutput.keep(job, "#{title}.abc", abc)
+    Monadic::Workbench::ChatOutput.said("The score", path, shown: Monadic::Workbench::ChatOutput.show(path, workbench))
+  rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+    Monadic::Workbench::ChatOutput.drop_if_empty(job)
+    "The score could not be kept."
   end
 
   def format_analysis_result(result)

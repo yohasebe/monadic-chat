@@ -30,7 +30,7 @@ Defined in `MonadicSharedTools::Registry::TOOL_GROUPS` (`lib/monadic/shared_tool
 ## Tools Added to Every App
 
 - `file_operations` (always visible) is added to every app that does not import it.
-- `library_search` (conditional) is added to apps whose `library_search` capability is on (`finalize_capabilities!` in `dsl.rb`; off in Privacy Filter apps).
+- `library_search` (conditional) is added to apps whose `library_search` capability is on (`finalize_capabilities!` in `dsl.rb`).
 - `request_tool` is added to any app with a conditional import.
 
 These are not repeated in the table below.
@@ -42,25 +42,23 @@ Groups without a note are always visible. A provider list after a group or tool 
 | App | Providers | Imported groups | App tools |
 |---|---|---|---|
 | Auto Forge | OpenAI, Claude, Grok | `web_automation` (conditional), `planning` (OpenAI, Grok only), `verification` (OpenAI, Grok only) | `generate_application`, `validate_specification`, `list_projects`, `generate_additional_file`, `claude_code_agent` (Claude), `debug_application`, `finish_task`, `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
-| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
-| Chat Plus | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `session_context`, `file_operations` | — |
+| Chat | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `session_context`, `file_operations` | — |
 | Code Interpreter | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning`, `verification`, `parallel_python_execution`, `image_analysis` (conditional) | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Coding Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations`, `planning` | `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Concept Visualizer | OpenAI, Claude | `planning` | `generate_concept_diagram`, `list_diagram_examples` |
 | Document Generator | Claude | `planning`, `file_operations` | — |
-| DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file`, `stop_drawio_browser` |
+| DrawIO Grapher | OpenAI, Claude, Gemini, Grok | `planning` | `preview_drawio`, `write_drawio_file` |
 | Image Generator | OpenAI, Gemini, Grok | `planning` | `generate_image_with_gemini` (Gemini), `monadic_load_state`, `generate_image_with_grok` (Grok), `generate_image_with_openai` (OpenAI) |
 | Jupyter Notebook | OpenAI, Claude, Gemini, Grok | `jupyter_operations`, `python_execution`, `file_operations`, `file_reading`, `planning`, `verification` | `monadic_load_state`, `create_and_populate_jupyter_notebook` (Gemini, Grok), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
-| Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | — |
-| Language Practice Plus | OpenAI, Claude | — | `load_context`, `save_response`, `set_target_language` |
+| Language Practice | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | — | `load_context`, `save_response`, `set_target_language` |
 | Live Conversation | OpenAI, Gemini, Grok | — | — |
 | Mail Composer | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Ollama | `file_operations` | — |
 | Math Tutor | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `python_execution`, `file_reading`, `planning` | `load_learning_progress`, `save_learning_progress`, `add_solved_problem`, `add_concepts`, `add_weak_areas`, `add_learning_notes` |
-| Mermaid Grapher | OpenAI, Claude, Gemini, Grok | `web_search_tools` (conditional), `planning`, `verification` | `validate_mermaid_syntax`, `preview_mermaid`, `stop_mermaid_browser`, `analyze_mermaid_error`, `fetch_mermaid_docs` |
+| Mermaid Grapher | OpenAI, Claude, Gemini, Grok | `web_search_tools` (conditional), `planning`, `verification` | `validate_mermaid_syntax`, `preview_mermaid`, `analyze_mermaid_error`, `fetch_mermaid_docs` |
 | Monadic Chat Help | OpenAI | — | `find_help_topics`, `get_help_document`, `list_help_sections`, `search_help_by_section` |
 | Music Analyst | Gemini | — | `analyze_audio_features`, `critique_audio` |
 | Music Generator | Gemini | `planning` | `generate_music_with_lyria`, `generate_music_with_elevenlabs` |
-| Music Lab | OpenAI, Claude, Gemini, Grok | — | `play_chord`, `play_scale`, `play_interval`, `play_progression`, `generate_backing_track`, `analyze_audio_file` |
+| Music Tutor | OpenAI, Claude, Gemini, Grok | — | `play_chord`, `play_scale`, `play_interval`, `play_progression`, `generate_backing_track`, `analyze_audio_file` |
 | Novel Writer | OpenAI, Mistral, DeepSeek | `file_operations`, `planning` | `count_num_of_words`, `count_num_of_chars`, `load_novel_context`, `save_novel_context`, `add_character`, `update_progress`, `update_summary` |
 | Research Assistant | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | `file_operations`, `python_execution`, `file_reading`, `planning`, `parallel_dispatch`, `web_search_tools` (conditional) (OpenAI, Claude, Grok, Mistral, Cohere, DeepSeek only), `web_automation` (conditional) (OpenAI, Claude, Gemini, Grok only), `image_analysis` (conditional) | `load_research_progress` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `save_research_progress` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_finding` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_research_topics` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_search` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_sources` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `add_research_notes` (OpenAI, Claude, Gemini, Grok, Mistral, Cohere), `grok_code_agent` (Grok), `openai_code_agent` (OpenAI) |
 | Second Opinion | OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek | — | `second_opinion_agent`, `parallel_second_opinions` |

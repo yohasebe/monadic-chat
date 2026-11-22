@@ -74,7 +74,9 @@
     panel.className = 'py-3';
     panel.innerHTML =
       '<div id="lc-instruction" class="text-secondary mb-3" style="display:none !important;"></div>' +
-      '<div id="lc-controls-row" class="d-flex align-items-center flex-wrap mb-3"></div>' +
+      // The gap spaces the controls on a line and between lines alike, so a
+      // control that wraps starts at the row's left edge.
+      '<div id="lc-controls-row" class="d-flex align-items-center flex-wrap mb-3" style="gap: 0.5rem 1.25rem;"></div>' +
       '<div class="d-flex align-items-center mt-1">' +
       '<span class="me-3"><i class="fas fa-tower-broadcast me-1"></i><span id="lc-app-label"></span></span>' +
       '<button id="lc-toggle" class="btn btn-sm btn-lc text-nowrap" type="button">' +
@@ -103,30 +105,32 @@
     // The voice/speed/websearch/cardview row lives in #lc-controls-row,
     // ABOVE the Start/Stop button (layout request).
     controlsRow.innerHTML =
-      '<label for="lc-voice-select" class="text-secondary me-2" id="lc-voice-label"></label>' +
+      '<span id="lc-voice-wrap" class="d-inline-flex align-items-center">' +
+      '<label for="lc-voice-select" class="text-secondary text-nowrap me-2" id="lc-voice-label"></label>' +
       '<select id="lc-voice-select" class="form-select form-select-sm" style="max-width: 160px;"></select>' +
+      '</span>' +
       // NO d-flex here: Bootstrap's .d-flex is `display:flex !important`
       // and would beat the inline `display:none` used to hide this wrap on
       // xAI/Gemini (the same trap as the AI User row). Visibility is
       // driven exclusively by renderVoiceControls via setProperty.
-      '<span id="lc-speed-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
+      '<span id="lc-speed-wrap" class="text-secondary align-items-center" style="display:none !important;">' +
       '<label for="lc-speed-range" class="text-secondary me-2" id="lc-speed-label"></label>' +
       '<input type="range" id="lc-speed-range" min="0.25" max="1.5" step="0.05" value="1.0" style="width: 90px;">' +
       '<span id="lc-speed-value" class="text-secondary small ms-1">1.0</span>' +
       '</span>' +
-      '<span id="lc-cardview-wrap" class="text-secondary align-items-center ms-3">' +
-      '<input type="checkbox" id="lc-cardview-toggle" class="form-check-input me-1">' +
-      '<label for="lc-cardview-toggle" class="text-secondary" id="lc-cardview-label"></label>' +
+      '<span id="lc-cardview-wrap" class="text-secondary d-inline-flex align-items-center">' +
+      '<input type="checkbox" id="lc-cardview-toggle" class="form-check-input mt-0 me-1">' +
+      '<label for="lc-cardview-toggle" class="text-secondary text-nowrap" id="lc-cardview-label"></label>' +
       '</span>' +
-      '<span id="lc-tools-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
-      '<input type="checkbox" id="lc-tools-toggle" class="form-check-input me-1">' +
-      '<label for="lc-tools-toggle" class="text-secondary" id="lc-tools-label"></label>' +
+      '<span id="lc-tools-wrap" class="text-secondary align-items-center" style="display:none !important;">' +
+      '<input type="checkbox" id="lc-tools-toggle" class="form-check-input mt-0 me-1">' +
+      '<label for="lc-tools-toggle" class="text-secondary text-nowrap" id="lc-tools-label"></label>' +
       '</span>' +
       // Turn-detection selector: ONE folded control — separate
       // type/eagerness controls would show eagerness for a mode that does
       // not use it. Capability-gated to OpenAI (semantic_vad + eagerness
       // support). Labels name WHAT is judged, never API terms.
-      '<span id="lc-turn-wrap" class="text-secondary align-items-center ms-3" style="display:none !important;">' +
+      '<span id="lc-turn-wrap" class="text-secondary align-items-center" style="display:none !important;">' +
       // text-nowrap: this label is the longest in the row, and without it the
       // label itself breaks mid-word ("ターン / 判定") once the row fills up.
       // The row already wraps as a whole (flex-wrap), so the control moves to
@@ -149,7 +153,10 @@
     // bare "Card view" reads as broken once the session has ended, where
     // cards are the only display there is.
     $id('lc-cardview-label').textContent = t('ui.messages.lcCardView', 'Cards while talking');
-    $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Tools');
+    $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Search and compute');
+    // What the switch lets the assistant do, on the control itself.
+    $id('lc-tools-wrap').title = t('ui.messages.lcToolsHint',
+      'Lets the assistant check the time, run Python code, and search the Knowledge Base and the web during the conversation.');
     $id('lc-turn-label').textContent = t('ui.messages.lcTurnDetection', 'Turn detection');
     $id('lc-turn-opt-silence').textContent = t('ui.messages.lcTurnSilence', 'By silence (default)');
     $id('lc-turn-opt-low').textContent = t('ui.messages.lcTurnLow', 'By meaning — patient');
@@ -417,10 +424,17 @@
     }
   }
 
-  function zoneText(role) {
-    return role === 'user'
-      ? t('ui.messages.lcRoleUser', 'You')
-      : t('ui.messages.lcRoleAssistant', 'Assistant');
+  // A zone's role, shown as a card shows it: the same icon, name and color.
+  function renderRole(roleEl, role) {
+    roleEl.replaceChildren();
+    if (!role) return;
+    const user = role === 'user';
+    const icon = document.createElement('i');
+    icon.className = 'fas ' + (user ? 'fa-face-smile' : 'fa-robot');
+    const name = document.createElement('span');
+    name.className = 'fw-bold ' + (user ? 'user-color' : 'assistant-color');
+    name.textContent = user ? 'User' : 'Assistant';
+    roleEl.append(icon, name);
   }
 
   // Tool badges in the live view: the same semantics as the folded
@@ -435,9 +449,9 @@
   function renderZone(zone, entry, highlightChar) {
     const roleEl = zone.querySelector('.lc-live-role');
     const textEl = zone.querySelector('.lc-live-text');
-    if (roleEl) {
-      roleEl.textContent = entry.role ? zoneText(entry.role) : '';
-    }
+    if (roleEl) renderRole(roleEl, entry.role);
+    // The zone takes the colors of its role's card.
+    if (entry.role) { zone.dataset.role = entry.role; } else { delete zone.dataset.role; }
     if (textEl) {
       // Paragraph split: same "\n\n" semantics as the folded card.
       // The CURRENT zone may also carry the speech-highlight span.

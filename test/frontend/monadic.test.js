@@ -41,7 +41,6 @@ document.body.innerHTML = `
 <div id="reasoning-effort"></div>
 <div id="websearch"></div>
 <div id="websearch-badge"></div>
-<div id="monadic-badge"></div>
 <div id="tools-badge"></div>
 <div id="math-badge"></div>
 <div id="initial-prompt-toggle"></div>

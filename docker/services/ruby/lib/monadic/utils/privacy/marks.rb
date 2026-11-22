@@ -3,11 +3,10 @@
 module Monadic
   module Utils
     module Privacy
-      # Strings the user marks in what they write, for the Privacy Filter to
-      # mask: ⟦江戸川今太郎⟧, or with a type, ⟦Acme社|組織⟧. The marks are
-      # taken out of the text (the chat keeps the text as written, without
-      # them) and the strings are kept for the chat, masked wherever they
-      # occur from then on.
+      # Strings marked in the user messages of a conversation file from an
+      # earlier version: ⟦江戸川今太郎⟧, or with a type, ⟦Acme社|組織⟧. On
+      # import the marks are taken out of the text and the strings become
+      # words the chat hides. In new input ⟦ and ⟧ are ordinary characters.
       #
       # A ⟦ or ⟧ meant as itself is written \⟦ or \⟧. A mark that is not
       # closed, is nested, is empty, spans a line or names an unknown type is

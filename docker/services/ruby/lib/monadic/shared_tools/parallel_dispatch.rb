@@ -6,6 +6,7 @@ require 'timeout'
 require_relative "../utils/gemini_request"
 require_relative 'child_threads'
 require_relative '../utils/model_spec'
+require_relative '../workspace/request_context'
 require_relative '../utils/provider_response'
 
 module MonadicSharedTools
@@ -82,7 +83,9 @@ module MonadicSharedTools
       end
 
       # --- Configuration ---
-      model = session&.dig(:parameters, "model")
+      # The model and Web Search setting of the message being answered.
+      turn = Monadic::TurnSettings.current(session&.dig(:parameters))
+      model = turn.model
       unless model
         # Use provider-appropriate default from PROVIDER_CONFIG rather than hardcoding
         provider_cfg = resolve_provider_config
@@ -94,8 +97,7 @@ module MonadicSharedTools
       ws_enabled = if !websearch.nil?
                      websearch == true || websearch == "true"
                    else
-                     ws_val = session&.dig(:parameters, "websearch")
-                     ws_val == true || ws_val == "true"
+                     turn.websearch == true
                    end
       parent_ws_session_id = Thread.current[:websocket_session_id]
       provider_cfg = resolve_provider_config

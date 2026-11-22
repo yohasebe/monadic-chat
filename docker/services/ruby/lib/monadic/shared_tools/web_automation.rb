@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
-require 'cgi'
+require_relative 'browser_owner'
+require_relative '../utils/shared_path_guard'
+require_relative '../utils/tool_image_utils'
+require_relative '../workbench/chat_output'
 
 module MonadicSharedTools
   module WebAutomation
@@ -329,7 +332,8 @@ module MonadicSharedTools
       @captured_screenshots = []
     end
 
-    def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil)
+    def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil,
+                                     session: nil, workbench: nil)
       # Check if Selenium is available
       if error = check_selenium_or_error
         return error
@@ -340,8 +344,16 @@ module MonadicSharedTools
         return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
       end
 
+      # The captures go in a run folder of the chat, never the top of the
+      # shared folder.
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                      app_name: app_name || self.class.name)
+      return { success: false, error: "There is no chat folder to keep the screenshots in." } unless job
+
       # Build command
-      cmd_parts = ["viewport_capturer.py", url]
+      cmd_parts = ["viewport_capturer.py", Shellwords.escape(url),
+                   "-o", Shellwords.escape(File.join(Monadic::Utils::SharedPathGuard::CONTAINER_ROOT, job[:relative]))]
 
       # Apply preset or custom dimensions
       if preset
@@ -355,34 +367,37 @@ module MonadicSharedTools
 
       command = cmd_parts.join(" ")
 
-      # Execute capture
-      output = send_command(command: command, container: "python")
+      # Execute capture, in a browser slot of its own
+      output = begin
+        BrowserOwner.with_job { send_command(command: command, container: "python") }
+      rescue BrowserOwner::Refused => e
+        return { success: false, error: e.message }
+      end
 
       # Check if the command succeeded by looking for SUCCESS or ERROR in output
       if output.include?("SUCCESS:")
         # Parse output to extract screenshot filenames
         output_lines = output.split("\n")
         screenshots = output_lines.select { |line| line.strip.start_with?("- ") }
-                                 .map { |line| line.strip[2..-1] }
+                                 .map { |line| File.join(job[:relative], File.basename(line.strip[2..-1])) }
+
+        # The model is given the first one; the captures are in the chat's
+        # run folder and shown on the work screen.
+        view = model_view_of(screenshots.first)
+        shown = show_captures(screenshots, workbench)
 
         # Store in session
         @captured_screenshots ||= []
         @captured_screenshots.concat(screenshots)
-
-        # Create image gallery HTML
-        gallery_html = create_screenshot_gallery(screenshots)
 
         response = {
           success: true,
           message: "Successfully captured #{screenshots.length} screenshots.",
           screenshots: screenshots,
           filenames: screenshots.join("\n"),
-          gallery_html: gallery_html,
-          display_instruction: "Display the images using the gallery_html provided."
+          work_screen: shown ? CAPTURES_SHOWN_NOTE : CAPTURES_NOTE
         }
-
-        # Send the first screenshot as _image for LLM vision (Claude)
-        response[:_image] = screenshots.first if screenshots.first
+        response[:_image] = view || screenshots.first if screenshots.first
 
         response
       elsif output.include?("ERROR:")
@@ -408,13 +423,11 @@ module MonadicSharedTools
           screenshots: []
         }
       else
-        gallery_html = create_screenshot_gallery(@captured_screenshots)
         {
           success: true,
           message: "Found #{@captured_screenshots.length} screenshots in this session",
           screenshots: @captured_screenshots,
-          gallery_html: gallery_html,
-          display_instruction: "Please display the gallery_html below to show all captured screenshots."
+          work_screen: CAPTURES_NOTE
         }
       end
     end
@@ -510,10 +523,39 @@ module MonadicSharedTools
       # Normalize headless parameter: LLM may send string "false" which is truthy in Ruby
       headless = headless.to_s != "false"
 
-      headless_flag = headless ? "true" : "false"
-      output = send_command(command: "web_navigator.py --action start --url #{Shellwords.escape(url)} --headless #{headless_flag}", container: "python")
-      result = parse_navigator_response(output)
+      chat, epoch = BrowserOwner.current_work
+      return browser_state_error(:no_chat) unless chat
+
+      result = BrowserOwner.acting(chat, recovery: true) do
+        # A new start replaces the chat's browser: the old one is closed first.
+        previous = BrowserOwner.release(chat, epoch)
+        BrowserOwner.close_quietly(previous) if previous
+
+        code = BrowserOwner.begin_start(chat, epoch)
+        next browser_state_error(code) unless code == :ok
+
+        headless_flag = headless ? "true" : "false"
+        started = nil
+        kept = false
+        begin
+          started = navigator_result(BrowserOwner.navigator(['--action', 'start', '--managed', '--url', url.to_s,
+                                                             '--headless', headless_flag]), chat)
+        ensure
+          kept = BrowserOwner.finish_start(chat, started && started[:success] ? started[:session_id] : nil, epoch,
+                                           window: started && started[:window])
+        end
+        next started.merge(success: false, error: started[:error] || "The browser did not start.") unless started[:success] && started[:session_id]
+
+        unless kept
+          # The chat was replaced while the browser started: close what it made.
+          BrowserOwner.close_later(started[:session_id])
+          next browser_state_error(:replaced)
+        end
+        started
+      end
       return result unless result[:success]
+
+      placed = Monadic::WorkScreen.browser_opened(chat) if defined?(Monadic::WorkScreen)
 
       # Build response
       response = {
@@ -521,19 +563,18 @@ module MonadicSharedTools
         page_info: result[:page_info],
         actions_remaining: MAX_BROWSER_ACTIONS
       }
+      response[:work_screen] = Monadic::WorkScreen::FULL_NOTE if placed == :full
 
       if headless
         response[:message] = "Browser session started in headless mode (max #{MAX_BROWSER_ACTIONS} actions). Screenshots are returned as images."
       else
         response[:message] = "Browser session started (max #{MAX_BROWSER_ACTIONS} actions). Users can watch at: http://localhost:7900"
         response[:novnc_url] = "http://localhost:7900"
+        # Where the page is on the desktop the user sees (browser_display.py)
+        response[:display] = result[:display] if result[:display]
       end
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -550,8 +591,7 @@ module MonadicSharedTools
         return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
       end
 
-      output = send_command(command: "web_navigator.py --action navigate --url #{Shellwords.escape(url)}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action navigate --url #{Shellwords.escape(url)}")
       return result unless result[:success]
 
       response = {
@@ -561,11 +601,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -578,8 +614,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action click --selector #{Shellwords.escape(selector)}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action click --selector #{Shellwords.escape(selector)}")
       return result unless result[:success]
 
       response = {
@@ -589,11 +624,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -606,8 +637,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action type --selector #{Shellwords.escape(selector)} --text #{Shellwords.escape(text)}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action type --selector #{Shellwords.escape(selector)} --text #{Shellwords.escape(text)}")
       return result unless result[:success]
 
       response = {
@@ -617,16 +647,12 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
 
-    def browser_screenshot
+    def browser_screenshot(session: nil, workbench: nil)
       if limit_error = browser_action_guard!("screenshot")
         return limit_error
       end
@@ -634,8 +660,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action screenshot", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action screenshot")
       return result unless result[:success]
 
       response = {
@@ -644,11 +669,16 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
+      # Asked for: a copy is kept in the chat's folder, for the user to be
+      # shown when they want it.
+      view = model_view_of(result[:screenshot])
+      kept = keep_captures([result[:screenshot]].compact, session, workbench).first
+      if kept && kept != result[:screenshot]
+        response[:screenshot] = kept
+        response[:work_screen] = CAPTURES_NOTE
       end
+      response[:_image] = view || result[:screenshot] if result[:screenshot]
+      response[:work_screen] ||= SCREENSHOT_NOTE
 
       response
     end
@@ -661,8 +691,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action get_page_info", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action get_page_info")
       return result unless result[:success]
 
       {
@@ -680,8 +709,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action scroll --direction #{Shellwords.escape(direction)} --amount #{amount.to_i}", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action scroll --direction #{Shellwords.escape(direction)} --amount #{amount.to_i}")
       return result unless result[:success]
 
       scroll_msg = %w[top bottom].include?(direction) ? "Scrolled to #{direction} of page" : "Scrolled #{direction} by #{amount}px"
@@ -693,11 +721,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -710,11 +734,10 @@ module MonadicSharedTools
         return error
       end
 
-      cmd = "web_navigator.py --action press_key --key #{Shellwords.escape(key)}"
+      cmd = "--action press_key --key #{Shellwords.escape(key)}"
       cmd += " --selector #{Shellwords.escape(selector)}" if selector
 
-      output = send_command(command: cmd, container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator(cmd)
       return result unless result[:success]
 
       response = {
@@ -724,11 +747,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -745,12 +764,11 @@ module MonadicSharedTools
         return error
       end
 
-      cmd = "web_navigator.py --action select --selector #{Shellwords.escape(selector)}"
+      cmd = "--action select --selector #{Shellwords.escape(selector)}"
       cmd += " --value #{Shellwords.escape(value)}" if value
       cmd += " --text #{Shellwords.escape(text)}" if text
 
-      output = send_command(command: cmd, container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator(cmd)
       return result unless result[:success]
 
       response = {
@@ -761,11 +779,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -778,8 +792,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action back", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action back")
       return result unless result[:success]
 
       response = {
@@ -789,11 +802,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -806,8 +815,7 @@ module MonadicSharedTools
         return error
       end
 
-      output = send_command(command: "web_navigator.py --action forward", container: "python")
-      result = parse_navigator_response(output)
+      result = run_navigator("--action forward")
       return result unless result[:success]
 
       response = {
@@ -817,11 +825,7 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
@@ -835,11 +839,7 @@ module MonadicSharedTools
       end
 
       selectors_json = selectors.take(9).to_json
-      output = send_command(
-        command: "web_navigator.py --action annotate_elements --selectors #{Shellwords.escape(selectors_json)}",
-        container: "python"
-      )
-      result = parse_navigator_response(output)
+      result = run_navigator("--action annotate_elements --selectors #{Shellwords.escape(selectors_json)}")
       return result unless result[:success]
 
       response = {
@@ -849,26 +849,76 @@ module MonadicSharedTools
         actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
       }
 
-      if result[:screenshot]
-        response[:screenshot] = result[:screenshot]
-        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
-      end
+      attach_screenshot!(response, result)
 
       response
     end
 
     def stop_browser
-      output = send_command(command: "web_navigator.py --action stop", container: "python")
-      result = parse_navigator_response(output)
+      chat, epoch = BrowserOwner.current_work
+      return browser_state_error(:no_chat) unless chat
 
-      {
-        success: true,
-        message: result[:message] || "Browser session ended."
-      }
+      BrowserOwner.acting(chat, recovery: true) do
+        next browser_state_error(:replaced) if BrowserOwner.replaced?(chat, epoch)
+
+        session_id = BrowserOwner.release(chat, epoch)
+        next { success: true, message: "No browser session is open." } unless session_id
+        next { success: true, message: "Browser session ended." } if BrowserOwner.close_quietly(session_id)
+
+        { success: false, error: "The browser could not be closed now. It is no longer this conversation's, " \
+                                 "and Selenium closes it once it has been unused for a while." }
+      end
     end
 
     private
+
+    # Runs a web_navigator action on the browser this chat owns, naming its
+    # WebDriver session (see BrowserOwner).
+    def run_navigator(action_args)
+      chat, epoch = BrowserOwner.current_work
+      return browser_state_error(:no_chat) unless chat
+
+      BrowserOwner.acting(chat) do
+        session_id = BrowserOwner.session_for(chat, epoch)
+        next browser_state_error(BrowserOwner.replaced?(chat, epoch) ? :replaced : :none) unless session_id
+
+        args = [*Shellwords.split(action_args), '--managed', '--session-id', session_id]
+        result = navigator_result(BrowserOwner.navigator(args), chat)
+        # The chat was replaced meanwhile: what the action saw is not its own.
+        next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
+
+        BrowserOwner.note_window(chat, session_id, result[:window])
+        result
+      end
+    end
+
+    BROWSER_STATE_ERRORS = {
+      no_chat: ["browser_no_chat", "The browser tools are used from a chat."],
+      none: ["browser_not_started", "No browser session is open. Call start_browser first."],
+      chats_full: ["browser_chats_full", "Other conversations have every browser a conversation can keep open. " \
+                                         "This action was not run. Retry when one of them has finished."],
+      full: ["browser_full", "No browser is free right now: every browser session is in use. " \
+                             "This action was not run. Retry when one has finished."],
+      unavailable: ["browser_unavailable", "The browser service is not available right now. This action was not run. " \
+                                           "Retry in a moment; if it persists, restart Monadic Chat."],
+      replaced: ["browser_replaced", "This conversation was replaced; its browser is no longer its own. This action was not run."]
+    }.freeze
+
+    def browser_state_error(code)
+      error_code, message = BROWSER_STATE_ERRORS.fetch(code)
+      { success: false, error_code: error_code, error: message }
+    end
+
+    # The navigator's answer, with the names of what it saved turned into
+    # their paths in the chat's capture folder (BrowserOwner.capture_dir).
+    def navigator_result(output, chat)
+      result = parse_navigator_response(output.to_s)
+      %i[screenshot svg_file].each do |key|
+        result[key] = BrowserOwner.capture_path(result[key], chat) if result[key]
+      end
+      result[:screenshots] = Array(result[:screenshots]).filter_map { |name| BrowserOwner.capture_path(name, chat) } if result[:screenshots]
+      result
+    end
 
     def parse_navigator_response(output)
       # The output from send_command includes prefix text; find the JSON portion
@@ -885,25 +935,72 @@ module MonadicSharedTools
       end
     end
 
-    def create_screenshot_gallery(screenshots)
-      return "" if screenshots.empty?
+    # The chat shows no screenshots: the user watches the browser on the
+    # work screen.
+    SCREENSHOT_NOTE = 'This screenshot is for you to see; the chat does not show it. ' \
+                      'The user sees the browser on the work screen.'
+    CAPTURES_NOTE = 'The chat does not show these screenshots; they are in the shared folder. ' \
+                    'When the user wants to see one, show it with show_on_workbench.'
+    CAPTURES_SHOWN_NOTE = 'These screenshots are shown on the work screen beside the chat; the chat does not ' \
+                          'show them. In your reply, do not put them in the text.'
 
-      @gallery_screenshot_counter ||= 0
-      total = screenshots.length
-      # Use Monadic Chat's standard image display format
-      html = ""
-      screenshots.each_with_index do |filename, index|
-        @gallery_screenshot_counter += 1
-        safe_filename = CGI.escapeHTML(filename.to_s)
-        html += <<~HTML
-          <div class="generated_image">
-            <p><strong>Screenshot #{@gallery_screenshot_counter}:</strong> #{safe_filename}</p>
-            <img src="/data/#{safe_filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" data-screenshot-dpr="2" />
-          </div>
-        HTML
+    # The screenshot an action took: the model gets it, under a name by
+    # which it is removed once read (ToolImageUtils); the chat does not
+    # show it, and nothing of it stays in the shared folder.
+    def attach_screenshot!(response, result)
+      shot = result[:screenshot]
+      return unless shot
+
+      Monadic::Utils::ToolImageUtils.sweep_for_model
+      response[:_image] = Monadic::Utils::ToolImageUtils.for_model!(shot) || shot
+      response[:work_screen] ||= SCREENSHOT_NOTE
+    end
+
+    # A copy of a screenshot (a name directly in the shared folder) for the
+    # model to see, removed once read; nil when it cannot be made.
+    def model_view_of(shot)
+      return nil unless Monadic::Utils::ToolImageUtils.tool_image_path?(shot)
+
+      folder = Monadic::Utils::Environment.data_path
+      view = File.join(File.dirname(shot), Monadic::Utils::ToolImageUtils.for_model_name).delete_prefix("./")
+      Monadic::Utils::ToolImageUtils.sweep_for_model
+      Monadic::Utils::SharedPathGuard.copy_file!(File.join(folder, shot), File.join(folder, view))
+      view
+    rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+      nil
+    end
+
+    # Shows captures kept in the chat's folder on the work screen, the
+    # first one last so that it is the one in view; true when every one is
+    # shown.
+    def show_captures(paths, workbench)
+      kept = paths.select { |path| path.is_a?(String) && File.basename(path) != path }
+      return false if kept.empty? || kept.length != paths.length
+
+      kept.reverse.map { |path| Monadic::Workbench::ChatOutput.show(path, workbench) }.all?
+    end
+
+    # Moves screenshots a capture left directly in the shared folder into a
+    # run folder of the chat; returns their paths there (the names as they
+    # were, without a chat or when one cannot be moved).
+    def keep_captures(names, session, workbench)
+      return names if names.empty?
+
+      app_name = session.respond_to?(:[]) ? session.dig(:parameters, 'app_name') : nil
+      job = Monadic::Workbench::ChatOutput.run_folder(session: session, workbench: workbench,
+                                                      app_name: app_name || self.class.name)
+      return names unless job
+
+      folder = Monadic::Utils::Environment.data_path
+      names.map do |name|
+        next name unless Monadic::Utils::ToolImageUtils.tool_image_path?(name)
+
+        kept = File.join(job[:relative], File.basename(name))
+        Monadic::Utils::SharedPathGuard.rename_file!(File.join(folder, name), File.join(folder, kept))
+        kept
+      rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
+        name
       end
-
-      html
     end
   end
 end

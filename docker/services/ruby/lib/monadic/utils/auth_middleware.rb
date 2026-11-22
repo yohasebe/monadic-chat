@@ -114,7 +114,7 @@ module Monadic
 
       def attach_auth_cookie(headers, token)
         # Don't ship Secure flag yet — the app uses HTTP on the LAN.
-        # Path=/ ensures the cookie applies to /js, /css, /pdf, etc.
+        # Path=/ ensures the cookie applies to /js, /css, etc.
         # SameSite=Lax keeps the cookie on top-level navigations while
         # preventing cross-site requests from carrying it.
         #

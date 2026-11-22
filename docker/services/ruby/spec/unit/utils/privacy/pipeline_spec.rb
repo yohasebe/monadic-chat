@@ -72,15 +72,6 @@ RSpec.describe Monadic::Utils::Privacy::Pipeline do
     end
   end
 
-  describe 'PRESIDIO_TYPE_MAP completeness' do
-    it 'covers every symbol in PrivacyFilterConfiguration::ALLOWED_TYPES' do
-      require 'monadic/dsl/configurations'
-      missing = MonadicDSL::PrivacyFilterConfiguration::ALLOWED_TYPES - Monadic::Utils::Privacy::PRESIDIO_TYPE_MAP.keys
-      expect(missing).to be_empty,
-        "Symbols allowed in DSL but not mapped to Presidio canonical: #{missing}"
-    end
-  end
-
   describe 'language resolution from session conversation_language' do
     def build_with_session(session_hash)
       described_class.new(backend: fake_backend, config: { enabled: true }, session: session_hash)

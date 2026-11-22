@@ -139,6 +139,15 @@ RSpec.describe Monadic::Workspace::Publications do
       expect(folders).to be_empty
     end
 
+    it "publishes no image a chat's generator made: an image is read from the chat's folder, never from a copy" do
+      record, = ledger.register_image(artifact_id: ids.generate(:artifact), chat_id: workspace && chat_id,
+                                      name: '20261106-091233_cat.png', size: 5, sha256: 'b' * 64, content_type: 'image/png',
+                                      width: 8, height: 6, run: "j_#{'a' * 20}", request_id: ids.generate(:request))
+      expect { pubs.create!(kind: 'artifact', id: record[:artifact_id], ledger: ledger) }
+        .to raise_error(described_class::Unavailable, /not published/)
+      expect(ledger.publications).to be_empty
+    end
+
     it 'refuses while the same source is being published' do
       source = attach
       reserved = ids.generate(:publication)

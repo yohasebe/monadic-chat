@@ -10,55 +10,16 @@
 
   // ── Message rendering helpers ──────────────────────────────────────
 
-  function getMessageAppName(msg) {
-    if (msg && msg.app_name) {
-      return msg.app_name;
-    }
-
-    if (window.SessionState && typeof window.SessionState.getCurrentApp === 'function') {
-      var current = window.SessionState.getCurrentApp();
-      if (current) return current;
-    }
-
-    if (typeof params !== 'undefined' && params && params["app_name"]) {
-      return params["app_name"];
-    }
-
-    return null;
-  }
-
-  function getMessageMonadicFlag(msg) {
-    if (msg && typeof msg.monadic !== 'undefined') {
-      return msg.monadic;
-    }
-
-    if (typeof params !== 'undefined' && params && typeof params["monadic"] !== 'undefined') {
-      return params["monadic"];
-    }
-
-    if (window.SessionState && window.SessionState.app && window.SessionState.app.params) {
-      var appParams = window.SessionState.app.params;
-      if (typeof appParams["monadic"] !== 'undefined') {
-        return appParams["monadic"];
-      }
-    }
-
-    return false;
-  }
-
   function renderMessage(msg) {
     if (!msg) {
       console.error('renderMessage: msg is null or undefined');
       return '';
     }
 
-    var appName = getMessageAppName(msg);
-    var monadicFlag = getMessageMonadicFlag(msg);
-
     // Priority 1: Client-side rendering with MarkdownRenderer
     if (msg.text && window.MarkdownRenderer) {
       try {
-        var result = window.MarkdownRenderer.render(msg.text, { appName: appName, isMonadic: monadicFlag });
+        var result = window.MarkdownRenderer.render(msg.text);
         return result;
       } catch (err) {
         console.error('MarkdownRenderer failed:', err);
@@ -160,13 +121,8 @@
 
   // ── KaTeX ──────────────────────────────────────────────────────────
 
-  var katexMacros = {
-    "\\R": "\\mathbb{R}",
-    "\\N": "\\mathbb{N}",
-    "\\Z": "\\mathbb{Z}",
-    "\\Q": "\\mathbb{Q}",
-    "\\C": "\\mathbb{C}"
-  };
+  // The page's macros (markdown-renderer.js, loaded before this file)
+  var katexMacros = window.MarkdownRenderer.katexMacros;
 
   function renderKatexInHTML(html) {
     if (typeof katex === 'undefined') return html;
@@ -238,160 +194,6 @@
 
   // ── Mermaid ────────────────────────────────────────────────────────
 
-  var mermaid_config = {
-    startOnLoad: true,
-    securityLevel: 'strict',
-    theme: 'default'
-  };
-
-  function sanitizeMermaidSource(text) {
-    if (!text) {
-      return text;
-    }
-
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\\n/g, '\n')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      // Fold Western "smart" punctuation back to ASCII so LLM-pasted curly
-      // quotes / typographic dashes do not break the Mermaid parser.
-      //
-      // CJK SAFETY (do NOT add these to the classes below): the Japanese
-      // long-vowel mark "\u30FC" (U+30FC, as in \u30AF\u30ED\u30DE\u30C8\u30B0\u30E9\u30D5\u30A3\u30FC) and the corner
-      // brackets "\u300C\u300D" (U+300C/U+300D) are normal CJK characters, not Western
-      // punctuation lookalikes. Folding them to '-' / '"' corrupts Japanese
-      // node labels and makes Mermaid throw "Syntax error in text". This rule
-      // is mirrored server-side in sanitize_mermaid_code (mermaid_grapher_tools.rb)
-      // and pinned by the mermaid-sanitize CJK-safety specs on both sides.
-      .replace(/[\u2010-\u2015\u2212\uFF0D]/g, '-')
-      .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
-      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"');
-  }
-
-  async function applyMermaid(element) {
-    // Lazy-load Mermaid on first use
-    if (window.LazyLoader) await window.LazyLoader.mermaid();
-    if (typeof mermaid === 'undefined') return;
-    mermaid.initialize(mermaid_config);
-
-    var domEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
-    if (!domEl) return;
-    domEl.querySelectorAll(".mermaid-code").forEach(function (mermaidDom, index) {
-      mermaidDom.classList.add("sourcecode");
-      mermaidDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
-      var mermaidText = mermaidDom.textContent.trim();
-      var sanitizedMermaidText = sanitizeMermaidSource(mermaidText);
-      mermaidDom.querySelectorAll("pre").forEach(function(pre) { pre.textContent = mermaidText; });
-      addToggleSourceCode(mermaidDom, "Toggle Mermaid Diagram");
-
-      var containerId = 'diagram-' + index;
-      var wrapper = document.createElement('div');
-      wrapper.className = 'diagram-wrapper';
-
-      // Build the <mermaid> element via DOM APIs with textContent so the
-      // (entity-unescaped) diagram source can never be parsed as HTML —
-      // the previous innerHTML interpolation was an injection path for
-      // markup smuggled inside a mermaid code block.
-      var diagramDiv = document.createElement('div');
-      diagramDiv.className = 'diagram';
-      diagramDiv.id = containerId;
-      var mermaidEl = document.createElement('mermaid');
-      mermaidEl.textContent = sanitizedMermaidText;
-      diagramDiv.appendChild(mermaidEl);
-      wrapper.appendChild(diagramDiv);
-
-      var errorDiv = document.createElement('div');
-      errorDiv.className = 'error-message';
-      errorDiv.id = 'error-' + containerId;
-      errorDiv.style.display = 'none';
-      wrapper.appendChild(errorDiv);
-
-      mermaidDom.parentNode.insertBefore(wrapper, mermaidDom.nextSibling);
-
-      try {
-        var type = mermaid.detectType(sanitizedMermaidText);
-        if (!type) {
-          throw new Error("Invalid diagram type");
-        }
-      } catch (error) {
-        var errorElement = wrapper.querySelector('#error-' + containerId);
-        if (errorElement) {
-          // error.message derives from the (model-influenced) diagram
-          // source — build via DOM/textContent, never innerHTML.
-          var alertDiv = document.createElement('div');
-          alertDiv.className = 'alert alert-danger';
-          var strong = document.createElement('strong');
-          strong.textContent = 'Mermaid Syntax Error:';
-          alertDiv.appendChild(strong);
-          alertDiv.appendChild(document.createElement('br'));
-          alertDiv.appendChild(document.createTextNode(error.message));
-          errorElement.appendChild(alertDiv);
-          $show(errorElement);
-        }
-        var diagramEl = wrapper.querySelector('.diagram');
-        $hide(diagramEl);
-      }
-    });
-
-    try {
-      await mermaid.run({ querySelector: 'mermaid' });
-    } catch (error) {
-      console.error('Mermaid rendering error:', error);
-    }
-
-    // Trim excess whitespace from Mermaid-rendered SVGs.
-    // Mermaid sometimes generates viewBoxes larger than the actual diagram content,
-    // leaving empty space on the right and below. Measure real content bounds via
-    // getBBox() and shrink the viewBox + max-width accordingly.
-    domEl.querySelectorAll(".diagram:not(.drawio-diagram) svg").forEach(function(svgEl) {
-      try {
-        var bbox = svgEl.getBBox();
-        if (!bbox || bbox.width <= 0 || bbox.height <= 0) return;
-
-        var padding = 8;
-        var newX = Math.floor(bbox.x - padding);
-        var newY = Math.floor(bbox.y - padding);
-        var newW = Math.ceil(bbox.width + padding * 2);
-        var newH = Math.ceil(bbox.height + padding * 2);
-
-        svgEl.setAttribute('viewBox', newX + ' ' + newY + ' ' + newW + ' ' + newH);
-        // Constrain SVG to its content width — prevents stretching to full container
-        svgEl.style.maxWidth = newW + 'px';
-      } catch(e) {
-        // getBBox() may fail in non-browser environments — graceful fallback
-      }
-    });
-
-    domEl.querySelectorAll(".diagram").forEach(function (diagramDom, index) {
-      if (diagramDom.style.display !== 'none' && diagramDom.offsetParent !== null) {
-        var downloadButton = document.createElement('div');
-        downloadButton.className = 'mb-3';
-        downloadButton.innerHTML = '<button class="btn btn-secondary btn-sm">Download SVG</button>';
-        downloadButton.addEventListener('click', function () {
-          var svgElement = diagramDom.querySelector('svg');
-          if (svgElement) {
-            var serializer = new XMLSerializer();
-            var source = serializer.serializeToString(svgElement);
-            var blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'diagram-' + (index + 1) + '.svg';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }
-        });
-        diagramDom.parentNode.insertBefore(downloadButton, diagramDom.nextSibling);
-      }
-    });
-  }
-
   // ── DrawIO viewer lazy loader ─────────────────────────────────────
 
   var drawioViewerLoaded = false;
@@ -432,7 +234,7 @@
       cbs.forEach(function(cb) { try { cb(new Error('Failed to load DrawIO viewer')); } catch(e) {} });
     }
 
-    // Try local file first, then CDN fallback (same pattern as mermaid.min.js)
+    // Try local file first, then CDN fallback
     var script = document.createElement('script');
     script.src = 'vendor/js/viewer-static.min.js';
     script.onload = onLoadSuccess;
@@ -506,7 +308,10 @@
         pendingRenders.forEach(function(item) {
           var errEl = item.diagramContainer.querySelector('#error-' + item.containerId);
           if (errEl) {
-            errEl.innerHTML = '<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>';
+            var alert = document.createElement('div');
+            alert.className = 'alert alert-danger';
+            alert.textContent = renderText('drawioViewerFailed', 'The draw.io viewer could not be loaded.');
+            errEl.replaceChildren(alert);
             $show(errEl);
           }
           var diagEl = item.diagramContainer.querySelector('.diagram');
@@ -527,7 +332,11 @@
         if (diagEl && diagEl.style.display !== 'none' && diagEl.offsetParent !== null) {
           var btn = document.createElement('div');
           btn.className = 'mb-3';
-          btn.innerHTML = '<button class="btn btn-secondary btn-sm">Download .drawio</button>';
+          var dl = document.createElement('button');
+          dl.type = 'button';
+          dl.className = 'btn btn-secondary btn-sm';
+          dl.textContent = renderText('downloadDrawio', 'Download .drawio');
+          btn.appendChild(dl);
           btn.addEventListener('click', function() {
             var blob = new Blob([item.xmlContent], { type: 'application/xml;charset=utf-8' });
             var url = URL.createObjectURL(blob);
@@ -598,7 +407,7 @@
   function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
     var lastClicked = abcElem.midiPitches;
     if (!lastClicked) return;
-    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
+    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches, 1000, window.AbcPlayer.SOUNDFONT_URL);
   }
 
   async function applyAbc(element) {
@@ -640,7 +449,6 @@
         add_classes: true,
         clickListener: self.abcClickListener,
         responsive: "resize",
-        soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
         scale: 0.65,
         staffwidth: 740,
         paddingtop: 6,
@@ -668,7 +476,7 @@
       }
 
       // Pass DOM element directly to renderAbc for reliable rendering
-      var renderResult = ABCJS.renderAbc(svgDiv, abcText, abcOptions);
+      var renderResult = ABCJS.renderAbc(svgDiv, window.AbcPlayer.playableText(abcText), abcOptions);
       if (!renderResult || renderResult.length === 0) {
         console.error('[applyAbc] ABCJS.renderAbc returned empty result for:', abcText.substring(0, 100));
       }
@@ -704,58 +512,22 @@
         }
       }
 
-      // Always set up ABCJS MIDI synth for playback
+      // Playing controls, with the sounds Monadic Chat carries (abc-player.js)
       if (visualObj && ABCJS.synth.supportsAudio()) {
-        var synthControl = new ABCJS.synth.SynthController();
-        var cursorControl = new abcCursorControl('#' + abcSVG);
-        synthControl.load('#' + abcMidi, cursorControl, {
-          displayLoop: true,
-          displayRestart: true,
-          displayPlay: true,
-          displayProgress: true,
-          displayWarp: true
-        });
+        var synthControl = window.AbcPlayer.attach(midiDiv, visualObj, new abcCursorControl('#' + abcSVG));
 
-        // Force compact sizing on ABCJS audio controls via inline styles.
-        // This bypasses CSS cascade/layer issues that can leave controls oversized.
-        var audioEl = midiDiv.querySelector('.abcjs-inline-audio');
-        if (audioEl) {
-          audioEl.style.height = '26px';
-          audioEl.style.padding = '0 5px';
-          audioEl.style.boxSizing = 'border-box';
-          var btns = midiDiv.querySelectorAll('.abcjs-btn');
-          for (var b = 0; b < btns.length; b++) {
-            btns[b].style.width = '28px';
-            btns[b].style.height = '26px';
-            btns[b].style.padding = '4px';
-            btns[b].style.boxSizing = 'border-box';
-          }
-          var svgs = midiDiv.querySelectorAll('.abcjs-btn svg');
-          for (var s = 0; s < svgs.length; s++) {
-            svgs[s].style.width = '100%';
-            svgs[s].style.height = '100%';
-          }
-          var progBg = midiDiv.querySelector('.abcjs-midi-progress-background');
-          if (progBg) {
-            progBg.style.height = '10px';
-          }
-          var clock = midiDiv.querySelector('.abcjs-midi-clock');
-          if (clock) {
-            clock.style.fontSize = '16px';
-          }
-          var tempoWrap = midiDiv.querySelector('.abcjs-tempo-wrapper');
-          if (tempoWrap) {
-            tempoWrap.style.fontSize = '10px';
-          }
-        }
-
-        synthControl.setTune(visualObj, false, {});
+        if (!synthControl) midiDiv.innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
       } else if (!visualObj) {
         midiDiv.innerHTML = "<div class='audio-error'>Failed to parse ABC notation.</div>";
       } else {
         midiDiv.innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
       }
     });
+  }
+
+  // A text of the render strings (ui.render.*), or its English fallback.
+  function renderText(key, fallback) {
+    return (typeof webUIi18n !== 'undefined' && webUIi18n.t) ? (webUIi18n.t('ui.render.' + key) || fallback) : fallback;
   }
 
   // ── Toggle / source code helpers ───────────────────────────────────
@@ -786,21 +558,22 @@
     if (domEl.dataset.title) {
       title = domEl.dataset.title;
     }
-    var toggleHide = "<i class='fa-solid fa-toggle-on'></i> " + title;
-    var toggleShow = "<i class='fa-solid fa-toggle-off'></i> " + title;
-    var controlDiv = document.createElement('div');
+    // A button (the keyboard reaches it); the title is text, never markup.
+    var controlDiv = document.createElement('button');
+    controlDiv.type = 'button';
     controlDiv.className = 'sourcecode-toggle unselectable';
-    controlDiv.innerHTML = toggleShow;
+    var icon = document.createElement('i');
+    icon.className = 'fa-solid fa-toggle-off';
+    icon.setAttribute('aria-hidden', 'true');
+    controlDiv.append(icon, document.createTextNode(' ' + title));
+    controlDiv.setAttribute('aria-expanded', 'false');
     domEl.parentNode.insertBefore(controlDiv, domEl);
     controlDiv.addEventListener('click', function () {
       var sourcecode = this.nextElementSibling;
-      if (sourcecode.style.display === 'none') {
-        $show(sourcecode);
-        this.innerHTML = toggleHide;
-      } else {
-        $hide(sourcecode);
-        this.innerHTML = toggleShow;
-      }
+      var show = sourcecode.style.display === 'none';
+      if (show) $show(sourcecode); else $hide(sourcecode);
+      icon.className = show ? 'fa-solid fa-toggle-on' : 'fa-solid fa-toggle-off';
+      this.setAttribute('aria-expanded', show ? 'true' : 'false');
     });
     $hide(domEl);
   }
@@ -849,14 +622,9 @@
 
   // ── Namespace export ───────────────────────────────────────────────
   var ns = {
-    getMessageAppName: getMessageAppName,
-    getMessageMonadicFlag: getMessageMonadicFlag,
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
     applyMath: applyMath,
-    mermaid_config: mermaid_config,
-    sanitizeMermaidSource: sanitizeMermaidSource,
-    applyMermaid: applyMermaid,
     abcCursorControl: abcCursorControl,
     abcClickListener: abcClickListener,
     applyAbc: applyAbc,
@@ -872,7 +640,6 @@
 
   // Backward-compat individual exports
   window.applyMath = applyMath;
-  window.applyMermaid = applyMermaid;
   window.applyDrawIO = applyDrawIO;
   window.applyAbc = applyAbc;
   window.applyToggle = applyToggle;

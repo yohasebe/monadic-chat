@@ -106,7 +106,7 @@ module Monadic
 
       # Produce the addendum text to be appended to the system prompt when
       # Expressive Speech is active. Dispatches to the right generator by
-      # family × capability × app-Monadic state. Returns nil when the
+      # family × capability. Returns nil when the
       # provider has no applicable addendum.
       #
       # Dispatch precedence (most specific first):
@@ -116,13 +116,11 @@ module Monadic
       #   else                                     → nil
       #
       # @param provider [String] TTS provider dropdown value
-      # @param app_is_monadic [Boolean] whether the active app is Monadic
-      def prompt_addendum_for(provider, app_is_monadic: false)
-        if tag_aware?(provider) && instruction_capable?(provider)
-          return hybrid_addendum_for(provider, app_is_monadic: app_is_monadic)
-        end
-        return marker_addendum_for(provider)         if tag_aware?(provider)
-        return instruction_addendum(app_is_monadic:) if instruction_mode?(provider)
+      def prompt_addendum_for(provider)
+        return hybrid_addendum_for(provider) if tag_aware?(provider) && instruction_capable?(provider)
+        return marker_addendum_for(provider) if tag_aware?(provider)
+        return instruction_addendum          if instruction_mode?(provider)
+
         nil
       end
 
@@ -175,17 +173,7 @@ module Monadic
         Pauses: <where to break — e.g., brief after apologies>
       TMPL
 
-      # Out-of-band instruction-mode addendum (OpenAI gpt-4o-mini-tts).
-      # Produces one of two variants based on whether the active app is
-      # Monadic:
-      #   * Monadic app  → JSON sibling `tts_instructions` field
-      #   * non-Monadic  → `<<TTS:...>>` sentinel prefix (stripped in backend
-      #                    before display; plain text follows the sentinel)
-      def instruction_addendum(app_is_monadic:)
-        app_is_monadic ? instruction_addendum_json : instruction_addendum_sentinel
-      end
-
-      # Intensity-matching guidance shared by both variants. Teaches the LLM
+      # Intensity-matching guidance of the instruction and hybrid addenda. Teaches the LLM
       # to escalate the directive's vividness when the reply is emotionally
       # strong, using visceral body-state verbs rather than mild adjectives.
       # Without this guidance, the LLM tends to default to neutral wording
@@ -195,28 +183,10 @@ module Monadic
         Match the directive's intensity to the reply's intensity. For neutral or factual content, keep directives neutral ("Voice: natural, balanced. Tone: conversational. Pacing: steady."). For strong emotional content — laughter, tears, anger, excitement, fear, awe — use visceral body-state verbs like "breathless", "gasping", "trembling", "choked", "bursting", "whispered", "quivering". The TTS engine responds far more strongly to vivid physical descriptions than to abstract emotion words alone.
       TEXT
 
-      def instruction_addendum_json
-        <<~ADDENDUM.strip
-          Expressive Speech (instruction mode): your JSON response should include an additional top-level field `tts_instructions` alongside `message` and `context`. The value is a 3-6 line directive for the text-to-speech engine using this exact attribute structure (one per line):
-
-          #{INSTRUCTION_ATTRIBUTE_TEMPLATE.lines.map { |l| "  #{l}" }.join.rstrip}
-
-          #{INSTRUCTION_INTENSITY_GUIDANCE}
-
-          Keep `tts_instructions` under 600 characters.
-
-          Plain prose only in `message` — no bracketed stage directions like [laugh] or [pause], no angle-bracket tags like <whisper>.
-
-          Example (strong amusement):
-          {
-            "message": "Oh my goodness, stop — you completely caught me off guard with that one.",
-            "context": { ... your app's usual context fields ... },
-            "tts_instructions": "Voice: breathless, barely containing laughter.\\nTone: uncontrollably amused, losing composure.\\nPacing: broken by gasps and mid-word chuckles.\\nEmotion: helpless joy, tears of laughter.\\nPronunciation: words faltering between giggles.\\nPauses: sudden bursts for air between thoughts."
-          }
-        ADDENDUM
-      end
-
-      def instruction_addendum_sentinel
+      # Out-of-band instruction-mode addendum (OpenAI gpt-4o-mini-tts): the
+      # reply begins with a `<<TTS:...>>` block, taken off before the reply
+      # is shown.
+      def instruction_addendum
         <<~ADDENDUM.strip
           Expressive Speech (instruction mode): begin every response with a text-to-speech directive block, then the actual reply on the next line.
 
@@ -249,7 +219,7 @@ module Monadic
       # prepends it to the text as an in-band prefix before calling the
       # Gemini API — Gemini's own models interpret it as a director's note
       # rather than literal speech. See `docs_dev/expressive_speech.md`.
-      def hybrid_addendum_for(provider, app_is_monadic: false)
+      def hybrid_addendum_for(provider)
         vocab = vocabulary_for(provider)
         return nil unless vocab
 
@@ -264,46 +234,26 @@ module Monadic
         sections << "   #{inline_line}"
         sections << "   Use sparingly at genuine emotional moments — at most one or two per response."
         sections << ""
-        if app_is_monadic
-          # Monadic apps answer in JSON: the directive is a sibling field,
-          # read by TtsInstructionExtractor.extract_json.
-          sections << "2) A directive for higher-level voice shaping, in an additional top-level JSON field `tts_instructions` alongside `message` and `context`, with a 3-6 line attribute set (one per line):"
-        else
-          sections << "2) A leading directive block for higher-level voice shaping. When present, it appears at the very start of the response between the literal delimiters `<<TTS:` and `>>`, with a 3-6 line attribute set (one per line):"
-        end
+        sections << "2) A leading directive block for higher-level voice shaping. When present, it appears at the very start of the response between the literal delimiters `<<TTS:` and `>>`, with a 3-6 line attribute set (one per line):"
         sections << ""
         sections << attribute_template
         sections << ""
-        sections << "   You may also add extra free-form lines #{app_is_monadic ? 'in the same field' : 'inside the same block'} for scene, audio-profile, or accent descriptions (e.g., \"Scene: late-night radio studio, warm ambient room tone.\"). Keep #{app_is_monadic ? 'the field' : 'the entire block'} under 600 characters."
+        sections << "   You may also add extra free-form lines inside the same block for scene, audio-profile, or accent descriptions (e.g., \"Scene: late-night radio studio, warm ambient room tone.\"). Keep the entire block under 600 characters."
         sections << ""
         sections << INSTRUCTION_INTENSITY_GUIDANCE
         sections << ""
         sections << "Rules (hard constraints):"
-        if app_is_monadic
-          sections << "- Never name, quote, describe, or list the markers or the `tts_instructions` field in `message`. They are silent stage directions, not conversation topics."
-          sections << "- `tts_instructions` is not shown to the user; the engine reads it as a director's note, not as speech. Never write `<<TTS:` delimiters anywhere in the JSON."
-          sections << "- Never open a conversation with a marker or a directive — the first-turn utterance should read cleanly."
-          sections << "- Per-turn you may use markers only, the directive only, both, or neither. Match the tool to the moment."
-          sections << ""
-          sections << "Example (hybrid, strong amusement):"
-          sections << "{"
-          sections << "  \"message\": \"[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one.\","
-          sections << "  \"context\": { ... your app's usual context fields ... },"
-          sections << "  \"tts_instructions\": \"Voice: breathless, barely containing laughter.\\nTone: uncontrollably amused.\\nPacing: broken by gasps and mid-word chuckles.\""
-          sections << "}"
-        else
-          sections << "- Never name, quote, describe, or list the markers or the directive block's delimiters in your reply. They are silent stage directions, not conversation topics."
-          sections << "- The `<<TTS:...>>` block is stripped before the message is shown to the user; the engine reads it as a director's note, not as speech."
-          sections << "- Never open a conversation with a marker or directive block — the first-turn utterance should read cleanly."
-          sections << "- Per-turn you may use markers only, the directive block only, both, or neither. Match the tool to the moment."
-          sections << ""
-          sections << "Example (hybrid, strong amusement):"
-          sections << "<<TTS:Voice: breathless, barely containing laughter."
-          sections << "Tone: uncontrollably amused."
-          sections << "Pacing: broken by gasps and mid-word chuckles.>>"
-          sections << ""
-          sections << "[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one."
-        end
+        sections << "- Never name, quote, describe, or list the markers or the directive block's delimiters in your reply. They are silent stage directions, not conversation topics."
+        sections << "- The `<<TTS:...>>` block is stripped before the message is shown to the user; the engine reads it as a director's note, not as speech."
+        sections << "- Never open a conversation with a marker or directive block — the first-turn utterance should read cleanly."
+        sections << "- Per-turn you may use markers only, the directive block only, both, or neither. Match the tool to the moment."
+        sections << ""
+        sections << "Example (hybrid, strong amusement):"
+        sections << "<<TTS:Voice: breathless, barely containing laughter."
+        sections << "Tone: uncontrollably amused."
+        sections << "Pacing: broken by gasps and mid-word chuckles.>>"
+        sections << ""
+        sections << "[laughs] Oh my goodness, stop — [sighs] you completely caught me off guard with that one."
 
         sections.join("\n")
       end

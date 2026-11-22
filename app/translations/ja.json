@@ -60,7 +60,7 @@
     "categories": {
       "latex": {
         "title": "LaTeX",
-        "help": "Concept Visualizer / Syntax Tree に必要",
+        "help": "Concept Visualizer に必要",
         "items": {
           "install": "LaTeX をインストール（図表用の最小セット）"
         }
@@ -73,12 +73,13 @@
           "spacy": "spaCy (3.7.5)",
           "gensim": "gensim",
           "mediapipe": "mediapipe（CPUのみ）",
-          "transformers": "transformers（CPUのみ）"
+          "transformers": "transformers（CPUのみ）",
+          "plotlyStatic": "Plotly の静止画（kaleido と Chromium）"
         }
       },
       "music": {
         "title": "音楽分析",
-        "help": "Music Lab に必要。音声分析ライブラリ（コード検出、テンポ/キー推定など）をインストールします。",
+        "help": "Music Tutor と Music Analyst に必要。音声分析ライブラリ（コード検出、テンポ/キー推定など）をインストールします。",
         "items": {
           "librosa": "librosa + madmom"
         }
@@ -104,6 +105,8 @@
     "restart": "再起動",
     "openConsole": "コンソールを開く",
     "openBrowser": "ブラウザ",
+    "showWebUI": "Web UI を表示",
+    "closeWebUI": "Web UI を閉じる",
     "openNoVNC": "noVNC を開く",
     "openSharedFolder": "共有フォルダ",
     "openConfigFolder": "設定フォルダを開く",
@@ -124,28 +127,37 @@
     "updateUserContainers": "ユーザーコンテナを更新",
     "startSeleniumContainer": "Seleniumコンテナを開始",
     "stopSeleniumContainer": "Seleniumコンテナを停止",
-    "startJupyterLab": "JupyterLabを開始",
+    "openJupyterLab": "JupyterLab を開く",
     "stopJupyterLab": "JupyterLabを停止",
     "importDocumentDB": "ドキュメントDBをインポート",
     "exportDocumentDB": "ドキュメントDBをエクスポート",
-    "open": "開く",
-    "openConsole": "コンソールを開く"
+    "open": "開く"
   },
   "tray": {
     "show": "表示",
     "quit": "終了"
   },
   "messages": {
-    "dockerNotRunning": "Docker Desktopが実行されていません。Docker Desktopを起動してから再試行してください。",
+    "dockerNotRunning": "Dockerが実行されていません。Docker Desktop（またはお使いのDocker互換の環境）を起動してから再試行してください。",
     "dockerPermissionDenied": "Dockerは動いていますが、このユーザーには使用する権限がありません。ユーザーをdockerグループに追加し（sudo usermod -aG docker $USER）、ログインし直してください。Omarchyでは代わりに omarchy-setup-security-sudoless-docker を実行します。dockerグループに入ると、root相当の権限を持つことになります。",
     "dockerEngineNotRunning": "Dockerが実行されていません。Dockerのサービス（sudo systemctl start docker）またはDocker Desktopを起動してから再試行してください。",
     "noInternetAtStartup": "起動時にインターネットに接続できませんでした。ローカルのモデル、設定、ファイルは使えます。クラウドのAIプロバイダー、コンテナイメージのダウンロード、アップデートの確認には接続が必要です。オンラインになったらMonadic Chatを再起動してください。",
-    "dockerNotRunningStart": "Docker Desktopが実行されていません。Docker Desktopを起動して<b>開始</b>ボタンを押してください。",
+    "dockerNotRunningStart": "Dockerが実行されていません。Docker Desktop（またはお使いのDocker互換の環境）を起動して<b>開始</b>ボタンを押してください。",
+    "dockerRefused": "Dockerを使えません：{{reason}}。",
+    "dockerEngine": "コンテナのエンジン：{{engine}}",
+    "dockerEngineContext": "コンテナのエンジン：{{engine}}（Docker の接続先：{{context}}）",
+    "pullProgress": "コンテナのイメージをダウンロードしています… {{size}}",
+    "pullDone": "コンテナのイメージをダウンロードしました（{{size}}）",
+    "pullProgressNoSize": "コンテナのイメージをダウンロードしています…",
+    "pullDoneNoSize": "コンテナのイメージをダウンロードしました",
+    "containerNotBuilt": "まだ作っていません",
     "systemInitComplete": "システム初期化完了",
     "openingBrowser": "ブラウザを開いています。",
     "openBrowserManually": "http://localhost:4567 を手動で開いてください",
     "browserOpenFailed": "ブラウザを自動で開けませんでした。http://localhost:4567 を手動で開いてください。",
     "serverVerifyFailed": "サーバーが実行中であることを確認できませんでした。Dockerの状態を確認して再起動してください。",
+    "rubyNotStarted": "Ruby コンテナが起動しなかったため、Monadic Chat は動いていません。",
+    "fixAndStartAgain": "原因を取り除いてから、もう一度<b>開始</b>を押してください。",
     "errorConnecting": "サーバーへの接続エラー。Dockerの状態を確認して再起動してください。",
     "newVersionAvailable": "新しいバージョン({{version}})が利用可能です（現在: {{current}}）。",
     "downloadAndInstall": "ダウンロードしてインストール",
@@ -159,6 +171,9 @@
     "serverNotRunning": "サーバーが起動していません。先にサーバーを起動してください。",
     "serverStoppedAfterSleep": "スリープ/復帰後にサーバーが停止しました。サーバーを再起動してください。",
     "quittingMonadicChat": "Monadic Chatを終了しています...",
+    "backgroundReplyDone": "返事を受け取りました。",
+    "backgroundReplyFailed": "返事を受け取れませんでした。Web UI で確認してください。",
+    "backgroundReplyLost": "接続が切れました。Web UI で確認してください。",
     "monadicChatPreparing": "Monadic Chatを準備しています...",
     "dockerNotInstalled": {
       "darwin": "Docker が見つかりません。Docker Desktop for Mac をインストールして起動し、<b>Start</b> を押してください。",
@@ -192,8 +207,6 @@
     "importingDocumentDB": "ドキュメントDBをインポートしています...",
     "exportingDocumentDB": "ドキュメントDBをエクスポートしています...",
     "stoppingDockerServices": "Dockerサービスを停止しています...",
-    "standaloneModeTip": "Monadic Chatの使用中はDocker Desktopが実行中であることを確認してください。",
-    "standaloneModeTipLinux": "Monadic Chatの使用中はDockerが実行中であることを確認してください。",
     "pressStartButton": "<b>開始</b>ボタンを押してサーバーを初期化してください。",
     "checkingForUpdates": "アップデートを確認しています...",
     "serverRunningOnPort": "サーバーがポート4567で実行中です。ブラウザを開いています。",
@@ -245,7 +258,7 @@
     "cancel": "キャンセル",
     "yes": "はい",
     "no": "いいえ",
-    "dockerNotRunning": "Dockerが実行されていません。まずDocker Desktopを起動してください。",
+    "dockerNotRunning": "Dockerが実行されていません。まずDocker Desktop（またはお使いのDocker互換の環境）を起動してください。",
     "dockerStarting": "Docker Desktopを起動しています...",
     "dockerStartFailed": "Docker Desktopの起動に失敗しました。手動で起動してから再試行してください。",
     "containersStarting": "Dockerコンテナを起動しています...",
@@ -254,6 +267,8 @@
     "containersUpdating": "Dockerコンテナを更新しています...",
     "quitConfirmTitle": "Monadic Chatを終了",
     "quitConfirmMessage": "Dockerコンテナが実行中です。終了前に停止しますか？",
+    "backgroundHoldFailedTitle": "マイクの停止を確認できませんでした",
+    "backgroundHoldFailedMessage": "マイクと音声が止まったことを確認できなかったため、Web UI を開いたままにしています。今すぐ閉じますか？画面の会話は失われます。",
     "stopContainers": "コンテナを停止",
     "quitDirectly": "直接終了",
     "confirmRemoveDockerData": "削除の確認",
@@ -267,7 +282,7 @@
     "seleniumWillNotStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナは起動しません。",
     "exportDbConfirmTitle": "ドキュメントDBをエクスポート",
     "exportDbConfirmMessage": "ドキュメントDB全体をエクスポートしますか?",
-    "exportDbConfirmDetail": "エクスポートには、保存されたすべての会話とPDFドキュメントが含まれます。出力ファイルの暗号化を強く推奨します — 暗号化しない場合、保存されている個人情報を含むすべての内容が平文ファイルに書き出されます。",
+    "exportDbConfirmDetail": "エクスポートには、ナレッジベースに保存したすべての会話とPDFドキュメントが含まれます。会話の履歴は含まれません。出力ファイルの暗号化を強く推奨します — 暗号化しない場合、保存されている個人情報を含むすべての内容が平文ファイルに書き出されます。",
     "exportDbEncrypted": "暗号化してエクスポート",
     "exportDbPlain": "平文でエクスポート",
     "exportDbPassphraseTitle": "エクスポート用パスフレーズの設定",
@@ -277,7 +292,7 @@
     "exportDbEncryptedFailed": "暗号化に失敗しました。平文の tarball (monadic-qdrant.tar.gz) はそのまま残っています。",
     "importDbConfirmTitle": "ドキュメントDBをインポート",
     "importDbConfirmMessage": "現在のドキュメントDBをインポートファイルで置き換えますか?",
-    "importDbConfirmDetail": "インポートを実行すると、現在保存されているすべての会話・PDF・Knowledge Base エントリが上書きされます。現在のデータはインポート後に復元できません。ファイル (~/monadic/data/monadic-qdrant.tar.gz または monadic-qdrant.tar.gz.enc) は信頼できる入手元のものであることを確認してください。",
+    "importDbConfirmDetail": "インポートを実行すると、ナレッジベースに保存したすべての会話・PDF・その他の Knowledge Base エントリが上書きされます。会話の履歴は変わりません。現在のデータはインポート後に復元できません。ファイル (~/monadic/data/monadic-qdrant.tar.gz または monadic-qdrant.tar.gz.enc) は信頼できる入手元のものであることを確認してください。",
     "importDbContinue": "置き換えてインポート",
     "importDbPassphraseTitle": "ドキュメントDBを復号",
     "importDbPassphraseHint": "エクスポート時に設定したパスフレーズを入力してください。",
@@ -335,6 +350,7 @@
       "notBuilt": "未ビルド",
       "optionsChanged": "オプションの変更（{{options}}）",
       "pythonContainer": "Python コンテナ",
+      "privacyContainer": "Privacy コンテナ（名前の検出）",
       "minutes": "{{range}} 分"
     }
   }

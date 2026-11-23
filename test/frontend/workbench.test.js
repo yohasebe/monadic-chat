@@ -1122,6 +1122,72 @@ describe('Workbench', () => {
       expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'empty' });
     });
 
+    describe('answering a capture of an image', () => {
+      const photo = { id: 'i_g', kind: 'file', actor: 'user', name: 'g.png', path: 'g.png', preview: 'image',
+        sha256: 'e'.repeat(64), version: 'e'.repeat(64), status: 'ok' };
+      let pointerNow;
+      let drawnShapes;
+      let drawImage;
+
+      beforeEach(async () => {
+        layout.pane = 'work';
+        pointerNow = null;
+        drawnShapes = [];
+        drawImage = jest.fn();
+        window.WorkbenchPointer = {
+          COLORS: { cyan: { fill: 'rgba(0,0,0,0.2)', line: '#000' } },
+          attach: () => ({ controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
+            pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false, dispose: jest.fn() })
+        };
+        jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
+          drawImage, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
+          rect: (...a) => drawnShapes.push(['rect', ...a]), ellipse: (...a) => drawnShapes.push(['ellipse', ...a])
+        }));
+        jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,QUJD');
+        view([photo], { assets: { i_g: '/workbench/asset/g' }, selected: 'i_g', selection_serial: 3 });
+        await flush();
+        const img = document.querySelector('#workbench-view .workbench-image-frame img');
+        Object.defineProperty(img, 'complete', { value: true });
+        Object.defineProperty(img, 'naturalWidth', { value: 800 });
+        Object.defineProperty(img, 'naturalHeight', { value: 600 });
+      });
+
+      afterEach(() => {
+        delete window.WorkbenchPointer;
+        jest.restoreAllMocks();
+      });
+
+      async function answer(wants = ['image']) {
+        const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+        global.fetch = posted;
+        window.Workbench.onCapture({ type: 'workbench_capture', id: 'cap-g', item_id: 'i_g', version: 'e'.repeat(64),
+          serial: 3, wants: wants });
+        await flush();
+        return JSON.parse(posted.mock.calls[0][1].body);
+      }
+
+      test('shows the image with the pointer\'s buttons above it', () => {
+        expect(document.querySelector('#workbench-view .workbench-image-bar .workbench-pointer-controls')).not.toBeNull();
+        expect(document.querySelector('#workbench-view .workbench-image-frame img.workbench-image')).not.toBeNull();
+      });
+
+      test('gives the whole image with the mark drawn on it, and where the mark is', async () => {
+        pointerNow = { at: 1, by: 'user', shape: 'ellipse', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        const body = await answer();
+        expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 800, 600, 0, 0, 800, 600);
+        expect(drawnShapes).toEqual([['ellipse', 400, 375, 200, 75, 0, 0, Math.PI * 2]]);
+        expect(body).toMatchObject({ image: 'QUJD', mark: { shape: 'ellipse', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 },
+          crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
+      });
+
+      test('gives no image when nothing is marked, or when no image is asked for', async () => {
+        expect((await answer()).image).toBeUndefined();
+        pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        expect((await answer(['range'])).image).toBeUndefined();
+        expect(drawImage).not.toHaveBeenCalled();
+      });
+    });
+
     describe('answering a capture of a PDF', () => {
       const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
         sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };

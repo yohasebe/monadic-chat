@@ -6831,6 +6831,10 @@ body.side-pane-resizing {
 .workbench-zoomable {
   cursor: zoom-in;
 }
+/* An image with the pointer: the mark is drawn over the image's frame. */
+.workbench-image-frame {
+  position: relative;
+}
 .workbench-zoomable:focus-visible {
   outline: 2px solid var(--color-link);
   outline-offset: 2px;
@@ -7059,7 +7063,8 @@ body.side-pane-resizing {
 }
 /* The bar stays at the top of the PDF while its pages scroll; the space
    under it is its own (the pages scroll under it, not into it). */
-.workbench-pdf-bar {
+.workbench-pdf-bar,
+.workbench-image-bar {
   position: sticky;
   top: 0;
   z-index: 4;

@@ -591,7 +591,31 @@
     img.alt = item.name || '';
     img.addEventListener('error', () => failed(drawn, false));
     img.src = url;
-    return img;
+    return kind === 'image' && window.WorkbenchPointer ? imageBody(img, drawn) : img;
+  }
+
+  // An image with the pointer over it: the pointer's buttons in a bar above
+  // it, the mark drawn over the image. drawn.image: { img, pointer(),
+  // pointerSeq(), dispose() }.
+  function imageBody(img, drawn) {
+    const box = element('div', 'workbench-image-view');
+    const frame = element('div', 'workbench-image-frame');
+    frame.append(img);
+    const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1 });
+    const bar = element('div', 'workbench-image-bar');
+    bar.append(pointing.controls);
+    box.tabIndex = 0;
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && pointing.escape()) e.preventDefault();
+    });
+    box.append(bar, frame);
+    drawn.image = {
+      img: img,
+      pointer: () => pointing.pointer(),
+      pointerSeq: () => pointing.pointerSeq(),
+      dispose: () => pointing.dispose()
+    };
+    return box;
   }
 
   // Gets the item's address for box: onBody(response) draws what came. A
@@ -791,6 +815,7 @@
     }
     drawn.gone = true;
     if (drawn.pdf) drawn.pdf.dispose();
+    if (drawn.image) drawn.image.dispose();
     if (drawn.render) drawn.render.dispose();
     if (drawn.player) drawn.player.stop();
   }
@@ -1226,28 +1251,36 @@
       const x1 = clip((right - frame.x) / frame.w);
       const y1 = clip((bottom - frame.y) / frame.h);
       if (!(x1 > x0 && y1 > y0)) return;
-      const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
-      const color = palette[pointer.color] ? pointer.color : 'orange';
-      const round = (v) => Math.round(v * 10000) / 10000;
-      mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color,
-               x: round(x0), y: round(y0), w: round(x1 - x0), h: round(y1 - y0) };
-      const px = x0 * frame.width;
-      const py = y0 * frame.height;
-      const pw = (x1 - x0) * frame.width;
-      const ph = (y1 - y0) * frame.height;
-      context.save();
-      const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
-      context.fillStyle = colors.fill;
-      context.strokeStyle = colors.line;
-      context.lineWidth = Math.max(2, Math.round(frame.width / 400));
-      context.beginPath();
-      if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
-      else context.rect(px, py, pw, ph);
-      context.fill();
-      context.stroke();
-      context.restore();
+      mark = paintMark(context, Object.assign({}, pointer, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }), frame.width, frame.height);
     };
     return { decorate: decorate, mark: () => mark };
+  }
+
+  // Paints the user's mark (x, y, w, h: fractions of what it is on) on a
+  // context of width × height pixels, translucent in its color, and returns
+  // it as it is said ({ shape, color, x, y, w, h }, rounded).
+  function paintMark(context, pointer, width, height) {
+    const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
+    const color = palette[pointer.color] ? pointer.color : 'orange';
+    const round = (v) => Math.round(v * 10000) / 10000;
+    const mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color,
+                   x: round(pointer.x), y: round(pointer.y), w: round(pointer.w), h: round(pointer.h) };
+    const px = pointer.x * width;
+    const py = pointer.y * height;
+    const pw = pointer.w * width;
+    const ph = pointer.h * height;
+    context.save();
+    const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
+    context.fillStyle = colors.fill;
+    context.strokeStyle = colors.line;
+    context.lineWidth = Math.max(2, Math.round(width / 400));
+    context.beginPath();
+    if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
+    else context.rect(px, py, pw, ph);
+    context.fill();
+    context.stroke();
+    context.restore();
+    return mark;
   }
 
   function pictureNow() {
@@ -1416,6 +1449,17 @@
     const w = (frame.right - frame.left) * sx;
     const h = (frame.bottom - frame.top) * sy;
     if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) return { image_note: 'not_in_view' };
+    const part = drawnPng(canvas, x, y, w, h, decorate);
+    if (handle.shown().drawing !== drawing) return { image_note: 'redrawn' };
+    return part;
+  }
+
+  // The part x, y, w, h (in source's own pixels) of source (a canvas or an
+  // image), drawn at most CUT_SIDE × CUT_PIXELS (into a canvas of that size),
+  // as PNG base64 with the part it is, or why there is none. decorate(context,
+  // frame), when given, draws over it (frame: the part, and the size it is
+  // drawn at, width and height).
+  function drawnPng(source, x, y, w, h, decorate) {
     const fit = Math.min(1, CUT_SIDE / Math.max(w, h), Math.sqrt(CUT_PIXELS / (w * h)));
     const width = Math.max(1, Math.floor(w * fit));
     const height = Math.max(1, Math.floor(h * fit));
@@ -1424,10 +1468,9 @@
     cut.height = height;
     const context = cut.getContext('2d');
     if (!context) return { image_note: 'failed' };
-    context.drawImage(canvas, x, y, w, h, 0, 0, width, height);
+    context.drawImage(source, x, y, w, h, 0, 0, width, height);
     if (decorate) decorate(context, { x: x, y: y, w: w, h: h, width: width, height: height });
     const url = cut.toDataURL('image/png');
-    if (handle.shown().drawing !== drawing) return { image_note: 'redrawn' };
     const comma = url.indexOf(',');
     if (!url.startsWith('data:image/png;base64,') || comma < 0) return { image_note: 'failed' };
     const image = url.slice(comma + 1);
@@ -1436,8 +1479,6 @@
     return { image: image, crop: { x: round(x), y: round(y), width: round(w), height: round(h), sent_width: width, sent_height: height } };
   }
 
-  // A capture of a PDF: the page in view and, as asked, the part of it in
-  // view and the text selected in it, all from the drawing shown now.
   // The text of a PDF page's text layer inside the user's mark: each piece
   // whose middle is in it, in the layer's order, as [text, cut] (at most
   // SELECTED_TEXT_LIMIT characters), or [null, false].
@@ -1476,6 +1517,33 @@
     return [chars.slice(0, SELECTED_TEXT_LIMIT).join(''), chars.length > SELECTED_TEXT_LIMIT];
   }
 
+  // A capture of an image: when the user marked a part of it and an image
+  // is asked for, the whole image as the tab has it, with the mark drawn on
+  // it, and where the mark is; else nothing more (the server has the image
+  // itself).
+  function imageAnswer(data, handle) {
+    const out = { range: {}, note: null };
+    const wants = Array.isArray(data.wants) ? data.wants : [];
+    const pointer = handle.pointer();
+    if (!wants.includes('image') || !pointer) return out;
+    const img = handle.img;
+    if (!img.complete || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return Object.assign(out, { image_note: 'drawing' });
+    let mark = null;
+    let part;
+    try {
+      part = drawnPng(img, 0, 0, img.naturalWidth, img.naturalHeight, (context, frame) => {
+        mark = paintMark(context, pointer, frame.width, frame.height);
+      });
+    } catch (_) {
+      part = { image_note: 'failed' };
+    }
+    Object.assign(out, part);
+    if (part.image && mark) out.mark = mark;
+    return out;
+  }
+
+  // A capture of a PDF: the page in view and, as asked, the part of it in
+  // view and the text selected in it, all from the drawing shown now.
   function pdfAnswer(data, drawn) {
     const handle = drawn.pdf;
     const shown = handle.shown();
@@ -1536,6 +1604,7 @@
     const wants = Array.isArray(data.wants) ? data.wants : [];
     const drawn = drawnBody && drawnBody.key === `${data.item_id}|${data.version}` ? drawnBody : null;
     if (drawn && drawn.pdf && now.range && Number.isInteger(now.range.page)) return pdfAnswer(data, drawn);
+    if (drawn && drawn.image) return imageAnswer(data, drawn.image);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {
       return { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };

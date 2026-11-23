@@ -215,8 +215,10 @@ module Monadic
         case file['preview']
         when 'image'
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
-          seen(item, 'image', file['name'], file['path'], file['sha256'],
-               image: ImageValue.checked(bytes, source: 'workbench_file'))
+          image = ImageValue.checked(bytes, source: 'workbench_file')
+          marked = scope == 'visible' ? marked_image(board, selection, caller, deadline, image) : {}
+          seen(item, 'image', file['name'], file['path'], file['sha256'], image: marked[:image] || image,
+                                                                            mark: marked[:mark], mark_drawn: !marked[:image].nil?)
         when 'pdf'
           bytes = -> { board.file_read(item['id'], sha256: file['sha256'])[:bytes] }
           content = if scope == 'visible'
@@ -278,6 +280,28 @@ module Monadic
         raise_unseen(answer['note'])
       rescue Capture::Failed => e
         raise Refused.new(REASONS.include?(e.reason) ? e.reason : 'range_unknown', e.message)
+      end
+
+      # The user's mark on the image the tab shows, and the image as the tab
+      # has it with the mark drawn on it: { mark:, image: } (image nil when
+      # the tab could not give it, or gave one of another shape than the
+      # file's), or {} when nothing is marked or the tab does not answer.
+      def marked_image(board, selection, caller, deadline, original)
+        item = selection.item
+        answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
+                                 request_id: caller.request_id, item_id: item['id'],
+                                 version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['image'],
+                                 deadline: deadline, valid: still(board, selection, caller))
+        mark = Pointing.mark_of(answer['mark']) or return {}
+        image, = Pdf.image_of(answer)
+        { mark: mark, image: image && same_shape?(image, original) ? image : nil }
+      rescue Capture::Failed
+        {}
+      end
+
+      # Whether two images have the same proportions (within 1%).
+      def same_shape?(one, other)
+        (one.width * other.height - other.width * one.height).abs <= 0.01 * one.width * other.height
       end
 
       # Why the page did not give the lines in view.
@@ -371,12 +395,14 @@ module Monadic
           out['image'] = NO_IMAGE if seen[:image_withheld]
         elsif seen[:image_withheld]
           out['image'] = NO_IMAGE
+          out['marked'] = image_marked(seen) if seen[:mark]
         elsif seen[:kind] == 'browser'
           # The title and the address are what the browser said near the
           # moment of the picture.
           out['image'] = "A picture of the browser's viewport, taken now, is attached after this result."
         elsif seen[:image]
           out['image'] = 'The image is attached after this result.'
+          out['marked'] = image_marked(seen) if seen[:mark]
         else
           out['lines'] = { 'first' => seen[:first_line], 'last' => seen[:last_line], 'total' => seen[:total_lines],
                            'last_line_cut' => seen[:partial_line] }
@@ -390,6 +416,17 @@ module Monadic
           out['text'] = seen[:text]
         end
         JSON.generate(out)
+      end
+
+      # Where the user marked an image, and whether the mark is drawn on the
+      # image the model gets.
+      def image_marked(seen)
+        if seen[:mark_drawn] && !seen[:image_withheld]
+          "The user marked a part of it with a translucent #{mark_place(seen[:mark], 'the image')} to point at it; " \
+            'the image attached is the one the tab shows, with the mark drawn on it.'
+        else
+          "The user marked a part of the image with a #{mark_place(seen[:mark], 'the image')} to point at it."
+        end
       end
 
       # A mark's color, shape and place, as fractions of what it is on.

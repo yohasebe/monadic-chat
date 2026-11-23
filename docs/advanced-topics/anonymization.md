@@ -15,6 +15,8 @@ Each chat keeps its own list of words to hide. Names are found by the Privacy co
 
 A word is hidden wherever it occurs in the chat. The status beside the message box shows how many words are hidden (**Hidden: n**); click it to open the panel again, change a word's type, or stop hiding a word. A word you chose not to hide is listed under **Not hidden:** and is not offered again; click it (**Offer this word again**) to put it back.
 
+A word is found as it is written: where a line break, a tab or more than one space falls inside it, in what you type or in a file the AI reads (one you put on the work screen or opened there), it is not found. Text you select in a PDF on the work screen is sent as one line, so a word broken across its lines is found there.
+
 A change applies to what the chat sends from then on.
 
 !> **What is anonymized.** Only text the app sends for the chat. Images, screen contents, file contents, files and pages that code execution or the browser reads, your voice (voice input sends the recording as it is to the speech-to-text service), names not in the list, and what was sent before a word was hidden are not covered. The chat history, the logs and a **Restored** export keep the original words. Anonymization makes the provider see placeholders instead of the listed words; it does not make a conversation safe to share.

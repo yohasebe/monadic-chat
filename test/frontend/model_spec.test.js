@@ -354,8 +354,7 @@ describe('Model Specification', () => {
     });
 
     it('should have different tool capabilities for different Cohere models', () => {
-      // Newer model with tool support
-      expect(modelSpec['command-a-vision-07-2025'].tool_capability).toBe(true);
+      expect(modelSpec['command-a-vision-07-2025'].tool_capability).toBe(false);
       expect(modelSpec['command-a-reasoning-08-2025'].tool_capability).toBe(true);
     });
   });

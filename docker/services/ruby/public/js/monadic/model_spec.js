@@ -804,7 +804,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true,
+    "tool_capability": false,
     "vision_capability": true,
   },
   "command-a-reasoning-08-2025": {
@@ -2004,7 +2004,7 @@ const providerDefaults = {
     "tts": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts"]
   },
   "cohere": {
-    "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
+    "chat": ["command-a-plus-05-2026", "command-a-03-2025", "command-a-reasoning-08-2025"],
     "vision": ["command-a-plus-05-2026"],
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },

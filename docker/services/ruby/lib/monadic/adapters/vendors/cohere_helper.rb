@@ -86,7 +86,8 @@ module CohereHelper
         Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec: #{e.message}" }
       end
 
-      api_models.sort
+      # A model that calls no tools cannot run an app: it is not offered.
+      api_models.reject { |name| Monadic::Utils::ModelSpec.get_model_property(name, "tool_capability") == false }.sort
     end
 
   # Simple non-streaming chat completion
@@ -721,9 +722,11 @@ module CohereHelper
       end
     end
 
-    # SSOT: If the model is not tool-capable, remove tools/tool_choice
+    # SSOT: If the model the request is sent to is not tool-capable (it can
+    # be the vision model a chat with an image was switched to), remove
+    # tools/tool_choice
     begin
-      spec_tool = Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability")
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(body["model"] || turn.model, "tool_capability")
       tool_capable = spec_tool.nil? ? true : !!spec_tool
     rescue StandardError
       tool_capable = true

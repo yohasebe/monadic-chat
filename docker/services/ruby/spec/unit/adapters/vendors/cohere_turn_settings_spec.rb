@@ -62,4 +62,41 @@ RSpec.describe "The settings of a Cohere turn" do
     expect(searching.call({ "websearch" => false }, { "websearch" => true })).to eq([false, false])
     expect(searching.call({}, { "websearch" => true })).to eq([false, false])
   end
+
+  describe "a model that calls no tools" do
+    let(:seeing) { "command-a-vision-07-2025" }
+
+    it "is sent no tools when the request goes to it, whatever model the message named" do
+      helper = Class.new(MonadicApp) { include CohereHelper }.new
+      stub_const("APPS", { "SpecApp" => Struct.new(:settings).new({ "tools" => [TurnSettingsTurn::TOOL] }) })
+      tools_for = lambda do |sent_to|
+        body = { "model" => sent_to }
+        helper.send(:configure_cohere_tools, body, { "app_name" => "SpecApp", "model" => model }, "SpecApp", {}, "user", false)
+        body.keys
+      end
+      expect(tools_for.call(model)).to include("tools")
+      expect(tools_for.call(seeing)).not_to include("tools", "tool_choice")
+    end
+
+    it "is not among the models offered" do
+      stub_const("CONFIG", CONFIG.to_h.merge("COHERE_API_KEY" => "k"))
+      names = [seeing, "command-a-plus-05-2026", "embed-v4.0"]
+      response = double("res", status: HTTP::Response::Status.new(200),
+                               body: JSON.generate({ "models" => names.map { |n| { "name" => n } } }))
+      client = double("http")
+      %i[headers timeout].each { |m| allow(client).to receive(m).and_return(client) }
+      allow(client).to receive(:get).and_return(response)
+      allow(HTTP).to receive(:headers).and_return(client)
+      allow(HTTP).to receive(:timeout).and_return(client)
+      before = $MODELS[:cohere]
+      $MODELS[:cohere] = nil
+      begin
+        offered = Class.new(MonadicApp) { include CohereHelper }.new.list_models
+      ensure
+        $MODELS[:cohere] = before
+      end
+      expect(offered).to include("command-a-plus-05-2026")
+      expect(offered).not_to include(seeing, "embed-v4.0")
+    end
+  end
 end

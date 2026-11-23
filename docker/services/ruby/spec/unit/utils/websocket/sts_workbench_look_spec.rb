@@ -58,6 +58,14 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
     end
   end
 
+  it "lets the look's record go also when reading it fails" do
+    ledger = double('ledger')
+    allow(ledger).to receive(:observations).and_raise(RuntimeError, 'broken')
+    expect(ledger).to receive(:close!)
+    allow(Monadic::Workbench::Look::Ledger).to receive(:of_request).and_return(ledger)
+    expect { helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'openai') }.to raise_error(RuntimeError)
+  end
+
   it 'passes a refusal on as it is' do
     allow(Monadic::Workbench::Look).to receive(:run).and_return('❌ Nothing was looked at in the work screen (no_selection): nothing.')
     expect(helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'openai')).to start_with('❌ Nothing was looked at')

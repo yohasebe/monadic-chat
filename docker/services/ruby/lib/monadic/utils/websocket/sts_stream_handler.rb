@@ -203,8 +203,10 @@ module WebSocketHelper
     ledger = Monadic::Workbench::Look::Ledger.of_request(chat_id, request_id)
     seen = ledger&.observations([result.observation_id])&.first
     image = seen&.image && { data_url: seen.image.data_url, caption: seen.caption.to_s }
-    ledger&.close!
     { output: result.to_s, image: image }
+  ensure
+    # The look's record is let go whatever happened (its bytes given back).
+    Monadic::Workbench::Look::Ledger.of_request(chat_id, request_id)&.close! if chat_id && request_id
   end
 
   # name → {description:, parameters: (JSON Schema hash),

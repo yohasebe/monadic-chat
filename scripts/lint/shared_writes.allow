@@ -78,4 +78,5 @@ docker/services/ruby/lib/monadic/workbench/picture.rb | FileUtils.mkdir_p(dir, m
 docker/services/ruby/lib/monadic/workbench/picture.rb | File.open(temp, File::WRONLY | state | a picture of the work screen sent with a message, written to a temporary file (state folder)
 docker/services/ruby/lib/monadic/workbench/picture.rb | File.rename(temp, path) | state | puts a picture of the work screen in place (state folder)
 docker/services/ruby/lib/monadic/workbench/picture.rb | FileUtils.rm_f(temp) | state | a picture's temporary file that could not be put in place (state folder)
+docker/services/ruby/lib/monadic/workbench/retention.rb | FileUtils.rm_rf(dir) | state | removes a chat's workbench folder when the chat is removed or not kept (state folder)
 docker/services/ruby/apps/syntax_tree/syntax_tree_tools.rb | File.write(input, notation) | system-temp | the notation given to RSyntaxTree, in a work folder of its own (Dir.mktmpdir)

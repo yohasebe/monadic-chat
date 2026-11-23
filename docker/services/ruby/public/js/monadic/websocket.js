@@ -894,6 +894,10 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "workbench_picture": {
+        if (window.Workbench && typeof window.Workbench.onPicture === 'function') window.Workbench.onPicture(data);
+        break;
+      }
       case "workbench_download": {
         if (window.Workbench) window.Workbench.onDownload(data);
         break;

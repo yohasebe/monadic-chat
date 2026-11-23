@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "stream_contract"
+require_relative "../../lib/monadic/workbench/picture"
 
 # One turn of a chat as a provider is sent it, for the specs of the
 # settings a message is answered with: the model calls a tool, the tool
@@ -41,8 +42,10 @@ module TurnSettingsTurn
   # in @turn_failed, not among those given back).
   # answers: the model's streams in order, in place of a tool call and then
   # an answer; the last is given again to every later request.
+  # picture: bytes of a picture of the work screen the message is sent with
+  # (Workbench::Picture, left in @turn_picture).
   def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [],
-                  answering: nil, messages: nil, failing: 0, answers: nil)
+                  answering: nil, messages: nil, failing: 0, answers: nil, picture: nil)
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
@@ -80,12 +83,22 @@ module TurnSettingsTurn
     allow(HTTP).to receive(:timeout).and_return(chain)
     chat = Monadic::Workspace::Ids.generate(:chat)
     session[Monadic::Workspace::Chats::SESSION_KEY] = chat
+    @turn_picture = nil
+    if picture
+      request_id = Monadic::Workspace::Ids.generate(:request)
+      @turn_picture = Monadic::Workbench::Picture.new(
+        id: "p_#{"a" * 20}", chat_id: chat, request_id: request_id, item_id: "i_1", version: "v" * 64, page: 2, pages: 5,
+        mark: { "shape" => "ellipse", "x" => 0.25, "y" => 0.5, "w" => 0.25, "h" => 0.125 }, bytes: picture
+      )
+    end
     context = if answering
                 Monadic::Workspace::RequestContext.new(chat_id: chat, parameters: answering,
                                                        settings: Monadic::TurnSettings.of(answering))
               else
                 Monadic::Workspace::RequestContext.new(chat_id: chat, parameters: session[:parameters],
-                                                       settings: Monadic::TurnSettings.accepted(message, kept))
+                                                       settings: Monadic::TurnSettings.accepted(message, kept),
+                                                       **(@turn_picture ? { request_id: @turn_picture.request_id,
+                                                                            picture: @turn_picture } : {}))
               end
     Monadic::Workspace::RequestContext.with(context) { helper.api_request("user", session) { |_| } }
     bodies

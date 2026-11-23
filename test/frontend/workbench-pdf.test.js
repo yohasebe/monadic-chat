@@ -348,6 +348,222 @@ describe('WorkbenchPdf', () => {
   });
 });
 
+describe('the pointer over a PDF page', () => {
+  let box;
+
+  beforeEach(() => {
+    jest.resetModules();
+    window.localStorage.clear();
+    document.body.innerHTML = '<div id="box"></div>';
+    box = document.getElementById('box');
+    HTMLCanvasElement.prototype.getContext = () => ({});
+    delete global.webUIi18n;
+    require(js('monadic/workbench-pdf.js'));
+  });
+
+  async function shown() {
+    window.WorkbenchPdf.loader = () => Promise.resolve(fakeLibrary());
+    const handle = window.WorkbenchPdf.show(box, new ArrayBuffer(8));
+    await flush();
+    const layer = box.querySelector('.workbench-pointer-layer');
+    // The page drawn 600 × 800 at (100, 50) on the screen.
+    layer.getBoundingClientRect = () => ({ left: 100, top: 50, width: 600, height: 800, right: 700, bottom: 850 });
+    layer.setPointerCapture = () => {};
+    return { handle, layer };
+  }
+
+  const at = (type, x, y) => new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true });
+  const button = (name) => box.querySelector(`.workbench-pdf-${name}`);
+  const mark = () => box.querySelector('.workbench-pointer');
+
+  test('puts the bar\'s buttons in three groups, each an icon button of one size named in a tooltip', async () => {
+    await shown();
+    const groups = [...box.querySelectorAll('.workbench-pdf-bar > .workbench-pdf-group')];
+    expect(groups.map((g) => [...g.querySelectorAll(':scope > button')].map((b) => b.className.match(/workbench-pdf-(?!icon)(\w+)/)[1])))
+      .toEqual([['prev', 'next'], ['out', 'in'], ['point', 'look', 'unpoint']]);
+    box.querySelectorAll('.workbench-pdf-bar button').forEach((b) => {
+      expect(b.classList.contains('workbench-pdf-icon')).toBe(true);
+      // Pointing in the color of the mark (below); the others grey.
+      expect(b.classList.contains(b.classList.contains('workbench-pdf-point') ? 'btn-info' : 'btn-secondary')).toBe(true);
+      expect(b.title).not.toBe('');
+      expect(b.getAttribute('aria-label')).not.toBe('');
+    });
+  });
+
+  test('shows its buttons only where the chat\'s model takes images', async () => {
+    const { handle } = await shown();
+    expect(box.querySelector('.workbench-pdf-pointing').hidden).toBe(true);
+    handle.setPointable(true);
+    expect(box.querySelector('.workbench-pdf-pointing').hidden).toBe(false);
+    handle.setPointable(false);
+    expect(box.querySelector('.workbench-pdf-pointing').hidden).toBe(true);
+  });
+
+  test('marks the part dragged over, as fractions of the page, and stops drawing then', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    expect(handle.pointer()).toBeNull();
+    button('point').click();
+    expect(layer.classList.contains('workbench-pointer-drawing')).toBe(true);
+    // Drawing shows on the button: pressed, a pen, its name how to stop.
+    expect(button('point').classList.contains('active')).toBe(true);
+    expect(button('point').querySelector('i').className).toBe('fa-solid fa-pen');
+    expect(button('point').getAttribute('aria-label')).toContain('Esc');
+    layer.dispatchEvent(at('pointerdown', 160, 250));
+    layer.dispatchEvent(at('pointermove', 400, 330));
+    layer.dispatchEvent(at('pointerup', 460, 290));
+    const p = handle.pointer();
+    expect(p).toMatchObject({ page: 1, shape: 'rect', color: 'orange' });
+    [['x', 0.1], ['y', 0.25], ['w', 0.5], ['h', 0.05]].forEach(([k, v]) => expect(p[k]).toBeCloseTo(v));
+    expect(handle.pointerSeq()).toBe(1);
+    expect(mark().hidden).toBe(false);
+    expect(mark().style.left).toBe('10%');
+    expect(mark().style.width).toBe('50%');
+    expect(layer.classList.contains('workbench-pointer-drawing')).toBe(false);
+    expect(button('point').classList.contains('active')).toBe(false);
+    expect(button('point').querySelector('i').className).toBe('fa-solid fa-crosshairs');
+    expect(button('point').getAttribute('aria-label')).not.toContain('Esc');
+  });
+
+  test('marks a small part around a click', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    button('point').click();
+    layer.dispatchEvent(at('pointerdown', 400, 450));
+    layer.dispatchEvent(at('pointerup', 400, 450));
+    const p = handle.pointer();
+    expect(p.w).toBeCloseTo(0.2);
+    expect(p.h).toBeCloseTo(0.05);
+    expect(p.x + p.w / 2).toBeCloseTo(0.5);
+    expect(p.y + p.h / 2).toBeCloseTo(0.5);
+  });
+
+  test('changes its size by a side or a corner held, and moves when held, each a change when let go', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    button('point').click();
+    // x 0.1..0.6, y 0.25..0.3 of the page drawn 600 × 800 at (100, 50).
+    layer.dispatchEvent(at('pointerdown', 160, 250));
+    layer.dispatchEvent(at('pointerup', 460, 290));
+    const edge = (name) => box.querySelector(`.workbench-pointer-${name}`);
+    const near = (p, want) => Object.entries(want).forEach(([k, v]) => expect(p[k]).toBeCloseTo(v));
+    // The left side, 60px (0.1) to the right.
+    edge('w').dispatchEvent(at('pointerdown', 160, 270));
+    edge('w').dispatchEvent(at('pointermove', 220, 270));
+    near(handle.pointer(), { x: 0.2, w: 0.4 });
+    expect(handle.pointerSeq()).toBe(1);
+    mark().dispatchEvent(at('pointerup', 220, 270));
+    expect(handle.pointerSeq()).toBe(2);
+    near(handle.pointer(), { x: 0.2, y: 0.25, w: 0.4, h: 0.05 });
+    // The lower right corner, out by 0.1 and 0.05.
+    edge('se').dispatchEvent(at('pointerdown', 460, 290));
+    mark().dispatchEvent(at('pointerup', 520, 330));
+    near(handle.pointer(), { x: 0.2, y: 0.25, w: 0.5, h: 0.1 });
+    // The whole mark, up by 0.1; not past the page's edge.
+    mark().dispatchEvent(at('pointerdown', 300, 280));
+    mark().dispatchEvent(at('pointerup', 300, 200));
+    near(handle.pointer(), { x: 0.2, y: 0.15, w: 0.5, h: 0.1 });
+    mark().dispatchEvent(at('pointerdown', 300, 200));
+    mark().dispatchEvent(at('pointerup', 900, 200));
+    near(handle.pointer(), { x: 0.5, w: 0.5 });
+    expect(handle.pointerSeq()).toBe(5);
+    // Held and let go where it was: no change. Held, it says so (its sides
+    // and corners stay shown).
+    mark().dispatchEvent(at('pointerdown', 500, 200));
+    expect(mark().classList.contains('workbench-pointer-held')).toBe(true);
+    mark().dispatchEvent(at('pointerup', 500, 200));
+    expect(mark().classList.contains('workbench-pointer-held')).toBe(false);
+    expect(handle.pointerSeq()).toBe(5);
+    // The margin around it holds nothing.
+    mark().dispatchEvent(at('pointerdown', 390, 200));
+    mark().dispatchEvent(at('pointerup', 300, 200));
+    expect(handle.pointerSeq()).toBe(5);
+    near(handle.pointer(), { x: 0.5 });
+  });
+
+  test('takes the look chosen in its menu, in the mark there is and the next, each a change', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    const menu = box.querySelector('.workbench-pdf-look-menu');
+    const pick = (kind, value) => menu.querySelector(`[data-${kind}="${value}"]`);
+    const colors = window.WorkbenchPdf.COLORS;
+    expect(Object.keys(colors)).toEqual(['orange', 'magenta', 'cyan', 'green', 'yellow']);
+    // Pointing is in the mark's color.
+    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(colors.orange.line);
+    expect(menu.hidden).toBe(true);
+    button('look').click();
+    expect(menu.hidden).toBe(false);
+    expect(button('look').getAttribute('aria-expanded')).toBe('true');
+    expect(pick('shape', 'rect').getAttribute('aria-pressed')).toBe('true');
+    // Chosen before there is a mark: the next takes it.
+    pick('color', 'cyan').click();
+    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(colors.cyan.line);
+    expect(handle.pointerSeq()).toBe(0);
+    button('point').click();
+    layer.dispatchEvent(at('pointerdown', 160, 250));
+    layer.dispatchEvent(at('pointerup', 460, 290));
+    expect(handle.pointer()).toMatchObject({ shape: 'rect', color: 'cyan' });
+    expect(mark().style.getPropertyValue('--mark-line')).toBe(colors.cyan.line);
+    // Chosen with a mark: it changes.
+    pick('shape', 'ellipse').click();
+    expect(handle.pointer()).toMatchObject({ shape: 'ellipse', color: 'cyan' });
+    expect(mark().classList.contains('workbench-pointer-ellipse')).toBe(true);
+    expect(pick('shape', 'ellipse').getAttribute('aria-pressed')).toBe('true');
+    expect(handle.pointerSeq()).toBe(2);
+    // Kept for this browser.
+    expect(JSON.parse(window.localStorage.getItem('monadic-pointer-look'))).toEqual({ shape: 'ellipse', color: 'cyan' });
+    // Closed by Escape and by a press outside.
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(menu.hidden).toBe(true);
+    button('look').click();
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(menu.hidden).toBe(true);
+    button('unpoint').click();
+    expect(handle.pointer()).toBeNull();
+    expect(mark().hidden).toBe(true);
+    expect(handle.pointerSeq()).toBe(3);
+  });
+
+  test('starts from the look this browser chose last, and from orange rectangles when it has none it takes', async () => {
+    window.localStorage.setItem('monadic-pointer-look', JSON.stringify({ shape: 'ellipse', color: 'magenta' }));
+    let { handle } = await shown();
+    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPdf.COLORS.magenta.line);
+    handle.dispose();
+    window.localStorage.setItem('monadic-pointer-look', JSON.stringify({ shape: 'star', color: 'red' }));
+    ({ handle } = await shown());
+    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPdf.COLORS.orange.line);
+    expect(box.querySelector('[data-shape="rect"]').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  test('is shown on its own page only', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    button('point').click();
+    layer.dispatchEvent(at('pointerdown', 160, 250));
+    layer.dispatchEvent(at('pointerup', 460, 290));
+    button('next').click();
+    await flush();
+    expect(mark().hidden).toBe(true);
+    button('prev').click();
+    await flush();
+    expect(mark().hidden).toBe(false);
+    expect(handle.pointer().page).toBe(1);
+  });
+
+  test('does not draw before the button is pressed, nor after Escape', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    layer.dispatchEvent(at('pointerdown', 160, 250));
+    layer.dispatchEvent(at('pointerup', 460, 290));
+    expect(handle.pointer()).toBeNull();
+    button('point').click();
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    layer.dispatchEvent(at('pointerdown', 160, 250));
+    layer.dispatchEvent(at('pointerup', 460, 290));
+    expect(handle.pointer()).toBeNull();
+  });
+});
+
 describe('a PDF item in the workbench', () => {
   beforeEach(() => {
     jest.resetModules();

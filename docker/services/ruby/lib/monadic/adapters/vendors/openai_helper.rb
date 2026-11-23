@@ -578,6 +578,9 @@ module OpenAIHelper
       next unless msg["images"]
 
       msg["images"].each do |img|
+        # A picture of the work screen is no material for an image.
+        next if img["workbench_picture"]
+
         begin
           is_mask = img["is_mask"] == true || img["title"].to_s.start_with?("mask__")
           if img["data"].to_s.start_with?("/data/")

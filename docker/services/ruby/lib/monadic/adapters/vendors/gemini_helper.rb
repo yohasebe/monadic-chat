@@ -1851,8 +1851,10 @@ module GeminiHelper
         end
       end
 
-      # SSOT: vision/pdf capability gates for inline data
-      if obj["images"] && obj["images"].is_a?(Array)
+      # SSOT: vision/pdf capability gates for inline data. The message's
+      # images, and the picture of the work screen it was sent with.
+      turn_images = images_with_workbench_picture(obj["images"], session)
+      if turn_images.is_a?(Array) && !turn_images.empty?
         begin
           spec_vision = Monadic::Utils::ModelSpec.get_model_property(model_name, "vision_capability")
           vision_capable = spec_vision.nil? ? true : !!spec_vision
@@ -1870,7 +1872,7 @@ module GeminiHelper
           DebugHelper.debug("[GEMINI_SSOT] Failed to get capabilities: #{e.message}", category: :api, level: :warn)
         end
 
-        obj["images"].each do |file|
+        turn_images.each do |file|
           media_type = file["type"].to_s
           if media_type == "application/pdf"
             unless pdf_capable

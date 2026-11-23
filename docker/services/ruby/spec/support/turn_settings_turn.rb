@@ -110,7 +110,7 @@ module TurnSettingsTurn
     if selection
       pointed[:selection] = Monadic::Workbench::Selection.new(
         request_id: request_id, item_id: PICTURED_ITEM, version: PICTURED_VERSION, page: 2, pages: 5,
-        text: selection, cut: false
+        text: Monadic::Workbench::Selection.text_of(selection), cut: false
       )
     end
     pointed[:request_id] = request_id unless pointed.empty?

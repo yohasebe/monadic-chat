@@ -23,9 +23,9 @@ RSpec.describe Monadic::Workbench::Selection do
   it "takes the text the tab selected in the PDF it has selected, at its version, and quotes it" do
     selection = accept(sent)
     expect(selection.reference).to eq("item_id" => "i_1", "version" => "v" * 64, "page" => 3, "pages" => 9,
-                                      "text" => "The committee approved\nthe budget.", "cut" => false)
+                                      "text" => "The committee approved the budget.", "cut" => false)
     expect(selection.note).to start_with("The user selected the following text on page 3 of the PDF")
-    expect(selection.note).to end_with("\n> The committee approved\n> the budget.")
+    expect(selection.note).to end_with(":\n> The committee approved the budget.")
     expect(selection.note).not_to include("only its first")
     expect(selection).to be_frozen
   end
@@ -34,8 +34,11 @@ RSpec.describe Monadic::Workbench::Selection do
     expect(accept(sent("cut" => true)).note).to include("(only its first 2000 characters are given)")
   end
 
-  it "takes no control characters but tabs and line breaks, and no space around the text" do
-    expect(accept(sent("text" => "  a\u0000b\tc\u001Bd\r\ne  ")).text).to eq("ab\tcd\r\ne")
+  it "takes the text as one line: each run of spaces one space, and nothing that shows nothing" do
+    expect(accept(sent("text" => "  a\u0000b\tc\u001Bd\r\ne  ")).text).to eq("ab cd e")
+    expect(accept(sent("text" => "Ada\nLovelace, Ada  Lovelace, Ada\u00a0Lovelace, Ada\u3000Lovelace")).text)
+      .to eq("Ada Lovelace, Ada Lovelace, Ada Lovelace, Ada Lovelace")
+    expect(accept(sent("text" => "Love\u00adlace Ada\u200bLovelace\u2060\ufeff")).text).to eq("Lovelace AdaLovelace")
   end
 
   it "refuses what the board does not have as the page sent it, and text that is none or too long" do

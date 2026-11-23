@@ -93,11 +93,14 @@ RSpec.describe "What the user points at on the work screen with a message" do
       later.each { |b| expect(count(b, "The eastern library")).to eq(0) }
     end
 
-    it "#{name}: hides the chat's words in the text selected" do
-      sent = turn(name, picture: false, selection: "Ada Lovelace approved the budget", hidden: ["Ada Lovelace"])
-      sent.each do |b|
-        expect(count(b, "Ada Lovelace")).to eq(0)
-        expect(count(b, "approved the budget")).to eq(1)
+    it "#{name}: hides the chat's words in the text selected, also where the selection broke them" do
+      ["Ada Lovelace approved the budget", "approved by Ada\nLovelace and the board",
+       "approved by Ada  Lovelace and the board", "approved by Ada\u00a0Lovelace and the board"].each do |selected|
+        sent = turn(name, picture: false, selection: selected, hidden: ["Ada Lovelace"])
+        sent.each do |b|
+          expect(count(b, "Lovelace")).to eq(0), selected.inspect
+          expect(count(b, "approved")).to eq(1)
+        end
       end
     ensure
       words = Monadic::Utils::Privacy::Words

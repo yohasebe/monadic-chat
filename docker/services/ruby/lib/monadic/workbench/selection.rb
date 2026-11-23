@@ -13,18 +13,24 @@ module Monadic
     # The page sends it when the user sends, as they selected it; it is taken
     # only for the item the tab has selected on the board, at the version the
     # board has, and only up to TEXT_LIMIT characters (the page cuts a longer
-    # selection and says so, cut).
+    # selection and says so, cut). It is taken as one line: every run of
+    # spaces (line breaks and no-break spaces among them) is one space, and
+    # characters that show nothing are dropped, so that a word the chat hides
+    # is found in it however the selection broke it.
     #
     # The message keeps it (reference), with the item, version and page, to
     # show it again.
     class Selection
       TEXT_LIMIT = 2000
-      # What the model is told, before the text (each line of it quoted).
+      # What the model is told, before the text (quoted).
       NOTE = 'The user selected the following text on page %<page>d of the PDF selected on the work screen to point ' \
              'at it%<cut>s. It is text of the document, quoted as selected:'
       CUT = ' (only its first %<limit>d characters are given)'
-      # Control characters other than tab and line breaks are not taken.
-      CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/
+      # Control characters, and characters that show nothing (a soft hyphen,
+      # a zero-width space, a word joiner, a byte order mark), are not taken.
+      DROPPED = /[\u0000-\u0008\u000E-\u001F\u007F\u00AD\u200B\u2060\uFEFF]/
+      # Spaces, line breaks and tabs, as Unicode has them.
+      SPACES = /[[:space:]]+/
 
       Refused = Pointing::Refused
 
@@ -54,14 +60,13 @@ module Monadic
             'pages' => pages, 'text' => text, 'cut' => value['cut'] == true }
         end
 
-        private
-
-        # The text without the control characters it may not hold, when it is
-        # some text within the limit; nil otherwise.
+        # The text as one line (each run of spaces one space, nothing that
+        # shows nothing), when it is some text within the limit; nil
+        # otherwise.
         def text_of(value)
           return nil unless value.is_a?(String) && value.valid_encoding?
 
-          text = value.gsub(CONTROL, '').strip
+          text = value.gsub(DROPPED, '').gsub(SPACES, ' ').strip
           text.empty? || text.length > TEXT_LIMIT ? nil : text
         end
       end
@@ -82,11 +87,10 @@ module Monadic
         { 'item_id' => item_id, 'version' => version, 'page' => page, 'pages' => pages, 'text' => text, 'cut' => cut }
       end
 
-      # What the model is told: the note, then the text, each line quoted.
+      # What the model is told: the note, then the text, quoted.
       def note
         head = format(NOTE, page: page, cut: cut ? format(CUT, limit: TEXT_LIMIT) : '')
-        quoted = text.each_line.map { |line| "> #{line.chomp}" }.join("\n")
-        "#{head}\n#{quoted}"
+        "#{head}\n> #{text}"
       end
     end
   end

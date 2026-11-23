@@ -1181,7 +1181,21 @@
 
   // Whether the chat's model takes images (the page's model spec; a model it
   // does not know is taken to).
+  // In a Live Conversation, the providers whose session takes the image of
+  // a look (with the mark the user drew on it).
+  const LIVE_IMAGE_PROVIDERS = ['openai'];
+
+  // The provider of the Live Conversation going on in this page, or null.
+  function liveProvider() {
+    if (!document.body.classList.contains('lc-app')) return null;
+    const el = $id('model');
+    const spec = el && window.modelSpec ? window.modelSpec[el.value] : null;
+    return spec && spec.sts_provider ? spec.sts_provider : 'unknown';
+  }
+
   function takesImages() {
+    const live = liveProvider();
+    if (live) return LIVE_IMAGE_PROVIDERS.includes(live);
     const el = $id('model');
     const name = el ? el.value : null;
     const spec = name && window.modelSpec ? window.modelSpec[name] : null;
@@ -1193,6 +1207,49 @@
   // called once it went), or null. Only after the user placed or moved the
   // pointer on the page shown, while some of it is in view, for a model that
   // takes images. Taken at once, when the user sends.
+  // The user's mark drawn on a part cut from the PDF's canvas (cutPage's
+  // decorate), in its color and shape: { decorate, mark() }, mark() being
+  // the mark as fractions of the part cut (rounded), or null when it is not
+  // in that part.
+  function drawingMark(handle, pointer) {
+    let mark = null;
+    const canvas = handle.canvas();
+    const decorate = (context, frame) => {
+      // The pointer in the canvas's pixels, then in the cut part's.
+      const left = pointer.x * canvas.width;
+      const top = pointer.y * canvas.height;
+      const right = left + pointer.w * canvas.width;
+      const bottom = top + pointer.h * canvas.height;
+      const clip = (v) => Math.min(1, Math.max(0, v));
+      const x0 = clip((left - frame.x) / frame.w);
+      const y0 = clip((top - frame.y) / frame.h);
+      const x1 = clip((right - frame.x) / frame.w);
+      const y1 = clip((bottom - frame.y) / frame.h);
+      if (!(x1 > x0 && y1 > y0)) return;
+      const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
+      const color = palette[pointer.color] ? pointer.color : 'orange';
+      const round = (v) => Math.round(v * 10000) / 10000;
+      mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color,
+               x: round(x0), y: round(y0), w: round(x1 - x0), h: round(y1 - y0) };
+      const px = x0 * frame.width;
+      const py = y0 * frame.height;
+      const pw = (x1 - x0) * frame.width;
+      const ph = (y1 - y0) * frame.height;
+      context.save();
+      const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
+      context.fillStyle = colors.fill;
+      context.strokeStyle = colors.line;
+      context.lineWidth = Math.max(2, Math.round(frame.width / 400));
+      context.beginPath();
+      if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
+      else context.rect(px, py, pw, ph);
+      context.fill();
+      context.stroke();
+      context.restore();
+    };
+    return { decorate: decorate, mark: () => mark };
+  }
+
   function pictureNow() {
     if (local || !paneShown() || !takesImages()) return null;
     const item = selected ? itemById(selected) : null;
@@ -1205,51 +1262,19 @@
     if (shown.status !== 'ready' || !pointer || pointer.page !== shown.page) return null;
     const seq = handle.pointerSeq();
     if (sentPointer.handle === handle && sentPointer.seq === seq) return null;
-    const canvas = handle.canvas();
-    let mark = null;
+    const marked = drawingMark(handle, pointer);
     let part;
     try {
-      part = cutPage(handle, shown.drawing, (context, frame) => {
-        // The pointer in the canvas's pixels, then in the cut part's.
-        const left = pointer.x * canvas.width;
-        const top = pointer.y * canvas.height;
-        const right = left + pointer.w * canvas.width;
-        const bottom = top + pointer.h * canvas.height;
-        const clip = (v) => Math.min(1, Math.max(0, v));
-        const x0 = clip((left - frame.x) / frame.w);
-        const y0 = clip((top - frame.y) / frame.h);
-        const x1 = clip((right - frame.x) / frame.w);
-        const y1 = clip((bottom - frame.y) / frame.h);
-        if (!(x1 > x0 && y1 > y0)) return;
-        const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
-        const color = palette[pointer.color] ? pointer.color : 'orange';
-        mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-        const px = x0 * frame.width;
-        const py = y0 * frame.height;
-        const pw = (x1 - x0) * frame.width;
-        const ph = (y1 - y0) * frame.height;
-        context.save();
-        const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
-        context.fillStyle = colors.fill;
-        context.strokeStyle = colors.line;
-        context.lineWidth = Math.max(2, Math.round(frame.width / 400));
-        context.beginPath();
-        if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
-        else context.rect(px, py, pw, ph);
-        context.fill();
-        context.stroke();
-        context.restore();
-      });
+      part = cutPage(handle, shown.drawing, marked.decorate);
     } catch (_) {
       return null;
     }
+    const mark = marked.mark();
     if (!part || !part.image || !mark) return null;
-    const round = (v) => Math.round(v * 10000) / 10000;
     return {
       data: {
         item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
-        mark: { shape: mark.shape, color: mark.color, x: round(mark.x), y: round(mark.y), w: round(mark.w), h: round(mark.h) },
-        crop: part.crop, image: part.image
+        mark: mark, crop: part.crop, image: part.image
       },
       sent: () => { sentPointer = { handle: handle, seq: seq }; }
     };
@@ -1279,7 +1304,9 @@
     const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar') : null;
     if (!bar) return;
     let chip = bar.querySelector('.workbench-selection-chip');
-    const offered = offeredSelection();
+    // A Live Conversation sends no message with it: the AI gets the text
+    // selected when it looks at the work screen.
+    const offered = liveProvider() ? null : offeredSelection();
     if (!offered) {
       if (chip) chip.remove();
       return;
@@ -1326,7 +1353,7 @@
   // The selected text offered, to go with the message being sent: { data,
   // sent } (data is what is sent, sent() is called once it went), or null.
   function selectionNow() {
-    if (local || !paneShown()) return null;
+    if (local || !paneShown() || liveProvider()) return null;
     const offered = offeredSelection();
     if (!offered) return null;
     const { key, ...data } = offered;
@@ -1337,6 +1364,16 @@
         showSelectionChip();
       }
     };
+  }
+
+  // A Live Conversation began or ended: the pointer's buttons and the chip
+  // follow what its session takes.
+  function liveChanged() {
+    if (drawnBody && drawnBody.pdf && typeof drawnBody.pdf.setPointable === 'function') drawnBody.pdf.setPointable(takesImages());
+    showSelectionChip();
+  }
+  if (typeof MutationObserver === 'function' && document.body) {
+    new MutationObserver(liveChanged).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
   // The chat's model changed: the pointer's buttons show where it takes
@@ -1416,20 +1453,29 @@
     const wants = Array.isArray(data.wants) ? data.wants : [];
     const out = { range: { page: shown.page, pages: shown.pages }, note: null };
     if (wants.includes('selection')) {
-      const [text, cut] = selectedText(handle.textLayer());
+      let [text, cut] = selectedText(handle.textLayer());
+      // The page's selection gone (the user clicked elsewhere): the text
+      // they selected on this page, as held.
+      const held = !text && offeredSelection();
+      if (held && held.page === shown.page) [text, cut] = [held.text, held.cut];
       if (text) {
         out.selection_text = text;
         out.selection_cut = cut;
       }
     }
     if (wants.includes('image')) {
+      // The mark the user put on this page is drawn on what is cut, and
+      // said where it is.
+      const pointer = typeof handle.pointer === 'function' && takesImages() ? handle.pointer() : null;
+      const marked = pointer && pointer.page === shown.page ? drawingMark(handle, pointer) : null;
       let part;
       try {
-        part = cutPage(handle, shown.drawing);
+        part = cutPage(handle, shown.drawing, marked ? marked.decorate : undefined);
       } catch (_) {
         part = { image_note: 'failed' };
       }
       Object.assign(out, part);
+      if (marked && part.image && marked.mark()) out.mark = marked.mark();
     }
     return out;
   }

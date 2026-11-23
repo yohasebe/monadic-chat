@@ -3,6 +3,7 @@
 require 'base64'
 require_relative '../capture'
 require_relative '../pdf_text'
+require_relative '../pointing'
 require_relative '../../shell'
 
 module Monadic
@@ -38,6 +39,8 @@ module Monadic
           page, pages = page_of(answer)
           selection_text, selection_cut = selection_of(answer)
           image, image_note, crop = image_of(answer)
+          # The part the user marked on the page, drawn on the image.
+          mark = image && Pointing.mark_of(answer['mark'])
           text, text_note, total, text_cut = page_text(bytes.call, page, deadline,
                                                        Look::TEXT_CHARS - selection_text.to_s.length)
           if total && total != pages
@@ -52,7 +55,7 @@ module Monadic
           end
 
           cuts = [('page_text' if text_cut), ('selection' if selection_cut)].compact
-          { image: image, text: text.to_s, selection: selection_text, selection_cut: selection_cut, parts: parts,
+          { image: image, mark: mark, text: text.to_s, selection: selection_text, selection_cut: selection_cut, parts: parts,
             pages: { first: page, last: page, total: pages }, crop: crop, cuts: cuts, truncated: cuts.any?,
             empty: text == '' }
         rescue Capture::Failed => e

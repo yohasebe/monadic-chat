@@ -601,7 +601,10 @@
     const box = element('div', 'workbench-image-view');
     const frame = element('div', 'workbench-image-frame');
     frame.append(img);
+    // Dragging over the image draws a mark, not the browser's drag of it.
+    img.draggable = false;
     const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1 });
+    pointing.setPointable(true);
     const bar = element('div', 'workbench-image-bar');
     bar.append(pointing.controls);
     box.tabIndex = 0;

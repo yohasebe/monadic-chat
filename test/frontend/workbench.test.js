@@ -1137,7 +1137,7 @@ describe('Workbench', () => {
         window.WorkbenchPointer = {
           COLORS: { cyan: { fill: 'rgba(0,0,0,0.2)', line: '#000' } },
           attach: () => ({ controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
-            pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false, dispose: jest.fn() })
+            pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false, setPointable: () => {}, dispose: jest.fn() })
         };
         jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
           drawImage, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
@@ -1169,6 +1169,19 @@ describe('Workbench', () => {
       test('shows the image with the pointer\'s buttons above it', () => {
         expect(document.querySelector('#workbench-view .workbench-image-bar .workbench-pointer-controls')).not.toBeNull();
         expect(document.querySelector('#workbench-view .workbench-image-frame img.workbench-image')).not.toBeNull();
+      });
+
+      test('shows the pointer\'s own buttons over an image, which is not dragged as a file', async () => {
+        window.WorkbenchPointer = undefined;
+        jest.isolateModules(() => { require(js('monadic/workbench-pointer.js')); });
+        const other = Object.assign({}, photo, { id: 'i_h', name: 'h.png', path: 'h.png' });
+        view([other], { assets: { i_h: '/workbench/asset/h' }, selected: 'i_h', selection_serial: 4 });
+        await flush();
+        const controls = document.querySelector('#workbench-view .workbench-image-bar .workbench-pointer-controls');
+        expect(controls).not.toBeNull();
+        expect(controls.hidden).toBe(false);
+        expect(document.querySelector('#workbench-view .workbench-image-frame img').draggable).toBe(false);
+        expect(document.querySelector('#workbench-view .workbench-image-frame .workbench-pointer-layer')).not.toBeNull();
       });
 
       test('gives the whole image with the mark drawn on it, and where the mark is', async () => {

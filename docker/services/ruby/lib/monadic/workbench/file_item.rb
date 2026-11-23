@@ -4,6 +4,7 @@ require 'digest'
 require_relative 'artifact'
 require_relative '../workspace/shared_folder'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../workspace/attachments'
 
 module Monadic
   module Workbench
@@ -87,7 +88,8 @@ module Monadic
         # A text item must be text where it is shown.
         Monadic::Workspace::SharedFolderPreview.text_view(read[:bytes]) if read[:kind] == 'text'
         {
-          'path' => relative, 'name' => File.basename(relative), 'preview' => read[:kind],
+          'path' => relative, 'name' => Monadic::Workspace::Attachments.shown_name(File.basename(relative)),
+          'preview' => read[:kind],
           'content_type' => content_type(relative, read[:kind]), 'sha256' => read[:sha256],
           'size' => read[:bytes].bytesize, 'mtime_ns' => nanoseconds(read[:stat].mtime), 'ino' => read[:stat].ino
         }

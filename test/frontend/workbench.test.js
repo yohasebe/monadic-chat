@@ -78,7 +78,8 @@ describe('Workbench', () => {
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
       <textarea id="message"></textarea>
-      <span id="side-tab-work-new" hidden></span>`;
+      <span id="side-tab-work-new" hidden></span>
+      <div id="work-screen-pane"><button id="workbench-put"></button><input type="file" id="workbench-put-input" multiple></div>`;
     sent = [];
     messages = [{ mid: 'm-1', role: 'assistant', text: 'done' }];
     layout = { hidden: false, pane: 'settings' };
@@ -1438,6 +1439,71 @@ describe('Workbench', () => {
       expect(window.setAlert).toHaveBeenCalled();
       window.Workbench.drawPicture('m-u', null);
       expect(el.querySelector('.workbench-picture-note')).toBeNull();
+    });
+  });
+
+  describe('a file put from the computer', () => {
+    const file = (name, size = 10) => new File(['x'.repeat(size)], name);
+    const flush = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0)); };
+    let posted;
+
+    beforeEach(() => {
+      posted = [];
+      window.monadicFetch = {
+        postJson: jest.fn(async (url, form) => {
+          const f = form.get('file');
+          posted.push({ url, purpose: form.get('purpose'), name: f.name });
+          if (f.name.endsWith('.exe')) {
+            const e = new Error('Files of this type cannot be attached here.');
+            e.body = { reason: 'extension' };
+            throw e;
+          }
+          return { attachment_id: `a_${f.name.replace(/\W/g, '')}`, name: f.name, size: f.size };
+        })
+      };
+    });
+
+    afterEach(() => { delete window.monadicFetch; });
+
+    const opened = () => sent.filter((x) => x.payload.message === 'WORKBENCH_OPEN_ATTACHMENT').map((x) => x.payload.attachment_id);
+
+    test('is saved for the work screen and opened as an item, from the button', async () => {
+      const input = document.getElementById('workbench-put-input');
+      Object.defineProperty(input, 'files', { value: [file('paper.pdf')], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      await flush();
+      expect(posted).toEqual([{ url: '/attachments', purpose: 'workbench', name: 'paper.pdf' }]);
+      expect(opened()).toEqual(['a_paperpdf']);
+      expect(layout.pane).toBe('work');
+    });
+
+    test('is put when dropped on the work screen, a few at a time, and what is refused says why', async () => {
+      const pane = document.getElementById('work-screen-pane');
+      const drop = (type, files) => {
+        const e = new Event(type, { bubbles: true, cancelable: true });
+        e.dataTransfer = { types: ['Files'], files: files, dropEffect: 'none' };
+        pane.dispatchEvent(e);
+        return e;
+      };
+      drop('dragenter', []);
+      expect(pane.classList.contains('workbench-dropping')).toBe(true);
+      expect(drop('dragover', []).defaultPrevented).toBe(true);
+      const files = ['a.png', 'tool.exe', 'c.md', 'd.md', 'e.md', 'f.md', 'g.md'].map((n) => file(n));
+      expect(drop('drop', files).defaultPrevented).toBe(true);
+      await flush();
+      await flush();
+      expect(pane.classList.contains('workbench-dropping')).toBe(false);
+      expect(posted.map((p) => p.name)).toEqual(['a.png', 'tool.exe', 'c.md', 'd.md', 'e.md']);
+      expect(opened()).toEqual(['a_apng', 'a_cmd', 'a_dmd', 'a_emd']);
+      const alerts = window.setAlert.mock.calls.map((c) => String(c[0]));
+      expect(alerts.some((a) => a.includes('Up to 5 files'))).toBe(true);
+      expect(alerts.some((a) => a.includes('tool.exe') && a.includes('does not show this kind of file'))).toBe(true);
+    });
+
+    test('says on a view of an attachment that the AI does not see it', () => {
+      layout.pane = 'work';
+      window.Workbench.showAttachment({ key: 'img:1', kind: 'image', name: 'cat.png', data: 'data:image/png;base64,AAAA' });
+      expect(document.querySelector('#workbench-view .workbench-local-note').textContent).toContain('The AI does not see this view');
     });
   });
 

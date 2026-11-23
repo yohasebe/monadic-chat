@@ -6720,6 +6720,36 @@ body.side-pane-resizing {
   flex-wrap: wrap;
   gap: var(--spacing-xs);
 }
+/* Putting a file from the computer on the work screen (workbench.js): the
+   button, and the pane framed in the accent with a hint while files are
+   dragged over it. */
+#work-screen-pane {
+  position: relative;
+}
+.workbench-drop-hint {
+  display: none;
+}
+#work-screen-pane.workbench-dropping {
+  outline: 2px dashed var(--pal-accent-mid);
+  outline-offset: -2px;
+  border-radius: var(--border-radius);
+}
+#work-screen-pane.workbench-dropping .workbench-drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pal-accent-text);
+  background: color-mix(in srgb, var(--pal-accent-soft) 85%, transparent);
+  border-radius: var(--border-radius);
+  pointer-events: none;
+}
+/* An attachment shown from the message: the AI does not see this view. */
+.workbench-local-note {
+  color: var(--text-secondary);
+}
 /* The same strip as the side column's tabs above them: the items, and the
    pointer's buttons of a PDF (workbench-pdf.js). */
 .workbench-items,

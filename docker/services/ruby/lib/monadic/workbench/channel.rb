@@ -126,8 +126,8 @@ module Monadic
         open_refusal(path, 'busy')
       end
 
-      # An attachment of this connection's chat (audio or video), opened by
-      # the user on the board. The chat, its epoch and the connection are
+      # An attachment of this connection's chat (audio or video, or a file the
+      # user put on the work screen), opened by the user on the board. The chat, its epoch and the connection are
       # those of the moment it is asked; the file and its version are the
       # ledger's, never the page's. A kind the work screen does not play, or
       # a file too large to read whole, is refused before the file is read.
@@ -142,7 +142,7 @@ module Monadic
         epoch = Monadic::Workspace::Chats.epoch(chat_id)
         record = Monadic::Workspace::Ids.valid?(:attachment, attachment_id) && ledger.attachment(attachment_id)
         return refuse.call('unknown') unless record && record[:chat_id] == chat_id
-        return refuse.call('not_playable') unless %w[audio video].include?(PLAYABLE.call(record[:relative_path]))
+        return refuse.call('not_playable') unless PLAYABLE.call(record[:relative_path])
         return refuse.call('too_large') unless record[:size].is_a?(Integer) && record[:size] <= FileItem::LIMIT
 
         found = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id, ledger: ledger)

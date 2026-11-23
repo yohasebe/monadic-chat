@@ -1707,6 +1707,12 @@
     const size = sizeText(local.size);
     if (size) line.appendChild(document.createTextNode(` · ${size}`));
     info.appendChild(line);
+    // Shown from the message, not put on the work screen: the AI cannot look
+    // at it here, nor the user point at it.
+    if (!local.attachmentId && !note) {
+      info.appendChild(element('div', 'workbench-local-note mt-2',
+        t('ui.workbench.localNotShared', 'The AI does not see this view. To look at it together, put the file on the work screen.')));
+    }
     view.replaceChildren(body, info);
   }
 
@@ -1764,6 +1770,95 @@
     if (data.item_id && itemById(data.item_id)) showOpened(data.item_id);
     else pendingOpen = data.item_id || null;
   }
+
+  // ---- A file from the computer -----------------------------------------
+
+  // A file the user puts on the work screen (the button, or dropped on the
+  // pane) is saved in the chat's folder (inputs/) and opened as an item of
+  // the board, which the AI can look at and the user point at. A few at a
+  // time, one after another; the last one put is shown.
+  const PUT_AT_ONCE = 5;
+  const PUT_REASONS = {
+    extension: ['ui.workbench.putKind', 'The work screen does not show this kind of file.'],
+    content: ['ui.workbench.putContent', "The file's contents do not match its name."],
+    too_large: ['ui.workbench.putTooLarge', 'This file is too large for the work screen.'],
+    workspace_missing: ['ui.workbench.putNoFolder', "The chat's folder is not available. Start a new chat and try again."],
+    unavailable: ['ui.workbench.putNoFolder', "The chat's folder is not available. Start a new chat and try again."],
+    no_chat: ['ui.workbench.putReload', 'This page is no longer connected. Reload it and try again.']
+  };
+
+  async function putFile(file) {
+    if (!window.monadicFetch || typeof window.monadicFetch.postJson !== 'function') return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('purpose', 'workbench');
+    try {
+      const record = await window.monadicFetch.postJson('/attachments', form);
+      openAttachment({ key: `put:${record.attachment_id}`, kind: 'file', attachmentId: record.attachment_id,
+                       name: record.name || file.name, size: record.size || file.size });
+    } catch (e) {
+      const reason = e && e.body && PUT_REASONS[e.body.reason];
+      const why = reason ? t(reason[0], reason[1]) : (e && e.message) || '';
+      warn(t('ui.workbench.putFailed', 'Could not put {name} on the work screen: {why}')
+        .replace('{name}', file.name).replace('{why}', why));
+    }
+  }
+
+  async function putFiles(files) {
+    const list = Array.from(files || []).filter((f) => f && typeof f.name === 'string');
+    if (list.length > PUT_AT_ONCE) {
+      warn(t('ui.workbench.putAtOnce', 'Up to {n} files are put at once.').replace('{n}', String(PUT_AT_ONCE)));
+    }
+    for (const file of list.slice(0, PUT_AT_ONCE)) await putFile(file);
+  }
+
+  // Whether a drag carries files from the computer.
+  const carriesFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
+
+  function wirePut() {
+    const button = $id('workbench-put');
+    const input = $id('workbench-put-input');
+    const pane = $id('work-screen-pane');
+    if (button && input) {
+      $on(button, 'click', () => input.click());
+      $on(input, 'change', () => {
+        const files = Array.from(input.files || []);
+        input.value = '';
+        putFiles(files);
+      });
+    }
+    if (pane) {
+      let depth = 0;
+      const dropping = (on) => pane.classList.toggle('workbench-dropping', on);
+      $on(pane, 'dragenter', (e) => {
+        if (!carriesFiles(e)) return;
+        depth += 1;
+        dropping(true);
+      });
+      $on(pane, 'dragleave', (e) => {
+        if (!carriesFiles(e)) return;
+        depth = Math.max(0, depth - 1);
+        if (depth === 0) dropping(false);
+      });
+      $on(pane, 'dragover', (e) => {
+        if (!carriesFiles(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      });
+      $on(pane, 'drop', (e) => {
+        if (!carriesFiles(e)) return;
+        e.preventDefault();
+        depth = 0;
+        dropping(false);
+        putFiles(e.dataTransfer.files);
+      });
+    }
+    // A file dropped anywhere else on the page does not replace the page.
+    window.addEventListener('dragover', (e) => { if (carriesFiles(e)) e.preventDefault(); });
+    window.addEventListener('drop', (e) => { if (carriesFiles(e)) e.preventDefault(); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wirePut);
+  else wirePut();
 
   // ---- JupyterLab ------------------------------------------------------
 

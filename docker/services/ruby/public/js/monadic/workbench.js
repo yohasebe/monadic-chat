@@ -591,7 +591,34 @@
     img.alt = item.name || '';
     img.addEventListener('error', () => failed(drawn, false));
     img.src = url;
-    return img;
+    return kind === 'image' && window.WorkbenchPointer ? imageBody(img, drawn) : img;
+  }
+
+  // An image with the pointer over it: the pointer's buttons in a bar above
+  // it, the mark drawn over the image. drawn.image: { img, pointer(),
+  // pointerSeq(), dispose() }.
+  function imageBody(img, drawn) {
+    const box = element('div', 'workbench-image-view');
+    const frame = element('div', 'workbench-image-frame');
+    frame.append(img);
+    // Dragging over the image draws a mark, not the browser's drag of it.
+    img.draggable = false;
+    const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1 });
+    pointing.setPointable(true);
+    const bar = element('div', 'workbench-image-bar');
+    bar.append(pointing.controls);
+    box.tabIndex = 0;
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && pointing.escape()) e.preventDefault();
+    });
+    box.append(bar, frame);
+    drawn.image = {
+      img: img,
+      pointer: () => pointing.pointer(),
+      pointerSeq: () => pointing.pointerSeq(),
+      dispose: () => pointing.dispose()
+    };
+    return box;
   }
 
   // Gets the item's address for box: onBody(response) draws what came. A
@@ -655,8 +682,11 @@
         else li.textContent = lineText;
         list.appendChild(li);
       });
-      box.replaceChildren(list);
+      // The bar the selected lines' chip goes in (empty, it shows nothing).
+      box.replaceChildren(element('div', 'workbench-text-bar'), list);
+      drawn.lines = list;
       drawn.loaded = true;
+      showHeldLines();
       restoreScroll(drawn, box);
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
@@ -791,6 +821,7 @@
     }
     drawn.gone = true;
     if (drawn.pdf) drawn.pdf.dispose();
+    if (drawn.image) drawn.image.dispose();
     if (drawn.render) drawn.render.dispose();
     if (drawn.player) drawn.player.stop();
   }
@@ -1226,35 +1257,45 @@
       const x1 = clip((right - frame.x) / frame.w);
       const y1 = clip((bottom - frame.y) / frame.h);
       if (!(x1 > x0 && y1 > y0)) return;
-      const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
-      const color = palette[pointer.color] ? pointer.color : 'orange';
-      const round = (v) => Math.round(v * 10000) / 10000;
-      mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color,
-               x: round(x0), y: round(y0), w: round(x1 - x0), h: round(y1 - y0) };
-      const px = x0 * frame.width;
-      const py = y0 * frame.height;
-      const pw = (x1 - x0) * frame.width;
-      const ph = (y1 - y0) * frame.height;
-      context.save();
-      const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
-      context.fillStyle = colors.fill;
-      context.strokeStyle = colors.line;
-      context.lineWidth = Math.max(2, Math.round(frame.width / 400));
-      context.beginPath();
-      if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
-      else context.rect(px, py, pw, ph);
-      context.fill();
-      context.stroke();
-      context.restore();
+      mark = paintMark(context, Object.assign({}, pointer, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }), frame.width, frame.height);
     };
     return { decorate: decorate, mark: () => mark };
+  }
+
+  // Paints the user's mark (x, y, w, h: fractions of what it is on) on a
+  // context of width × height pixels, translucent in its color, and returns
+  // it as it is said ({ shape, color, x, y, w, h }, rounded).
+  function paintMark(context, pointer, width, height) {
+    const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
+    const color = palette[pointer.color] ? pointer.color : 'orange';
+    const round = (v) => Math.round(v * 10000) / 10000;
+    const mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color,
+                   x: round(pointer.x), y: round(pointer.y), w: round(pointer.w), h: round(pointer.h) };
+    const px = pointer.x * width;
+    const py = pointer.y * height;
+    const pw = pointer.w * width;
+    const ph = pointer.h * height;
+    context.save();
+    const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
+    context.fillStyle = colors.fill;
+    context.strokeStyle = colors.line;
+    context.lineWidth = Math.max(2, Math.round(width / 400));
+    context.beginPath();
+    if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
+    else context.rect(px, py, pw, ph);
+    context.fill();
+    context.stroke();
+    context.restore();
+    return mark;
   }
 
   function pictureNow() {
     if (local || !paneShown() || !takesImages()) return null;
     const item = selected ? itemById(selected) : null;
-    if (!item || item.kind !== 'file' || item.preview !== 'pdf') return null;
+    if (!item || item.kind !== 'file') return null;
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    if (item.preview === 'image') return drawn && drawn.image ? imagePictureNow(item, drawn.image) : null;
+    if (item.preview !== 'pdf') return null;
     const handle = drawn && drawn.pdf;
     if (!handle || typeof handle.pointer !== 'function') return null;
     const shown = handle.shown();
@@ -1280,6 +1321,21 @@
     };
   }
 
+  // The same for an image the tab shows: the whole image with the mark
+  // drawn on it, after the user placed or moved the mark.
+  function imagePictureNow(item, handle) {
+    const pointer = handle.pointer();
+    if (!pointer) return null;
+    const seq = handle.pointerSeq();
+    if (sentPointer.handle === handle && sentPointer.seq === seq) return null;
+    const part = markedImage(handle, pointer);
+    if (!part.image || !part.mark) return null;
+    return {
+      data: { item_id: item.id, version: item.version || item.sha256 || '', mark: part.mark, crop: part.crop, image: part.image },
+      sent: () => { sentPointer = { handle: handle, seq: seq }; }
+    };
+  }
+
   // The PDF the tab shows now, drawn, or null.
   function shownPdf() {
     const item = selected ? itemById(selected) : null;
@@ -1287,27 +1343,89 @@
     return drawn && drawn.pdf ? { item: item, drawn: drawn } : null;
   }
 
+  // The text file the tab shows now as its numbered lines, or null.
+  function shownLines() {
+    const item = selected ? itemById(selected) : null;
+    const drawn = item && drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    return drawn && drawn.lines && drawn.lines.isConnected ? { item: item, drawn: drawn } : null;
+  }
+
+  // The lines of the text drawn (item at version) the user selected: as the
+  // page's selection has them now, or else as held (unless set aside):
+  // { first, last }, or null.
+  function linesChosen(drawn, item, version) {
+    const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
+    const range = drawn.lines && selection && !selection.isCollapsed ? selectedLines(drawn.lines, selection) : null;
+    if (range) return { first: range[0], last: range[1] };
+    const held = heldSelection;
+    if (held && held.kind === 'text' && held.item_id === item.id && held.version === version && held.key !== selectionSetAside) {
+      return { first: held.first, last: held.last };
+    }
+    return null;
+  }
+
+  // The held lines of the text shown, marked as such: they stay marked when
+  // the page's selection goes (the user clicks elsewhere), and after they
+  // are sent, until other lines are selected or they are set aside.
+  function showHeldLines() {
+    const shown = shownLines();
+    if (!shown) return;
+    const held = heldLinesOf(shown);
+    Array.from(shown.drawn.lines.children).forEach((li, i) => {
+      li.classList.toggle('workbench-line-held', !!held && i + 1 >= held.first && i + 1 <= held.last);
+    });
+  }
+
+  // The held lines of the text shown (shownLines()), unless set aside, or
+  // null.
+  function heldLinesOf(shown) {
+    const held = heldSelection;
+    const version = shown.item.version || shown.item.sha256 || '';
+    return held && held.kind === 'text' && held.item_id === shown.item.id && held.version === version &&
+      held.key !== selectionSetAside ? held : null;
+  }
+
+  // The numbers of the lines of list (a text's numbered lines) a selection
+  // runs from and to: [first, last], or null when it is not within them.
+  function selectedLines(list, selection) {
+    const lineOf = (node) => {
+      const el = node && (node.nodeType === 1 ? node : node.parentElement);
+      const li = el && el.closest ? el.closest('li') : null;
+      return li && li.parentElement === list ? Array.prototype.indexOf.call(list.children, li) + 1 : 0;
+    };
+    const a = lineOf(selection.anchorNode);
+    const b = lineOf(selection.focusNode);
+    return a && b ? [Math.min(a, b), Math.max(a, b)] : null;
+  }
+
   // The held selection, when it is of the PDF shown and neither sent nor
   // set aside: the one offered to send.
   function offeredSelection() {
-    const pdf = shownPdf();
-    if (!heldSelection || !pdf) return null;
+    const shown = shownPdf() || shownLines();
+    if (!heldSelection || !shown) return null;
     if (heldSelection.key === selectionSetAside || heldSelection.key === selectionSent) return null;
-    const version = pdf.item.version || pdf.item.sha256 || '';
-    return heldSelection.item_id === pdf.item.id && heldSelection.version === version ? heldSelection : null;
+    const version = shown.item.version || shown.item.sha256 || '';
+    return heldSelection.item_id === shown.item.id && heldSelection.version === version ? heldSelection : null;
   }
 
-  // The chip in the PDF's bar that says the selected text goes with the
-  // next message, with × to set it aside.
+  // The chip in the PDF's bar (or above a text's lines) that says the
+  // selected text (or lines) goes with the next message, with × to set it
+  // aside.
   function showSelectionChip() {
+    showHeldLines();
     const pdf = shownPdf();
-    const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar') : null;
+    const lines = pdf ? null : shownLines();
+    const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar')
+      : lines ? lines.drawn.node.querySelector('.workbench-text-bar') : null;
     if (!bar) return;
     let chip = bar.querySelector('.workbench-selection-chip');
     // A Live Conversation sends no message with it: the AI gets the text
     // selected when it looks at the work screen.
     const offered = liveProvider() ? null : offeredSelection();
-    if (!offered) {
+    // Lines still marked but not offered (sent, or in a Live Conversation)
+    // keep the chip, to take the mark away.
+    const marked = !offered && lines ? heldLinesOf(lines) : null;
+    if (!offered && !marked) {
       if (chip) chip.remove();
       return;
     }
@@ -1318,9 +1436,6 @@
       const aside = element('button', 'btn btn-sm workbench-selection-aside');
       aside.type = 'button';
       aside.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-      const label = t('ui.workbench.selectionAside', 'Do not send the selected text');
-      aside.setAttribute('aria-label', label);
-      aside.title = label;
       aside.addEventListener('click', () => {
         if (heldSelection) selectionSetAside = heldSelection.key;
         showSelectionChip();
@@ -1328,14 +1443,41 @@
       chip.appendChild(aside);
       bar.appendChild(chip);
     }
-    chip.querySelector('.workbench-selection-text').textContent = t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)')
-      .replace('{n}', String(Array.from(offered.text).length));
+    const range = (text, held) => text.replace('{first}', String(held.first)).replace('{last}', String(held.last));
+    let text;
+    let label;
+    if (marked) {
+      text = range(t('ui.workbench.selectionMarkedLines', 'Lines {first}–{last}'), marked);
+      label = t('ui.workbench.selectionClearLines', 'Clear the selected lines');
+    } else if (offered.kind === 'text') {
+      text = range(t('ui.workbench.selectionSendLines', 'Send lines {first}–{last}'), offered);
+      label = t('ui.workbench.selectionAside', 'Do not send the selected text');
+    } else {
+      text = t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)').replace('{n}', String(Array.from(offered.text).length));
+      label = t('ui.workbench.selectionAside', 'Do not send the selected text');
+    }
+    chip.querySelector('.workbench-selection-text').textContent = text;
+    const aside = chip.querySelector('.workbench-selection-aside');
+    aside.setAttribute('aria-label', label);
+    aside.title = label;
   }
 
   // A selection made in the text of the PDF shown is held (and offered).
   document.addEventListener('selectionchange', () => {
     const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
     if (!selection || selection.isCollapsed) return;
+    // Lines of a text file are held by their numbers.
+    const shownText = shownLines();
+    if (shownText) {
+      const range = selectedLines(shownText.drawn.lines, selection);
+      if (!range) return;
+      const id = shownText.item.id;
+      const version = shownText.item.version || shownText.item.sha256 || '';
+      heldSelection = { key: `${id}|${version}|lines|${range[0]}|${range[1]}`, kind: 'text',
+                        item_id: id, version: version, first: range[0], last: range[1] };
+      showSelectionChip();
+      return;
+    }
     const pdf = shownPdf();
     const layer = pdf && typeof pdf.drawn.pdf.textLayer === 'function' ? pdf.drawn.pdf.textLayer() : null;
     if (!layer || !layer.contains(selection.anchorNode) || !layer.contains(selection.focusNode)) return;
@@ -1356,7 +1498,7 @@
     if (local || !paneShown() || liveProvider()) return null;
     const offered = offeredSelection();
     if (!offered) return null;
-    const { key, ...data } = offered;
+    const { key, kind: _kind, ...data } = offered;
     return {
       data: data,
       sent: () => {
@@ -1416,6 +1558,17 @@
     const w = (frame.right - frame.left) * sx;
     const h = (frame.bottom - frame.top) * sy;
     if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) return { image_note: 'not_in_view' };
+    const part = drawnPng(canvas, x, y, w, h, decorate);
+    if (handle.shown().drawing !== drawing) return { image_note: 'redrawn' };
+    return part;
+  }
+
+  // The part x, y, w, h (in source's own pixels) of source (a canvas or an
+  // image), drawn at most CUT_SIDE × CUT_PIXELS (into a canvas of that size),
+  // as PNG base64 with the part it is, or why there is none. decorate(context,
+  // frame), when given, draws over it (frame: the part, and the size it is
+  // drawn at, width and height).
+  function drawnPng(source, x, y, w, h, decorate) {
     const fit = Math.min(1, CUT_SIDE / Math.max(w, h), Math.sqrt(CUT_PIXELS / (w * h)));
     const width = Math.max(1, Math.floor(w * fit));
     const height = Math.max(1, Math.floor(h * fit));
@@ -1424,10 +1577,9 @@
     cut.height = height;
     const context = cut.getContext('2d');
     if (!context) return { image_note: 'failed' };
-    context.drawImage(canvas, x, y, w, h, 0, 0, width, height);
+    context.drawImage(source, x, y, w, h, 0, 0, width, height);
     if (decorate) decorate(context, { x: x, y: y, w: w, h: h, width: width, height: height });
     const url = cut.toDataURL('image/png');
-    if (handle.shown().drawing !== drawing) return { image_note: 'redrawn' };
     const comma = url.indexOf(',');
     if (!url.startsWith('data:image/png;base64,') || comma < 0) return { image_note: 'failed' };
     const image = url.slice(comma + 1);
@@ -1436,8 +1588,6 @@
     return { image: image, crop: { x: round(x), y: round(y), width: round(w), height: round(h), sent_width: width, sent_height: height } };
   }
 
-  // A capture of a PDF: the page in view and, as asked, the part of it in
-  // view and the text selected in it, all from the drawing shown now.
   // The text of a PDF page's text layer inside the user's mark: each piece
   // whose middle is in it, in the layer's order, as [text, cut] (at most
   // SELECTED_TEXT_LIMIT characters), or [null, false].
@@ -1476,6 +1626,40 @@
     return [chars.slice(0, SELECTED_TEXT_LIMIT).join(''), chars.length > SELECTED_TEXT_LIMIT];
   }
 
+  // A capture of an image: when the user marked a part of it and an image
+  // is asked for, the whole image as the tab has it, with the mark drawn on
+  // it, and where the mark is; else nothing more (the server has the image
+  // itself).
+  function imageAnswer(data, handle) {
+    const out = { range: {}, note: null };
+    const wants = Array.isArray(data.wants) ? data.wants : [];
+    const pointer = handle.pointer();
+    if (!wants.includes('image') || !pointer) return out;
+    const part = markedImage(handle, pointer);
+    Object.assign(out, part);
+    if (!part.image) delete out.mark;
+    return out;
+  }
+
+  // The whole image the tab shows, with the user's mark drawn on it: what
+  // drawnPng gives, with the mark ({ shape, color, x, y, w, h }) as mark.
+  function markedImage(handle, pointer) {
+    const img = handle.img;
+    if (!img.complete || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return { image_note: 'drawing' };
+    let mark = null;
+    let part;
+    try {
+      part = drawnPng(img, 0, 0, img.naturalWidth, img.naturalHeight, (context, frame) => {
+        mark = paintMark(context, pointer, frame.width, frame.height);
+      });
+    } catch (_) {
+      return { image_note: 'failed' };
+    }
+    return mark ? Object.assign(part, { mark: mark }) : part;
+  }
+
+  // A capture of a PDF: the page in view and, as asked, the part of it in
+  // view and the text selected in it, all from the drawing shown now.
   function pdfAnswer(data, drawn) {
     const handle = drawn.pdf;
     const shown = handle.shown();
@@ -1536,9 +1720,13 @@
     const wants = Array.isArray(data.wants) ? data.wants : [];
     const drawn = drawnBody && drawnBody.key === `${data.item_id}|${data.version}` ? drawnBody : null;
     if (drawn && drawn.pdf && now.range && Number.isInteger(now.range.page)) return pdfAnswer(data, drawn);
+    if (drawn && drawn.image) return imageAnswer(data, drawn.image);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {
-      return { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
+      const out = { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
+      const chosen = wants.includes('selection') && drawn ? linesChosen(drawn, item, version) : null;
+      if (chosen) out.selected_lines = chosen;
+      return out;
     }
     return { range: null, note: now.note || 'unknown' };
   }
@@ -2271,8 +2459,9 @@
     line.appendChild(element('i', 'fa-solid fa-crosshairs me-1'));
     const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-picture-open');
     open.type = 'button';
-    open.textContent = t('ui.workbench.pictureSent', 'The work screen as sent (page {n})')
-      .replace('{n}', String(picture.page));
+    open.textContent = picture.kind === 'image'
+      ? t('ui.workbench.pictureSentImage', 'The work screen as sent (image)')
+      : t('ui.workbench.pictureSent', 'The work screen as sent (page {n})').replace('{n}', String(picture.page));
     open.addEventListener('click', () => {
       if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_PICTURE', picture_id: picture.id });
     });
@@ -2303,8 +2492,13 @@
     const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-selection-open');
     open.type = 'button';
     open.setAttribute('aria-expanded', 'false');
-    open.textContent = t('ui.workbench.selectionSent', 'Selected text (page {n})').replace('{n}', String(selection.page));
-    const quote = element('blockquote', 'workbench-selection-quote', selection.text);
+    open.textContent = selection.kind === 'text'
+      ? t('ui.workbench.selectionSentLines', 'Selected lines ({first}–{last})').replace('{first}', String(selection.first))
+        .replace('{last}', String(selection.last))
+      : t('ui.workbench.selectionSent', 'Selected text (page {n})').replace('{n}', String(selection.page));
+    const quote = selection.kind === 'text'
+      ? element('pre', 'workbench-selection-quote workbench-selection-lines', selection.text)
+      : element('blockquote', 'workbench-selection-quote', selection.text);
     quote.hidden = true;
     open.addEventListener('click', () => {
       quote.hidden = !quote.hidden;

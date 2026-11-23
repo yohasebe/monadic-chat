@@ -6831,6 +6831,10 @@ body.side-pane-resizing {
 .workbench-zoomable {
   cursor: zoom-in;
 }
+/* An image with the pointer: the mark is drawn over the image's frame. */
+.workbench-image-frame {
+  position: relative;
+}
 .workbench-zoomable:focus-visible {
   outline: 2px solid var(--color-link);
   outline-offset: 2px;
@@ -6869,6 +6873,15 @@ body.side-pane-resizing {
   border: var(--border-width) solid var(--border-light);
   border-radius: var(--border-radius);
   background: var(--bg-panel);
+}
+/* The lines the user selected, kept marked after the selection goes. */
+.workbench-lines li.workbench-line-held {
+  background: var(--pal-accent-soft);
+  box-shadow: inset 3px 0 0 var(--pal-accent-mid);
+}
+/* Above a text's lines: the selected lines' chip; nothing when there is none. */
+.workbench-text-bar:empty {
+  display: none;
 }
 .workbench-lines {
   margin: 0;
@@ -7059,7 +7072,9 @@ body.side-pane-resizing {
 }
 /* The bar stays at the top of the PDF while its pages scroll; the space
    under it is its own (the pages scroll under it, not into it). */
-.workbench-pdf-bar {
+.workbench-pdf-bar,
+.workbench-image-bar,
+.workbench-text-bar {
   position: sticky;
   top: 0;
   z-index: 4;
@@ -7158,6 +7173,13 @@ body.side-pane-resizing {
   border-left: 3px solid var(--pal-accent-line);
   white-space: pre-wrap;
   color: var(--text-primary);
+}
+/* Selected lines of a text file: as they are in the file. */
+.workbench-selection-quote.workbench-selection-lines {
+  font-family: var(--font-family-monospace, monospace);
+  font-size: inherit;
+  overflow-x: auto;
+  white-space: pre;
 }
 /* The page and the zoom, between their buttons */
 .workbench-pdf-bar .workbench-pdf-label {

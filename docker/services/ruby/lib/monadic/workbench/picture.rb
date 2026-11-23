@@ -9,8 +9,8 @@ require_relative 'store'
 module Monadic
   module Workbench
     # A picture of the work screen as the user had it when they sent a
-    # message: the part of the selected PDF's page in view, with the part
-    # they point at marked on it (the pointer). It belongs to that message:
+    # message: the part of the selected PDF's page in view, or the selected
+    # image, with the part they point at marked on it (the pointer). It belongs to that message:
     # it goes with the message's request, and with the requests that return
     # its tools' results, and with no later message's.
     #
@@ -21,7 +21,8 @@ module Monadic
     # removed with its message.
     #
     # The message keeps a reference (reference): the item, version, page
-    # and the mark, never the bytes.
+    # (of a PDF; an image's has kind 'image' instead) and the mark, never
+    # the bytes.
     class Picture
       DIRNAME = 'pictures'
       PNG = "\x89PNG\r\n\x1A\n".b
@@ -38,22 +39,26 @@ module Monadic
       NOTE = 'The image attached to this message is the part of page %<page>d of the PDF selected on the work screen ' \
              'that the user had in view when sending. The user marked a part of it with a translucent %<color>s ' \
              '%<shape>s to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
+      NOTE_IMAGE = 'The image attached to this message is the image selected on the work screen when the user sent it. ' \
+                   'The user marked a part of it with a translucent %<color>s %<shape>s to point at it ' \
+                   '(left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
 
       Refused = Pointing::Refused
 
-      attr_reader :id, :chat_id, :request_id, :item_id, :version, :page, :pages, :mark, :bytes
+      attr_reader :id, :chat_id, :request_id, :item_id, :version, :kind, :page, :pages, :mark, :bytes
 
       class << self
         # The picture the page sent with a message (data), checked against
         # the board as the tab's connection sees it. Raises Refused (with
         # why) when it is not taken.
         def accept(data, chat_id:, request_id:, tab:, generation:)
-          item = Pointing.selected_pdf!(data, chat_id: chat_id, tab: tab, generation: generation)
-          page, pages = Pointing.page_of!(data)
+          item = Pointing.selected!(data, chat_id: chat_id, tab: tab, generation: generation, previews: %w[pdf image])
+          kind = item[:preview].to_s
+          page, pages = kind == 'pdf' ? Pointing.page_of!(data) : [nil, nil]
           mark = Pointing.mark_of(data['mark']) or raise Refused, 'bad_mark'
           bytes = png_of(data['image'])
           new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
-              version: item[:version], page: page, pages: pages, mark: mark, bytes: bytes)
+              version: item[:version], kind: kind, page: page, pages: pages, mark: mark, bytes: bytes)
         end
 
         # A message's reference (reference) as kept with the chat, checked, or
@@ -61,13 +66,15 @@ module Monadic
         def clean(value)
           return nil unless value.is_a?(Hash) && value['id'].is_a?(String) && value['id'].match?(ID)
 
-          pages = Pointing.whole(value['pages'], PAGES_LIMIT) or return nil
-          page = Pointing.whole(value['page'], pages) or return nil
           mark = Pointing.mark_of(value['mark']) or return nil
           return nil unless value['item_id'].is_a?(String) && value['version'].is_a?(String)
 
-          { 'id' => value['id'], 'item_id' => value['item_id'][0, 64], 'version' => value['version'][0, 128],
-            'page' => page, 'pages' => pages, 'mark' => mark }
+          out = { 'id' => value['id'], 'item_id' => value['item_id'][0, 64], 'version' => value['version'][0, 128] }
+          return out.merge('kind' => 'image', 'mark' => mark) if value['kind'] == 'image'
+
+          pages = Pointing.whole(value['pages'], PAGES_LIMIT) or return nil
+          page = Pointing.whole(value['page'], pages) or return nil
+          out.merge('page' => page, 'pages' => pages, 'mark' => mark)
         end
 
         # The bytes of the picture id kept for chat_id, or nil.
@@ -109,12 +116,13 @@ module Monadic
         end
       end
 
-      def initialize(id:, chat_id:, request_id:, item_id:, version:, page:, pages:, mark:, bytes:)
+      def initialize(id:, chat_id:, request_id:, item_id:, version:, page:, pages:, mark:, bytes:, kind: 'pdf')
         @id = id
         @chat_id = chat_id
         @request_id = request_id
         @item_id = item_id
         @version = version
+        @kind = kind
         @page = page
         @pages = pages
         @mark = mark.freeze
@@ -138,7 +146,10 @@ module Monadic
 
       # What the message keeps of it.
       def reference
-        { 'id' => id, 'item_id' => item_id, 'version' => version, 'page' => page, 'pages' => pages, 'mark' => mark.dup }
+        out = { 'id' => id, 'item_id' => item_id, 'version' => version }
+        return out.merge('kind' => 'image', 'mark' => mark.dup) if kind == 'image'
+
+        out.merge('page' => page, 'pages' => pages, 'mark' => mark.dup)
       end
 
       # The picture as an image of a message, for the request.
@@ -149,7 +160,7 @@ module Monadic
 
       # What the model is told with it.
       def note
-        format(NOTE, page: page, shape: mark['shape'] == 'ellipse' ? 'ellipse' : 'rectangle',
+        format(kind == 'image' ? NOTE_IMAGE : NOTE, page: page, shape: mark['shape'] == 'ellipse' ? 'ellipse' : 'rectangle',
                      color: COLORS.include?(mark['color']) ? mark['color'] : 'orange',
                      x: (mark['x'] * 100).round, y: (mark['y'] * 100).round,
                      w: (mark['w'] * 100).round, h: (mark['h'] * 100).round)

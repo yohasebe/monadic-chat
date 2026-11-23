@@ -98,9 +98,9 @@
     const tips = [];
     // The buttons: draw a mark (the next drag over the surface, in the
     // color of the mark), choose its look (shape and color), take it away.
-    const point = control('workbench-pointer-point', t('ui.workbench.pointAt', 'Point at a part of the page'), 'fa-solid fa-crosshairs', {
+    const point = control('workbench-pointer-point', t('ui.workbench.pointAt', 'Point at a part of it'), 'fa-solid fa-crosshairs', {
       tip: t('ui.workbench.pointHelp',
-        'Drag over the page to mark the part you mean. Your next message takes a picture of the part in view, mark included. Hidden words are not hidden in the picture.'),
+        'Drag over it to mark the part you mean. Your next message takes a picture of what is in view, mark included. Hidden words are not hidden in the picture.'),
       kind: 'btn-info', tips
     });
     point.setAttribute('aria-pressed', 'false');
@@ -142,7 +142,7 @@
     };
     lookMenu.append(lookRow(t('ui.workbench.pointShape', 'Shape'), shapeChoices),
       lookRow(t('ui.workbench.pointColor', 'Color'), colorChoices));
-    const controls = group(t('ui.workbench.pointAt', 'Point at a part of the page'), point, lookButton, unpoint, lookMenu);
+    const controls = group(t('ui.workbench.pointAt', 'Point at a part of it'), point, lookButton, unpoint, lookMenu);
     controls.classList.add('workbench-pointer-controls');
     controls.hidden = true;
 
@@ -224,7 +224,7 @@
     // Drawing: the button is pressed (darker, its icon a pen), and its name
     // says how to stop.
     const POINT_HELP = point.title;
-    const DRAWING_HELP = t('ui.workbench.pointDrawing', 'Drag over the page to draw the mark. Press this again or Esc to stop.');
+    const DRAWING_HELP = t('ui.workbench.pointDrawing', 'Drag over it to draw the mark. Press this again or Esc to stop.');
     function drawMode(on) {
       drawing = !!on && pointable;
       layer.classList.toggle('workbench-pointer-drawing', drawing);
@@ -232,7 +232,7 @@
       point.setAttribute('aria-pressed', drawing ? 'true' : 'false');
       point.firstChild.className = drawing ? 'fa-solid fa-pen' : 'fa-solid fa-crosshairs';
       const help = drawing ? DRAWING_HELP : POINT_HELP;
-      point.setAttribute('aria-label', drawing ? DRAWING_HELP : t('ui.workbench.pointAt', 'Point at a part of the page'));
+      point.setAttribute('aria-label', drawing ? DRAWING_HELP : t('ui.workbench.pointAt', 'Point at a part of it'));
       if (point.tip && typeof point.tip.setContent === 'function') point.tip.setContent({ '.tooltip-inner': help });
       else point.title = help;
     }

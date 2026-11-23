@@ -184,7 +184,12 @@ module Monadic
         outbound.chat_session!(session)
         words = outbound.terms_of(session)
         left = false
-        outbound.each_text(text) { |value| left ||= outbound.holds_word?(value, words) } unless words.empty?
+        unless words.empty?
+          outbound.each_text(text) do |value|
+            left ||= outbound.holds_word?(value, words) ||
+                     Monadic::Utils::Privacy::WordTable.broken_words(value, words).any?
+          end
+        end
         raise Refused.new('filtered', 'it holds a word this chat hides') if left
 
         text
@@ -215,8 +220,10 @@ module Monadic
         case file['preview']
         when 'image'
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
-          seen(item, 'image', file['name'], file['path'], file['sha256'],
-               image: ImageValue.checked(bytes, source: 'workbench_file'))
+          image = ImageValue.checked(bytes, source: 'workbench_file')
+          marked = scope == 'visible' ? marked_image(board, selection, caller, deadline, image) : {}
+          seen(item, 'image', file['name'], file['path'], file['sha256'], image: marked[:image] || image,
+                                                                            mark: marked[:mark], mark_drawn: !marked[:image].nil?)
         when 'pdf'
           bytes = -> { board.file_read(item['id'], sha256: file['sha256'])[:bytes] }
           content = if scope == 'visible'
@@ -265,19 +272,53 @@ module Monadic
         valid = still(board, selection, caller)
         answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                  request_id: caller.request_id, item_id: item['id'],
-                                 version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['range'],
-                                 deadline: deadline, valid: valid)
+                                 version: item.dig('file', 'sha256'), serial: selection.serial,
+                                 wants: %w[range selection], deadline: deadline, valid: valid)
         range = answer['range']
         if range.is_a?(Hash)
           first = range['first_line']
           last = range['last_line']
-          return { first: first, last: last } if first.is_a?(Integer) && last.is_a?(Integer) && first.between?(1, last)
+          if first.is_a?(Integer) && last.is_a?(Integer) && first.between?(1, last)
+            return { first: first, last: last, selected: selected_lines_of(answer['selected_lines']) }
+          end
         end
         return { empty: true } if answer['note'] == 'empty' && range.nil?
 
         raise_unseen(answer['note'])
       rescue Capture::Failed => e
         raise Refused.new(REASONS.include?(e.reason) ? e.reason : 'range_unknown', e.message)
+      end
+
+      # The user's mark on the image the tab shows, and the image as the tab
+      # has it with the mark drawn on it: { mark:, image: } (image nil when
+      # the tab could not give it, or gave one of another shape than the
+      # file's), or {} when nothing is marked or the tab does not answer.
+      def marked_image(board, selection, caller, deadline, original)
+        item = selection.item
+        answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
+                                 request_id: caller.request_id, item_id: item['id'],
+                                 version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['image'],
+                                 deadline: deadline, valid: still(board, selection, caller))
+        mark = Pointing.mark_of(answer['mark']) or return {}
+        image, = Pdf.image_of(answer)
+        { mark: mark, image: image && same_shape?(image, original) ? image : nil }
+      rescue Capture::Failed
+        {}
+      end
+
+      # Whether two images have the same proportions (within 1%).
+      def same_shape?(one, other)
+        (one.width * other.height - other.width * one.height).abs <= 0.01 * one.width * other.height
+      end
+
+      # The lines the user selected, as the page says them: [first, last], or
+      # nil.
+      def selected_lines_of(value)
+        return nil unless value.is_a?(Hash)
+
+        first = value['first']
+        last = value['last']
+        first.is_a?(Integer) && last.is_a?(Integer) && first.between?(1, last) ? [first, last] : nil
       end
 
       # Why the page did not give the lines in view.
@@ -299,7 +340,7 @@ module Monadic
       # before and after, at most TEXT_CHARS (the margins go first). Refused
       # when the page names lines the work screen does not show.
       # empty: the page shows a text with no line.
-      def visible_text(bytes, first: nil, last: nil, empty: false)
+      def visible_text(bytes, first: nil, last: nil, empty: false, selected: nil)
         preview = Monadic::Workspace::SharedFolderPreview
         view = preview.text_view(bytes)
         lines = preview.text_lines(view[:text])
@@ -331,7 +372,17 @@ module Monadic
         shown_cut = view[:truncated] && !view[:text].end_with?("\n")
         partial = (cut && !text.end_with?("\n")) || (to == lines.size && shown_cut)
         { text: text, first_line: from, last_line: to, total_lines: total, asked_first: first, asked_last: last,
-          truncated: cut, partial_line: partial, empty: false }
+          truncated: cut, partial_line: partial, empty: false, **selected_text(lines, selected) }
+      end
+
+      # The lines the user selected, of the text's lines, taken as Selection
+      # takes them with a message: { selected_first:, selected_last:,
+      # selected_text:, selected_cut: }, or nothing.
+      def selected_text(lines, selected)
+        return {} unless selected && selected[1] <= lines.size
+
+        taken = Selection.take_lines(lines, *selected)
+        { selected_first: selected[0], selected_last: taken[:last], selected_text: taken[:text], selected_cut: taken[:cut] }
       end
 
       def joined(lines, from, to)
@@ -371,17 +422,24 @@ module Monadic
           out['image'] = NO_IMAGE if seen[:image_withheld]
         elsif seen[:image_withheld]
           out['image'] = NO_IMAGE
+          out['marked'] = image_marked(seen) if seen[:mark]
         elsif seen[:kind] == 'browser'
           # The title and the address are what the browser said near the
           # moment of the picture.
           out['image'] = "A picture of the browser's viewport, taken now, is attached after this result."
         elsif seen[:image]
           out['image'] = 'The image is attached after this result.'
+          out['marked'] = image_marked(seen) if seen[:mark]
         else
           out['lines'] = { 'first' => seen[:first_line], 'last' => seen[:last_line], 'total' => seen[:total_lines],
                            'last_line_cut' => seen[:partial_line] }
           # The lines the user had in view (the others are around them).
           out['lines']['in_view'] = { 'first' => seen[:asked_first], 'last' => seen[:asked_last] } if seen[:asked_first]
+          if seen[:selected_text]
+            out['selected_lines'] = { 'first' => seen[:selected_first], 'last' => seen[:selected_last],
+                                      'text' => seen[:selected_text] }
+            out['selected_lines']['cut'] = true if seen[:selected_cut]
+          end
           out['truncated'] = seen[:truncated]
           out['empty'] = true if seen[:empty]
           if Monadic::Workspace::SharedFolderPreview.render_for(seen[:path])
@@ -390,6 +448,17 @@ module Monadic
           out['text'] = seen[:text]
         end
         JSON.generate(out)
+      end
+
+      # Where the user marked an image, and whether the mark is drawn on the
+      # image the model gets.
+      def image_marked(seen)
+        if seen[:mark_drawn] && !seen[:image_withheld]
+          "The user marked a part of it with a translucent #{mark_place(seen[:mark], 'the image')} to point at it; " \
+            'the image attached is the one the tab shows, with the mark drawn on it.'
+        else
+          "The user marked a part of the image with a #{mark_place(seen[:mark], 'the image')} to point at it."
+        end
       end
 
       # A mark's color, shape and place, as fractions of what it is on.

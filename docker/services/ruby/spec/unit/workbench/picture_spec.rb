@@ -58,10 +58,30 @@ RSpec.describe Monadic::Workbench::Picture do
     }.each do |reason, data|
       expect { accept(data) }.to raise_error(described_class::Refused) { |e| expect(e.reason).to eq(reason) }
     end
-    pdf_less = double("board", observe: { items: [item.merge(preview: "image")], selected: "i_1" })
-    allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id).and_return(pdf_less)
+    text = double("board", observe: { items: [item.merge(preview: "text")], selected: "i_1" })
+    allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id).and_return(text)
     expect { described_class.accept(sent, chat_id: chat_id, request_id: "q_1", tab: "tab-1", generation: 1) }
-      .to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("not_a_pdf") }
+      .to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("not_pointable") }
+  end
+
+  context "of an image" do
+    let(:item) { { id: "i_1", kind: "file", preview: "image", version: "v" * 64 } }
+
+    it "takes the image the tab has selected, with no page, and says it is the image" do
+      picture = accept(sent.except("page", "pages"))
+      expect(picture.reference).to eq("id" => picture.id, "item_id" => "i_1", "version" => "v" * 64, "kind" => "image",
+                                      "mark" => { "shape" => "rect", "color" => "orange", "x" => 0.1, "y" => 0.2, "w" => 0.5,
+                                                  "h" => 0.1 })
+      expect(picture.note).to start_with("The image attached to this message is the image selected on the work screen")
+      expect(picture.note).to include("translucent orange rectangle", "left 10%")
+      expect(picture.note).not_to include("page")
+    end
+
+    it "keeps the reference of an image's picture as it is kept with the chat" do
+      picture = accept(sent.except("page", "pages"))
+      expect(described_class.clean(picture.reference)).to eq(picture.reference)
+      expect(described_class.clean(picture.reference.merge("kind" => "pdf"))).to be_nil
+    end
   end
 
   it "refuses what is not a PNG of the size taken" do

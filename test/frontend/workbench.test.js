@@ -1079,6 +1079,63 @@ describe('Workbench', () => {
         expect(body).toEqual({ range: { first_line: 3, last_line: 5 }, note: null });
       });
 
+      function selectLines(box, first, last) {
+        const lis = box.querySelectorAll('.workbench-lines li');
+        const range = document.createRange();
+        range.setStart(lis[first - 1].firstChild, 0);
+        range.setEnd(lis[last - 1].firstChild, 1);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+      }
+
+      test('offers the lines the user selects in a text to go with a message, by their numbers', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        expect(box.querySelector('.workbench-text-bar .workbench-selection-chip')).toBeNull();
+        selectLines(box, 4, 2);
+        selectLines(box, 2, 4);
+        selectLines(box, 6, 6);
+        selectLines(box, 2, 4);
+        expect(document.querySelectorAll('.workbench-selection-chip')).toHaveLength(1);
+        expect(box.querySelector('.workbench-text-bar .workbench-selection-text').textContent).toBe('Send lines 2–4');
+        const offered = window.Workbench.selectionNow();
+        expect(offered.data).toEqual({ item_id: 'i_t', version: 'e'.repeat(64), first: 2, last: 4 });
+        offered.sent();
+        expect(window.Workbench.selectionNow()).toBeNull();
+        // Sent, the lines stay marked, and the chip stays to take the mark away.
+        expect(box.querySelector('.workbench-selection-text').textContent).toBe('Lines 2–4');
+        expect(box.querySelector('.workbench-selection-aside').title).toBe('Clear the selected lines');
+        box.querySelector('.workbench-selection-aside').click();
+        expect(box.querySelector('.workbench-selection-chip')).toBeNull();
+        expect(box.querySelectorAll('.workbench-line-held')).toHaveLength(0);
+      });
+
+      test('keeps the selected lines marked when the selection goes and after they are sent, until set aside', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        const held = () => Array.from(box.querySelectorAll('.workbench-lines li'))
+          .map((li, i) => (li.classList.contains('workbench-line-held') ? i + 1 : 0)).filter(Boolean);
+        selectLines(box, 2, 4);
+        window.getSelection().removeAllRanges();
+        expect(held()).toEqual([2, 3, 4]);
+        window.Workbench.selectionNow().sent();
+        expect(held()).toEqual([2, 3, 4]);
+        selectLines(box, 6, 7);
+        expect(held()).toEqual([6, 7]);
+        box.querySelector('.workbench-selection-aside').click();
+        expect(held()).toEqual([]);
+      });
+
+      test('gives the lines the user selected with the lines in view, held when the selection is gone', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        selectLines(box, 6, 7);
+        expect((await answer(asked({ wants: ['range', 'selection'] }))).body)
+          .toEqual({ range: { first_line: 3, last_line: 5 }, note: null, selected_lines: { first: 6, last: 7 } });
+        window.getSelection().removeAllRanges();
+        expect((await answer(asked({ wants: ['range', 'selection'] }))).body.selected_lines).toEqual({ first: 6, last: 7 });
+        // Not asked for: not given.
+        expect((await answer(asked())).body.selected_lines).toBeUndefined();
+      });
+
       test('says the selection is changing while one of its selections waits for the server, and answers after', async () => {
         await showAsSelected(['a', 'b', 'c', 'd']);
         window.Workbench.select('i_t');
@@ -1120,6 +1177,96 @@ describe('Workbench', () => {
       await flush();
       await flush();
       expect(window.Workbench.rangeNow()).toMatchObject({ range: null, note: 'empty' });
+    });
+
+    describe('answering a capture of an image', () => {
+      const photo = { id: 'i_g', kind: 'file', actor: 'user', name: 'g.png', path: 'g.png', preview: 'image',
+        sha256: 'e'.repeat(64), version: 'e'.repeat(64), status: 'ok' };
+      let pointerNow;
+      let drawnShapes;
+      let drawImage;
+
+      beforeEach(async () => {
+        layout.pane = 'work';
+        pointerNow = null;
+        drawnShapes = [];
+        drawImage = jest.fn();
+        window.WorkbenchPointer = {
+          COLORS: { cyan: { fill: 'rgba(0,0,0,0.2)', line: '#000' } },
+          attach: () => ({ controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
+            pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false, setPointable: () => {}, dispose: jest.fn() })
+        };
+        jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
+          drawImage, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
+          rect: (...a) => drawnShapes.push(['rect', ...a]), ellipse: (...a) => drawnShapes.push(['ellipse', ...a])
+        }));
+        jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,QUJD');
+        view([photo], { assets: { i_g: '/workbench/asset/g' }, selected: 'i_g', selection_serial: 3 });
+        await flush();
+        const img = document.querySelector('#workbench-view .workbench-image-frame img');
+        Object.defineProperty(img, 'complete', { value: true });
+        Object.defineProperty(img, 'naturalWidth', { value: 800 });
+        Object.defineProperty(img, 'naturalHeight', { value: 600 });
+      });
+
+      afterEach(() => {
+        delete window.WorkbenchPointer;
+        jest.restoreAllMocks();
+      });
+
+      async function answer(wants = ['image']) {
+        const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+        global.fetch = posted;
+        window.Workbench.onCapture({ type: 'workbench_capture', id: 'cap-g', item_id: 'i_g', version: 'e'.repeat(64),
+          serial: 3, wants: wants });
+        await flush();
+        return JSON.parse(posted.mock.calls[0][1].body);
+      }
+
+      test('shows the image with the pointer\'s buttons above it', () => {
+        expect(document.querySelector('#workbench-view .workbench-image-bar .workbench-pointer-controls')).not.toBeNull();
+        expect(document.querySelector('#workbench-view .workbench-image-frame img.workbench-image')).not.toBeNull();
+      });
+
+      test('shows the pointer\'s own buttons over an image, which is not dragged as a file', async () => {
+        window.WorkbenchPointer = undefined;
+        jest.isolateModules(() => { require(js('monadic/workbench-pointer.js')); });
+        const other = Object.assign({}, photo, { id: 'i_h', name: 'h.png', path: 'h.png' });
+        view([other], { assets: { i_h: '/workbench/asset/h' }, selected: 'i_h', selection_serial: 4 });
+        await flush();
+        const controls = document.querySelector('#workbench-view .workbench-image-bar .workbench-pointer-controls');
+        expect(controls).not.toBeNull();
+        expect(controls.hidden).toBe(false);
+        expect(document.querySelector('#workbench-view .workbench-image-frame img').draggable).toBe(false);
+        expect(document.querySelector('#workbench-view .workbench-image-frame .workbench-pointer-layer')).not.toBeNull();
+      });
+
+      test('gives the whole image with the mark drawn on it, and where the mark is', async () => {
+        pointerNow = { at: 1, by: 'user', shape: 'ellipse', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        const body = await answer();
+        expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 800, 600, 0, 0, 800, 600);
+        expect(drawnShapes).toEqual([['ellipse', 400, 375, 200, 75, 0, 0, Math.PI * 2]]);
+        expect(body).toMatchObject({ image: 'QUJD', mark: { shape: 'ellipse', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 },
+          crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
+      });
+
+      test('takes the image with the mark drawn on it to go with a message, once for each place of the mark', () => {
+        expect(window.Workbench.pictureNow()).toBeNull();
+        pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        const picture = window.Workbench.pictureNow();
+        expect(picture.data).toEqual({ item_id: 'i_g', version: 'e'.repeat(64), image: 'QUJD',
+          mark: { shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 },
+          crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
+        picture.sent();
+        expect(window.Workbench.pictureNow()).toBeNull();
+      });
+
+      test('gives no image when nothing is marked, or when no image is asked for', async () => {
+        expect((await answer()).image).toBeUndefined();
+        pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        expect((await answer(['range'])).image).toBeUndefined();
+        expect(drawImage).not.toHaveBeenCalled();
+      });
     });
 
     describe('answering a capture of a PDF', () => {
@@ -1494,6 +1641,14 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view img').getAttribute('src')).toBe('data:image/png;base64,UElDVFVSRQ==');
       window.Workbench.onPicture({ picture_id: 'p_' + 'b'.repeat(20), found: false });
       expect(window.setAlert).toHaveBeenCalled();
+      // Lines of a text: their numbers, and the lines as they are.
+      window.Workbench.drawSelection('m-u', { kind: 'text', first: 2, last: 3, text: 'def a\n  1\nend' });
+      const lines = el.querySelector('.workbench-selection-note');
+      expect(lines.textContent).toContain('Selected lines (2–3)');
+      expect(lines.querySelector('pre.workbench-selection-lines').textContent).toBe('def a\n  1\nend');
+      // A picture of an image has no page.
+      window.Workbench.drawPicture('m-u', { id: 'p_' + 'c'.repeat(20), kind: 'image' });
+      expect(el.querySelector('.workbench-picture-note').textContent).toContain('(image)');
       window.Workbench.drawPicture('m-u', null);
       expect(el.querySelector('.workbench-picture-note')).toBeNull();
     });

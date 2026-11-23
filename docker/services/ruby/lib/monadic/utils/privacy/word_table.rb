@@ -73,6 +73,26 @@ module Monadic
         JSON_DEPTH = 5
         MAX_NESTING = 64
         MAX_NODES = 200_000
+        # Characters that show nothing (control characters, a soft hyphen, a
+        # zero-width space, a word joiner, a byte order mark), and runs of
+        # space (line breaks among them), as a word is looked for when
+        # whitespace or such a character may break it.
+        UNSEEN = /[\u0000-\u0008\u000E-\u001F\u007F\u00AD\u200B\u2060\uFEFF]/
+        SPACES = /[[:space:]]+/
+
+        # The words of words found in text more often when its runs of space
+        # are each one space and what shows nothing is dropped than as they
+        # are (a word a line break, an indentation or an unseen character
+        # breaks, even where it is also whole elsewhere): what an exact match
+        # does not find.
+        def self.broken_words(text, words)
+          flat = flatten(text)
+          words.select { |word| flat.scan(flatten(word)).size > text.scan(word).size }
+        end
+
+        def self.flatten(text)
+          text.gsub(UNSEEN, '').gsub(SPACES, ' ')
+        end
 
         class Invalid < StandardError; end
         # More than one snapshot takes in one value.

@@ -98,11 +98,22 @@ RSpec.describe "asking the page what the work screen shows" do
       expect(out["text"]).to eq((5..13).map { |n| "line #{n}\n" }.join)
       request = asked.pop(timeout: 5)
       expect(request).to include("type" => "workbench_capture", "item_id" => item["id"],
-                                 "version" => item["file"]["sha256"], "wants" => ["range"])
+                                 "version" => item["file"]["sha256"], "wants" => %w[range selection])
       expect(request["_to"]).to eq(["tab-1", 1, chat])
       expect(request["serial"]).to be_a(Integer)
       record = Monadic::Workbench::Look::Ledger.find(chat, request_id).records.first
       expect(Monadic::Workbench::Look::Record.clean([record]).first["lines"]).to include("asked_first" => 8, "asked_last" => 10)
+    end
+
+    it "gives the lines the user selected, read from the file, with their numbers" do
+      open_text(lines_text(20))
+      page { { "range" => { "first_line" => 8, "last_line" => 10 }, "note" => nil, "selected_lines" => { "first" => 15, "last" => 16 } } }
+      out = result(look.run(caller_for, scope: "visible"))
+      expect(out["selected_lines"]).to eq("first" => 15, "last" => 16, "text" => "line 15\nline 16")
+      page { { "range" => { "first_line" => 8, "last_line" => 10 }, "selected_lines" => { "first" => 19, "last" => 25 } } }
+      expect(result(look.run(caller_for, scope: "visible"))).not_to have_key("selected_lines")
+      page { { "range" => { "first_line" => 8, "last_line" => 10 }, "selected_lines" => { "first" => "1", "last" => 2 } } }
+      expect(result(look.run(caller_for, scope: "visible"))).not_to have_key("selected_lines")
     end
 
     it "keeps the margins inside the text and gives up the margins first when it is long" do

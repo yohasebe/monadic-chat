@@ -1193,6 +1193,17 @@ describe('Workbench', () => {
           crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
       });
 
+      test('takes the image with the mark drawn on it to go with a message, once for each place of the mark', () => {
+        expect(window.Workbench.pictureNow()).toBeNull();
+        pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        const picture = window.Workbench.pictureNow();
+        expect(picture.data).toEqual({ item_id: 'i_g', version: 'e'.repeat(64), image: 'QUJD',
+          mark: { shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 },
+          crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
+        picture.sent();
+        expect(window.Workbench.pictureNow()).toBeNull();
+      });
+
       test('gives no image when nothing is marked, or when no image is asked for', async () => {
         expect((await answer()).image).toBeUndefined();
         pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
@@ -1573,6 +1584,9 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view img').getAttribute('src')).toBe('data:image/png;base64,UElDVFVSRQ==');
       window.Workbench.onPicture({ picture_id: 'p_' + 'b'.repeat(20), found: false });
       expect(window.setAlert).toHaveBeenCalled();
+      // A picture of an image has no page.
+      window.Workbench.drawPicture('m-u', { id: 'p_' + 'c'.repeat(20), kind: 'image' });
+      expect(el.querySelector('.workbench-picture-note').textContent).toContain('(image)');
       window.Workbench.drawPicture('m-u', null);
       expect(el.querySelector('.workbench-picture-note')).toBeNull();
     });

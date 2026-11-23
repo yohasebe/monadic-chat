@@ -28,13 +28,19 @@ module Monadic
       # The board's item the tab has selected, when it is the PDF data names
       # (item_id) at the version it names; Refused otherwise.
       def selected_pdf!(data, chat_id:, tab:, generation:)
+        selected!(data, chat_id: chat_id, tab: tab, generation: generation, previews: %w[pdf], refused: 'not_a_pdf')
+      end
+
+      # The same for an item shown as one of previews (a PDF, an image);
+      # Refused (refused) for another kind.
+      def selected!(data, chat_id:, tab:, generation:, previews:, refused: 'not_pointable')
         raise Refused, 'not_a_picture' unless data.is_a?(Hash)
 
         board = Board.existing(chat_id) or raise Refused, 'no_board'
         seen = board.observe(tab: tab.to_s, generation: generation) or raise Refused, 'not_this_tab'
         item = seen[:items].find { |i| i[:id] == seen[:selected] }
         raise Refused, 'not_selected' unless item && item[:id] == data['item_id']
-        raise Refused, 'not_a_pdf' unless item[:kind] == 'file' && item[:preview].to_s == 'pdf'
+        raise Refused, refused unless item[:kind] == 'file' && previews.include?(item[:preview].to_s)
         raise Refused, 'changed' unless data['version'] == item[:version]
 
         item

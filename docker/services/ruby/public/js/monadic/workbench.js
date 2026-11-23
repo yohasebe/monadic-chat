@@ -1289,8 +1289,10 @@
   function pictureNow() {
     if (local || !paneShown() || !takesImages()) return null;
     const item = selected ? itemById(selected) : null;
-    if (!item || item.kind !== 'file' || item.preview !== 'pdf') return null;
+    if (!item || item.kind !== 'file') return null;
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    if (item.preview === 'image') return drawn && drawn.image ? imagePictureNow(item, drawn.image) : null;
+    if (item.preview !== 'pdf') return null;
     const handle = drawn && drawn.pdf;
     if (!handle || typeof handle.pointer !== 'function') return null;
     const shown = handle.shown();
@@ -1312,6 +1314,21 @@
         item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
         mark: mark, crop: part.crop, image: part.image
       },
+      sent: () => { sentPointer = { handle: handle, seq: seq }; }
+    };
+  }
+
+  // The same for an image the tab shows: the whole image with the mark
+  // drawn on it, after the user placed or moved the mark.
+  function imagePictureNow(item, handle) {
+    const pointer = handle.pointer();
+    if (!pointer) return null;
+    const seq = handle.pointerSeq();
+    if (sentPointer.handle === handle && sentPointer.seq === seq) return null;
+    const part = markedImage(handle, pointer);
+    if (!part.image || !part.mark) return null;
+    return {
+      data: { item_id: item.id, version: item.version || item.sha256 || '', mark: part.mark, crop: part.crop, image: part.image },
       sent: () => { sentPointer = { handle: handle, seq: seq }; }
     };
   }
@@ -1529,8 +1546,17 @@
     const wants = Array.isArray(data.wants) ? data.wants : [];
     const pointer = handle.pointer();
     if (!wants.includes('image') || !pointer) return out;
+    const part = markedImage(handle, pointer);
+    Object.assign(out, part);
+    if (!part.image) delete out.mark;
+    return out;
+  }
+
+  // The whole image the tab shows, with the user's mark drawn on it: what
+  // drawnPng gives, with the mark ({ shape, color, x, y, w, h }) as mark.
+  function markedImage(handle, pointer) {
     const img = handle.img;
-    if (!img.complete || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return Object.assign(out, { image_note: 'drawing' });
+    if (!img.complete || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return { image_note: 'drawing' };
     let mark = null;
     let part;
     try {
@@ -1538,11 +1564,9 @@
         mark = paintMark(context, pointer, frame.width, frame.height);
       });
     } catch (_) {
-      part = { image_note: 'failed' };
+      return { image_note: 'failed' };
     }
-    Object.assign(out, part);
-    if (part.image && mark) out.mark = mark;
-    return out;
+    return mark ? Object.assign(part, { mark: mark }) : part;
   }
 
   // A capture of a PDF: the page in view and, as asked, the part of it in
@@ -2343,8 +2367,9 @@
     line.appendChild(element('i', 'fa-solid fa-crosshairs me-1'));
     const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-picture-open');
     open.type = 'button';
-    open.textContent = t('ui.workbench.pictureSent', 'The work screen as sent (page {n})')
-      .replace('{n}', String(picture.page));
+    open.textContent = picture.kind === 'image'
+      ? t('ui.workbench.pictureSentImage', 'The work screen as sent (image)')
+      : t('ui.workbench.pictureSent', 'The work screen as sent (page {n})').replace('{n}', String(picture.page));
     open.addEventListener('click', () => {
       if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_PICTURE', picture_id: picture.id });
     });

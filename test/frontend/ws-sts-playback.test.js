@@ -174,6 +174,16 @@ describe('underrun', () => {
     expect(second.startedAt).toBeCloseTo(ctx.currentTime + Sts.LEAD_IN_SEC, 6);
   });
 
+  it('plays a chunk right after one that is still playing, with no gap, however little of it is left', () => {
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    const first = ctx.createdSources[0];
+    const end = first.startedAt + 0.1;
+    // Less of it is left than the lead-in.
+    ctx.currentTime = end - 0.05;
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    expect(ctx.createdSources[1].startedAt).toBeCloseTo(end, 6);
+  });
+
   it('never schedules a chunk in the past', () => {
     ctx.currentTime = 10;
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);

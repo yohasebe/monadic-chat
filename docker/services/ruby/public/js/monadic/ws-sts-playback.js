@@ -233,12 +233,13 @@
     source.buffer = buffer;
     source.connect(ctx.destination);
 
-    // Underrun: deltas fell behind playback, so the timeline has already
-    // passed. Re-prime forward from now — never rewind nextStartTime, since
-    // start() with a past time plays immediately and would collapse every
-    // remaining chunk into one instant.
-    const earliest = ctx.currentTime + LEAD_IN_SEC;
-    const startAt = nextStartTime > earliest ? nextStartTime : earliest;
+    // A chunk goes right after the one before it while that one has not
+    // ended (a gap there is heard as a click; audio that comes just in time
+    // would get one at every chunk). Only a timeline already passed (an
+    // underrun, or a new timeline) starts after the lead-in from now — never
+    // rewind nextStartTime, since start() with a past time plays immediately
+    // and would collapse every remaining chunk into one instant.
+    const startAt = nextStartTime > ctx.currentTime ? nextStartTime : ctx.currentTime + LEAD_IN_SEC;
 
     try {
       source.start(startAt);

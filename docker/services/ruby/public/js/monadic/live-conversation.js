@@ -1147,12 +1147,25 @@
     const body = card.querySelector('.card-text');
     if (!body) return;
     const hasTools = Array.isArray(data.tools_used) && data.tools_used.length > 0;
-    const grows = text.length > body.textContent.trim().length;
+    const shown = Array.isArray(data.workbench_shown) ? data.workbench_shown : null;
+    // The text before the lines the card keeps under it (the files shown on
+    // the work screen).
+    const note = body.querySelector(':scope > .workbench-shown-note');
+    const written = note ? body.textContent.slice(0, body.textContent.length - note.textContent.length) : body.textContent;
+    const grows = text.length > written.trim().length;
     // Mirror the server's grow-only rule as a client-side belt — for the
     // TEXT only. A badge-carrying update is processed even without growth
     // (a suppressed unspoken continuation can arrive as tools_used
     // alone, and the badge must still render).
-    if (!grows && !hasTools) return;
+    // The files the turn showed on the work screen, under its text (drawn
+    // again after the text is).
+    const drawShown = () => {
+      if (shown && window.Workbench && typeof window.Workbench.drawShown === 'function') window.Workbench.drawShown(data.mid, shown);
+    };
+    if (!grows && !hasTools) {
+      drawShown();
+      return;
+    }
     if (grows) {
       // Paragraph split: folded text joins utterances with "\n\n" —
       // render each as its own paragraph so position-aware tool badges can
@@ -1163,6 +1176,7 @@
         return p;
       });
       body.replaceChildren.apply(body, paraEls);
+      drawShown();
       // Mirror into the live view's assistant zone (interrupted card refresh).
       if (livePrev.role === 'assistant') { livePrev.text = text; }
       if (liveCurrent.role === 'assistant') {

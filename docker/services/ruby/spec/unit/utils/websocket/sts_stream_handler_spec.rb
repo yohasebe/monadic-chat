@@ -1857,8 +1857,8 @@ RSpec.describe 'xAI realtime provider profile' do
       expect(session_cfg[:instructions]).to include('Japanese')
     end
 
-    it 'carries only the work screen tool by default (the others are opt-in)' do
-      expect(session_cfg[:tools].map { |t| t[:name] }).to eq(['look_at_workbench'])
+    it 'carries only the work screen tools by default (the others are opt-in)' do
+      expect(session_cfg[:tools].map { |t| t[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench])
     end
 
     it 'never injects native search entries' do
@@ -1867,7 +1867,7 @@ RSpec.describe 'xAI realtime provider profile' do
           instructions: '', websearch: true } # legacy state key is ignored
       )
       expect(on.dig(:session, :tools).map { |t| t[:type] }.uniq).to eq(['function'])
-      expect(on.dig(:session, :tools).map { |t| t[:name] }).to eq(['look_at_workbench'])
+      expect(on.dig(:session, :tools).map { |t| t[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench])
     end
 
     it 'omits the language hint in auto mode' do
@@ -2159,8 +2159,8 @@ RSpec.describe 'Gemini Live provider' do
       expect(text).to include('Japanese')
     end
 
-    it 'carries only the work screen tool by default (the others are opt-in)' do
-      expect(payload[:setup][:tools]).to match([{ functionDeclarations: [include(name: 'look_at_workbench')] }])
+    it 'carries only the work screen tools by default (the others are opt-in)' do
+      expect(payload[:setup][:tools].flat_map { |t| t[:functionDeclarations] }.map { |d| d[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench])
     end
 
     it 'never injects a google_search entry' do
@@ -2408,16 +2408,16 @@ RSpec.describe 'STS session config carries no tools' do
     expect(payload.dig(:session, :audio, :input, :noise_reduction)).to eq({ type: 'near_field' })
   end
 
-  it 'build_sts_session_update_payload carries only the work screen tool (OpenAI: no native search, even with websearch on)' do
+  it 'build_sts_session_update_payload carries only the work screen tools (OpenAI: no native search, even with websearch on)' do
     harness = Class.new do
       include WebSocketHelper
       public :build_sts_session_update_payload
       def get_session_params = {}
     end.new
     payload = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '' })
-    expect(payload[:session][:tools].map { |t| t[:name] }).to eq(['look_at_workbench'])
+    expect(payload[:session][:tools].map { |t| t[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench])
     on = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '', websearch: true })
-    expect(on[:session][:tools].map { |t| t[:name] }).to eq(['look_at_workbench'])
+    expect(on[:session][:tools].map { |t| t[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench])
   end
 end
 
@@ -2696,9 +2696,9 @@ RSpec.describe 'STS function calling' do
   describe 'payload generation' do
     before { stub_const('APPS', {}) }
 
-    it 'openai: only the work screen tool when the others are off' do
+    it 'openai: only the work screen tools when the others are off' do
       payload = harness.build_sts_session_update_payload(state_for(provider: 'openai'))
-      expect(payload.dig(:session, :tools).map { |t| t[:name] }).to eq(['look_at_workbench'])
+      expect(payload.dig(:session, :tools).map { |t| t[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench])
     end
 
     it 'openai: injects GA function tools when enabled (search_web included)' do
@@ -2762,14 +2762,14 @@ RSpec.describe 'STS function calling' do
       expect(search[:parameters][:required]).to eq(['query'])
     end
 
-    it 'offers what is available, the work screen tool always' do
+    it 'offers what is available, the work screen tools always' do
       stub_const('CONFIG', {})
       allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
       payload = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
       # only get_current_time needs no container — it IS available — and
       # the work screen tool is always there
       names = payload.dig(:session, :tools)&.map { |t| t[:name] }
-      expect(names).to eq(%w[look_at_workbench get_current_time])
+      expect(names).to eq(%w[look_at_workbench write_section put_on_workbench get_current_time])
     end
 
     it 'appends tool guidance to instructions only when enabled, and the work screen guidance always' do

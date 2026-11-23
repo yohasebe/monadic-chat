@@ -1102,7 +1102,12 @@ describe('Workbench', () => {
         expect(offered.data).toEqual({ item_id: 'i_t', version: 'e'.repeat(64), first: 2, last: 4 });
         offered.sent();
         expect(window.Workbench.selectionNow()).toBeNull();
+        // Sent, the lines stay marked, and the chip stays to take the mark away.
+        expect(box.querySelector('.workbench-selection-text').textContent).toBe('Lines 2–4');
+        expect(box.querySelector('.workbench-selection-aside').title).toBe('Clear the selected lines');
+        box.querySelector('.workbench-selection-aside').click();
         expect(box.querySelector('.workbench-selection-chip')).toBeNull();
+        expect(box.querySelectorAll('.workbench-line-held')).toHaveLength(0);
       });
 
       test('keeps the selected lines marked when the selection goes and after they are sent, until set aside', async () => {

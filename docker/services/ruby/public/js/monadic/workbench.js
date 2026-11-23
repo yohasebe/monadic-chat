@@ -1370,13 +1370,19 @@
   function showHeldLines() {
     const shown = shownLines();
     if (!shown) return;
+    const held = heldLinesOf(shown);
+    Array.from(shown.drawn.lines.children).forEach((li, i) => {
+      li.classList.toggle('workbench-line-held', !!held && i + 1 >= held.first && i + 1 <= held.last);
+    });
+  }
+
+  // The held lines of the text shown (shownLines()), unless set aside, or
+  // null.
+  function heldLinesOf(shown) {
     const held = heldSelection;
     const version = shown.item.version || shown.item.sha256 || '';
-    const on = !!held && held.kind === 'text' && held.item_id === shown.item.id && held.version === version &&
-      held.key !== selectionSetAside;
-    Array.from(shown.drawn.lines.children).forEach((li, i) => {
-      li.classList.toggle('workbench-line-held', on && i + 1 >= held.first && i + 1 <= held.last);
-    });
+    return held && held.kind === 'text' && held.item_id === shown.item.id && held.version === version &&
+      held.key !== selectionSetAside ? held : null;
   }
 
   // The numbers of the lines of list (a text's numbered lines) a selection
@@ -1416,7 +1422,10 @@
     // A Live Conversation sends no message with it: the AI gets the text
     // selected when it looks at the work screen.
     const offered = liveProvider() ? null : offeredSelection();
-    if (!offered) {
+    // Lines still marked but not offered (sent, or in a Live Conversation)
+    // keep the chip, to take the mark away.
+    const marked = !offered && lines ? heldLinesOf(lines) : null;
+    if (!offered && !marked) {
       if (chip) chip.remove();
       return;
     }
@@ -1427,9 +1436,6 @@
       const aside = element('button', 'btn btn-sm workbench-selection-aside');
       aside.type = 'button';
       aside.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-      const label = t('ui.workbench.selectionAside', 'Do not send the selected text');
-      aside.setAttribute('aria-label', label);
-      aside.title = label;
       aside.addEventListener('click', () => {
         if (heldSelection) selectionSetAside = heldSelection.key;
         showSelectionChip();
@@ -1437,10 +1443,23 @@
       chip.appendChild(aside);
       bar.appendChild(chip);
     }
-    chip.querySelector('.workbench-selection-text').textContent = offered.kind === 'text'
-      ? t('ui.workbench.selectionSendLines', 'Send lines {first}–{last}').replace('{first}', String(offered.first))
-        .replace('{last}', String(offered.last))
-      : t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)').replace('{n}', String(Array.from(offered.text).length));
+    const range = (text, held) => text.replace('{first}', String(held.first)).replace('{last}', String(held.last));
+    let text;
+    let label;
+    if (marked) {
+      text = range(t('ui.workbench.selectionMarkedLines', 'Lines {first}–{last}'), marked);
+      label = t('ui.workbench.selectionClearLines', 'Clear the selected lines');
+    } else if (offered.kind === 'text') {
+      text = range(t('ui.workbench.selectionSendLines', 'Send lines {first}–{last}'), offered);
+      label = t('ui.workbench.selectionAside', 'Do not send the selected text');
+    } else {
+      text = t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)').replace('{n}', String(Array.from(offered.text).length));
+      label = t('ui.workbench.selectionAside', 'Do not send the selected text');
+    }
+    chip.querySelector('.workbench-selection-text').textContent = text;
+    const aside = chip.querySelector('.workbench-selection-aside');
+    aside.setAttribute('aria-label', label);
+    aside.title = label;
   }
 
   // A selection made in the text of the PDF shown is held (and offered).

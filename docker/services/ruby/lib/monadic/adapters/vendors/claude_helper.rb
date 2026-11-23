@@ -983,8 +983,11 @@ module ClaudeHelper
 
     if !messages.empty? && messages.last["role"] == "user"
       content = messages.last["content"]
+      # The message's images, and the picture of the work screen it was sent
+      # with.
+      turn_images = images_with_workbench_picture(obj["images"], session)
 
-      if obj["images"]
+      if turn_images
         begin
           spec_vision = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
           supports_vision = spec_vision.nil? ? true : !!spec_vision
@@ -1000,7 +1003,7 @@ module ClaudeHelper
           supports_pdf = true
         end
 
-        obj["images"].each do |file|
+        turn_images.each do |file|
           if file["type"] == "application/pdf"
             unless supports_pdf
               formatted_error = Monadic::Utils::ErrorFormatter.api_error(

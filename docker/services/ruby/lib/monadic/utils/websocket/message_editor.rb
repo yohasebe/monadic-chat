@@ -10,6 +10,7 @@ require_relative '../../workbench/board'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/made'
 require_relative '../../workbench/turn_trash'
+require_relative '../../workbench/picture'
 require_relative '../../workbench/revision'
 require_relative '../../workbench/document'
 require_relative '../../turn_state'
@@ -37,6 +38,8 @@ module WebSocketHelper
     Monadic::TurnState::Notes.refresh(rack_session)
     later = deleted ? Array(rack_session[:messages])[message_index..] || [] : []
     rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted, later).empty?
+    # The picture of the work screen the message was sent with goes with it.
+    remove_workbench_picture(rack_session, deleted)
 
     # Invalidate any Grok compaction blob: it summarized the pre-edit history,
     # so a delete makes the cached covered_count and summary stale. Dropping it
@@ -57,6 +60,14 @@ module WebSocketHelper
     sync_session_state!
   end
   
+  def remove_workbench_picture(rack_session, message)
+    id = message.is_a?(Hash) && message["workbench_picture"].is_a?(Hash) ? message["workbench_picture"]["id"] : nil
+    chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
+    Monadic::Workbench::Picture.remove(chat_id, id) if id && chat_id
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not removed: #{e.class}" }
+  end
+
   # What a deleted message made in the chat's folder (workbench_made) goes
   # to the chat's trash and off the work screen, and what it changed in
   # place (its revisions) is put back as it was (Workbench::Revision);

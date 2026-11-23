@@ -129,6 +129,9 @@ function handlePastMessages(data) {
         if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(msg.workbench_looks)) {
           window.Workbench.drawLooks(msg.mid, msg.workbench_looks);
         }
+        if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
+          window.Workbench.drawPicture(msg.mid, msg.workbench_picture);
+        }
         break;
       }
       case "assistant": {

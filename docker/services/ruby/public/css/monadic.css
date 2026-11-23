@@ -6401,8 +6401,10 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-find {
   align-items: stretch;
 }
-/* The buttons that show only an icon are one size. */
-.shared-files-pane .sfp-icon-btn {
+/* The buttons that show only an icon are one size (the side column's
+   panels, the bar of a PDF in the work screen). */
+.shared-files-pane .sfp-icon-btn,
+.workbench-pdf-bar .workbench-pdf-icon {
   flex: 0 0 auto;
   /* As tall as a field beside it (Bootstrap's small field: line, padding,
      border), on any row of the pane. */
@@ -6717,7 +6719,11 @@ body.side-pane-resizing {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-xs);
-  /* The same strip as the side column's tabs above it. */
+}
+/* The same strip as the side column's tabs above them: the items, and the
+   pointer's buttons of a PDF (workbench-pdf.js). */
+.workbench-items,
+.workbench-pdf-bar .workbench-pdf-pointing {
   padding: var(--spacing-xs);
   background: color-mix(in srgb, var(--bg-panel) 40%, var(--bg-body));
   border: var(--border-width) solid var(--border-light);
@@ -7008,7 +7014,91 @@ body.side-pane-resizing {
 .workbench-pdf {
   max-height: 75vh;
   overflow: auto;
-  outline-offset: 2px;
+}
+/* The box takes focus only for the arrow keys (turning pages); its buttons
+   show their own focus, the whole box none. */
+.workbench-pdf:focus-visible {
+  outline: none;
+}
+/* The bar stays at the top of the PDF while its pages scroll; the space
+   under it is its own (the pages scroll under it, not into it). */
+.workbench-pdf-bar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: var(--spacing-xs) 0 var(--spacing-sm);
+  background: var(--bg-body);
+}
+/* The pointer's buttons, in a strip (as the items above): pointing in the
+   color of the mark (set by workbench-pdf.js), the look and taking it away
+   grey. The look's menu opens under them. */
+.workbench-pdf-bar .workbench-pdf-pointing {
+  position: relative;
+}
+.workbench-pdf-bar .workbench-pdf-point:hover {
+  filter: brightness(0.92);
+}
+.workbench-pdf-look-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: var(--bg-panel);
+  border: var(--border-width) solid var(--border-light);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.workbench-pdf-look-menu[hidden] {
+  display: none;
+}
+.workbench-pdf-look-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  white-space: nowrap;
+}
+.workbench-pdf-look-label {
+  min-width: 3em;
+  color: var(--text-secondary);
+}
+/* The menu's choices are quiet; the one chosen stands out in the accent
+   (its face, a strong border), a color chosen with a check too. */
+.workbench-pdf-look-menu .btn {
+  --bs-btn-bg: transparent; --bs-btn-border-color: var(--border-light); --bs-btn-color: var(--text-secondary);
+  --bs-btn-hover-bg: var(--pal-accent-soft); --bs-btn-hover-border-color: var(--pal-accent-line); --bs-btn-hover-color: var(--text-primary);
+  --bs-btn-active-bg: var(--pal-accent-soft); --bs-btn-active-border-color: var(--pal-accent-line); --bs-btn-active-color: var(--text-primary);
+  border-width: 2px;
+}
+.workbench-pdf-look-menu .btn[aria-pressed="true"] {
+  --bs-btn-bg: var(--pal-accent-soft); --bs-btn-border-color: var(--pal-accent-strong); --bs-btn-color: var(--pal-accent-text);
+  --bs-btn-hover-border-color: var(--pal-accent-strong);
+}
+.workbench-pdf-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3em;
+  height: 1.3em;
+  vertical-align: middle;
+  border-radius: 50%;
+  font-size: 0.85em;
+}
+.workbench-pdf-swatch i {
+  visibility: hidden;
+}
+.workbench-pdf-look-menu .btn[aria-pressed="true"] .workbench-pdf-swatch i {
+  visibility: visible;
+}
+/* The page and the zoom, between their buttons */
+.workbench-pdf-bar .workbench-pdf-label {
+  min-width: 4.5em;
+  text-align: center;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .workbench-pdf-page {
   position: relative;
@@ -7020,6 +7110,70 @@ body.side-pane-resizing {
 .workbench-pdf-page canvas {
   display: block;
 }
+
+/* The pointer: a translucent mark over a part of the page (workbench-pdf.js) */
+.workbench-pointer-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.workbench-pointer-layer.workbench-pointer-drawing {
+  pointer-events: auto;
+  cursor: crosshair;
+  z-index: 3;
+}
+.workbench-pointer {
+  position: absolute;
+  background: var(--mark-fill, rgba(240, 160, 80, 0.28));
+  border: 2px solid var(--mark-line, #d98a3d);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.workbench-pointer.workbench-pointer-ellipse {
+  border-radius: 50%;
+}
+/* Held to move the mark, and its sides and corners to change its size;
+   not while a new one is being drawn. The sides and corners show while the
+   cursor is on the mark or near it (a margin around it), and while held. */
+.workbench-pointer-layer:not(.workbench-pointer-drawing) .workbench-pointer {
+  pointer-events: auto;
+  cursor: move;
+  touch-action: none;
+}
+.workbench-pointer-layer:not(.workbench-pointer-drawing) .workbench-pointer::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  cursor: default;
+}
+.workbench-pointer-handle {
+  position: absolute;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: #fff;
+  border: 2px solid var(--mark-line, #d98a3d);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.workbench-pointer:hover .workbench-pointer-handle,
+.workbench-pointer.workbench-pointer-held .workbench-pointer-handle {
+  opacity: 1;
+}
+.workbench-pointer-layer.workbench-pointer-drawing .workbench-pointer-handle {
+  display: none;
+}
+.workbench-pointer-n { left: 50%; top: 0; cursor: ns-resize; }
+.workbench-pointer-s { left: 50%; top: 100%; cursor: ns-resize; }
+.workbench-pointer-e { left: 100%; top: 50%; cursor: ew-resize; }
+.workbench-pointer-w { left: 0; top: 50%; cursor: ew-resize; }
+.workbench-pointer-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.workbench-pointer-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.workbench-pointer-nw { left: 0; top: 0; cursor: nwse-resize; }
+.workbench-pointer-se { left: 100%; top: 100%; cursor: nwse-resize; }
 
 /* pdf.js's text layer, over the page (the rules follow pdf.js's
    web/pdf_viewer.css, Apache License 2.0) */

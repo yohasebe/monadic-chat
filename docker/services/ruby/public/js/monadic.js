@@ -2919,6 +2919,11 @@ document.addEventListener("DOMContentLoaded", function () {
         if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
       });
     } else {
+      // What the work screen shows, and the part of it the user points at,
+      // as they are when the user sends (not later, once the connection is
+      // back: the pane may have scrolled meanwhile).
+      const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
+      const picture = window.Workbench && typeof window.Workbench.pictureNow === 'function' ? window.Workbench.pictureNow() : null;
       reconnect_websocket(ws, function (_ws) {
         // Create a copy of the current images array to preserve the state
         let currentImages = [...images];
@@ -2941,14 +2946,17 @@ document.addEventListener("DOMContentLoaded", function () {
         // What the work screen shows now goes with the message only (the
         // server checks it against this tab's selection); params, which
         // the page keeps, does not take it.
-        const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
-        const outgoing = shown ? Object.assign({}, params, { workbench_range: shown }) : params;
+        const extra = {};
+        if (shown) extra.workbench_range = shown;
+        if (picture) extra.workbench_picture = picture.data;
+        const outgoing = Object.keys(extra).length > 0 ? Object.assign({}, params, extra) : params;
         const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
         // Not sent: the text, images and attachments stay for the retry.
         if (!(sendResult && sendResult.sent)) {
           restoreAfterUnsentMessage();
           return;
         }
+        if (picture) picture.sent();
         if (typeof window.clearVideoAttachments === 'function') {
           window.clearVideoAttachments();
         }

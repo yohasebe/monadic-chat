@@ -29,11 +29,14 @@ module Monadic
       # the chat the message came in (the Hash itself): the settings are
       # those of a request made with these parameters, and of no other (a
       # tool that asks a model of its own makes its own).
-      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings
+      # picture: the picture of the work screen the message was sent with
+      # (Workbench::Picture), or nil.
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings, :picture
 
       def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil,
-                     observation: nil, settings: nil, parameters: nil)
+                     observation: nil, settings: nil, parameters: nil, picture: nil)
         @request_id = request_id
+        @picture = picture
         @settings = settings
         @parameters = parameters
         @chat_id = chat_id

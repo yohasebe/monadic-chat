@@ -240,6 +240,9 @@ function handleUser(data) {
   if (typeof window.addAttachmentsToCard === 'function') {
     window.addAttachmentsToCard($id(data["content"]["mid"]), data["content"]["attachments"]);
   }
+  if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
+    window.Workbench.drawPicture(data["content"]["mid"], data["content"]["workbench_picture"]);
+  }
 
   // Scroll down immediately after showing user message
   const mainPanel = window.mainPanel;

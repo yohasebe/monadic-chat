@@ -100,6 +100,10 @@
   // shown nothing of the board is selected, so neither a message's range
   // nor a look names a board item.
   let local = null;
+  // The pointer change last sent with a message: the drawing's handle and
+  // the number of its change (a picture goes with a message only after the
+  // user placed or moved the pointer).
+  let sentPointer = { handle: null, seq: 0 };
   let localPdf = null;
   // Each showing of an attachment, so that a new one is drawn anew.
   let localSerial = 0;
@@ -729,6 +733,7 @@
       if (drawn.gone) return;
       if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
       drawn.pdf = window.WorkbenchPdf.show(box, bytes);
+      if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(takesImages());
     });
     return box;
   }
@@ -1033,8 +1038,10 @@
     document.querySelectorAll('.workbench-look-note').forEach((el) => el.remove());
     shownRecords.clear();
     document.querySelectorAll('.workbench-shown-note').forEach((el) => el.remove());
+    document.querySelectorAll('.workbench-picture-note').forEach((el) => el.remove());
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
+      if (m && m.mid && m.workbench_picture) drawPicture(m.mid, m.workbench_picture);
       if (m && m.mid && Array.isArray(m.workbench_shown)) drawShown(m.mid, m.workbench_shown);
       if (m && m.mid && Array.isArray(m.workbench_looks)) drawLooks(m.mid, m.workbench_looks);
     });
@@ -1159,6 +1166,90 @@
     return report(null, 'unknown');
   }
 
+  // Whether the chat's model takes images (the page's model spec; a model it
+  // does not know is taken to).
+  function takesImages() {
+    const el = $id('model');
+    const name = el ? el.value : null;
+    const spec = name && window.modelSpec ? window.modelSpec[name] : null;
+    return !spec || spec.vision_capability !== false;
+  }
+
+  // The part of the PDF in view, with the pointer drawn on it, to go with the
+  // message being sent: { data, sent } (data is what is sent, sent() is
+  // called once it went), or null. Only after the user placed or moved the
+  // pointer on the page shown, while some of it is in view, for a model that
+  // takes images. Taken at once, when the user sends.
+  function pictureNow() {
+    if (local || !paneShown() || !takesImages()) return null;
+    const item = selected ? itemById(selected) : null;
+    if (!item || item.kind !== 'file' || item.preview !== 'pdf') return null;
+    const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    const handle = drawn && drawn.pdf;
+    if (!handle || typeof handle.pointer !== 'function') return null;
+    const shown = handle.shown();
+    const pointer = handle.pointer();
+    if (shown.status !== 'ready' || !pointer || pointer.page !== shown.page) return null;
+    const seq = handle.pointerSeq();
+    if (sentPointer.handle === handle && sentPointer.seq === seq) return null;
+    const canvas = handle.canvas();
+    let mark = null;
+    let part;
+    try {
+      part = cutPage(handle, shown.drawing, (context, frame) => {
+        // The pointer in the canvas's pixels, then in the cut part's.
+        const left = pointer.x * canvas.width;
+        const top = pointer.y * canvas.height;
+        const right = left + pointer.w * canvas.width;
+        const bottom = top + pointer.h * canvas.height;
+        const clip = (v) => Math.min(1, Math.max(0, v));
+        const x0 = clip((left - frame.x) / frame.w);
+        const y0 = clip((top - frame.y) / frame.h);
+        const x1 = clip((right - frame.x) / frame.w);
+        const y1 = clip((bottom - frame.y) / frame.h);
+        if (!(x1 > x0 && y1 > y0)) return;
+        const palette = (window.WorkbenchPdf && window.WorkbenchPdf.COLORS) || {};
+        const color = palette[pointer.color] ? pointer.color : 'orange';
+        mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+        const px = x0 * frame.width;
+        const py = y0 * frame.height;
+        const pw = (x1 - x0) * frame.width;
+        const ph = (y1 - y0) * frame.height;
+        context.save();
+        const colors = palette[color] || { fill: 'rgba(240, 160, 80, 0.28)', line: '#d98a3d' };
+        context.fillStyle = colors.fill;
+        context.strokeStyle = colors.line;
+        context.lineWidth = Math.max(2, Math.round(frame.width / 400));
+        context.beginPath();
+        if (mark.shape === 'ellipse') context.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
+        else context.rect(px, py, pw, ph);
+        context.fill();
+        context.stroke();
+        context.restore();
+      });
+    } catch (_) {
+      return null;
+    }
+    if (!part || !part.image || !mark) return null;
+    const round = (v) => Math.round(v * 10000) / 10000;
+    return {
+      data: {
+        item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
+        mark: { shape: mark.shape, color: mark.color, x: round(mark.x), y: round(mark.y), w: round(mark.w), h: round(mark.h) },
+        crop: part.crop, image: part.image
+      },
+      sent: () => { sentPointer = { handle: handle, seq: seq }; }
+    };
+  }
+
+  // The chat's model changed: the pointer's buttons show where it takes
+  // images.
+  document.addEventListener('change', (e) => {
+    if (!e.target || e.target.id !== 'model') return;
+    const handle = drawnBody && drawnBody.pdf;
+    if (handle && typeof handle.setPointable === 'function') handle.setPointable(takesImages());
+  });
+
   // ---- what the server asks the work screen (a look) ------------------
 
   // What is cut from a PDF's page, at most (as the server takes it).
@@ -1184,7 +1275,10 @@
   // canvas's own pixels: the canvas may be drawn at another ratio than the
   // screen's), or why there is none. Taken from the drawing named; a newer
   // drawing meanwhile spoils it.
-  function cutPage(handle, drawing) {
+  // decorate(context, frame), when given, draws over the cut part (frame:
+  // the part of the canvas cut, x, y, w, h in its pixels, and the size it is
+  // drawn at, width and height).
+  function cutPage(handle, drawing, decorate) {
     const canvas = handle.canvas();
     const frame = canvas ? visibleRect(canvas) : null;
     if (!frame) return { image_note: 'not_in_view' };
@@ -1206,6 +1300,7 @@
     const context = cut.getContext('2d');
     if (!context) return { image_note: 'failed' };
     context.drawImage(canvas, x, y, w, h, 0, 0, width, height);
+    if (decorate) decorate(context, { x: x, y: y, w: w, h: h, width: width, height: height });
     const url = cut.toDataURL('image/png');
     if (handle.shown().drawing !== drawing) return { image_note: 'redrawn' };
     const comma = url.indexOf(',');
@@ -1879,6 +1974,50 @@
   // What a message records its reply showed on the work screen: one line
   // per file. The line selects the item when the board has that version;
   // otherwise it opens that version, which the server checks.
+  // The picture of the work screen a user's message was sent with (its
+  // reference): a line on the message's card that shows it in the work
+  // screen, asked of the server when clicked.
+  function drawPicture(mid, picture) {
+    if (!mid) return;
+    const card = $id(mid);
+    const text = card ? card.querySelector('.card-text') : null;
+    if (!text) return;
+    let el = text.querySelector(':scope > .workbench-picture-note');
+    if (!picture || typeof picture.id !== 'string') {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = element('div', 'workbench-picture-note small text-secondary mt-2');
+      text.appendChild(el);
+    }
+    el.replaceChildren();
+    const line = element('div', 'workbench-note-line');
+    line.appendChild(element('i', 'fa-solid fa-crosshairs me-1'));
+    const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-picture-open');
+    open.type = 'button';
+    open.textContent = t('ui.workbench.pictureSent', 'The work screen as sent (page {n})')
+      .replace('{n}', String(picture.page));
+    open.addEventListener('click', () => {
+      if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_PICTURE', picture_id: picture.id });
+    });
+    line.appendChild(open);
+    el.appendChild(line);
+  }
+
+  // The server's answer to WORKBENCH_PICTURE: the picture, shown in the work
+  // screen as an attachment is (from the page's data), or a note that it is
+  // gone.
+  function onPicture(data) {
+    if (!data || typeof data.picture_id !== 'string') return;
+    if (!data.found || typeof data.data !== 'string' || !IMAGE_DATA.test(data.data)) {
+      warn(t('ui.workbench.pictureGone', 'The picture sent with this message is no longer kept.'));
+      return;
+    }
+    showAttachment({ kind: 'image', key: `picture:${data.picture_id}`, data: data.data,
+                     title: t('ui.workbench.pictureTitle', 'The work screen as sent') });
+  }
+
   function drawShown(mid, list) {
     if (!mid) return;
     const entries = (Array.isArray(list) ? list : []).filter((e) => e && typeof e.path === 'string' && typeof e.sha256 === 'string');
@@ -1941,7 +2080,7 @@
   window.Workbench = {
     onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    textLines, rangeNow,
+    textLines, rangeNow, pictureNow, drawPicture, onPicture,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

@@ -4,6 +4,7 @@ require_relative '../../workbench/channel'
 require_relative '../../workbench/look'
 require_relative '../../workbench/look/record'
 require_relative '../../workbench/document'
+require_relative '../../workbench/picture'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
@@ -58,6 +59,25 @@ module WebSocketHelper
       send_or_broadcast(reply.merge('success' => false, 'error' => 'open_failed').to_json, tab)
     end
     nil
+  end
+
+  # The page asks for the picture of the work screen a message was sent with
+  # (WORKBENCH_PICTURE, its id): sent to this connection only, and only for a
+  # message of the session's chat that names it.
+  private def handle_ws_workbench_picture(connection, obj, session)
+    id = obj['picture_id'].to_s
+    reply = { 'type' => 'workbench_picture', 'picture_id' => id }
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    named = Array(session[:messages]).any? do |m|
+      m.is_a?(Hash) && m['role'] == 'user' && m['workbench_picture'].is_a?(Hash) && m['workbench_picture']['id'] == id
+    end
+    bytes = named && chat_id ? Monadic::Workbench::Picture.read(chat_id, id) : nil
+    return send_to_client(connection, reply.merge('found' => false)) unless bytes
+
+    send_to_client(connection, reply.merge('found' => true, 'data' => "data:image/png;base64,#{Base64.strict_encode64(bytes)}"))
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not sent: #{e.class}" }
+    send_to_client(connection, reply.merge('found' => false))
   end
 
   # initial: the connection's first view (marked so: what it shows is not

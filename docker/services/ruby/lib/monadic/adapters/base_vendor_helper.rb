@@ -218,6 +218,7 @@ module BaseVendorHelper
       # What the server fixed when it accepted the send stays as it was.
       existing.merge!(content.except(*USER_TURN_SERVER_FIELDS))
       content["attachments"] = existing["attachments"] if existing["attachments"]
+      content["workbench_picture"] = existing["workbench_picture"] if existing["workbench_picture"]
     else
       content["request_id"] = request_id if request_id
       session[:messages] << content
@@ -225,7 +226,7 @@ module BaseVendorHelper
     block&.call res
   end
 
-  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot].freeze
+  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot workbench_picture].freeze
 
   # Whether this send has a user turn to record and show: typed text, or
   # files attached to the message of the current request with no text.
@@ -473,11 +474,44 @@ module BaseVendorHelper
   def model_facing_message(msg)
     return msg unless msg.is_a?(Hash) && msg["role"] == "user"
 
-    described = model_facing_attachments(msg)
+    described = with_workbench_picture(model_facing_attachments(msg))
     return described unless Monadic::Workspace::StoppedReplies.note_for(msg)
 
     # A message whose reply was stopped says so after all of it.
     described.merge("text" => Monadic::Workspace::StoppedReplies.with_note(msg, described["text"]))
+  end
+
+  # The picture of the work screen the message being answered was sent with
+  # (Workbench::Picture), while the session is still in that chat, or nil.
+  def workbench_picture_now(session = nil)
+    picture = Monadic::Workspace::RequestContext.current&.picture
+    return nil unless picture
+
+    chat_id = session && (session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s])
+    return nil if chat_id && chat_id != picture.chat_id
+
+    picture
+  end
+
+  # msg with the picture its request was sent with, when msg is the message
+  # of that request: the picture after its images and what it is after its
+  # text. A new message (the session's keeps neither).
+  def with_workbench_picture(msg)
+    picture = workbench_picture_now
+    return msg unless picture && msg["request_id"] && msg["request_id"] == picture.request_id
+
+    msg.merge("images" => Array(msg["images"]) + [picture.image],
+              "text" => [msg["text"].to_s, picture.note].reject(&:empty?).join("\n\n"))
+  end
+
+  # The images of the message being answered for a helper that takes them
+  # from the request (images) rather than from its messages: with the
+  # picture of the work screen it was sent with, when there is one.
+  def images_with_workbench_picture(images, session)
+    picture = workbench_picture_now(session)
+    return images unless picture
+
+    Array(images) + [picture.image]
   end
 
   def model_facing_attachments(msg)

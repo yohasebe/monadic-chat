@@ -4,6 +4,7 @@ require_relative '../../workspace'
 require_relative '../privacy/outbound'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/observation'
+require_relative '../../workbench/picture'
 
 require_relative '../tts_provider'
 
@@ -189,6 +190,31 @@ module WebSocketHelper
     nil
   end
 
+  # The picture of the work screen the user sent with a message (taken and
+  # kept, Workbench::Picture), or nil: none for an app that makes images (the
+  # picture is no material of its), for a model known to take no images, or
+  # when the board does not have what the page pictured. A failure here
+  # never keeps the message from being sent.
+  private def workbench_picture(session, obj, chat_id, request_id, data)
+    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+    app_settings = defined?(APPS) && APPS[obj["app_name"]] ? APPS[obj["app_name"]].settings : {}
+    return nil if app_settings["image_generation"] || obj["app_name"].to_s.match?(/ImageGenerator|VideoGenerator/)
+
+    model = Monadic::TurnSettings.accepted(obj, session[:parameters]).model
+    return nil if model && !Monadic::Utils::ModelSpec.vision_capability?(model)
+
+    Monadic::Workbench::Picture.accept(data, chat_id: chat_id, request_id: request_id,
+                                             tab: Thread.current[:websocket_session_id],
+                                             generation: session[:_ws_generation]).keep!
+  rescue Monadic::Workbench::Picture::Refused => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not taken: #{e.reason}" }
+    nil
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not taken: #{e.class}" }
+    nil
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -231,6 +257,10 @@ module WebSocketHelper
     # still send with a message: dropped, never kept with the chat's
     # parameters nor taken as part of the message.
     obj.delete("workbench_shown")
+    # The picture of the work screen the page took when the user sent
+    # (workbench_picture): taken below for this message only, never kept
+    # with the chat's parameters.
+    sent_picture = obj.delete("workbench_picture")
     obj.delete("workbench_made")
     obj.delete("workbench_revisions")
     obj.delete("state_changes")
@@ -238,12 +268,14 @@ module WebSocketHelper
     # The user's own message: text, or attached files only (video or audio
     # as attachments, images and PDFs as images).
     user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty? || !Array(obj["images"]).empty?
+    picture = user_sent && sent_picture ? workbench_picture(session, obj, chat_at_start, request_id, sent_picture) : nil
     request_context = Monadic::Workspace::RequestContext.new(
       chat_id: chat_at_start, request_id: request_id,
       attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
       tab: ws_session_id, generation: session[:_ws_generation],
       observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
-      settings: Monadic::TurnSettings.accepted(obj, session[:parameters]), parameters: session[:parameters]
+      settings: Monadic::TurnSettings.accepted(obj, session[:parameters]), parameters: session[:parameters],
+      picture: picture
     )
 
     session[:parameters].merge! obj
@@ -283,6 +315,7 @@ module WebSocketHelper
         "active" => true
       }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
                                app_name: params["app_name"], attachment_refs: attachment_refs))
+      user_message_data["workbench_picture"] = picture.reference if picture
       session[:messages] << user_message_data
       sync_session_state!
       # The model this request is sent with, for the notes kept after its

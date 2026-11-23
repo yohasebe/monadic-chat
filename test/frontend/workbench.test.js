@@ -1276,6 +1276,92 @@ describe('Workbench', () => {
         delete window.WorkbenchPdf;
       }
     });
+
+    test('gives the part of the PDF in view with the pointer drawn on it, once for each placing of it', async () => {
+      layout.pane = 'work';
+      const drawn = [];
+      const realGetContext = HTMLCanvasElement.prototype.getContext;
+      const realToDataURL = HTMLCanvasElement.prototype.toDataURL;
+      HTMLCanvasElement.prototype.getContext = () => ({
+        drawImage: () => {}, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
+        rect: (...a) => drawn.push(['rect', ...a]), ellipse: (...a) => drawn.push(['ellipse', ...a])
+      });
+      HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,UElDVFVSRQ==';
+      let pointer = null;
+      let seq = 0;
+      const page = document.createElement('canvas');
+      page.width = 800;
+      page.height = 1000;
+      // The canvas drawn 400 × 500, the upper half of it in view.
+      page.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400, width: 400, height: 500 });
+      window.WorkbenchPdf = {
+        show: (box) => {
+          const sheet = document.createElement('div');
+          sheet.className = 'workbench-pdf-page';
+          sheet.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400 });
+          box.appendChild(sheet);
+          return { shown: () => ({ status: 'ready', page: 2, pages: 5, scale: 1, drawing: 1 }), dispose: () => {},
+            state: () => ({}), canvas: () => page, pointer: () => pointer, pointerSeq: () => seq, setPointable: () => {} };
+        }
+      };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
+      const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
+        sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };
+      try {
+        view([paper], { assets: { i_p: '/workbench/asset/p' } });
+        await flush();
+        document.querySelector('#workbench-view .workbench-pdf').getBoundingClientRect =
+          () => ({ top: 0, bottom: 500, left: 0, right: 400, height: 500 });
+        window.innerHeight = 250;
+        expect(window.Workbench.pictureNow()).toBeNull();
+        // On the page shown, in the upper half of the canvas.
+        pointer = { page: 2, shape: 'ellipse', x: 0.25, y: 0.1, w: 0.5, h: 0.2 };
+        seq = 1;
+        const picture = window.Workbench.pictureNow();
+        expect(picture.data).toMatchObject({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5, image: 'UElDVFVSRQ==' });
+        expect(picture.data.mark).toEqual({ shape: 'ellipse', color: 'orange', x: 0.25, y: 0.2, w: 0.5, h: 0.4 });
+        expect(drawn.map((d) => d[0])).toEqual(['ellipse']);
+        // Sent: not again until the pointer changes.
+        picture.sent();
+        expect(window.Workbench.pictureNow()).toBeNull();
+        seq = 2;
+        expect(window.Workbench.pictureNow()).not.toBeNull();
+        // On another page, or out of view: none.
+        pointer = Object.assign({}, pointer, { page: 3 });
+        seq = 3;
+        expect(window.Workbench.pictureNow()).toBeNull();
+        pointer = { page: 2, shape: 'rect', x: 0.1, y: 0.8, w: 0.2, h: 0.1 };
+        seq = 4;
+        expect(window.Workbench.pictureNow()).toBeNull();
+        // For a model that takes no images: none.
+        pointer = { page: 2, shape: 'rect', x: 0.1, y: 0.1, w: 0.2, h: 0.1 };
+        seq = 5;
+        document.body.insertAdjacentHTML('beforeend', '<select id="model"><option value="blind" selected>blind</option></select>');
+        window.modelSpec = { blind: { vision_capability: false } };
+        expect(window.Workbench.pictureNow()).toBeNull();
+      } finally {
+        delete window.WorkbenchPdf;
+        delete window.modelSpec;
+        HTMLCanvasElement.prototype.getContext = realGetContext;
+        HTMLCanvasElement.prototype.toDataURL = realToDataURL;
+      }
+    });
+
+    test('draws a line on the card of a message sent with a picture, which asks for it and shows it', () => {
+      const el = card('m-u');
+      window.Workbench.drawPicture('m-u', { id: 'p_' + 'a'.repeat(20), page: 3 });
+      const line = el.querySelector('.workbench-picture-note');
+      expect(line.textContent).toContain('page 3');
+      line.querySelector('button').click();
+      expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_PICTURE', picture_id: 'p_' + 'a'.repeat(20) });
+      layout.pane = 'work';
+      window.Workbench.onPicture({ picture_id: 'p_' + 'a'.repeat(20), found: true, data: 'data:image/png;base64,UElDVFVSRQ==' });
+      expect(document.querySelector('#workbench-view img').getAttribute('src')).toBe('data:image/png;base64,UElDVFVSRQ==');
+      window.Workbench.onPicture({ picture_id: 'p_' + 'b'.repeat(20), found: false });
+      expect(window.setAlert).toHaveBeenCalled();
+      window.Workbench.drawPicture('m-u', null);
+      expect(el.querySelector('.workbench-picture-note')).toBeNull();
+    });
   });
 
   describe('the preference to show new items', () => {

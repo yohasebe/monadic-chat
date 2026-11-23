@@ -511,6 +511,12 @@ module CohereHelper
     if role != "tool" || current_turn
       suffix_options = is_initial_greeting ? {} : { prompt_suffix: obj["prompt_suffix"] }
       base = role == "tool" ? model_facing_message(current_turn)["text"].to_s : message
+      # What the picture of the work screen it was sent with is (the tool's
+      # request has it from model_facing_message).
+      picture = workbench_picture_now(session)
+      if role != "tool" && picture && current_turn && picture.request_id == current_turn["request_id"]
+        base = [base.to_s, picture.note].reject(&:empty?).join("\n\n")
+      end
       # What the work screen shows follows the message.
       observed = Monadic::Workbench::Observation.appended(base, observation_for(session, current_turn))
       current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
@@ -522,6 +528,11 @@ module CohereHelper
       # The message's images go with it, in the request that returns a
       # tool's results too.
       latest_msg = role == "tool" ? current_turn : session[:messages].last
+      # With the picture of the work screen the message was sent with (its
+      # text says so already).
+      if latest_msg && workbench_picture_now(session)&.request_id == latest_msg["request_id"]
+        latest_msg = latest_msg.merge("images" => images_with_workbench_picture(latest_msg["images"], session))
+      end
       if latest_msg && latest_msg["images"] && latest_msg["images"].any? && %w[user tool].include?(role)
         messages_containing_img = true
         result = build_cohere_image_message(latest_msg, obj, "user", text_override: current_message, &block)

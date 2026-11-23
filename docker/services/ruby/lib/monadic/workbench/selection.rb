@@ -2,6 +2,7 @@
 
 require_relative 'pointing'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../utils/privacy/word_table'
 
 module Monadic
   module Workbench
@@ -41,9 +42,9 @@ module Monadic
       CUT_LINES = 'lines starting at line %<first>d (only lines %<first>d to %<last>d are given)'
       # Control characters, and characters that show nothing (a soft hyphen,
       # a zero-width space, a word joiner, a byte order mark), are not taken.
-      DROPPED = /[\u0000-\u0008\u000E-\u001F\u007F\u00AD\u200B\u2060\uFEFF]/
+      DROPPED = Monadic::Utils::Privacy::WordTable::UNSEEN
       # Spaces, line breaks and tabs, as Unicode has them.
-      SPACES = /[[:space:]]+/
+      SPACES = Monadic::Utils::Privacy::WordTable::SPACES
 
       Refused = Pointing::Refused
 
@@ -53,9 +54,17 @@ module Monadic
         # The selection the page sent with a message (data), checked against
         # the board as the tab's connection sees it. Raises Refused (with
         # why) when it is not taken.
-        def accept(data, chat_id:, request_id:, tab:, generation:)
+        # words: the words the chat hides. Lines that hold one only broken
+        # (by a line break, an indentation or an unseen character, which the
+        # message's hiding would not find) are not taken.
+        def accept(data, chat_id:, request_id:, tab:, generation:, words: [])
           item = Pointing.selected!(data, chat_id: chat_id, tab: tab, generation: generation, previews: %w[pdf text])
-          return accept_lines(item, data, chat_id: chat_id, request_id: request_id) if item[:preview].to_s == 'text'
+          if item[:preview].to_s == 'text'
+            taken = accept_lines(item, data, chat_id: chat_id, request_id: request_id)
+            raise Refused, 'hidden_word' if Monadic::Utils::Privacy::WordTable.broken_words(taken.text, words).any?
+
+            return taken
+          end
 
           page, pages = Pointing.page_of!(data)
           text = text_of(data['text']) or raise Refused, 'bad_text'

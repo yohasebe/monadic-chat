@@ -184,7 +184,12 @@ module Monadic
         outbound.chat_session!(session)
         words = outbound.terms_of(session)
         left = false
-        outbound.each_text(text) { |value| left ||= outbound.holds_word?(value, words) } unless words.empty?
+        unless words.empty?
+          outbound.each_text(text) do |value|
+            left ||= outbound.holds_word?(value, words) ||
+                     Monadic::Utils::Privacy::WordTable.broken_words(value, words).any?
+          end
+        end
         raise Refused.new('filtered', 'it holds a word this chat hides') if left
 
         text

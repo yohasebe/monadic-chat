@@ -59,6 +59,25 @@ RSpec.describe "selected lines of a text file" do
       .to raise_error(Monadic::Workbench::Pointing::Refused) { |e| expect(e.reason).to eq("unreadable") }
   end
 
+  context "with a word the chat hides" do
+    let(:file) { "met Ada\n    Lovelace today\nAda Lovelace again\n" }
+
+    def accept_hiding(data)
+      allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id).and_return(board)
+      selection.accept({ "item_id" => "i_1", "version" => "v" * 64 }.merge(data), chat_id: chat_id, request_id: "q_1",
+                                                                                tab: "tab-1", generation: 1, words: ["Ada Lovelace"])
+    end
+
+    it "does not take lines that hold it broken across a line break, which the message's hiding would not find" do
+      expect { accept_hiding("first" => 1, "last" => 2) }
+        .to raise_error(Monadic::Workbench::Pointing::Refused) { |e| expect(e.reason).to eq("hidden_word") }
+    end
+
+    it "takes lines that hold it whole, for the message's hiding to hide" do
+      expect(accept_hiding("first" => 3, "last" => 3).text).to eq("Ada Lovelace again")
+    end
+  end
+
   it "keeps the reference of selected lines as it is kept with the chat" do
     reference = accept("first" => 1, "last" => 3).reference
     expect(selection.clean(reference)).to eq(reference)

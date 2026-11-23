@@ -271,6 +271,13 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(ledger).to be_nil.or(satisfy { |l| l.records.empty? })
     end
 
+    it "gives nothing that holds a word a line break or an indentation breaks" do
+      write("notes.txt", "the secret\n    plan\n")
+      open_file("notes.txt")
+      allow(Monadic::Utils::Privacy::Outbound).to receive(:terms_of).and_return(["secret plan"])
+      expect(look.run(caller_for, scope: "whole")).to include("(filtered)")
+    end
+
     it "gives nothing that holds a word of the chat's word table" do
       write("notes.txt", "the secret plan\n")
       open_file("notes.txt")

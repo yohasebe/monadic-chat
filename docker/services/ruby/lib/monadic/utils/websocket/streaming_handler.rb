@@ -224,7 +224,8 @@ module WebSocketHelper
 
     Monadic::Workbench::Selection.accept(data, chat_id: chat_id, request_id: request_id,
                                                tab: Thread.current[:websocket_session_id],
-                                               generation: session[:_ws_generation])
+                                               generation: session[:_ws_generation],
+                                               words: Monadic::Utils::Privacy::Outbound.terms_of(session))
   rescue Monadic::Workbench::Selection::Refused => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Selection not taken: #{e.reason}" }
     nil

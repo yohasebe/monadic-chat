@@ -73,6 +73,11 @@ RSpec.describe "selected lines of a text file" do
         .to raise_error(Monadic::Workbench::Pointing::Refused) { |e| expect(e.reason).to eq("hidden_word") }
     end
 
+    it "does not take lines that hold it broken in one place and whole in another" do
+      expect { accept_hiding("first" => 1, "last" => 3) }
+        .to raise_error(Monadic::Workbench::Pointing::Refused) { |e| expect(e.reason).to eq("hidden_word") }
+    end
+
     it "takes lines that hold it whole, for the message's hiding to hide" do
       expect(accept_hiding("first" => 3, "last" => 3).text).to eq("Ada Lovelace again")
     end

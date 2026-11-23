@@ -80,13 +80,14 @@ module Monadic
         UNSEEN = /[\u0000-\u0008\u000E-\u001F\u007F\u00AD\u200B\u2060\uFEFF]/
         SPACES = /[[:space:]]+/
 
-        # The words of words found in text only when its runs of space are
-        # each one space and what shows nothing is dropped (a word a line
-        # break, an indentation or an unseen character breaks): what an
-        # exact match does not find.
+        # The words of words found in text more often when its runs of space
+        # are each one space and what shows nothing is dropped than as they
+        # are (a word a line break, an indentation or an unseen character
+        # breaks, even where it is also whole elsewhere): what an exact match
+        # does not find.
         def self.broken_words(text, words)
           flat = flatten(text)
-          words.select { |word| !text.include?(word) && flat.include?(flatten(word)) }
+          words.select { |word| flat.scan(flatten(word)).size > text.scan(word).size }
         end
 
         def self.flatten(text)

@@ -83,6 +83,18 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
       end.new
     end
 
+    it 'takes a call of the look when the session\'s other tools are off' do
+      queue = []
+      def queue.enqueue(cmd) = push(cmd)
+      state = { tools_enabled: false, cmd_queue: queue }
+      host.send(:sts_handle_tool_call_detected, state, { 'response_id' => 'r1', 'call_id' => 'c1', 'name' => 'look_at_workbench',
+                                                  'arguments' => '{}' }, 'tab-9')
+      expect(queue.map(&:first)).to eq([:tool_call])
+      host.send(:sts_handle_tool_call_detected, state, { 'response_id' => 'r2', 'call_id' => 'c2', 'name' => 'search_web',
+                                                  'arguments' => '{}' }, 'tab-9')
+      expect(queue.size).to eq(1)
+    end
+
     it 'runs the look with the tab and the provider, and keeps the image with the result' do
       state = { offered_tool_names: ['look_at_workbench'], provider: 'openai' }
       done = host.send(:sts_execute_tool_safely, { name: 'look_at_workbench', parsed_arguments: {} }, state, 'tab-9', session)

@@ -2277,10 +2277,12 @@ module WebSocketHelper
   # tool handlers do BLOCKING I/O (docker exec / HTTP) and must never run
   # on the Falcon reactor — same reason the typed pipeline uses Threads.
   def sts_handle_tool_call_detected(state, payload, ws_session_id)
-    return unless state[:tools_enabled]
     call_id = payload["call_id"].to_s
     name = payload["name"].to_s
     return if call_id.empty? || name.empty?
+    # A tool offered whether or not the session's tools are on (the work
+    # screen's) is taken as the others are when they are on.
+    return unless state[:tools_enabled] || STS_TOOLS.dig(name, :always)
 
     queue = state[:cmd_queue]
     return unless queue

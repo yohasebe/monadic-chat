@@ -68,4 +68,26 @@ RSpec.describe "The settings of a Grok turn" do
     expect(searching.call({ "websearch" => false }, { "websearch" => true })).to eq([false, false])
     expect(searching.call({}, { "websearch" => true })).to eq([false, false])
   end
+
+  describe "a message with an image" do
+    let(:image) { { "title" => "dot.png", "type" => "image/png", "data" => "data:image/png;base64,iVBORw0KGgo=" } }
+
+    def sent_with(message)
+      history = [{ "role" => "user", "text" => "Look.", "active" => true, "images" => [image] }]
+      turn_bodies(GrokHelper, format: StreamContract::Responses, kind: :sse, key: "XAI_API_KEY",
+                  message: { "model" => model, "context_size" => "5", "message" => "Look.", "images" => [image] }
+                           .merge(message),
+                  messages: [{ "role" => "system", "text" => "S", "active" => true }] + history)
+    end
+
+    it "is sent with its image in a chat" do
+      sent = sent_with({})
+      expect(sent).not_to be_empty
+      expect(JSON.generate(sent.first)).to include("iVBORw0KGgo=")
+    end
+
+    it "is refused by Image Generator, whose API takes no image" do
+      expect(sent_with({ "display_name" => "Image Generator" })).to be_empty
+    end
+  end
 end

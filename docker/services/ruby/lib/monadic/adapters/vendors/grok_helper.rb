@@ -1030,13 +1030,12 @@ module GrokHelper
     data = nil
 
     # Grok's image *generation* API supports generation only (no image
-    # upload/edit), so reject image-bearing requests there to avoid confusing
-    # 400s. Video Generator is exempt: it accepts an uploaded image as the
-    # source frame for image-to-video (Grok Imagine Video 1.5), which the
-    # generate_video_with_grok_imagine tool materializes from the session.
-    is_video_generator = obj["app_name"].to_s.include?("VideoGenerator") ||
-                         obj["display_name"].to_s.include?("Video Generator")
-    if !is_video_generator && obj["images"] && obj["images"].is_a?(Array) && !obj["images"].empty?
+    # upload/edit), so Image Generator refuses a message that carries an
+    # image, to avoid a confusing 400. Every other app sends the image with
+    # the message, for the model to read.
+    is_image_generator = obj["app_name"].to_s.include?("ImageGenerator") ||
+                         obj["display_name"].to_s.include?("Image Generator")
+    if is_image_generator && obj["images"] && obj["images"].is_a?(Array) && !obj["images"].empty?
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "xAI",
         message: "Image upload/edit is not supported for Grok image generation. Please provide a text prompt only, or use the OpenAI Image Generator for edits/masks.",

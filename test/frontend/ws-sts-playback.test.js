@@ -197,6 +197,29 @@ describe('turn boundaries', () => {
     expect(Sts.getActiveTurnId()).toBeNull();
   });
 
+  it('plays a response that goes on the same turn after what is still to be heard, not over it', () => {
+    // The answer before a tool call: two chunks, its audio done while they
+    // are still to be played.
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    const end = ctx.createdSources[1].startedAt + 0.1;
+    Sts.finishTurn('t1');
+    // The answer after the tool, while the first is still playing.
+    ctx.currentTime = 0.05;
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    expect(ctx.createdSources[2].startedAt).toBeCloseTo(end, 6);
+    expect(ctx.createdSources[0].stop).not.toHaveBeenCalled();
+    expect(Sts.getActiveTurnId()).toBe('t1');
+  });
+
+  it('starts a turn after a cancelled one of the same id on its own timeline', () => {
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    Sts.stopAll();
+    ctx.currentTime = 5;
+    Sts.scheduleChunk('t3', chunkBytes(100), SAMPLE_RATE);
+    expect(ctx.createdSources[1].startedAt).toBeCloseTo(5 + Sts.LEAD_IN_SEC, 6);
+  });
+
   // Mono-voice invariant: the upstream can move to a new
   // response without ever emitting a cancellation we can attribute, and the
   // old turn's scheduled tail would then talk over the new answer. The turn

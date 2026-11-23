@@ -39,6 +39,11 @@
   // Playback position in AudioContext time. Only ever moves forward.
   let nextStartTime = 0;
   let activeTurnId = null;
+  // The turn the timeline was last anchored for. A turn's response can end
+  // (finishTurn) and the same turn go on with another one (an answer after
+  // a tool call): that one plays after what is still to be heard, not over
+  // it.
+  let timelineTurnId = null;
 
   // Speech highlight: per-SEGMENT (= upstream response) playback
   // ranges on the audio clock. The live view maps the current position to
@@ -186,8 +191,11 @@
       Array.from(scheduledSources.keys()).forEach(function(id) {
         if (id !== turnId) stopSources(id);
       });
+      // The same turn going on keeps its timeline (its next response plays
+      // after the one still being heard); another turn starts its own.
+      if (turnId === null || turnId !== timelineTurnId) nextStartTime = 0;
       activeTurnId = turnId;
-      nextStartTime = 0;
+      timelineTurnId = turnId;
     }
 
     const samples = pcm16ToFloat32(pcmBytes);
@@ -259,6 +267,7 @@
       activeTurnId = null;
       nextStartTime = 0;
     }
+    if (turnId === timelineTurnId) timelineTurnId = null;
   }
 
   function stopAll() {
@@ -266,6 +275,7 @@
     scheduledSources.clear();
     segmentTimelines.clear();
     activeTurnId = null;
+    timelineTurnId = null;
     nextStartTime = 0;
   }
 

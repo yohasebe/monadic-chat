@@ -219,6 +219,7 @@ module BaseVendorHelper
       existing.merge!(content.except(*USER_TURN_SERVER_FIELDS))
       content["attachments"] = existing["attachments"] if existing["attachments"]
       content["workbench_picture"] = existing["workbench_picture"] if existing["workbench_picture"]
+      content["workbench_selection"] = existing["workbench_selection"] if existing["workbench_selection"]
     else
       content["request_id"] = request_id if request_id
       session[:messages] << content
@@ -226,7 +227,7 @@ module BaseVendorHelper
     block&.call res
   end
 
-  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot workbench_picture].freeze
+  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot workbench_picture workbench_selection].freeze
 
   # Whether this send has a user turn to record and show: typed text, or
   # files attached to the message of the current request with no text.
@@ -474,7 +475,7 @@ module BaseVendorHelper
   def model_facing_message(msg)
     return msg unless msg.is_a?(Hash) && msg["role"] == "user"
 
-    described = with_workbench_picture(model_facing_attachments(msg))
+    described = with_workbench_selection(with_workbench_picture(model_facing_attachments(msg)))
     return described unless Monadic::Workspace::StoppedReplies.note_for(msg)
 
     # A message whose reply was stopped says so after all of it.
@@ -502,6 +503,16 @@ module BaseVendorHelper
 
     msg.merge("images" => Array(msg["images"]) + [picture.image],
               "text" => [msg["text"].to_s, picture.note].reject(&:empty?).join("\n\n"))
+  end
+
+  # msg with the text the user selected in the work screen to send with it,
+  # when msg is the message of that request: quoted after its text (and
+  # after what the picture is). A new message.
+  def with_workbench_selection(msg)
+    selection = Monadic::Workspace::RequestContext.current&.selection
+    return msg unless selection && msg["request_id"] && msg["request_id"] == selection.request_id
+
+    msg.merge("text" => [msg["text"].to_s, selection.note].reject(&:empty?).join("\n\n"))
   end
 
   # The images of the message being answered for a helper that takes them

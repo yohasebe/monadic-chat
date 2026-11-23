@@ -30,13 +30,16 @@ module Monadic
       # those of a request made with these parameters, and of no other (a
       # tool that asks a model of its own makes its own).
       # picture: the picture of the work screen the message was sent with
-      # (Workbench::Picture), or nil.
-      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings, :picture
+      # (Workbench::Picture), or nil. selection: the text the user selected
+      # in the work screen to send with it (Workbench::Selection), or nil.
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings, :picture,
+                  :selection
 
       def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil,
-                     observation: nil, settings: nil, parameters: nil, picture: nil)
+                     observation: nil, settings: nil, parameters: nil, picture: nil, selection: nil)
         @request_id = request_id
         @picture = picture
+        @selection = selection
         @settings = settings
         @parameters = parameters
         @chat_id = chat_id

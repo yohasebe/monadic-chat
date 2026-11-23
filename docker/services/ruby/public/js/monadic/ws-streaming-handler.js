@@ -243,6 +243,9 @@ function handleUser(data) {
   if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
     window.Workbench.drawPicture(data["content"]["mid"], data["content"]["workbench_picture"]);
   }
+  if (window.Workbench && typeof window.Workbench.drawSelection === 'function') {
+    window.Workbench.drawSelection(data["content"]["mid"], data["content"]["workbench_selection"]);
+  }
 
   // Scroll down immediately after showing user message
   const mainPanel = window.mainPanel;

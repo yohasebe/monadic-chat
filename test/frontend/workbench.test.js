@@ -1347,6 +1347,83 @@ describe('Workbench', () => {
       }
     });
 
+    test('holds text selected in the PDF shown, offers it with a chip, and sends it once', async () => {
+      layout.pane = 'work';
+      const text = document.createElement('div');
+      text.className = 'textLayer';
+      text.innerHTML = '<span>the eastern library</span> <span>the western library</span>';
+      window.WorkbenchPdf = {
+        show: (box) => {
+          const bar = document.createElement('div');
+          bar.className = 'workbench-pdf-bar';
+          box.appendChild(bar);
+          box.appendChild(text);
+          return { shown: () => ({ status: 'ready', page: 2, pages: 5, scale: 1, drawing: 1 }), dispose: () => {},
+            state: () => ({}), textLayer: () => text, setPointable: () => {} };
+        }
+      };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
+      const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
+        sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };
+      const select = (node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+      };
+      const chip = () => document.querySelector('#workbench-view .workbench-selection-chip');
+      try {
+        view([paper], { assets: { i_p: '/workbench/asset/p' } });
+        await flush();
+        expect(chip()).toBeNull();
+        expect(window.Workbench.selectionNow()).toBeNull();
+        select(text.children[0]);
+        expect(chip().textContent).toContain('(19 characters)');
+        // Held when the selection moves to the message box.
+        select(document.getElementById('message'));
+        const offered = window.Workbench.selectionNow();
+        expect(offered.data).toEqual({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5,
+          text: 'the eastern library', cut: false });
+        // Sent: not offered again until another is selected.
+        offered.sent();
+        expect(chip()).toBeNull();
+        expect(window.Workbench.selectionNow()).toBeNull();
+        select(text.children[0]);
+        expect(window.Workbench.selectionNow()).toBeNull();
+        select(text.children[1]);
+        expect(window.Workbench.selectionNow().data.text).toBe('the western library');
+        // Set aside with ×.
+        chip().querySelector('.workbench-selection-aside').click();
+        expect(chip()).toBeNull();
+        expect(window.Workbench.selectionNow()).toBeNull();
+        // A long selection is cut, and says so.
+        text.children[0].textContent = 'x'.repeat(2500);
+        select(text.children[0]);
+        const long = window.Workbench.selectionNow().data;
+        expect(Array.from(long.text)).toHaveLength(2000);
+        expect(long.cut).toBe(true);
+      } finally {
+        delete window.WorkbenchPdf;
+      }
+    });
+
+    test('draws a line on the card of a message sent with selected text, which shows the text', () => {
+      const el = card('m-s');
+      window.Workbench.drawSelection('m-s', { item_id: 'i_p', version: 'v', page: 3, pages: 5, text: '<b>the eastern</b> library', cut: false });
+      const line = el.querySelector('.workbench-selection-note');
+      expect(line.textContent).toContain('page 3');
+      const quote = line.querySelector('.workbench-selection-quote');
+      expect(quote.hidden).toBe(true);
+      line.querySelector('button').click();
+      expect(quote.hidden).toBe(false);
+      expect(quote.textContent).toBe('<b>the eastern</b> library');
+      expect(quote.querySelector('b')).toBeNull();
+      window.Workbench.drawSelection('m-s', null);
+      expect(el.querySelector('.workbench-selection-note')).toBeNull();
+    });
+
     test('draws a line on the card of a message sent with a picture, which asks for it and shows it', () => {
       const el = card('m-u');
       window.Workbench.drawPicture('m-u', { id: 'p_' + 'a'.repeat(20), page: 3 });

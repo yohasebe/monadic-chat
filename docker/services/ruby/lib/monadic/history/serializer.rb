@@ -7,6 +7,7 @@ require_relative '../workbench/record'
 require_relative '../workbench/shown'
 require_relative '../workbench/made'
 require_relative '../workbench/picture'
+require_relative '../workbench/selection'
 require_relative '../workbench/look/record'
 require_relative '../turn_state/form'
 
@@ -93,6 +94,9 @@ module Monadic
         # reference; the picture is in the chat's workbench folder).
         picture = Monadic::Workbench::Picture.clean(raw['workbench_picture'] || raw[:workbench_picture])
         out['workbench_picture'] = picture if picture && out['role'] == 'user'
+        # The text a user message was sent with, selected in the work screen.
+        selection = Monadic::Workbench::Selection.clean(raw['workbench_selection'] || raw[:workbench_selection])
+        out['workbench_selection'] = selection if selection && out['role'] == 'user'
         revisions = Monadic::Workbench::Made.clean_revisions(raw[Monadic::Workbench::Made::REVISIONS_KEY] || raw[:workbench_revisions])
         out[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
         # What the reply changed in its app's state (Monadic::TurnState).

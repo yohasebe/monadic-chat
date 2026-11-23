@@ -7093,6 +7093,35 @@ body.side-pane-resizing {
 .workbench-pointer-look-menu .btn[aria-pressed="true"] .workbench-pointer-swatch i {
   visibility: visible;
 }
+/* The chip that says the text selected in the PDF goes with the next
+   message (workbench.js), with × to set it aside: in the accent, as what
+   is pointed at. */
+.workbench-selection-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0 0 0 var(--spacing-sm);
+  color: var(--pal-accent-text);
+  background: var(--pal-accent-soft);
+  border: var(--border-width) solid var(--pal-accent-line);
+  border-radius: 999px;
+}
+.workbench-selection-chip .workbench-selection-aside {
+  color: var(--pal-accent-text);
+  background: transparent;
+  border-color: transparent;
+}
+.workbench-selection-chip .workbench-selection-aside:hover {
+  color: var(--text-primary);
+}
+/* The text a message was sent with, opened from its card */
+.workbench-selection-quote {
+  margin: var(--spacing-xs) 0 0;
+  padding-left: var(--spacing-sm);
+  border-left: 3px solid var(--pal-accent-line);
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
 /* The page and the zoom, between their buttons */
 .workbench-pdf-bar .workbench-pdf-label {
   min-width: 4.5em;

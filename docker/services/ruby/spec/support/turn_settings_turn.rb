@@ -3,6 +3,7 @@
 require "json"
 require_relative "stream_contract"
 require_relative "../../lib/monadic/workbench/picture"
+require_relative "../../lib/monadic/workbench/selection"
 
 # One turn of a chat as a provider is sent it, for the specs of the
 # settings a message is answered with: the model calls a tool, the tool
@@ -28,6 +29,10 @@ module TurnSettingsTurn
     kind == :ndjson ? objects.map { |o| "#{JSON.generate(o)}\n" }.join : objects.map { |o| "data: #{JSON.generate(o)}\n\n" }.join
   end
 
+  # The item and version a picture in these turns is of.
+  PICTURED_ITEM = "i_pictureditem0q7"
+  PICTURED_VERSION = "f0e1d2c3" * 8
+
   # The bodies of the requests of the turn (where they were sent is left in
   # @turn_uris). message: what the message brought; kept: the chat's
   # parameters before it; change: what the tool changes in them.
@@ -44,13 +49,12 @@ module TurnSettingsTurn
   # an answer; the last is given again to every later request.
   # picture: bytes of a picture of the work screen the message is sent with
   # (Workbench::Picture, left in @turn_picture); picture_chat: the chat it was
-  # taken for, when not the session's.
-  # The item and version a picture in these turns is of.
-  PICTURED_ITEM = "i_pictureditem0q7"
-  PICTURED_VERSION = "f0e1d2c3" * 8
-
+  # taken for, when not the session's. selection: text the user selected in
+  # the work screen to send with the message (Workbench::Selection). hidden:
+  # words the chat hides (its word table).
   def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [],
-                  answering: nil, messages: nil, failing: 0, answers: nil, picture: nil, picture_chat: nil)
+                  answering: nil, messages: nil, failing: 0, answers: nil, picture: nil, picture_chat: nil,
+                  selection: nil, hidden: [])
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
@@ -88,23 +92,35 @@ module TurnSettingsTurn
     allow(HTTP).to receive(:timeout).and_return(chain)
     chat = Monadic::Workspace::Ids.generate(:chat)
     session[Monadic::Workspace::Chats::SESSION_KEY] = chat
+    unless hidden.empty?
+      table = Monadic::Utils::Privacy::Words.start!(session)
+      hidden.each { |word| table.confirm!(word, "PERSON") }
+    end
     @turn_picture = nil
+    request_id = Monadic::Workspace::Ids.generate(:request)
     if picture
-      request_id = Monadic::Workspace::Ids.generate(:request)
       @turn_picture = Monadic::Workbench::Picture.new(
         id: "p_#{"a" * 20}", chat_id: picture_chat || chat, request_id: request_id, item_id: PICTURED_ITEM,
         version: PICTURED_VERSION, page: 2, pages: 5,
         mark: { "shape" => "ellipse", "x" => 0.25, "y" => 0.5, "w" => 0.25, "h" => 0.125 }, bytes: picture
       )
     end
+    pointed = {}
+    pointed[:picture] = @turn_picture if @turn_picture
+    if selection
+      pointed[:selection] = Monadic::Workbench::Selection.new(
+        request_id: request_id, item_id: PICTURED_ITEM, version: PICTURED_VERSION, page: 2, pages: 5,
+        text: selection, cut: false
+      )
+    end
+    pointed[:request_id] = request_id unless pointed.empty?
     context = if answering
                 Monadic::Workspace::RequestContext.new(chat_id: chat, parameters: answering,
                                                        settings: Monadic::TurnSettings.of(answering))
               else
                 Monadic::Workspace::RequestContext.new(chat_id: chat, parameters: session[:parameters],
                                                        settings: Monadic::TurnSettings.accepted(message, kept),
-                                                       **(@turn_picture ? { request_id: @turn_picture.request_id,
-                                                                            picture: @turn_picture } : {}))
+                                                       **pointed)
               end
     Monadic::Workspace::RequestContext.with(context) { helper.api_request("user", session) { |_| } }
     bodies

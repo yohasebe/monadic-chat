@@ -517,6 +517,8 @@ module CohereHelper
       if role != "tool" && picture && current_turn && picture.request_id == current_turn["request_id"]
         base = [base.to_s, picture.note].reject(&:empty?).join("\n\n")
       end
+      # And the text the user selected in the work screen to send with it.
+      base = with_workbench_selection(current_turn.merge("text" => base.to_s))["text"] if role != "tool" && current_turn
       # What the work screen shows follows the message.
       observed = Monadic::Workbench::Observation.appended(base, observation_for(session, current_turn))
       current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(

@@ -25,6 +25,7 @@ RSpec.describe "The picture of the work screen sent with a message" do
   let(:png) { "\x89PNG\r\n\x1A\n".b + [13].pack("N") + "IHDR".b + [8, 8].pack("NN") + "\x08\x02\x00\x00\x00".b }
   let(:item) { { id: "i_1", kind: "file", preview: "pdf", version: "v" * 64 } }
   let(:seen) { [] }
+  let(:selections) { [] }
 
   before do
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(root)
@@ -42,9 +43,11 @@ RSpec.describe "The picture of the work screen sent with a message" do
     Thread.current[:websocket_session_id] = "tab-1"
     WebSocketHelper.register_live_session("tab-1", session, 1)
     seen_now = seen
+    seen_selections = selections
     app = Object.new
     app.define_singleton_method(:api_request) do |_role, _session, &_block|
       seen_now << Monadic::Workspace::RequestContext.current&.picture
+      seen_selections << Monadic::Workspace::RequestContext.current&.selection
       [{ "choices" => [{ "message" => { "content" => "ANSWER" }, "finish_reason" => "stop" }] }]
     end
     app.define_singleton_method(:settings) { {} }
@@ -128,6 +131,31 @@ RSpec.describe "The picture of the work screen sent with a message" do
     id = message["workbench_picture"]["id"]
     host.handle_delete_message(nil, { "mid" => message["mid"] })
     expect(Monadic::Workbench::Picture.read(chat_id, id)).to be_nil
+  end
+
+  describe "with text selected" do
+    def selection_data(overrides = {})
+      { "item_id" => "i_1", "version" => "v" * 64, "page" => 2, "pages" => 4, "text" => "the eastern library" }
+        .merge(overrides)
+    end
+
+    it "is given to the message's request, recorded on the message, kept with the history, never in the parameters" do
+      message = send_message("workbench_selection" => selection_data)
+      selection = selections.last
+      expect(selection).to be_a(Monadic::Workbench::Selection)
+      expect(selection.request_id).to eq(message["request_id"])
+      expect(message["workbench_selection"]).to eq(selection.reference)
+      expect(session[:parameters]).not_to have_key("workbench_selection")
+      expect(Monadic::History::Serializer.send(:message, message)["workbench_selection"]).to eq(selection.reference)
+    end
+
+    it "is taken for a model that takes no images, and not for what the board does not have" do
+      send_message("workbench_selection" => selection_data, "model" => "command-a-03-2025")
+      expect(selections.last).to be_a(Monadic::Workbench::Selection)
+      message = send_message("workbench_selection" => selection_data("version" => "w" * 64))
+      expect(selections.last).to be_nil
+      expect(message).not_to have_key("workbench_selection")
+    end
   end
 
   it "is kept with the chat's history by reference" do

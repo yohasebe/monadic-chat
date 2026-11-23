@@ -3,7 +3,7 @@
 require 'base64'
 require 'fileutils'
 require 'securerandom'
-require_relative 'board'
+require_relative 'pointing'
 require_relative 'store'
 
 module Monadic
@@ -30,7 +30,7 @@ module Monadic
       BASE64_LIMIT = 5 * 1024 * 1024
       SIDE_LIMIT = 2048
       PIXELS_LIMIT = 4_194_304
-      PAGES_LIMIT = 100_000
+      PAGES_LIMIT = Pointing::PAGES_LIMIT
       SHAPES = %w[rect ellipse].freeze
       # The colors a mark is drawn in (the page's palette, by name).
       COLORS = %w[orange magenta cyan green yellow].freeze
@@ -39,14 +39,7 @@ module Monadic
              'that the user had in view when sending. The user marked a part of it with a translucent %<color>s ' \
              '%<shape>s to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
 
-      class Refused < StandardError
-        attr_reader :reason
-
-        def initialize(reason)
-          @reason = reason
-          super(reason)
-        end
-      end
+      Refused = Pointing::Refused
 
       attr_reader :id, :chat_id, :request_id, :item_id, :version, :page, :pages, :mark, :bytes
 
@@ -55,17 +48,8 @@ module Monadic
         # the board as the tab's connection sees it. Raises Refused (with
         # why) when it is not taken.
         def accept(data, chat_id:, request_id:, tab:, generation:)
-          raise Refused, 'not_a_picture' unless data.is_a?(Hash)
-
-          board = Board.existing(chat_id) or raise Refused, 'no_board'
-          seen = board.observe(tab: tab.to_s, generation: generation) or raise Refused, 'not_this_tab'
-          item = seen[:items].find { |i| i[:id] == seen[:selected] }
-          raise Refused, 'not_selected' unless item && item[:id] == data['item_id']
-          raise Refused, 'not_a_pdf' unless item[:kind] == 'file' && item[:preview].to_s == 'pdf'
-          raise Refused, 'changed' unless data['version'] == item[:version]
-
-          pages = whole(data['pages'], PAGES_LIMIT) or raise Refused, 'bad_page'
-          page = whole(data['page'], pages) or raise Refused, 'bad_page'
+          item = Pointing.selected_pdf!(data, chat_id: chat_id, tab: tab, generation: generation)
+          page, pages = Pointing.page_of!(data)
           mark = mark_of(data['mark']) or raise Refused, 'bad_mark'
           bytes = png_of(data['image'])
           new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
@@ -77,8 +61,8 @@ module Monadic
         def clean(value)
           return nil unless value.is_a?(Hash) && value['id'].is_a?(String) && value['id'].match?(ID)
 
-          pages = whole(value['pages'], PAGES_LIMIT) or return nil
-          page = whole(value['page'], pages) or return nil
+          pages = Pointing.whole(value['pages'], PAGES_LIMIT) or return nil
+          page = Pointing.whole(value['page'], pages) or return nil
           mark = mark_of(value['mark']) or return nil
           return nil unless value['item_id'].is_a?(String) && value['version'].is_a?(String)
 
@@ -107,11 +91,6 @@ module Monadic
         end
 
         private
-
-        # An Integer from 1 to limit, or nil.
-        def whole(value, limit)
-          value.is_a?(Integer) && value.between?(1, limit) ? value : nil
-        end
 
         # { shape, color, x, y, w, h } within the picture (fractions), or
         # nil. A mark with no color is orange.

@@ -104,6 +104,17 @@
   // the number of its change (a picture goes with a message only after the
   // user placed or moved the pointer).
   let sentPointer = { handle: null, seq: 0 };
+  // The text the user selected in the PDF shown, held from when they
+  // selected it (putting the cursor in the message box takes the page's
+  // selection away) until it is sent, set aside with ×, or replaced by
+  // another selection: { key, item_id, version, page, pages, text, cut }.
+  // set aside and sent: the key of the selection set aside or sent last (it
+  // is not offered again until another is selected).
+  let heldSelection = null;
+  let selectionSetAside = null;
+  let selectionSent = null;
+  // Characters of a selection sent with a message, at most.
+  const SELECTION_SEND_LIMIT = 2000;
   let localPdf = null;
   // Each showing of an attachment, so that a new one is drawn anew.
   let localSerial = 0;
@@ -734,6 +745,7 @@
       if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
       drawn.pdf = window.WorkbenchPdf.show(box, bytes);
       if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(takesImages());
+      showSelectionChip();
     });
     return box;
   }
@@ -1042,6 +1054,7 @@
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
       if (m && m.mid && m.workbench_picture) drawPicture(m.mid, m.workbench_picture);
+      if (m && m.mid && m.workbench_selection) drawSelection(m.mid, m.workbench_selection);
       if (m && m.mid && Array.isArray(m.workbench_shown)) drawShown(m.mid, m.workbench_shown);
       if (m && m.mid && Array.isArray(m.workbench_looks)) drawLooks(m.mid, m.workbench_looks);
     });
@@ -1208,7 +1221,7 @@
         const x1 = clip((right - frame.x) / frame.w);
         const y1 = clip((bottom - frame.y) / frame.h);
         if (!(x1 > x0 && y1 > y0)) return;
-        const palette = (window.WorkbenchPdf && window.WorkbenchPdf.COLORS) || {};
+        const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
         const color = palette[pointer.color] ? pointer.color : 'orange';
         mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
         const px = x0 * frame.width;
@@ -1239,6 +1252,90 @@
         crop: part.crop, image: part.image
       },
       sent: () => { sentPointer = { handle: handle, seq: seq }; }
+    };
+  }
+
+  // The PDF the tab shows now, drawn, or null.
+  function shownPdf() {
+    const item = selected ? itemById(selected) : null;
+    const drawn = item && drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    return drawn && drawn.pdf ? { item: item, drawn: drawn } : null;
+  }
+
+  // The held selection, when it is of the PDF shown and neither sent nor
+  // set aside: the one offered to send.
+  function offeredSelection() {
+    const pdf = shownPdf();
+    if (!heldSelection || !pdf) return null;
+    if (heldSelection.key === selectionSetAside || heldSelection.key === selectionSent) return null;
+    const version = pdf.item.version || pdf.item.sha256 || '';
+    return heldSelection.item_id === pdf.item.id && heldSelection.version === version ? heldSelection : null;
+  }
+
+  // The chip in the PDF's bar that says the selected text goes with the
+  // next message, with × to set it aside.
+  function showSelectionChip() {
+    const pdf = shownPdf();
+    const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar') : null;
+    if (!bar) return;
+    let chip = bar.querySelector('.workbench-selection-chip');
+    const offered = offeredSelection();
+    if (!offered) {
+      if (chip) chip.remove();
+      return;
+    }
+    if (!chip) {
+      chip = element('span', 'workbench-selection-chip');
+      chip.appendChild(element('i', 'fa-solid fa-i-cursor'));
+      chip.appendChild(element('span', 'workbench-selection-text'));
+      const aside = element('button', 'btn btn-sm workbench-selection-aside');
+      aside.type = 'button';
+      aside.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+      const label = t('ui.workbench.selectionAside', 'Do not send the selected text');
+      aside.setAttribute('aria-label', label);
+      aside.title = label;
+      aside.addEventListener('click', () => {
+        if (heldSelection) selectionSetAside = heldSelection.key;
+        showSelectionChip();
+      });
+      chip.appendChild(aside);
+      bar.appendChild(chip);
+    }
+    chip.querySelector('.workbench-selection-text').textContent = t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)')
+      .replace('{n}', String(Array.from(offered.text).length));
+  }
+
+  // A selection made in the text of the PDF shown is held (and offered).
+  document.addEventListener('selectionchange', () => {
+    const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
+    if (!selection || selection.isCollapsed) return;
+    const pdf = shownPdf();
+    const layer = pdf && typeof pdf.drawn.pdf.textLayer === 'function' ? pdf.drawn.pdf.textLayer() : null;
+    if (!layer || !layer.contains(selection.anchorNode) || !layer.contains(selection.focusNode)) return;
+    const shown = pdf.drawn.pdf.shown();
+    if (shown.status !== 'ready') return;
+    const chars = Array.from(selection.toString().trim());
+    if (chars.length === 0) return;
+    const version = pdf.item.version || pdf.item.sha256 || '';
+    const text = chars.slice(0, SELECTION_SEND_LIMIT).join('');
+    heldSelection = { key: `${pdf.item.id}|${version}|${shown.page}|${text}`, item_id: pdf.item.id, version: version,
+                      page: shown.page, pages: shown.pages, text: text, cut: chars.length > SELECTION_SEND_LIMIT };
+    showSelectionChip();
+  });
+
+  // The selected text offered, to go with the message being sent: { data,
+  // sent } (data is what is sent, sent() is called once it went), or null.
+  function selectionNow() {
+    if (local || !paneShown()) return null;
+    const offered = offeredSelection();
+    if (!offered) return null;
+    const { key, ...data } = offered;
+    return {
+      data: data,
+      sent: () => {
+        selectionSent = key;
+        showSelectionChip();
+      }
     };
   }
 
@@ -2005,6 +2102,40 @@
     el.appendChild(line);
   }
 
+  // The text a user's message was sent with, selected in the work screen
+  // (its reference): a line on the message's card that shows the text when
+  // clicked.
+  function drawSelection(mid, selection) {
+    if (!mid) return;
+    const card = $id(mid);
+    const text = card ? card.querySelector('.card-text') : null;
+    if (!text) return;
+    let el = text.querySelector(':scope > .workbench-selection-note');
+    if (!selection || typeof selection.text !== 'string') {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = element('div', 'workbench-selection-note small text-secondary mt-2');
+      text.appendChild(el);
+    }
+    el.replaceChildren();
+    const line = element('div', 'workbench-note-line');
+    line.appendChild(element('i', 'fa-solid fa-i-cursor me-1'));
+    const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-selection-open');
+    open.type = 'button';
+    open.setAttribute('aria-expanded', 'false');
+    open.textContent = t('ui.workbench.selectionSent', 'Selected text (page {n})').replace('{n}', String(selection.page));
+    const quote = element('blockquote', 'workbench-selection-quote', selection.text);
+    quote.hidden = true;
+    open.addEventListener('click', () => {
+      quote.hidden = !quote.hidden;
+      open.setAttribute('aria-expanded', quote.hidden ? 'false' : 'true');
+    });
+    line.appendChild(open);
+    el.append(line, quote);
+  }
+
   // The server's answer to WORKBENCH_PICTURE: the picture, shown in the work
   // screen as an attachment is (from the page's data), or a note that it is
   // gone.
@@ -2080,7 +2211,7 @@
   window.Workbench = {
     onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    textLines, rangeNow, pictureNow, drawPicture, onPicture,
+    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

@@ -11,7 +11,7 @@ end
 # message's requests (the request that returns a tool's result too), once
 # in each, and with no later message's; the chat's messages keep only its
 # reference.
-RSpec.describe "A picture of the work screen sent with a message" do
+RSpec.describe "What the user points at on the work screen with a message" do
   include TurnSettingsTurn
 
   PICTURED = {
@@ -38,7 +38,7 @@ RSpec.describe "A picture of the work screen sent with a message" do
     end
   end
 
-  def turn(name, picture:, messages: nil, picture_chat: nil, text: "What is this?")
+  def turn(name, picture:, messages: nil, picture_chat: nil, text: "What is this?", selection: nil, hidden: [])
     helper, provider, key, format, kind = PICTURED.fetch(name)
     model = model_of(provider)
     if helper == OllamaHelper
@@ -46,7 +46,7 @@ RSpec.describe "A picture of the work screen sent with a message" do
       allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return({ capabilities: %w[completion tools vision] })
     end
     turn_bodies(helper, format: format, kind: kind, key: key, models: [model], picture: picture ? bytes : nil,
-                picture_chat: picture_chat, messages: messages,
+                picture_chat: picture_chat, messages: messages, selection: selection, hidden: hidden,
                 message: { "model" => model, "context_size" => "10", "message" => text })
   end
 
@@ -78,6 +78,33 @@ RSpec.describe "A picture of the work screen sent with a message" do
       later = turn(name, picture: false, messages: earlier)
       expect(later).not_to be_empty
       later.each { |b| expect(count(b, encoded)).to eq(0) }
+    end
+  end
+
+  # Text the user selected in the work screen goes with the same requests,
+  # quoted after the message, and is anonymized as the message is.
+  PICTURED.each_key do |name|
+    it "#{name}: sends the text selected with every request of its message, quoted, and no later message's" do
+      sent = turn(name, picture: false, selection: "The eastern library\nthe budget")
+      expect(sent.size).to eq(2)
+      expect(sent.map { |b| count(b, "> The eastern library") }).to eq([1, 1])
+      expect(sent.map { |b| count(b, "selected the following text on page 2") }).to eq([1, 1])
+      later = turn(name, picture: false, messages: @turn_messages)
+      later.each { |b| expect(count(b, "The eastern library")).to eq(0) }
+    end
+
+    it "#{name}: hides the chat's words in the text selected, also where the selection broke them" do
+      ["Ada Lovelace approved the budget", "approved by Ada\nLovelace and the board",
+       "approved by Ada  Lovelace and the board", "approved by Ada\u00a0Lovelace and the board"].each do |selected|
+        sent = turn(name, picture: false, selection: selected, hidden: ["Ada Lovelace"])
+        sent.each do |b|
+          expect(count(b, "Lovelace")).to eq(0), selected.inspect
+          expect(count(b, "approved")).to eq(1)
+        end
+      end
+    ensure
+      words = Monadic::Utils::Privacy::Words
+      words::LOCK.synchronize { words::TABLES.clear }
     end
   end
 

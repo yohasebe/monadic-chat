@@ -2924,6 +2924,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // back: the pane may have scrolled meanwhile).
       const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
       const picture = window.Workbench && typeof window.Workbench.pictureNow === 'function' ? window.Workbench.pictureNow() : null;
+      const selection = window.Workbench && typeof window.Workbench.selectionNow === 'function' ? window.Workbench.selectionNow() : null;
       reconnect_websocket(ws, function (_ws) {
         // Create a copy of the current images array to preserve the state
         let currentImages = [...images];
@@ -2949,6 +2950,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const extra = {};
         if (shown) extra.workbench_range = shown;
         if (picture) extra.workbench_picture = picture.data;
+        if (selection) extra.workbench_selection = selection.data;
         const outgoing = Object.keys(extra).length > 0 ? Object.assign({}, params, extra) : params;
         const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
         // Not sent: the text, images and attachments stay for the retry.
@@ -2957,6 +2959,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
         if (picture) picture.sent();
+        if (selection) selection.sent();
         if (typeof window.clearVideoAttachments === 'function') {
           window.clearVideoAttachments();
         }

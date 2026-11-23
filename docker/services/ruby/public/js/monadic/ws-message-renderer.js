@@ -132,6 +132,9 @@ function handlePastMessages(data) {
         if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
           window.Workbench.drawPicture(msg.mid, msg.workbench_picture);
         }
+        if (window.Workbench && typeof window.Workbench.drawSelection === 'function') {
+          window.Workbench.drawSelection(msg.mid, msg.workbench_selection);
+        }
         break;
       }
       case "assistant": {

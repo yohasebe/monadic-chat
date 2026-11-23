@@ -5,6 +5,7 @@ require_relative '../privacy/outbound'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/observation'
 require_relative '../../workbench/picture'
+require_relative '../../workbench/selection'
 
 require_relative '../tts_provider'
 
@@ -215,6 +216,23 @@ module WebSocketHelper
     nil
   end
 
+  # The text the user selected in the work screen, sent with a message, as
+  # taken (Workbench::Selection), or nil when it is not taken (any model
+  # takes text). Only the reason is logged, never the text.
+  private def workbench_selection(session, chat_id, request_id, data)
+    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+
+    Monadic::Workbench::Selection.accept(data, chat_id: chat_id, request_id: request_id,
+                                               tab: Thread.current[:websocket_session_id],
+                                               generation: session[:_ws_generation])
+  rescue Monadic::Workbench::Selection::Refused => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Selection not taken: #{e.reason}" }
+    nil
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Selection not taken: #{e.class}" }
+    nil
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -261,6 +279,9 @@ module WebSocketHelper
     # (workbench_picture): taken below for this message only, never kept
     # with the chat's parameters.
     sent_picture = obj.delete("workbench_picture")
+    # The text the user selected in the work screen to send with it
+    # (workbench_selection): the same.
+    sent_selection = obj.delete("workbench_selection")
     obj.delete("workbench_made")
     obj.delete("workbench_revisions")
     obj.delete("state_changes")
@@ -269,13 +290,14 @@ module WebSocketHelper
     # as attachments, images and PDFs as images).
     user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty? || !Array(obj["images"]).empty?
     picture = user_sent && sent_picture ? workbench_picture(session, obj, chat_at_start, request_id, sent_picture) : nil
+    selection = user_sent && sent_selection ? workbench_selection(session, chat_at_start, request_id, sent_selection) : nil
     request_context = Monadic::Workspace::RequestContext.new(
       chat_id: chat_at_start, request_id: request_id,
       attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
       tab: ws_session_id, generation: session[:_ws_generation],
       observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
       settings: Monadic::TurnSettings.accepted(obj, session[:parameters]), parameters: session[:parameters],
-      picture: picture
+      picture: picture, selection: selection
     )
 
     session[:parameters].merge! obj
@@ -316,6 +338,7 @@ module WebSocketHelper
       }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
                                app_name: params["app_name"], attachment_refs: attachment_refs))
       user_message_data["workbench_picture"] = picture.reference if picture
+      user_message_data["workbench_selection"] = selection.reference if selection
       session[:messages] << user_message_data
       sync_session_state!
       # The model this request is sent with, for the notes kept after its

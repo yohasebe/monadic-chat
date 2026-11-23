@@ -80,6 +80,7 @@ describe('WorkbenchPdf', () => {
     box = document.getElementById('box');
     HTMLCanvasElement.prototype.getContext = () => ({});
     delete global.webUIi18n;
+    require(js('monadic/workbench-pointer.js'));
     require(js('monadic/workbench-pdf.js'));
   });
 
@@ -278,7 +279,8 @@ describe('WorkbenchPdf', () => {
         disconnect() { this.gone = true; }
       };
       jest.resetModules();
-      require(js('monadic/workbench-pdf.js'));
+      require(js('monadic/workbench-pointer.js'));
+    require(js('monadic/workbench-pdf.js'));
     });
     afterEach(() => {
       delete global.ResizeObserver;
@@ -358,6 +360,7 @@ describe('the pointer over a PDF page', () => {
     box = document.getElementById('box');
     HTMLCanvasElement.prototype.getContext = () => ({});
     delete global.webUIi18n;
+    require(js('monadic/workbench-pointer.js'));
     require(js('monadic/workbench-pdf.js'));
   });
 
@@ -373,18 +376,20 @@ describe('the pointer over a PDF page', () => {
   }
 
   const at = (type, x, y) => new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true });
-  const button = (name) => box.querySelector(`.workbench-pdf-${name}`);
+  // The PDF's own buttons, and the pointer's (workbench-pointer.js).
+  const POINTER_BUTTONS = ['point', 'look', 'unpoint'];
+  const button = (name) => box.querySelector(POINTER_BUTTONS.includes(name) ? `.workbench-pointer-${name}` : `.workbench-pdf-${name}`);
   const mark = () => box.querySelector('.workbench-pointer');
 
   test('puts the bar\'s buttons in three groups, each an icon button of one size named in a tooltip', async () => {
     await shown();
-    const groups = [...box.querySelectorAll('.workbench-pdf-bar > .workbench-pdf-group')];
-    expect(groups.map((g) => [...g.querySelectorAll(':scope > button')].map((b) => b.className.match(/workbench-pdf-(?!icon)(\w+)/)[1])))
+    const groups = [...box.querySelectorAll('.workbench-pdf-bar > .workbench-bar-group')];
+    expect(groups.map((g) => [...g.querySelectorAll(':scope > button')].map((b) => b.className.match(/workbench-(?:pdf|pointer)-(\w+)/)[1])))
       .toEqual([['prev', 'next'], ['out', 'in'], ['point', 'look', 'unpoint']]);
     box.querySelectorAll('.workbench-pdf-bar button').forEach((b) => {
-      expect(b.classList.contains('workbench-pdf-icon')).toBe(true);
+      expect(b.classList.contains('workbench-icon-btn')).toBe(true);
       // Pointing in the color of the mark (below); the others grey.
-      expect(b.classList.contains(b.classList.contains('workbench-pdf-point') ? 'btn-info' : 'btn-secondary')).toBe(true);
+      expect(b.classList.contains(b.classList.contains('workbench-pointer-point') ? 'btn-info' : 'btn-secondary')).toBe(true);
       expect(b.title).not.toBe('');
       expect(b.getAttribute('aria-label')).not.toBe('');
     });
@@ -392,11 +397,11 @@ describe('the pointer over a PDF page', () => {
 
   test('shows its buttons only where the chat\'s model takes images', async () => {
     const { handle } = await shown();
-    expect(box.querySelector('.workbench-pdf-pointing').hidden).toBe(true);
+    expect(box.querySelector('.workbench-pointer-controls').hidden).toBe(true);
     handle.setPointable(true);
-    expect(box.querySelector('.workbench-pdf-pointing').hidden).toBe(false);
+    expect(box.querySelector('.workbench-pointer-controls').hidden).toBe(false);
     handle.setPointable(false);
-    expect(box.querySelector('.workbench-pdf-pointing').hidden).toBe(true);
+    expect(box.querySelector('.workbench-pointer-controls').hidden).toBe(true);
   });
 
   test('marks the part dragged over, as fractions of the page, and stops drawing then', async () => {
@@ -413,7 +418,7 @@ describe('the pointer over a PDF page', () => {
     layer.dispatchEvent(at('pointermove', 400, 330));
     layer.dispatchEvent(at('pointerup', 460, 290));
     const p = handle.pointer();
-    expect(p).toMatchObject({ page: 1, shape: 'rect', color: 'orange' });
+    expect(p).toMatchObject({ page: 1, by: 'user', shape: 'rect', color: 'orange' });
     [['x', 0.1], ['y', 0.25], ['w', 0.5], ['h', 0.05]].forEach(([k, v]) => expect(p[k]).toBeCloseTo(v));
     expect(handle.pointerSeq()).toBe(1);
     expect(mark().hidden).toBe(false);
@@ -484,9 +489,9 @@ describe('the pointer over a PDF page', () => {
   test('takes the look chosen in its menu, in the mark there is and the next, each a change', async () => {
     const { handle, layer } = await shown();
     handle.setPointable(true);
-    const menu = box.querySelector('.workbench-pdf-look-menu');
+    const menu = box.querySelector('.workbench-pointer-look-menu');
     const pick = (kind, value) => menu.querySelector(`[data-${kind}="${value}"]`);
-    const colors = window.WorkbenchPdf.COLORS;
+    const colors = window.WorkbenchPointer.COLORS;
     expect(Object.keys(colors)).toEqual(['orange', 'magenta', 'cyan', 'green', 'yellow']);
     // Pointing is in the mark's color.
     expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(colors.orange.line);
@@ -527,11 +532,11 @@ describe('the pointer over a PDF page', () => {
   test('starts from the look this browser chose last, and from orange rectangles when it has none it takes', async () => {
     window.localStorage.setItem('monadic-pointer-look', JSON.stringify({ shape: 'ellipse', color: 'magenta' }));
     let { handle } = await shown();
-    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPdf.COLORS.magenta.line);
+    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPointer.COLORS.magenta.line);
     handle.dispose();
     window.localStorage.setItem('monadic-pointer-look', JSON.stringify({ shape: 'star', color: 'red' }));
     ({ handle } = await shown());
-    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPdf.COLORS.orange.line);
+    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPointer.COLORS.orange.line);
     expect(box.querySelector('[data-shape="rect"]').getAttribute('aria-pressed')).toBe('true');
   });
 

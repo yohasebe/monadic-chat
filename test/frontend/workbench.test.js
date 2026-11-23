@@ -1079,6 +1079,40 @@ describe('Workbench', () => {
         expect(body).toEqual({ range: { first_line: 3, last_line: 5 }, note: null });
       });
 
+      function selectLines(box, first, last) {
+        const lis = box.querySelectorAll('.workbench-lines li');
+        const range = document.createRange();
+        range.setStart(lis[first - 1].firstChild, 0);
+        range.setEnd(lis[last - 1].firstChild, 1);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.dispatchEvent(new Event('selectionchange'));
+      }
+
+      test('offers the lines the user selects in a text to go with a message, by their numbers', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        expect(box.querySelector('.workbench-text-bar .workbench-selection-chip')).toBeNull();
+        selectLines(box, 4, 2);
+        selectLines(box, 2, 4);
+        expect(box.querySelector('.workbench-text-bar .workbench-selection-text').textContent).toBe('Send lines 2–4');
+        const offered = window.Workbench.selectionNow();
+        expect(offered.data).toEqual({ item_id: 'i_t', version: 'e'.repeat(64), first: 2, last: 4 });
+        offered.sent();
+        expect(window.Workbench.selectionNow()).toBeNull();
+        expect(box.querySelector('.workbench-selection-chip')).toBeNull();
+      });
+
+      test('gives the lines the user selected with the lines in view, held when the selection is gone', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        selectLines(box, 6, 7);
+        expect((await answer(asked({ wants: ['range', 'selection'] }))).body)
+          .toEqual({ range: { first_line: 3, last_line: 5 }, note: null, selected_lines: { first: 6, last: 7 } });
+        window.getSelection().removeAllRanges();
+        expect((await answer(asked({ wants: ['range', 'selection'] }))).body.selected_lines).toEqual({ first: 6, last: 7 });
+        // Not asked for: not given.
+        expect((await answer(asked())).body.selected_lines).toBeUndefined();
+      });
+
       test('says the selection is changing while one of its selections waits for the server, and answers after', async () => {
         await showAsSelected(['a', 'b', 'c', 'd']);
         window.Workbench.select('i_t');
@@ -1584,6 +1618,11 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view img').getAttribute('src')).toBe('data:image/png;base64,UElDVFVSRQ==');
       window.Workbench.onPicture({ picture_id: 'p_' + 'b'.repeat(20), found: false });
       expect(window.setAlert).toHaveBeenCalled();
+      // Lines of a text: their numbers, and the lines as they are.
+      window.Workbench.drawSelection('m-u', { kind: 'text', first: 2, last: 3, text: 'def a\n  1\nend' });
+      const lines = el.querySelector('.workbench-selection-note');
+      expect(lines.textContent).toContain('Selected lines (2–3)');
+      expect(lines.querySelector('pre.workbench-selection-lines').textContent).toBe('def a\n  1\nend');
       // A picture of an image has no page.
       window.Workbench.drawPicture('m-u', { id: 'p_' + 'c'.repeat(20), kind: 'image' });
       expect(el.querySelector('.workbench-picture-note').textContent).toContain('(image)');

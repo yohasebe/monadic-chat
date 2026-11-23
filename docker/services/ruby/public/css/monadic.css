@@ -6874,6 +6874,10 @@ body.side-pane-resizing {
   border-radius: var(--border-radius);
   background: var(--bg-panel);
 }
+/* Above a text's lines: the selected lines' chip; nothing when there is none. */
+.workbench-text-bar:empty {
+  display: none;
+}
 .workbench-lines {
   margin: 0;
   padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 3.5em;
@@ -7064,7 +7068,8 @@ body.side-pane-resizing {
 /* The bar stays at the top of the PDF while its pages scroll; the space
    under it is its own (the pages scroll under it, not into it). */
 .workbench-pdf-bar,
-.workbench-image-bar {
+.workbench-image-bar,
+.workbench-text-bar {
   position: sticky;
   top: 0;
   z-index: 4;
@@ -7163,6 +7168,13 @@ body.side-pane-resizing {
   border-left: 3px solid var(--pal-accent-line);
   white-space: pre-wrap;
   color: var(--text-primary);
+}
+/* Selected lines of a text file: as they are in the file. */
+.workbench-selection-quote.workbench-selection-lines {
+  font-family: var(--font-family-monospace, monospace);
+  font-size: inherit;
+  overflow-x: auto;
+  white-space: pre;
 }
 /* The page and the zoom, between their buttons */
 .workbench-pdf-bar .workbench-pdf-label {

@@ -267,13 +267,15 @@ module Monadic
         valid = still(board, selection, caller)
         answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                  request_id: caller.request_id, item_id: item['id'],
-                                 version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['range'],
-                                 deadline: deadline, valid: valid)
+                                 version: item.dig('file', 'sha256'), serial: selection.serial,
+                                 wants: %w[range selection], deadline: deadline, valid: valid)
         range = answer['range']
         if range.is_a?(Hash)
           first = range['first_line']
           last = range['last_line']
-          return { first: first, last: last } if first.is_a?(Integer) && last.is_a?(Integer) && first.between?(1, last)
+          if first.is_a?(Integer) && last.is_a?(Integer) && first.between?(1, last)
+            return { first: first, last: last, selected: selected_lines_of(answer['selected_lines']) }
+          end
         end
         return { empty: true } if answer['note'] == 'empty' && range.nil?
 
@@ -304,6 +306,16 @@ module Monadic
         (one.width * other.height - other.width * one.height).abs <= 0.01 * one.width * other.height
       end
 
+      # The lines the user selected, as the page says them: [first, last], or
+      # nil.
+      def selected_lines_of(value)
+        return nil unless value.is_a?(Hash)
+
+        first = value['first']
+        last = value['last']
+        first.is_a?(Integer) && last.is_a?(Integer) && first.between?(1, last) ? [first, last] : nil
+      end
+
       # Why the page did not give the lines in view.
       def raise_unseen(note)
         case note
@@ -323,7 +335,7 @@ module Monadic
       # before and after, at most TEXT_CHARS (the margins go first). Refused
       # when the page names lines the work screen does not show.
       # empty: the page shows a text with no line.
-      def visible_text(bytes, first: nil, last: nil, empty: false)
+      def visible_text(bytes, first: nil, last: nil, empty: false, selected: nil)
         preview = Monadic::Workspace::SharedFolderPreview
         view = preview.text_view(bytes)
         lines = preview.text_lines(view[:text])
@@ -355,7 +367,17 @@ module Monadic
         shown_cut = view[:truncated] && !view[:text].end_with?("\n")
         partial = (cut && !text.end_with?("\n")) || (to == lines.size && shown_cut)
         { text: text, first_line: from, last_line: to, total_lines: total, asked_first: first, asked_last: last,
-          truncated: cut, partial_line: partial, empty: false }
+          truncated: cut, partial_line: partial, empty: false, **selected_text(lines, selected) }
+      end
+
+      # The lines the user selected, of the text's lines, taken as Selection
+      # takes them with a message: { selected_first:, selected_last:,
+      # selected_text:, selected_cut: }, or nothing.
+      def selected_text(lines, selected)
+        return {} unless selected && selected[1] <= lines.size
+
+        taken = Selection.take_lines(lines, *selected)
+        { selected_first: selected[0], selected_last: taken[:last], selected_text: taken[:text], selected_cut: taken[:cut] }
       end
 
       def joined(lines, from, to)
@@ -408,6 +430,11 @@ module Monadic
                            'last_line_cut' => seen[:partial_line] }
           # The lines the user had in view (the others are around them).
           out['lines']['in_view'] = { 'first' => seen[:asked_first], 'last' => seen[:asked_last] } if seen[:asked_first]
+          if seen[:selected_text]
+            out['selected_lines'] = { 'first' => seen[:selected_first], 'last' => seen[:selected_last],
+                                      'text' => seen[:selected_text] }
+            out['selected_lines']['cut'] = true if seen[:selected_cut]
+          end
           out['truncated'] = seen[:truncated]
           out['empty'] = true if seen[:empty]
           if Monadic::Workspace::SharedFolderPreview.render_for(seen[:path])

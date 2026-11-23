@@ -682,7 +682,9 @@
         else li.textContent = lineText;
         list.appendChild(li);
       });
-      box.replaceChildren(list);
+      // The bar the selected lines' chip goes in (empty, it shows nothing).
+      box.replaceChildren(element('div', 'workbench-text-bar'), list);
+      drawn.lines = list;
       drawn.loaded = true;
       restoreScroll(drawn, box);
       if (response.headers.get('x-workbench-truncated')) {
@@ -1340,21 +1342,58 @@
     return drawn && drawn.pdf ? { item: item, drawn: drawn } : null;
   }
 
+  // The text file the tab shows now as its numbered lines, or null.
+  function shownLines() {
+    const item = selected ? itemById(selected) : null;
+    const drawn = item && drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    return drawn && drawn.lines && drawn.lines.isConnected ? { item: item, drawn: drawn } : null;
+  }
+
+  // The lines of the text drawn (item at version) the user selected: as the
+  // page's selection has them now, or else as held (unless set aside):
+  // { first, last }, or null.
+  function linesChosen(drawn, item, version) {
+    const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
+    const range = drawn.lines && selection && !selection.isCollapsed ? selectedLines(drawn.lines, selection) : null;
+    if (range) return { first: range[0], last: range[1] };
+    const held = heldSelection;
+    if (held && held.kind === 'text' && held.item_id === item.id && held.version === version && held.key !== selectionSetAside) {
+      return { first: held.first, last: held.last };
+    }
+    return null;
+  }
+
+  // The numbers of the lines of list (a text's numbered lines) a selection
+  // runs from and to: [first, last], or null when it is not within them.
+  function selectedLines(list, selection) {
+    const lineOf = (node) => {
+      const el = node && (node.nodeType === 1 ? node : node.parentElement);
+      const li = el && el.closest ? el.closest('li') : null;
+      return li && li.parentElement === list ? Array.prototype.indexOf.call(list.children, li) + 1 : 0;
+    };
+    const a = lineOf(selection.anchorNode);
+    const b = lineOf(selection.focusNode);
+    return a && b ? [Math.min(a, b), Math.max(a, b)] : null;
+  }
+
   // The held selection, when it is of the PDF shown and neither sent nor
   // set aside: the one offered to send.
   function offeredSelection() {
-    const pdf = shownPdf();
-    if (!heldSelection || !pdf) return null;
+    const shown = shownPdf() || shownLines();
+    if (!heldSelection || !shown) return null;
     if (heldSelection.key === selectionSetAside || heldSelection.key === selectionSent) return null;
-    const version = pdf.item.version || pdf.item.sha256 || '';
-    return heldSelection.item_id === pdf.item.id && heldSelection.version === version ? heldSelection : null;
+    const version = shown.item.version || shown.item.sha256 || '';
+    return heldSelection.item_id === shown.item.id && heldSelection.version === version ? heldSelection : null;
   }
 
-  // The chip in the PDF's bar that says the selected text goes with the
-  // next message, with × to set it aside.
+  // The chip in the PDF's bar (or above a text's lines) that says the
+  // selected text (or lines) goes with the next message, with × to set it
+  // aside.
   function showSelectionChip() {
     const pdf = shownPdf();
-    const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar') : null;
+    const lines = pdf ? null : shownLines();
+    const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar')
+      : lines ? lines.drawn.node.querySelector('.workbench-text-bar') : null;
     if (!bar) return;
     let chip = bar.querySelector('.workbench-selection-chip');
     // A Live Conversation sends no message with it: the AI gets the text
@@ -1381,14 +1420,28 @@
       chip.appendChild(aside);
       bar.appendChild(chip);
     }
-    chip.querySelector('.workbench-selection-text').textContent = t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)')
-      .replace('{n}', String(Array.from(offered.text).length));
+    chip.querySelector('.workbench-selection-text').textContent = offered.kind === 'text'
+      ? t('ui.workbench.selectionSendLines', 'Send lines {first}–{last}').replace('{first}', String(offered.first))
+        .replace('{last}', String(offered.last))
+      : t('ui.workbench.selectionSend', 'Send the selected text ({n} characters)').replace('{n}', String(Array.from(offered.text).length));
   }
 
   // A selection made in the text of the PDF shown is held (and offered).
   document.addEventListener('selectionchange', () => {
     const selection = typeof window.getSelection === 'function' ? window.getSelection() : null;
     if (!selection || selection.isCollapsed) return;
+    // Lines of a text file are held by their numbers.
+    const shownText = shownLines();
+    if (shownText) {
+      const range = selectedLines(shownText.drawn.lines, selection);
+      if (!range) return;
+      const id = shownText.item.id;
+      const version = shownText.item.version || shownText.item.sha256 || '';
+      heldSelection = { key: `${id}|${version}|lines|${range[0]}|${range[1]}`, kind: 'text',
+                        item_id: id, version: version, first: range[0], last: range[1] };
+      showSelectionChip();
+      return;
+    }
     const pdf = shownPdf();
     const layer = pdf && typeof pdf.drawn.pdf.textLayer === 'function' ? pdf.drawn.pdf.textLayer() : null;
     if (!layer || !layer.contains(selection.anchorNode) || !layer.contains(selection.focusNode)) return;
@@ -1409,7 +1462,7 @@
     if (local || !paneShown() || liveProvider()) return null;
     const offered = offeredSelection();
     if (!offered) return null;
-    const { key, ...data } = offered;
+    const { key, kind: _kind, ...data } = offered;
     return {
       data: data,
       sent: () => {
@@ -1634,7 +1687,10 @@
     if (drawn && drawn.image) return imageAnswer(data, drawn.image);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {
-      return { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
+      const out = { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
+      const chosen = wants.includes('selection') && drawn ? linesChosen(drawn, item, version) : null;
+      if (chosen) out.selected_lines = chosen;
+      return out;
     }
     return { range: null, note: now.note || 'unknown' };
   }
@@ -2400,8 +2456,13 @@
     const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-selection-open');
     open.type = 'button';
     open.setAttribute('aria-expanded', 'false');
-    open.textContent = t('ui.workbench.selectionSent', 'Selected text (page {n})').replace('{n}', String(selection.page));
-    const quote = element('blockquote', 'workbench-selection-quote', selection.text);
+    open.textContent = selection.kind === 'text'
+      ? t('ui.workbench.selectionSentLines', 'Selected lines ({first}–{last})').replace('{first}', String(selection.first))
+        .replace('{last}', String(selection.last))
+      : t('ui.workbench.selectionSent', 'Selected text (page {n})').replace('{n}', String(selection.page));
+    const quote = selection.kind === 'text'
+      ? element('pre', 'workbench-selection-quote workbench-selection-lines', selection.text)
+      : element('blockquote', 'workbench-selection-quote', selection.text);
     quote.hidden = true;
     open.addEventListener('click', () => {
       quote.hidden = !quote.hidden;

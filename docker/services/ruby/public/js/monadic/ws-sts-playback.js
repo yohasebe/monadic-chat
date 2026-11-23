@@ -57,6 +57,12 @@
   // turnId -> Set of AudioBufferSourceNode still scheduled or playing.
   const scheduledSources = new Map();
 
+  // turnId -> the last byte of a chunk of an odd length: a sample is two
+  // bytes, and a stream split between them would play every later sample
+  // of the next chunk a byte off (noise). The byte goes before the turn's
+  // next chunk.
+  const leftovers = new Map();
+
   // Turn ids whose remaining deltas must be dropped, newest last.
   const cancelledTurns = [];
 
@@ -172,7 +178,20 @@
   function scheduleChunk(rawTurnId, pcmBytes, sampleRate, segmentId) {
     const turnId = normalizeTurnId(rawTurnId);
     if (isCancelled(turnId)) return false;
-    if (!pcmBytes || pcmBytes.length < 2) return false;
+    if (!pcmBytes || pcmBytes.length === 0) return false;
+    const left = leftovers.get(turnId);
+    if (left !== undefined) {
+      const joined = new Uint8Array(pcmBytes.length + 1);
+      joined[0] = left;
+      joined.set(pcmBytes, 1);
+      pcmBytes = joined;
+      leftovers.delete(turnId);
+    }
+    if (pcmBytes.length % 2 === 1) {
+      leftovers.set(turnId, pcmBytes[pcmBytes.length - 1]);
+      pcmBytes = pcmBytes.subarray(0, pcmBytes.length - 1);
+    }
+    if (pcmBytes.length < 2) return false;
 
     const ctx = ensureAudioContext();
     if (!ctx) return false;
@@ -259,6 +278,7 @@
   function cancelTurn(rawTurnId) {
     const turnId = normalizeTurnId(rawTurnId);
     rememberCancelled(turnId);
+    leftovers.delete(turnId);
     stopSources(turnId);
     segmentTimelines.forEach(function(seg, segId) {
       if (seg.turnId === turnId) segmentTimelines.delete(segId);
@@ -274,6 +294,7 @@
     Array.from(scheduledSources.keys()).forEach(stopSources);
     scheduledSources.clear();
     segmentTimelines.clear();
+    leftovers.clear();
     activeTurnId = null;
     timelineTurnId = null;
     nextStartTime = 0;

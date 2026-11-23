@@ -1663,6 +1663,26 @@ module WebSocketHelper
     sts_translate_gemini(state, payload)
   end
 
+  # The audio of a reply's parts: inline data of an audio type only (data of
+  # another type played as sound is noise). What else came, and audio of an
+  # odd number of bytes, is counted and logged by kind and number only.
+  def sts_gemini_audio_parts(g, parts)
+    Array(parts).filter_map do |part|
+      inline = part.is_a?(Hash) ? part["inlineData"] : nil
+      next unless inline.is_a?(Hash) && inline["data"].is_a?(String)
+
+      type = inline["mimeType"].to_s
+      unless type.empty? || type.start_with?("audio/")
+        Monadic::Utils::ExtraLogger.log { "[STS] gemini: a part of type #{type[0, 40]} was not played" }
+        next
+      end
+      data = inline["data"]
+      padding = data.end_with?("==") ? 2 : (data.end_with?("=") ? 1 : 0)
+      g[:odd_audio] = (g[:odd_audio] || 0) + 1 if ((data.length / 4 * 3) - padding).odd?
+      data
+    end
+  end
+
   def sts_translate_gemini(state, payload)
     g = (state[:gem] ||= { resp_open: false, resp_seq: 0, item_seq: 0, item_id: nil, usage: nil })
     events = []
@@ -1764,7 +1784,7 @@ module WebSocketHelper
       end
     end
 
-    audio_parts = (sc.dig("modelTurn", "parts") || []).filter_map { |p| p.dig("inlineData", "data") }
+    audio_parts = sts_gemini_audio_parts(g, sc.dig("modelTurn", "parts"))
     out_text = sc.dig("outputTranscription", "text").to_s
 
     if (!audio_parts.empty? || !out_text.empty?) && !g[:resp_open]
@@ -1791,6 +1811,10 @@ module WebSocketHelper
     end
 
     if sc["turnComplete"]
+      if g[:odd_audio].to_i.positive?
+        count = g.delete(:odd_audio)
+        Monadic::Utils::ExtraLogger.log { "[STS] gemini: #{count} audio chunks of an odd number of bytes" }
+      end
       if g[:resp_open]
         events << { "type" => "response.output_audio_transcript.done",
                     "response_id" => g[:rid], "transcript" => "" }

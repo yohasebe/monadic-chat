@@ -138,6 +138,28 @@ describe('scheduling', () => {
   });
 });
 
+describe('chunks of an odd number of bytes', () => {
+  function samples(source) { return Array.from(source.buffer.getChannelData(0)); }
+
+  it('keeps the samples of the turn whole across chunks split inside a sample', () => {
+    // Two samples, 0x0100 (256) and 0x0200 (512), split after the first byte.
+    expect(Sts.scheduleChunk('odd', new Uint8Array([0x00, 0x01, 0x00]), SAMPLE_RATE)).toBe(true);
+    expect(Sts.scheduleChunk('odd', new Uint8Array([0x02]), SAMPLE_RATE)).toBe(true);
+    const played = ctx.createdSources.flatMap(samples);
+    expect(played).toEqual([256 / 32768, 512 / 32768]);
+  });
+
+  it('does not carry a byte into another turn, or past a cancel', () => {
+    Sts.scheduleChunk('a', new Uint8Array([0x00, 0x01, 0x7f]), SAMPLE_RATE);
+    Sts.scheduleChunk('b', new Uint8Array([0x00, 0x02]), SAMPLE_RATE);
+    expect(samples(ctx.createdSources.at(-1))).toEqual([512 / 32768]);
+    Sts.scheduleChunk('b', new Uint8Array([0x00, 0x02, 0x7f]), SAMPLE_RATE);
+    Sts.cancelTurn('b');
+    Sts.scheduleChunk('c', new Uint8Array([0x00, 0x03]), SAMPLE_RATE);
+    expect(samples(ctx.createdSources.at(-1))).toEqual([0x0300 / 32768]);
+  });
+});
+
 describe('underrun', () => {
   it('re-primes forward when playback has overtaken the timeline', () => {
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);

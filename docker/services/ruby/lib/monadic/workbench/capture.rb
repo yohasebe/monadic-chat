@@ -50,7 +50,7 @@ module Monadic
       # What an answer may hold, by what was asked for (wants); anything
       # else is left out.
       FIELDS = {
-        nil => %w[range note], 'image' => %w[image image_note crop mark], 'selection' => %w[selection_text selection_cut]
+        nil => %w[range note], 'image' => %w[image image_note crop mark], 'selection' => %w[selection_text selection_cut mark_text mark_cut]
       }.freeze
 
       @pending = {}

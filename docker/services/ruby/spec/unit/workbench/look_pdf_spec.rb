@@ -139,6 +139,38 @@ RSpec.describe "looking at a PDF on the work screen" do
       expect(result(look.run(caller_for, scope: "visible"))).not_to have_key("marked")
     end
 
+    it "gives the text inside the user's mark, as one line" do
+      open_pdf
+      mark = { "shape" => "rect", "color" => "cyan", "x" => 0.1, "y" => 0.25, "w" => 0.5, "h" => 0.2 }
+      page(drawn("mark" => mark, "mark_text" => "the  eastern\nlibrary\u200B", "mark_cut" => false))
+      allow(pdf_text).to receive(:extract).and_return(texts([2, "page two text"]))
+      out = result(look.run(caller_for, scope: "visible"))
+      expect(out["marked"]).to start_with("The user marked a part of it with a translucent cyan rectangle")
+      expect(out).to include("marked_text" => "the eastern library")
+      expect(out).not_to have_key("marked_text_cut")
+    end
+
+    it "says where the user marked, and the text inside it, to a conversation that takes no images" do
+      open_pdf
+      mark = { "shape" => "ellipse", "color" => "cyan", "x" => 0.1, "y" => 0.25, "w" => 0.5, "h" => 0.2 }
+      page(drawn("mark" => mark, "mark_text" => "the eastern library", "mark_cut" => true))
+      allow(pdf_text).to receive(:extract).and_return(texts([2, "page two text"]))
+      out = result(look.run(caller_for, scope: "visible", images: false))
+      expect(out["image"]).to eq(look::NO_IMAGE)
+      expect(out["marked"]).to eq("The user marked a part of the page in view with a cyan ellipse " \
+                                  "(left 10%, top 25%, width 50%, height 20% of the part in view) to point at it.")
+      expect(out).to include("marked_text" => "the eastern library", "marked_text_cut" => true)
+    end
+
+    it "gives the text inside a mark even when the image could not be had" do
+      open_pdf
+      page(drawn("image" => nil, "image_note" => "redrawn", "mark_text" => "the eastern library"))
+      allow(pdf_text).to receive(:extract).and_return(texts([2, "page two text"]))
+      out = result(look.run(caller_for, scope: "visible"))
+      expect(out).to include("marked" => "The user marked a part of the page in view to point at it.",
+                             "marked_text" => "the eastern library")
+    end
+
     it "keeps the page's text when the image could not be had, and says why" do
       open_pdf
       page(drawn("image" => nil, "image_note" => "redrawn"))

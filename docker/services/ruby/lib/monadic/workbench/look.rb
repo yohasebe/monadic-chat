@@ -392,6 +392,13 @@ module Monadic
         JSON.generate(out)
       end
 
+      # A mark's color, shape and place, as fractions of what it is on.
+      def mark_place(mark, on)
+        percent = ->(v) { (v * 100).round }
+        "#{mark['color']} #{mark['shape'] == 'ellipse' ? 'ellipse' : 'rectangle'} (left #{percent.call(mark['x'])}%, " \
+          "top #{percent.call(mark['y'])}%, width #{percent.call(mark['w'])}%, height #{percent.call(mark['h'])}% of #{on})"
+      end
+
       # What a look at a PDF gives the model: its pages, what each part
       # is, and the text of the page or pages. The image is what the tab
       # drew of the page, not the PDF itself.
@@ -399,14 +406,15 @@ module Monadic
         out = { 'pages' => seen[:pages].transform_keys(&:to_s), 'parts' => seen[:parts] }
         if seen[:image]
           out['image'] = 'The part of the page in view, as the tab drew it, is attached after this result.'
-          if seen[:mark]
-            mark = seen[:mark]
-            percent = ->(v) { (v * 100).round }
-            out['marked'] = "The user marked a part of it with a translucent #{mark['color']} " \
-                            "#{mark['shape'] == 'ellipse' ? 'ellipse' : 'rectangle'} (left #{percent.call(mark['x'])}%, " \
-                            "top #{percent.call(mark['y'])}%, width #{percent.call(mark['w'])}%, " \
-                            "height #{percent.call(mark['h'])}% of the image) to point at it."
-          end
+          out['marked'] = "The user marked a part of it with a translucent #{mark_place(seen[:mark], 'the image')} to point at it." if seen[:mark]
+        elsif seen[:mark]
+          out['marked'] = "The user marked a part of the page in view with a #{mark_place(seen[:mark], 'the part in view')} to point at it."
+        elsif seen[:mark_text]
+          out['marked'] = 'The user marked a part of the page in view to point at it.'
+        end
+        if seen[:mark_text]
+          out['marked_text'] = seen[:mark_text]
+          out['marked_text_cut'] = true if seen[:mark_cut]
         end
         if seen[:parts]['page_text'] == true
           out['page_text'] = seen[:text]

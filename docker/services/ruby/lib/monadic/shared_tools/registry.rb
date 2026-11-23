@@ -122,6 +122,19 @@ module MonadicSharedTools
             ]
           },
           {
+            name: "point_at_workbench",
+            description: "Point the user at a part of what their tab shows in the work screen: lines of a text file (by first_line and last_line, or by a quote of them), or text on a page of a PDF (by a quote of it). The work screen marks it and brings it into view, with your label beside it; the mark stays until the user sends the next message. Quote the text exactly as it is in the file (a short, distinctive part); a quote not found is refused. Use it when showing where something is helps the user follow you; you can point at up to three places in one reply.",
+            parameters: [
+              { name: :quote, type: "string", description: "Text of the item to point at, as it is in it", required: false },
+              { name: :first_line, type: "integer", description: "For a text file: the first line to point at", required: false },
+              { name: :last_line, type: "integer", description: "For a text file: the last line (first_line when left out)",
+                required: false },
+              { name: :page, type: "integer", description: "For a PDF: the page the quote is on, when known", required: false },
+              { name: :label, type: "string", description: "A few words shown beside the mark (at most 40 characters)",
+                required: false }
+            ]
+          },
+          {
             name: "look_at_workbench",
             description: "Look at what the user has selected in the work screen beside the chat, as it is now. " \
                          "An image is given to you after the tool's result; a text file is given as text. " \

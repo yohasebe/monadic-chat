@@ -5,6 +5,7 @@ require_relative '../../workbench/look'
 require_relative '../../workbench/look/record'
 require_relative '../../workbench/document'
 require_relative '../../workbench/picture'
+require_relative '../../workbench/point'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
@@ -21,6 +22,7 @@ module WebSocketHelper
   Monadic::Workbench::Capture.transport = lambda do |tab, generation, chat_id, json|
     WebSocketHelper.send_to_connection(tab, generation, json, chat_id: chat_id)
   end
+  Monadic::Workbench::Point.transport = Monadic::Workbench::Capture.transport
 
   WORKBENCH_URL_MAX = 2000
 

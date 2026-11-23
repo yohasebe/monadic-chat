@@ -6879,6 +6879,21 @@ body.side-pane-resizing {
   background: var(--pal-accent-soft);
   box-shadow: inset 3px 0 0 var(--pal-accent-mid);
 }
+/* Where the AI pointed: its own color (violet), apart from the user's marks. */
+.workbench-lines li.workbench-line-ai {
+  background: rgba(140, 110, 210, 0.16);
+  box-shadow: inset 3px 0 0 #8c6ed2;
+}
+.workbench-lines li.workbench-line-held.workbench-line-ai {
+  box-shadow: inset 3px 0 0 #8c6ed2, inset 6px 0 0 var(--pal-accent-mid);
+}
+.workbench-pdf-page .textLayer span.workbench-ai-hit {
+  background: rgba(140, 110, 210, 0.3);
+  border-radius: 2px;
+}
+.workbench-ai-chip .fa-location-crosshairs {
+  color: #8c6ed2;
+}
 /* Above a text's lines: the selected lines' chip; nothing when there is none. */
 .workbench-text-bar:empty {
   display: none;

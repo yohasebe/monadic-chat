@@ -1125,6 +1125,40 @@ describe('Workbench', () => {
         expect(held()).toEqual([]);
       });
 
+      test('marks the lines the AI points at, with a chip that says where and takes the mark away', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        const marked = () => Array.from(box.querySelectorAll('.workbench-lines li'))
+          .map((li, i) => (li.classList.contains('workbench-line-ai') ? i + 1 : 0)).filter(Boolean);
+        window.Workbench.onPoint({ type: 'workbench_point', item_id: 'i_t', version: 'e'.repeat(64),
+          point: { lines: [3, 4], label: 'the loop' } });
+        expect(marked()).toEqual([3, 4]);
+        expect(box.querySelector('.workbench-ai-chip .workbench-selection-text').textContent).toBe('AI: lines 3–4 · the loop');
+        // Another version of the file, or another item: not marked.
+        window.Workbench.onPoint({ item_id: 'i_t', version: 'f'.repeat(64), point: { lines: [1, 1] } });
+        expect(marked()).toEqual([]);
+        window.Workbench.onPoint({ item_id: 'i_t', version: 'e'.repeat(64), point: { lines: [5, 5] } });
+        expect(marked()).toEqual([5]);
+        box.querySelector('.workbench-ai-chip .workbench-selection-aside').click();
+        expect(marked()).toEqual([]);
+        expect(box.querySelector('.workbench-ai-chip')).toBeNull();
+        window.Workbench.onPoint({ item_id: 'i_t', version: 'e'.repeat(64), point: { lines: [2, 2] } });
+        window.Workbench.clearAiPoint();
+        expect(marked()).toEqual([]);
+      });
+
+      test('draws where the AI pointed under its message, and marks it there again when clicked', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd']);
+        document.body.insertAdjacentHTML('beforeend', '<div id="m-ai" class="card"><div class="card-text"></div></div>');
+        window.Workbench.drawShown('m-ai', [{ path: 'a.txt', name: 'a.txt', sha256: 'e'.repeat(64), preview: 'text',
+          point: { lines: [2, 3], label: 'here' } }]);
+        const line = document.querySelector('#m-ai .workbench-shown-note');
+        expect(line.textContent).toContain('Pointed at in the work screen');
+        expect(line.textContent).toContain('lines 2–3');
+        line.querySelector('button').click();
+        expect(Array.from(box.querySelectorAll('.workbench-line-ai')).length).toBe(2);
+        document.getElementById('m-ai').remove();
+      });
+
       test('gives the lines the user selected with the lines in view, held when the selection is gone', async () => {
         const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
         selectLines(box, 6, 7);
@@ -1279,6 +1313,8 @@ describe('Workbench', () => {
       let encoded;
       let pointerNow;
       let drawnShapes;
+      let turnedTo;
+      let settled;
 
       beforeEach(async () => {
         layout.pane = 'work';
@@ -1301,15 +1337,19 @@ describe('Workbench', () => {
           rect: (...a) => drawnShapes.push(['rect', ...a]), ellipse: (...a) => drawnShapes.push(['ellipse', ...a])
         }));
         jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => encoded());
+        turnedTo = null;
         window.WorkbenchPdf = {
-          show: (box) => {
+          show: (box, _bytes, onChange) => {
             const sheet = document.createElement('div');
             sheet.className = 'workbench-pdf-page';
             sheet.getBoundingClientRect = () => ({ top: -100, bottom: 400, left: 0, right: 400 });
+            const bar = document.createElement('div');
+            bar.className = 'workbench-pdf-bar';
             sheet.append(canvas, layer);
-            box.appendChild(sheet);
+            box.append(bar, sheet);
+            settled = onChange;
             return { shown: () => shown, canvas: () => canvas, textLayer: () => layer, dispose: () => {}, state: () => ({}),
-              pointer: () => pointerNow, pointerSeq: () => 1, setPointable: () => {} };
+              pointer: () => pointerNow, pointerSeq: () => 1, setPointable: () => {}, goTo: (n) => { turnedTo = n; } };
           }
         };
         global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
@@ -1350,6 +1390,18 @@ describe('Workbench', () => {
           crop: { x: 0, y: 200, width: 800, height: 800, sent_width: 800, sent_height: 800 },
           selection_text: 'chosen words', selection_cut: false
         });
+      });
+
+      test('turns to the page the AI points at, and marks the pieces of its text the quote is in', async () => {
+        layer.innerHTML = '<span>the east</span><span>ern  library</span><span>other</span>';
+        window.Workbench.onPoint({ item_id: 'i_p', version: 'f'.repeat(64), point: { page: 4, quote: 'eastern library' } });
+        expect(turnedTo).toBe(4);
+        expect(layer.querySelectorAll('.workbench-ai-hit')).toHaveLength(0);
+        shown = { status: 'ready', page: 4, pages: 5, scale: 1, drawing: 5 };
+        settled(shown);
+        expect(Array.from(layer.querySelectorAll('.workbench-ai-hit')).map((el) => el.textContent))
+          .toEqual(['the east', 'ern  library']);
+        expect(document.querySelector('.workbench-pdf-bar .workbench-ai-chip').textContent).toContain('AI: page 4');
       });
 
       test('draws the mark the user put on the page on the part cut, and says where it is', async () => {

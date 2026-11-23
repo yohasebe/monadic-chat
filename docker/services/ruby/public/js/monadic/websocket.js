@@ -927,6 +927,12 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // The AI pointed at a part of what this tab shows.
+      case "workbench_point": {
+        if (window.Workbench && typeof window.Workbench.onPoint === 'function') window.Workbench.onPoint(data);
+        break;
+      }
+
       // A reply ended without its message: what it looked at in the work
       // screen is drawn on the user's message.
       case "workbench_capture": {

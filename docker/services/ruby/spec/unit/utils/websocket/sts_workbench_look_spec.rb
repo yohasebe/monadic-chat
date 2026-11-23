@@ -12,7 +12,8 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
   let(:chat_id) { Monadic::Workspace::Ids.generate(:chat) }
   let(:session) { { Monadic::Workspace::Chats::SESSION_KEY => chat_id, _ws_generation: 3, parameters: {}, messages: [] } }
   let(:helper) { WebSocketHelper }
-  let(:image) { double('image', data_url: 'data:image/png;base64,UElD') }
+  let(:image_type) { 'image/png' }
+  let(:image) { double('image', data_url: "data:#{image_type};base64,UElD", content_type: image_type, base64: 'UElD') }
   let(:asked) { [] }
 
   before do
@@ -43,18 +44,33 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
     out = helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'openai')
     expect(asked.last[:images]).to be(true)
     expect(out).to eq(output: '{"status":"looked"}',
-                      image: { data_url: 'data:image/png;base64,UElD', caption: 'The image below is what look_at_workbench looked at' })
+                      image: { data_url: 'data:image/png;base64,UElD', caption: 'The image below is what look_at_workbench looked at',
+                               mime: 'image/png', base64: 'UElD' })
+  end
+
+  it 'gives Gemini the image too, of a kind its video input takes' do
+    out = helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'gemini')
+    expect(asked.last[:images]).to be(true)
+    expect(out[:image]).to include(mime: 'image/png', base64: 'UElD')
+  end
+
+  context 'with an image of a kind Gemini does not take' do
+    let(:image_type) { 'image/webp' }
+
+    it 'gives Gemini no image, and says so in the result' do
+      out = helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'gemini')
+      expect(out[:image]).to be_nil
+      expect(JSON.parse(out[:output])['image']).to eq(Monadic::Workbench::Look::NO_IMAGE)
+    end
   end
 
   context 'for a provider that takes no images' do
     let(:images_given) { false }
 
-    it 'asks for no image and gives the text only' do
-      %w[xai gemini].each do |provider|
-        out = helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: provider)
-        expect(asked.last[:images]).to be(false)
-        expect(out).to eq(output: '{"status":"looked"}', image: nil)
-      end
+    it 'asks xAI for no image and gives the text only' do
+      out = helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'xai')
+      expect(asked.last[:images]).to be(false)
+      expect(out).to eq(output: '{"status":"looked"}', image: nil)
     end
   end
 
@@ -120,6 +136,16 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
       expect(conn.writes[1]['item']).to include('type' => 'message', 'role' => 'user')
       expect(conn.writes[1].dig('item', 'content')).to eq([{ 'type' => 'input_text', 'text' => 'The image below' },
                                                            { 'type' => 'input_image', 'image_url' => 'data:image/png;base64,UElD' }])
+    end
+
+    it 'sends Gemini the image as a still frame of its video input before the results of the batch' do
+      state = { provider: 'gemini', pending_tool_calls: { 'gtc-1' => { 'c1' => true } } }
+      host.send(:sts_send_tool_result, conn, state,
+                { rid: 'gtc-1', call_id: 'c1', name: 'look_at_workbench', output: '{"status":"looked"}',
+                  image: { base64: 'UElD', mime: 'image/png', data_url: 'data:image/png;base64,UElD', caption: 'x' } }, 'tab-9')
+      expect(conn.writes.first).to eq('realtimeInput' => { 'video' => { 'data' => 'UElD', 'mimeType' => 'image/png' } })
+      expect(conn.writes.last).to eq('toolResponse' => { 'functionResponses' => [{ 'id' => 'c1', 'name' => 'look_at_workbench',
+                                                                                    'response' => { 'result' => '{"status":"looked"}' } }] })
     end
 
     it 'sends a result with no image as before' do

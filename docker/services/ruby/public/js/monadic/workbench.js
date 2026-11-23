@@ -1183,7 +1183,7 @@
   // does not know is taken to).
   // In a Live Conversation, the providers whose session takes the image of
   // a look (with the mark the user drew on it).
-  const LIVE_IMAGE_PROVIDERS = ['openai'];
+  const LIVE_IMAGE_PROVIDERS = ['openai', 'gemini'];
 
   // The provider of the Live Conversation going on in this page, or null.
   function liveProvider() {

@@ -1587,6 +1587,11 @@ describe('Workbench', () => {
       expect(window.Workbench.selectionNow()).toBeNull();
     });
 
+    test('offers the mark in a Gemini session too, whose video input takes the image of a look', async () => {
+      const pointable = await pdfLive('gemini');
+      expect(pointable.at(-1)).toBe(true);
+    });
+
     test('offers no mark where the session takes no images', async () => {
       const pointable = await pdfLive('xai');
       expect(pointable.at(-1)).toBe(false);

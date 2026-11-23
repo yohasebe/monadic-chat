@@ -169,10 +169,13 @@ module WebSocketHelper
     end
   end
 
-  # The providers whose live session takes an image added to the
-  # conversation (OpenAI's conversation.item.create with input_image); the
-  # others get what the work screen shows as text only.
-  STS_IMAGE_PROVIDERS = %w[openai].freeze
+  # The providers whose live session takes an image of the work screen
+  # (OpenAI: a message of the user's with input_image; Gemini: a still frame
+  # of its video input); the others get what the work screen shows as text
+  # only.
+  STS_IMAGE_PROVIDERS = %w[openai gemini].freeze
+  # The kinds of image Gemini's video input takes.
+  STS_GEMINI_IMAGE_TYPES = %w[image/png image/jpeg].freeze
   # Seconds a look at the work screen may take (the page draws the part in
   # view and answers).
   STS_LOOK_TIMEOUT = 30
@@ -202,8 +205,16 @@ module WebSocketHelper
 
     ledger = Monadic::Workbench::Look::Ledger.of_request(chat_id, request_id)
     seen = ledger&.observations([result.observation_id])&.first
-    image = seen&.image && { data_url: seen.image.data_url, caption: seen.caption.to_s }
-    { output: result.to_s, image: image }
+    image = seen&.image && { data_url: seen.image.data_url, caption: seen.caption.to_s,
+                             mime: seen.image.content_type, base64: seen.image.base64 }
+    output = result.to_s
+    # A kind of image Gemini does not take goes as none, and the model is
+    # told so.
+    if image && provider.to_s == "gemini" && !STS_GEMINI_IMAGE_TYPES.include?(image[:mime])
+      image = nil
+      output = JSON.generate(JSON.parse(output).merge("image" => Monadic::Workbench::Look::NO_IMAGE))
+    end
+    { output: output, image: image }
   ensure
     # The look's record is let go whatever happened (its bytes given back).
     Monadic::Workbench::Look::Ledger.of_request(chat_id, request_id)&.close! if chat_id && request_id
@@ -2528,6 +2539,12 @@ module WebSocketHelper
       # of one toolCall go together, sent when the last result arrives (one
       # frame per result could trigger one generation per result, the same
       # double-answer defect as GA's create-per-result).
+      # What a look saw, as an image: a still frame of the video input,
+      # sent before the results so that the answer after them has it.
+      if result[:image]
+        conn.write({ realtimeInput: { video: { data: result[:image][:base64], mimeType: result[:image][:mime] } } }.to_json)
+        conn.flush
+      end
       outputs = (state[:gemini_tool_outputs] ||= {})[rid] ||= []
       outputs << { id: result[:call_id], name: result[:name],
                    response: { result: result[:output].to_s } }

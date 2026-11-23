@@ -116,9 +116,14 @@ module Monadic
 
       module_function
 
+      # What the model is told in place of an image it cannot be given.
+      NO_IMAGE = 'This conversation takes no images: the image was not given.'
+
       # Runs a look for the caller (Caller): refused (a "❌" sentence, as
-      # other tools of the work screen) or a Result.
-      def run(caller, scope: 'visible')
+      # other tools of the work screen) or a Result. images: false for a
+      # conversation that takes no images (a live voice session of such a
+      # provider): no image is kept, and the model is told so.
+      def run(caller, scope: 'visible', images: true)
         scope = scope.to_s
         raise Refused.new('unsupported_kind', "scope must be one of #{SCOPES.join(', ')}") unless SCOPES.include?(scope)
         raise Refused.new('connection_gone', 'this reply cannot look at the work screen') unless caller
@@ -131,6 +136,7 @@ module Monadic
         ledger = Ledger.for(caller.chat_id, caller.epoch, caller.request_id, session: caller.session, tab: caller.tab)
         ledger.one_at_a_time do
           seen = read(board, selection, scope, caller: caller, deadline: deadline)
+          seen = seen.merge(image: nil, image_withheld: true) if !images && seen[:image]
           unless board.still_selected?(tab: caller.tab, generation: caller.generation, item: item, serial: selection.serial) &&
                  (seen[:holds].nil? || seen[:holds].call)
             raise Refused.new('selection_changed', 'the work screen shows something else now; nothing was looked at')
@@ -362,6 +368,9 @@ module Monadic
                             'version' => seen[:version]&.[](0, 12) }.compact }
         if seen[:kind] == 'pdf'
           out.merge!(pdf_result(seen))
+          out['image'] = NO_IMAGE if seen[:image_withheld]
+        elsif seen[:image_withheld]
+          out['image'] = NO_IMAGE
         elsif seen[:kind] == 'browser'
           # The title and the address are what the browser said near the
           # moment of the picture.
@@ -390,6 +399,14 @@ module Monadic
         out = { 'pages' => seen[:pages].transform_keys(&:to_s), 'parts' => seen[:parts] }
         if seen[:image]
           out['image'] = 'The part of the page in view, as the tab drew it, is attached after this result.'
+          if seen[:mark]
+            mark = seen[:mark]
+            percent = ->(v) { (v * 100).round }
+            out['marked'] = "The user marked a part of it with a translucent #{mark['color']} " \
+                            "#{mark['shape'] == 'ellipse' ? 'ellipse' : 'rectangle'} (left #{percent.call(mark['x'])}%, " \
+                            "top #{percent.call(mark['y'])}%, width #{percent.call(mark['w'])}%, " \
+                            "height #{percent.call(mark['h'])}% of the image) to point at it."
+          end
         end
         if seen[:parts]['page_text'] == true
           out['page_text'] = seen[:text]

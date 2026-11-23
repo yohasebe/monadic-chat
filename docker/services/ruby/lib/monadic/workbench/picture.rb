@@ -31,9 +31,9 @@ module Monadic
       SIDE_LIMIT = 2048
       PIXELS_LIMIT = 4_194_304
       PAGES_LIMIT = Pointing::PAGES_LIMIT
-      SHAPES = %w[rect ellipse].freeze
+      SHAPES = Pointing::SHAPES
       # The colors a mark is drawn in (the page's palette, by name).
-      COLORS = %w[orange magenta cyan green yellow].freeze
+      COLORS = Pointing::COLORS
       # What the model is told with the picture.
       NOTE = 'The image attached to this message is the part of page %<page>d of the PDF selected on the work screen ' \
              'that the user had in view when sending. The user marked a part of it with a translucent %<color>s ' \
@@ -50,7 +50,7 @@ module Monadic
         def accept(data, chat_id:, request_id:, tab:, generation:)
           item = Pointing.selected_pdf!(data, chat_id: chat_id, tab: tab, generation: generation)
           page, pages = Pointing.page_of!(data)
-          mark = mark_of(data['mark']) or raise Refused, 'bad_mark'
+          mark = Pointing.mark_of(data['mark']) or raise Refused, 'bad_mark'
           bytes = png_of(data['image'])
           new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
               version: item[:version], page: page, pages: pages, mark: mark, bytes: bytes)
@@ -63,7 +63,7 @@ module Monadic
 
           pages = Pointing.whole(value['pages'], PAGES_LIMIT) or return nil
           page = Pointing.whole(value['page'], pages) or return nil
-          mark = mark_of(value['mark']) or return nil
+          mark = Pointing.mark_of(value['mark']) or return nil
           return nil unless value['item_id'].is_a?(String) && value['version'].is_a?(String)
 
           { 'id' => value['id'], 'item_id' => value['item_id'][0, 64], 'version' => value['version'][0, 128],
@@ -91,21 +91,6 @@ module Monadic
         end
 
         private
-
-        # { shape, color, x, y, w, h } within the picture (fractions), or
-        # nil. A mark with no color is orange.
-        def mark_of(value)
-          return nil unless value.is_a?(Hash) && SHAPES.include?(value['shape'])
-
-          color = value.fetch('color', 'orange')
-          return nil unless COLORS.include?(color)
-
-          x, y, w, h = %w[x y w h].map { |k| value[k] }
-          return nil unless [x, y, w, h].all? { |v| v.is_a?(Numeric) && v.to_f.finite? }
-          return nil unless x >= 0 && y >= 0 && w.positive? && h.positive? && x + w <= 1.0001 && y + h <= 1.0001
-
-          { 'shape' => value['shape'], 'color' => color, 'x' => x.to_f, 'y' => y.to_f, 'w' => w.to_f, 'h' => h.to_f }
-        end
 
         # The PNG's bytes, within the size taken, or Refused.
         def png_of(value)

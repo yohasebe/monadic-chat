@@ -119,6 +119,18 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(seen.first.image.bytes).to eq(png(8, 6))
     end
 
+    it "keeps no image for a conversation that takes none, and says the image was not given" do
+      write("pics/cat.png", png(8, 6))
+      open_file("pics/cat.png")
+      result = look.run(caller_for, scope: "visible", images: false)
+      body = JSON.parse(result.to_s)
+      expect(body["item"]).to include("kind" => "image", "name" => "cat.png")
+      expect(body["image"]).to eq(look::NO_IMAGE)
+      expect(result.to_s).not_to include("attached")
+      ledger.bind(result.observation_id, "call_1")
+      expect(ledger.images_for(["call_1"])).to be_empty
+    end
+
     it "gives a text file whole as text, with its lines" do
       write("notes.txt", "﻿one\r\ntwo\nthree\n")
       open_file("notes.txt")

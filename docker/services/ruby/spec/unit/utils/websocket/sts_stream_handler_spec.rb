@@ -1857,8 +1857,8 @@ RSpec.describe 'xAI realtime provider profile' do
       expect(session_cfg[:instructions]).to include('Japanese')
     end
 
-    it 'carries no tools key by default (tools are opt-in)' do
-      expect(session_cfg).not_to have_key(:tools)
+    it 'carries only the work screen tool by default (the others are opt-in)' do
+      expect(session_cfg[:tools].map { |t| t[:name] }).to eq(['look_at_workbench'])
     end
 
     it 'never injects native search entries' do
@@ -1866,8 +1866,8 @@ RSpec.describe 'xAI realtime provider profile' do
         { provider: 'xai', model: 'grok-voice-3.0', voice: 'eve',
           instructions: '', websearch: true } # legacy state key is ignored
       )
-      tools = on.dig(:session, :tools)
-      expect(tools).to be_nil
+      expect(on.dig(:session, :tools).map { |t| t[:type] }.uniq).to eq(['function'])
+      expect(on.dig(:session, :tools).map { |t| t[:name] }).to eq(['look_at_workbench'])
     end
 
     it 'omits the language hint in auto mode' do
@@ -2159,8 +2159,8 @@ RSpec.describe 'Gemini Live provider' do
       expect(text).to include('Japanese')
     end
 
-    it 'carries no tools key by default (tools are opt-in)' do
-      expect(payload[:setup]).not_to have_key(:tools)
+    it 'carries only the work screen tool by default (the others are opt-in)' do
+      expect(payload[:setup][:tools]).to match([{ functionDeclarations: [include(name: 'look_at_workbench')] }])
     end
 
     it 'never injects a google_search entry' do
@@ -2168,7 +2168,7 @@ RSpec.describe 'Gemini Live provider' do
         { provider: 'gemini', model: 'gemini-3.1-flash-live-preview',
           voice: 'Kore', instructions: '', websearch: true } # legacy state key is ignored
       )
-      expect(on.dig(:setup, :tools)).to be_nil
+      expect(on.dig(:setup, :tools).flat_map(&:keys)).to eq([:functionDeclarations])
     end
   end
 
@@ -2408,16 +2408,16 @@ RSpec.describe 'STS session config carries no tools' do
     expect(payload.dig(:session, :audio, :input, :noise_reduction)).to eq({ type: 'near_field' })
   end
 
-  it 'build_sts_session_update_payload has no tools key (OpenAI: never, even with websearch on)' do
+  it 'build_sts_session_update_payload carries only the work screen tool (OpenAI: no native search, even with websearch on)' do
     harness = Class.new do
       include WebSocketHelper
       public :build_sts_session_update_payload
       def get_session_params = {}
     end.new
     payload = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '' })
-    expect(payload[:session]).not_to have_key(:tools)
+    expect(payload[:session][:tools].map { |t| t[:name] }).to eq(['look_at_workbench'])
     on = harness.build_sts_session_update_payload({ voice: 'marin', instructions: '', websearch: true })
-    expect(on[:session]).not_to have_key(:tools)
+    expect(on[:session][:tools].map { |t| t[:name] }).to eq(['look_at_workbench'])
   end
 end
 
@@ -2696,9 +2696,9 @@ RSpec.describe 'STS function calling' do
   describe 'payload generation' do
     before { stub_const('APPS', {}) }
 
-    it 'openai: no tools key when disabled (no-tools invariant, bit-identical)' do
+    it 'openai: only the work screen tool when the others are off' do
       payload = harness.build_sts_session_update_payload(state_for(provider: 'openai'))
-      expect(payload[:session]).not_to have_key(:tools)
+      expect(payload.dig(:session, :tools).map { |t| t[:name] }).to eq(['look_at_workbench'])
     end
 
     it 'openai: injects GA function tools when enabled (search_web included)' do
@@ -2762,20 +2762,22 @@ RSpec.describe 'STS function calling' do
       expect(search[:parameters][:required]).to eq(['query'])
     end
 
-    it 'omits the tools key entirely when nothing is available' do
+    it 'offers what is available, the work screen tool always' do
       stub_const('CONFIG', {})
       allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
       payload = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
-      # only get_current_time needs no container — it IS available
+      # only get_current_time needs no container — it IS available — and
+      # the work screen tool is always there
       names = payload.dig(:session, :tools)&.map { |t| t[:name] }
-      expect(names).to eq(['get_current_time'])
+      expect(names).to eq(%w[look_at_workbench get_current_time])
     end
 
-    it 'appends tool guidance to instructions only when enabled' do
+    it 'appends tool guidance to instructions only when enabled, and the work screen guidance always' do
       stub_const('CONFIG', {})
       allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
       off = harness.build_sts_session_update_payload(state_for(provider: 'openai'))
       expect(off.dig(:session, :instructions)).not_to include('tools available')
+      expect(off.dig(:session, :instructions)).to include('call look_at_workbench before you answer')
       on = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
       expect(on.dig(:session, :instructions)).to include('tools available')
     end

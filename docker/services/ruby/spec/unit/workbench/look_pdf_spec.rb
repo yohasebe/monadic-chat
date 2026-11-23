@@ -120,6 +120,25 @@ RSpec.describe "looking at a PDF on the work screen" do
       expect(record["image_sha256"]).to eq(Digest::SHA256.hexdigest(png(40, 30)))
     end
 
+    it "says where the user marked the part in view, a mark the page drew on the image" do
+      open_pdf
+      mark = { "shape" => "ellipse", "color" => "cyan", "x" => 0.1, "y" => 0.25, "w" => 0.5, "h" => 0.2 }
+      page(drawn("mark" => mark))
+      allow(pdf_text).to receive(:extract).and_return(texts([2, "page two text"]))
+      out = result(look.run(caller_for, scope: "visible"))
+      expect(out["marked"]).to eq("The user marked a part of it with a translucent cyan ellipse " \
+                                  "(left 10%, top 25%, width 50%, height 20% of the image) to point at it.")
+    end
+
+    it "takes no mark that is not one, nor one without the image it is drawn on" do
+      open_pdf
+      page(drawn("mark" => { "shape" => "star", "x" => 0, "y" => 0, "w" => 1, "h" => 1 }))
+      allow(pdf_text).to receive(:extract).and_return(texts([2, "page two text"]))
+      expect(result(look.run(caller_for, scope: "visible"))).not_to have_key("marked")
+      page(drawn("image" => nil, "image_note" => "redrawn", "mark" => { "shape" => "rect", "x" => 0, "y" => 0, "w" => 1, "h" => 1 }))
+      expect(result(look.run(caller_for, scope: "visible"))).not_to have_key("marked")
+    end
+
     it "keeps the page's text when the image could not be had, and says why" do
       open_pdf
       page(drawn("image" => nil, "image_note" => "redrawn"))

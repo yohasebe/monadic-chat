@@ -1130,9 +1130,13 @@ describe('Workbench', () => {
       let layer;
       let drawImage;
       let encoded;
+      let pointerNow;
+      let drawnShapes;
 
       beforeEach(async () => {
         layout.pane = 'work';
+        pointerNow = null;
+        drawnShapes = [];
         shown = { status: 'ready', page: 2, pages: 5, scale: 1, drawing: 4 };
         // The canvas is drawn at twice the screen's pixels: 800 × 1000 for
         // 400 × 500 on screen, its top 100px above the window.
@@ -1145,7 +1149,10 @@ describe('Workbench', () => {
         layer.innerHTML = '<span>chosen words</span>';
         drawImage = jest.fn();
         encoded = () => 'data:image/png;base64,QUJD';
-        jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({ drawImage }));
+        jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
+          drawImage, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
+          rect: (...a) => drawnShapes.push(['rect', ...a]), ellipse: (...a) => drawnShapes.push(['ellipse', ...a])
+        }));
         jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => encoded());
         window.WorkbenchPdf = {
           show: (box) => {
@@ -1154,7 +1161,8 @@ describe('Workbench', () => {
             sheet.getBoundingClientRect = () => ({ top: -100, bottom: 400, left: 0, right: 400 });
             sheet.append(canvas, layer);
             box.appendChild(sheet);
-            return { shown: () => shown, canvas: () => canvas, textLayer: () => layer, dispose: () => {}, state: () => ({}) };
+            return { shown: () => shown, canvas: () => canvas, textLayer: () => layer, dispose: () => {}, state: () => ({}),
+              pointer: () => pointerNow, pointerSeq: () => 1, setPointable: () => {} };
           }
         };
         global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
@@ -1195,6 +1203,31 @@ describe('Workbench', () => {
           crop: { x: 0, y: 200, width: 800, height: 800, sent_width: 800, sent_height: 800 },
           selection_text: 'chosen words', selection_cut: false
         });
+      });
+
+      test('draws the mark the user put on the page on the part cut, and says where it is', async () => {
+        // On the canvas: x 0.25..0.75 of 800, y 0.3..0.4 of 1000 (300..400px),
+        // which is 100..200px of the part cut from 200px down.
+        // The page's palette (workbench-pointer.js), as the page loads it.
+        require(js('monadic/workbench-pointer.js'));
+        pointerNow = { page: 2, shape: 'rect', color: 'cyan', x: 0.25, y: 0.3, w: 0.5, h: 0.1 };
+        const body = await answer();
+        expect(body.mark).toEqual({ shape: 'rect', color: 'cyan', x: 0.25, y: 0.125, w: 0.5, h: 0.125 });
+        expect(drawnShapes).toEqual([['rect', 200, 100, 400, 100]]);
+        // A mark on another page is neither drawn nor said.
+        pointerNow = Object.assign({}, pointerNow, { page: 3 });
+        drawnShapes = [];
+        expect((await answer()).mark).toBeUndefined();
+        expect(drawnShapes).toEqual([]);
+        delete window.WorkbenchPointer;
+      });
+
+      test('gives the text the user selected on the page when the selection itself is gone', async () => {
+        select(layer.querySelector('span'));
+        document.dispatchEvent(new Event('selectionchange'));
+        window.getSelection().removeAllRanges();
+        const body = await answer(['range', 'selection']);
+        expect(body).toMatchObject({ selection_text: 'chosen words', selection_cut: false });
       });
 
       test('draws a large part no larger than it sends', async () => {
@@ -1504,6 +1537,60 @@ describe('Workbench', () => {
       layout.pane = 'work';
       window.Workbench.showAttachment({ key: 'img:1', kind: 'image', name: 'cat.png', data: 'data:image/png;base64,AAAA' });
       expect(document.querySelector('#workbench-view .workbench-local-note').textContent).toContain('The AI does not see this view');
+    });
+  });
+
+  describe('in a Live Conversation', () => {
+    const flush = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setTimeout(r, 0)); };
+
+    afterEach(() => {
+      document.body.classList.remove('lc-app');
+      delete window.modelSpec;
+      delete window.WorkbenchPdf;
+    });
+
+    async function pdfLive(provider) {
+      document.body.insertAdjacentHTML('beforeend', '<select id="model"><option value="voice" selected>voice</option></select>');
+      window.modelSpec = { voice: { sts_provider: provider } };
+      layout.pane = 'work';
+      const text = document.createElement('div');
+      text.className = 'textLayer';
+      text.innerHTML = '<span>the eastern library</span>';
+      const pointable = [];
+      window.WorkbenchPdf = {
+        show: (box) => {
+          const bar = document.createElement('div');
+          bar.className = 'workbench-pdf-bar';
+          box.append(bar, text);
+          return { shown: () => ({ status: 'ready', page: 2, pages: 5, scale: 1, drawing: 1 }), dispose: () => {},
+            state: () => ({}), textLayer: () => text, setPointable: (f) => pointable.push(f) };
+        }
+      };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
+      view([{ id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
+        sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' }], { assets: { i_p: '/workbench/asset/p' } });
+      await flush();
+      document.body.classList.add('lc-app');
+      await flush();
+      const range = document.createRange();
+      range.selectNodeContents(text.firstChild);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+      return pointable;
+    }
+
+    test('offers the mark where the session takes the image of a look, and no chip: nothing is sent with a message', async () => {
+      const pointable = await pdfLive('openai');
+      expect(pointable.at(-1)).toBe(true);
+      expect(document.querySelector('.workbench-selection-chip')).toBeNull();
+      expect(window.Workbench.selectionNow()).toBeNull();
+    });
+
+    test('offers no mark where the session takes no images', async () => {
+      const pointable = await pdfLive('xai');
+      expect(pointable.at(-1)).toBe(false);
+      expect(document.querySelector('.workbench-selection-chip')).toBeNull();
     });
   });
 

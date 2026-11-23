@@ -5,6 +5,7 @@ require "tmpdir"
 require "digest"
 require_relative "../../../lib/monadic/workspace/ids"
 require_relative "../../../lib/monadic/workbench/channel"
+require_relative "../../../lib/monadic/workbench/retention"
 
 RSpec.describe "the workbench over the main socket (channel, asset server)" do
   def png(width, height, salt = "")
@@ -164,6 +165,8 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
     end
 
     it "leaves alone a replaced chat whose id this server did not issue, and writes nothing when one is replaced" do
+      # A chat the history keeps (its workbench stays).
+      allow(Monadic::Workbench::Retention).to receive(:kept?).and_return(true)
       expect { Monadic::Workspace::Chats.replacing!({ chat_id: "chat-a" }) }.not_to raise_error
       image
       revision = board.snapshot[:revision]

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../../turn_state/form'
+require_relative '../../workbench/retention'
 
 # The conversation history as the page uses it, over the tab's own
 # WebSocket: the list, a name for a chat, removing one, and continuing one in
@@ -79,7 +80,9 @@ module WebSocketHelper
     return 'history_chat_open' unless WebSocketHelper.reserve_chat(chat_id)
 
     begin
-      Monadic::History::Store.default.delete(chat_id)
+      # The chat's workbench (and the pictures sent with its messages) goes
+      # with it.
+      Monadic::Workbench::Retention.discard(chat_id) if Monadic::History::Store.default.delete(chat_id)
     ensure
       WebSocketHelper.release_chat(chat_id)
     end

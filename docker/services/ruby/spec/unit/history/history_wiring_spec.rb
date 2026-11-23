@@ -129,19 +129,29 @@ RSpec.describe 'What the handlers write to the history' do
       expect(host.sent.last['items']).to eq([])
     end
 
-    it 'names a chat, and removes it only when no tab has it open' do
+    it 'names a chat, and removes it (with its workbench) only when no tab has it open' do
       session = chat_session(marker, generation: 1)
       sync(session)
       host.send(:handle_ws_history_rename, nil, { 'chat_id' => session[:chat_id], 'title' => "  My\ntrip  " })
       expect(store.list.first['title_user']).to eq('My trip')
 
+      # The chat's workbench, with a picture sent with a message.
+      workbench = Monadic::Workbench::Store.new(Dir.mktmpdir('history-wiring-workbench'))
+      allow(Monadic::Workbench::Store).to receive(:default).and_return(workbench)
+      picture = File.join(workbench.chat_dir(session[:chat_id], make: true), 'pictures', "p_#{'a' * 20}.png")
+      FileUtils.mkdir_p(File.dirname(picture))
+      File.write(picture, 'PNG')
+
       open_tab = open_in_tab(session)
       host.send(:handle_ws_history_delete, nil, { 'chat_id' => session[:chat_id] })
       expect(host.sent.last).to include('success' => false, 'error' => 'history_chat_open')
+      expect(File.exist?(picture)).to be(true)
 
       WebSocketHelper.unregister_live_session(open_tab, 1)
       host.send(:handle_ws_history_delete, nil, { 'chat_id' => session[:chat_id] })
       expect(host.sent.last).to include('success' => true)
+      expect(File.directory?(workbench.chat_dir(session[:chat_id]))).to be(false)
+      FileUtils.rm_rf(workbench.root)
       store.close
       expect(stored_bytes).not_to include(marker)
     end

@@ -686,6 +686,7 @@
       box.replaceChildren(element('div', 'workbench-text-bar'), list);
       drawn.lines = list;
       drawn.loaded = true;
+      showHeldLines();
       restoreScroll(drawn, box);
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
@@ -1363,6 +1364,21 @@
     return null;
   }
 
+  // The held lines of the text shown, marked as such: they stay marked when
+  // the page's selection goes (the user clicks elsewhere), and after they
+  // are sent, until other lines are selected or they are set aside.
+  function showHeldLines() {
+    const shown = shownLines();
+    if (!shown) return;
+    const held = heldSelection;
+    const version = shown.item.version || shown.item.sha256 || '';
+    const on = !!held && held.kind === 'text' && held.item_id === shown.item.id && held.version === version &&
+      held.key !== selectionSetAside;
+    Array.from(shown.drawn.lines.children).forEach((li, i) => {
+      li.classList.toggle('workbench-line-held', on && i + 1 >= held.first && i + 1 <= held.last);
+    });
+  }
+
   // The numbers of the lines of list (a text's numbered lines) a selection
   // runs from and to: [first, last], or null when it is not within them.
   function selectedLines(list, selection) {
@@ -1390,6 +1406,7 @@
   // selected text (or lines) goes with the next message, with × to set it
   // aside.
   function showSelectionChip() {
+    showHeldLines();
     const pdf = shownPdf();
     const lines = pdf ? null : shownLines();
     const bar = pdf ? pdf.drawn.node.querySelector('.workbench-pdf-bar')

@@ -1094,12 +1094,30 @@ describe('Workbench', () => {
         expect(box.querySelector('.workbench-text-bar .workbench-selection-chip')).toBeNull();
         selectLines(box, 4, 2);
         selectLines(box, 2, 4);
+        selectLines(box, 6, 6);
+        selectLines(box, 2, 4);
+        expect(document.querySelectorAll('.workbench-selection-chip')).toHaveLength(1);
         expect(box.querySelector('.workbench-text-bar .workbench-selection-text').textContent).toBe('Send lines 2–4');
         const offered = window.Workbench.selectionNow();
         expect(offered.data).toEqual({ item_id: 'i_t', version: 'e'.repeat(64), first: 2, last: 4 });
         offered.sent();
         expect(window.Workbench.selectionNow()).toBeNull();
         expect(box.querySelector('.workbench-selection-chip')).toBeNull();
+      });
+
+      test('keeps the selected lines marked when the selection goes and after they are sent, until set aside', async () => {
+        const box = await showAsSelected(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+        const held = () => Array.from(box.querySelectorAll('.workbench-lines li'))
+          .map((li, i) => (li.classList.contains('workbench-line-held') ? i + 1 : 0)).filter(Boolean);
+        selectLines(box, 2, 4);
+        window.getSelection().removeAllRanges();
+        expect(held()).toEqual([2, 3, 4]);
+        window.Workbench.selectionNow().sent();
+        expect(held()).toEqual([2, 3, 4]);
+        selectLines(box, 6, 7);
+        expect(held()).toEqual([6, 7]);
+        box.querySelector('.workbench-selection-aside').click();
+        expect(held()).toEqual([]);
       });
 
       test('gives the lines the user selected with the lines in view, held when the selection is gone', async () => {

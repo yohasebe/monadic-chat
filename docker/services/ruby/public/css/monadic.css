@@ -6874,6 +6874,11 @@ body.side-pane-resizing {
   border-radius: var(--border-radius);
   background: var(--bg-panel);
 }
+/* The lines the user selected, kept marked after the selection goes. */
+.workbench-lines li.workbench-line-held {
+  background: var(--pal-accent-soft);
+  box-shadow: inset 3px 0 0 var(--pal-accent-mid);
+}
 /* Above a text's lines: the selected lines' chip; nothing when there is none. */
 .workbench-text-bar:empty {
   display: none;

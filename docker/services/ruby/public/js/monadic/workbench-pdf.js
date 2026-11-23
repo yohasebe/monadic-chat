@@ -307,6 +307,13 @@
       },
       pointerSeq: () => pointing.pointerSeq(),
       setPointable: (flag) => pointing.setPointable(flag),
+      // Shows page n (within the document), drawing it.
+      goTo: (n) => {
+        const page = Math.min(Math.max(Math.round(n), 1), state.pages || 1);
+        if (page === state.page || !state.doc) return;
+        state.page = page;
+        redraw();
+      },
       dispose: () => {
         if (state.disposed) return;
         state.disposed = true;

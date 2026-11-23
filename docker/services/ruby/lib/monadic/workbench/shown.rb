@@ -14,9 +14,13 @@ module Monadic
       LIMIT = 20
       # Replies ended, oldest first: a late add for one of them is dropped.
       CLOSED_LIMIT = 1000
-      KEYS = %w[path name sha256 preview render section].freeze
+      KEYS = %w[path name sha256 preview render section point].freeze
       # A section of a document the record opens the file at (Document).
       SECTION = /\A[a-z0-9-]{1,40}\z/
+      # Where the AI pointed in the file (Point): lines of a text, or a
+      # quote on a page of a PDF, with a label.
+      POINT_QUOTE = 300
+      POINT_LABEL = 40
       PATH_LIMIT = 1024
       NAME_LIMIT = 255
 
@@ -34,17 +38,19 @@ module Monadic
       end
 
       # Records that the reply request_id showed item, while the reply runs
-      # (section: the section of a document it opens at). Whether the reply
+      # (section: the section of a document it opens at; point: where in it
+      # the reply pointed, a record of its own for each place). Whether the reply
       # runs is asked under the same lock as seal takes, so a reply that
       # ended cannot be given a new place.
-      def add(request_id, item, section: nil)
-        record = clean([event(item).merge('section' => section)])&.first or return
+      def add(request_id, item, section: nil, point: nil)
+        record = clean([event(item).merge('section' => section, 'point' => point)])&.first or return
         @lock.synchronize do
           next if @closed.key?(request_id) || !running?(request_id)
 
           list = (@open[request_id] ||= [])
           next if list.any? do |e|
-            e['path'] == record['path'] && (e['sha256'] == record['sha256'] || (record['section'] && e['section'] == record['section']))
+            e['path'] == record['path'] && e['point'] == record['point'] &&
+              (e['sha256'] == record['sha256'] || (record['section'] && e['section'] == record['section']))
           end
 
           list << record if list.size < LIMIT
@@ -86,9 +92,29 @@ module Monadic
 
           out['render'] = Monadic::Workspace::SharedFolderPreview.render_for(out['path'])
           out.delete('section') unless out['section'].is_a?(String) && out['section'].match?(SECTION)
+          out['point'] = point_of(out['point'])
           out.compact
         end
         kept.empty? ? nil : kept
+      end
+
+      # A point as a record keeps it, or nil.
+      def point_of(value)
+        return nil unless value.is_a?(Hash)
+
+        label = value['label']
+        label = nil unless label.is_a?(String) && !label.empty? && label.length <= POINT_LABEL && !label.match?(/[[:cntrl:]]/)
+        lines = value['lines']
+        if lines.is_a?(Array) && lines.size == 2 && lines.all? { |n| n.is_a?(Integer) } && lines[0].between?(1, lines[1])
+          return { 'lines' => lines.dup, 'label' => label }.compact
+        end
+
+        page = value['page']
+        quote = value['quote']
+        return nil unless page.is_a?(Integer) && page.positive? && quote.is_a?(String) && quote.valid_encoding?
+        return nil if quote.strip.empty? || quote.length > POINT_QUOTE
+
+        { 'page' => page, 'quote' => quote, 'label' => label }.compact
       end
 
       def path?(path)

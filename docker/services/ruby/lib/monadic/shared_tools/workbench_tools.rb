@@ -8,6 +8,7 @@ require_relative '../workbench/look'
 require_relative '../workbench/put'
 require_relative '../workbench/shown'
 require_relative '../workbench/document'
+require_relative '../workbench/point'
 
 module MonadicSharedTools
   # What every app can do with the work screen (the workbench beside the
@@ -71,6 +72,26 @@ module MonadicSharedTools
       JSON.generate(out)
     rescue Monadic::Workbench::Document::Refused, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
       "❌ The section was not written: #{e.message}."
+    end
+
+    # Points the user at a part of what their tab shows (Monadic::Workbench::
+    # Point): what was pointed at, as JSON, or why not.
+    def point_at_workbench(quote: nil, first_line: nil, last_line: nil, page: nil, label: nil, workbench: nil)
+      WorkbenchTools.point(workbench, quote: quote, first_line: first_line, last_line: last_line, page: page, label: label)
+    end
+
+    def self.point(workbench, quote:, first_line:, last_line:, page:, label:)
+      number = ->(v) { v.is_a?(String) && v.match?(/\A\d+\z/) ? v.to_i : v }
+      quote = nil if quote.is_a?(String) && quote.strip.empty?
+      done = Monadic::Workbench::Point.run(workbench, quote: quote, first_line: number.call(first_line),
+                                                      last_line: number.call(last_line), page: number.call(page), label: label)
+      point = done[:point]
+      out = { 'status' => 'pointed', 'name' => done[:item].dig('file', 'name') }
+      out['lines'] = { 'first' => point['lines'][0], 'last' => point['lines'][1] } if point['lines']
+      out['page'] = point['page'] if point['page']
+      JSON.generate(out)
+    rescue Monadic::Workbench::Point::Refused => e
+      "❌ Nothing was pointed at: #{e.message}."
     end
 
     # What the asking tab has selected in the work screen, read now

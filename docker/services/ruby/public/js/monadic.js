@@ -2925,6 +2925,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
       const picture = window.Workbench && typeof window.Workbench.pictureNow === 'function' ? window.Workbench.pictureNow() : null;
       const selection = window.Workbench && typeof window.Workbench.selectionNow === 'function' ? window.Workbench.selectionNow() : null;
+      // The AI's mark is for the reply it came with: the next message takes it away.
+      if (window.Workbench && typeof window.Workbench.clearAiPoint === 'function') window.Workbench.clearAiPoint();
       reconnect_websocket(ws, function (_ws) {
         // Create a copy of the current images array to preserve the state
         let currentImages = [...images];

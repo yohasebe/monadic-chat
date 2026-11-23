@@ -111,6 +111,11 @@
   // set aside and sent: the key of the selection set aside or sent last (it
   // is not offered again until another is selected).
   let heldSelection = null;
+  // Where the AI pointed last, in the file at path and version ({ path,
+  // version, point: { lines } | { page, quote }, label }), and whether it
+  // is still to be brought into view.
+  let aiPoint = null;
+  let aiPointToShow = false;
   let selectionSetAside = null;
   let selectionSent = null;
   // Characters of a selection sent with a message, at most.
@@ -687,6 +692,7 @@
       drawn.lines = list;
       drawn.loaded = true;
       showHeldLines();
+      showAiPoint();
       restoreScroll(drawn, box);
       if (response.headers.get('x-workbench-truncated')) {
         box.appendChild(element('div', 'small text-secondary mt-1', t('ui.workbench.truncated', 'Only the beginning of the file is shown.')));
@@ -773,7 +779,9 @@
       const bytes = await response.arrayBuffer();
       if (drawn.gone) return;
       if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
-      drawn.pdf = window.WorkbenchPdf.show(box, bytes);
+      drawn.pdf = window.WorkbenchPdf.show(box, bytes, (now) => {
+        if (now && now.status === 'ready') showAiPoint();
+      });
       if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(true);
       showSelectionChip();
     });
@@ -1383,6 +1391,116 @@
     const version = shown.item.version || shown.item.sha256 || '';
     return held && held.kind === 'text' && held.item_id === shown.item.id && held.version === version &&
       held.key !== selectionSetAside ? held : null;
+  }
+
+  // ---- where the AI points ----------------------------------------------
+
+  // The server says the AI pointed at a part of an item this tab shows: it
+  // is marked, and brought into view, while the tab shows that item.
+  function onPoint(data) {
+    const item = data && typeof data.item_id === 'string' ? itemById(data.item_id) : null;
+    const point = data && data.point;
+    if (!item || item.kind !== 'file' || !point || typeof point !== 'object') return;
+    pointAt(item.path, data.version, point);
+  }
+
+  function pointAt(path, version, point) {
+    const lines = Array.isArray(point.lines) && point.lines.length === 2 && point.lines.every(Number.isInteger) ? point.lines : null;
+    const page = Number.isInteger(point.page) && typeof point.quote === 'string' ? point.page : null;
+    if (!lines && !page) return;
+    aiPoint = { path: path, version: version, lines: lines, page: page, quote: page ? point.quote : null,
+                label: typeof point.label === 'string' ? point.label : '' };
+    aiPointToShow = true;
+    showAiPoint();
+  }
+
+  // The AI's mark taken away (the user sent the next message, or clicked
+  // its ×).
+  function clearAiPoint() {
+    aiPoint = null;
+    aiPointToShow = false;
+    showAiPoint();
+  }
+
+  // Draws the AI's mark where the tab shows its item (and nothing where it
+  // does not): the lines of a text, the quote on a PDF's page (turning to
+  // that page first), with a chip that says where and takes it away.
+  function showAiPoint() {
+    const item = selected ? itemById(selected) : null;
+    const drawn = item && drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
+    const node = drawn ? drawn.node : null;
+    if (node) {
+      node.querySelectorAll('.workbench-line-ai').forEach((el) => el.classList.remove('workbench-line-ai'));
+      node.querySelectorAll('.workbench-ai-hit').forEach((el) => el.classList.remove('workbench-ai-hit'));
+      node.querySelectorAll('.workbench-ai-chip').forEach((el) => el.remove());
+    }
+    const version = item ? (item.version || item.sha256 || '') : '';
+    if (!aiPoint || !drawn || item.path !== aiPoint.path || version !== aiPoint.version) return;
+    let first = null;
+    let bar = null;
+    if (aiPoint.lines && drawn.lines && drawn.lines.isConnected) {
+      const [from, to] = aiPoint.lines;
+      Array.from(drawn.lines.children).forEach((li, i) => {
+        if (i + 1 < from || i + 1 > to) return;
+        li.classList.add('workbench-line-ai');
+        if (!first) first = li;
+      });
+      bar = node.querySelector('.workbench-text-bar');
+    } else if (aiPoint.page && drawn.pdf) {
+      const shown = drawn.pdf.shown();
+      if (shown.status !== 'ready' || shown.page !== aiPoint.page) {
+        if (aiPointToShow && typeof drawn.pdf.goTo === 'function') drawn.pdf.goTo(aiPoint.page);
+        return;
+      }
+      first = markQuote(drawn.pdf.textLayer(), aiPoint.quote);
+      bar = node.querySelector('.workbench-pdf-bar');
+    } else {
+      return;
+    }
+    if (bar) bar.appendChild(aiChip());
+    if (aiPointToShow) {
+      aiPointToShow = false;
+      if (first && typeof first.scrollIntoView === 'function') first.scrollIntoView({ block: 'center' });
+    }
+  }
+
+  // The pieces of a PDF page's text layer the quote is in (spaces are not
+  // compared: the layer's pieces may or may not have them), marked; the
+  // first of them, or null.
+  function markQuote(layer, quote) {
+    if (!layer || !quote) return null;
+    const pieces = Array.from(layer.querySelectorAll('span')).filter((span) => !span.querySelector('span'));
+    const chars = [];
+    pieces.forEach((span, n) => {
+      Array.from(span.textContent || '').forEach((ch) => { if (!/\s/.test(ch)) chars.push([ch, n]); });
+    });
+    const wanted = Array.from(quote).filter((ch) => !/\s/.test(ch)).join('');
+    const at = wanted ? chars.map((c) => c[0]).join('').indexOf(wanted) : -1;
+    if (at < 0) return null;
+    const from = chars[at][1];
+    const to = chars[at + Array.from(wanted).length - 1][1];
+    for (let n = from; n <= to; n++) pieces[n].classList.add('workbench-ai-hit');
+    return pieces[from];
+  }
+
+  // The chip of the AI's mark: where it is, its label, and × to take it away.
+  function aiChip() {
+    const chip = element('span', 'workbench-selection-chip workbench-ai-chip');
+    chip.appendChild(element('i', 'fa-solid fa-location-crosshairs'));
+    const where = aiPoint.lines
+      ? t('ui.workbench.aiPointLines', 'AI: lines {first}–{last}').replace('{first}', String(aiPoint.lines[0]))
+        .replace('{last}', String(aiPoint.lines[1]))
+      : t('ui.workbench.aiPointPage', 'AI: page {n}').replace('{n}', String(aiPoint.page));
+    chip.appendChild(element('span', 'workbench-selection-text', aiPoint.label ? `${where} · ${aiPoint.label}` : where));
+    const clear = element('button', 'btn btn-sm workbench-selection-aside');
+    clear.type = 'button';
+    clear.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+    const label = t('ui.workbench.aiPointClear', "Clear the AI's mark");
+    clear.setAttribute('aria-label', label);
+    clear.title = label;
+    clear.addEventListener('click', clearAiPoint);
+    chip.appendChild(clear);
+    return chip;
   }
 
   // The numbers of the lines of list (a text's numbered lines) a selection
@@ -2541,8 +2659,11 @@
     el.replaceChildren();
     entries.forEach((entry) => {
       const line = element('div', 'workbench-note-line');
-      line.appendChild(element('i', 'fa-solid fa-display me-1'));
-      line.appendChild(document.createTextNode(`${t('ui.workbench.shownOn', 'Shown in the work screen')}: `));
+      const pointed = entry.point && typeof entry.point === 'object' ? entry.point : null;
+      line.appendChild(element('i', pointed ? 'fa-solid fa-location-crosshairs me-1' : 'fa-solid fa-display me-1'));
+      line.appendChild(document.createTextNode(pointed
+        ? `${t('ui.workbench.pointedOn', 'Pointed at in the work screen')}: `
+        : `${t('ui.workbench.shownOn', 'Shown in the work screen')}: `));
       const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-shown-open');
       open.type = 'button';
       open.title = t('ui.workbench.open', 'Show in the work screen');
@@ -2550,7 +2671,16 @@
       shortenPaths(open);
       // The section beside the path, so the path alone is shown by its name.
       if (typeof entry.section === 'string') open.appendChild(element('span', null, ` § ${entry.section}`));
+      if (pointed) {
+        const where = Array.isArray(pointed.lines)
+          ? t('ui.workbench.pointedLines', 'lines {first}–{last}').replace('{first}', String(pointed.lines[0]))
+            .replace('{last}', String(pointed.lines[1]))
+          : t('ui.workbench.pointedPage', 'page {n}').replace('{n}', String(pointed.page));
+        open.appendChild(element('span', null, ` · ${where}`));
+      }
       open.addEventListener('click', () => {
+        // Where the AI pointed: the file at that version, marked there again.
+        if (pointed) pointAt(entry.path, entry.sha256, pointed);
         // A section of a document: the document as it is now, at the section.
         if (typeof entry.section === 'string') {
           pendingSection = { path: entry.path, section: entry.section };
@@ -2583,7 +2713,7 @@
   window.Workbench = {
     onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection,
+    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

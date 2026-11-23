@@ -6007,9 +6007,11 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   vertical-align: middle;
 }
 /* A tag in a card's title is the size of the role beside it, not of the
-   title's heading. */
+   title's heading, and of regular weight: the role's name is what stands
+   out there. */
 .card-header .card-title .mc-badge {
   font-size: 1rem;
+  font-weight: 400;
 }
 /* What an app has (its tools and capabilities, in the menu) is a list to
    read, not a state to notice: regular weight. */

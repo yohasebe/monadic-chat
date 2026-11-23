@@ -2082,6 +2082,23 @@ module WebSocketHelper
     send_or_broadcast({ "type" => "stt", "content" => text, "logprob" => nil }.to_json, ws_session_id)
   end
 
+  # A turn whose user message is in several items: each item's text (the
+  # latest, which may grow), joined in the order they came. Returns as
+  # sts_grow_user_message does.
+  def sts_add_to_user_message(turn, item_id, final, ws_session_id)
+    msg = turn[:user_msg_ref]
+    texts = (turn[:item_texts] ||= { turn[:item_id] => msg["text"].to_s })
+    text = final.to_s.strip
+    return if text.empty? || text.length <= texts[item_id].to_s.length
+
+    texts[item_id] = text
+    joined = texts.values.reject(&:empty?).join(" ")
+    msg["text"] = joined
+    sync_session_state!
+    send_or_broadcast({ "type" => "sts_card_text", "mid" => msg["mid"], "content" => joined }.to_json, ws_session_id)
+    send_or_broadcast({ "type" => "stt", "content" => joined, "logprob" => nil }.to_json, ws_session_id)
+  end
+
   def sts_handle_transcription_completed(state, payload, ws_session_id)
     final = payload["transcript"].to_s
     Monadic::Utils::ExtraLogger.log do
@@ -2109,6 +2126,12 @@ module WebSocketHelper
     # text.
     if turn && turn[:user_msg_ref]
       iid = payload["item_id"]
+      # An utterance in several items (a turn detection that waits for the
+      # meaning commits each pause): the turn's user message holds each.
+      if iid && (turn[:item_texts] || (state[:items] || {})[iid].equal?(turn) && iid != turn[:item_id])
+        turn[:user_partial].clear
+        return sts_add_to_user_message(turn, iid, final, ws_session_id)
+      end
       if iid && turn[:item_id] && iid == turn[:item_id]
         return sts_grow_user_message(turn, final, ws_session_id)
       end
@@ -2381,7 +2404,9 @@ module WebSocketHelper
     batches = (state[:pending_tool_calls] ||= {})
     batch = (batches[rid] ||= {})
     turns = (state[:tool_batch_turns] ||= {})
-    turns[rid] = state[:turn] if batch.empty?
+    # The calls belong to the turn of the response that made them (the
+    # current turn may already be a later one).
+    turns[rid] = (sts_turn_for_response(state, payload) || state[:turn]) if batch.empty?
     batch[call_id] = true
     # A tool that makes something on the work screen works under the
     # turn's request, so that the turn's card keeps what it made.
@@ -2567,10 +2592,14 @@ module WebSocketHelper
     # tools: no further response is asked for.
     return if batch_turn && batch_turn[:tool_rounds_over].to_i > STS_TOOL_ROUNDS_GRACE
 
-    sts_create_tool_continuation(conn, state)
+    sts_create_tool_continuation(conn, state, batch_turn)
   end
 
-  def sts_create_tool_continuation(conn, state)
+  # turn: the turn whose tools answered; the response asked for is bound to
+  # it (its audio goes on that turn's timeline in the page).
+  def sts_create_tool_continuation(conn, state, turn = nil)
+    turn ||= state[:turn]
+    state[:pending_response_turn] = turn if turn
     conn.write({ type: "response.create" }.to_json)
     conn.flush
     state[:tool_create_debt] = false
@@ -2583,7 +2612,7 @@ module WebSocketHelper
     # linger and mis-fold a LATER turn's late transcript into the wrong
     # card (audit). A turn-scoped marker can only ever fold into the turn
     # that actually owns the tool call.
-    state[:tool_continuation_turn] = state[:turn]
+    state[:tool_continuation_turn] = turn
   end
 
   def sts_notify_cancelled(turn, ws_session_id)

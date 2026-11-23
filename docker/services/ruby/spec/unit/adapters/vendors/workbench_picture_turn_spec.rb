@@ -38,7 +38,7 @@ RSpec.describe "A picture of the work screen sent with a message" do
     end
   end
 
-  def turn(name, picture:, messages: nil)
+  def turn(name, picture:, messages: nil, picture_chat: nil, text: "What is this?")
     helper, provider, key, format, kind = PICTURED.fetch(name)
     model = model_of(provider)
     if helper == OllamaHelper
@@ -46,7 +46,8 @@ RSpec.describe "A picture of the work screen sent with a message" do
       allow(OllamaHelper).to receive(:fetch_model_capabilities).and_return({ capabilities: %w[completion tools vision] })
     end
     turn_bodies(helper, format: format, kind: kind, key: key, models: [model], picture: picture ? bytes : nil,
-                messages: messages, message: { "model" => model, "context_size" => "10", "message" => "What is this?" })
+                picture_chat: picture_chat, messages: messages,
+                message: { "model" => model, "context_size" => "10", "message" => text })
   end
 
   def count(body, text) = JSON.generate(body).scan(text).size
@@ -59,6 +60,17 @@ RSpec.describe "A picture of the work screen sent with a message" do
       expect(sent.map { |b| count(b, "translucent orange ellipse") }).to eq([1, 1])
     end
 
+    it "#{name}: carries none of the item's id or version, nor any word of the message" do
+      word = "Quillfeather"
+      sent = turn(name, picture: true, text: "What does #{word} mean here?")
+      plain = turn(name, picture: false, text: "What does #{word} mean here?")
+      sent.each do |b|
+        expect(count(b, TurnSettingsTurn::PICTURED_ITEM)).to eq(0)
+        expect(count(b, TurnSettingsTurn::PICTURED_VERSION)).to eq(0)
+      end
+      expect(sent.map { |b| count(b, word) }).to eq(plain.map { |b| count(b, word) })
+    end
+
     it "#{name}: goes with no later message, and the chat keeps only its reference" do
       turn(name, picture: true)
       earlier = @turn_messages
@@ -66,6 +78,16 @@ RSpec.describe "A picture of the work screen sent with a message" do
       later = turn(name, picture: false, messages: earlier)
       expect(later).not_to be_empty
       later.each { |b| expect(count(b, encoded)).to eq(0) }
+    end
+  end
+
+  # Claude, Gemini and Cohere add it from the request's context: only when
+  # it was taken for the session's chat.
+  %w[Claude Gemini Cohere].each do |name|
+    it "#{name}: goes with no request of another chat" do
+      sent = turn(name, picture: true, picture_chat: Monadic::Workspace::Ids.generate(:chat))
+      expect(sent).not_to be_empty
+      sent.each { |b| expect(count(b, encoded)).to eq(0) }
     end
   end
 end

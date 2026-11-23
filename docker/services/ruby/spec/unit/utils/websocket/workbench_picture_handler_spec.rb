@@ -92,6 +92,21 @@ RSpec.describe "The picture of the work screen sent with a message" do
     expect(session[:parameters]).not_to have_key("workbench_picture")
   end
 
+  it "is not taken in an app that makes images" do
+    APPS["FakeApp"].define_singleton_method(:settings) { { "image_generation" => true } }
+    send_message("workbench_picture" => picture_data)
+    expect(seen.size).to eq(1)
+    expect(seen.last).to be_nil
+    APPS["FakeApp"].define_singleton_method(:settings) { {} }
+    %w[ImageGeneratorOpenAI VideoGeneratorGemini].each do |name|
+      APPS[name] = APPS["FakeApp"]
+      session[:parameters]["app_name"] = name
+      send_message("workbench_picture" => picture_data, "app_name" => name)
+      expect(seen.last).to be_nil
+    end
+    expect(seen.size).to eq(3)
+  end
+
   it "is not taken for a model known to take no images" do
     expect(Monadic::Utils::ModelSpec.get_model_property("command-a-03-2025", "vision_capability")).to be(false)
     send_message("workbench_picture" => picture_data, "model" => "command-a-03-2025")

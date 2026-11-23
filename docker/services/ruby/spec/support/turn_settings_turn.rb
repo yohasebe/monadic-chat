@@ -43,9 +43,14 @@ module TurnSettingsTurn
   # answers: the model's streams in order, in place of a tool call and then
   # an answer; the last is given again to every later request.
   # picture: bytes of a picture of the work screen the message is sent with
-  # (Workbench::Picture, left in @turn_picture).
+  # (Workbench::Picture, left in @turn_picture); picture_chat: the chat it was
+  # taken for, when not the session's.
+  # The item and version a picture in these turns is of.
+  PICTURED_ITEM = "i_pictureditem0q7"
+  PICTURED_VERSION = "f0e1d2c3" * 8
+
   def turn_bodies(helper_module, format:, kind:, key:, message:, kept: {}, change: {}, history: [], models: [],
-                  answering: nil, messages: nil, failing: 0, answers: nil, picture: nil)
+                  answering: nil, messages: nil, failing: 0, answers: nil, picture: nil, picture_chat: nil)
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
@@ -87,7 +92,8 @@ module TurnSettingsTurn
     if picture
       request_id = Monadic::Workspace::Ids.generate(:request)
       @turn_picture = Monadic::Workbench::Picture.new(
-        id: "p_#{"a" * 20}", chat_id: chat, request_id: request_id, item_id: "i_1", version: "v" * 64, page: 2, pages: 5,
+        id: "p_#{"a" * 20}", chat_id: picture_chat || chat, request_id: request_id, item_id: PICTURED_ITEM,
+        version: PICTURED_VERSION, page: 2, pages: 5,
         mark: { "shape" => "ellipse", "x" => 0.25, "y" => 0.5, "w" => 0.25, "h" => 0.125 }, bytes: picture
       )
     end

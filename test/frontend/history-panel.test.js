@@ -121,6 +121,25 @@ describe('History tab', () => {
     expect(sent).toContainEqual({ message: 'HISTORY_RESUME', chat_id: 'c_aaaaaaaaaaaaaaaa' });
   });
 
+  it('says a chat is being opened with the page\'s spinner, not in the list, until it is answered', () => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="monadic-spinner" style="display: none;"><span>Starting</span></div>');
+    show();
+    list([item()]);
+    rows()[0].querySelector('.history-name').click();
+    const spinner = document.getElementById('monadic-spinner');
+    expect(spinner.style.display).toBe('');
+    expect(spinner.textContent).toContain('Opening the chat');
+    expect(spinner.querySelector('i.fa-pulse')).not.toBeNull();
+    expect(status().hidden).toBe(true);
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
+    expect(spinner.style.display).toBe('none');
+    // A new connection: no answer comes, and the spinner goes.
+    rows()[0].querySelector('.history-name').click();
+    expect(spinner.style.display).toBe('');
+    window.HistoryPanel.connectionOpened();
+    expect(spinner.style.display).toBe('none');
+  });
+
   it('neither continues nor removes a chat open in a tab', () => {
     show();
     list([item({ open: true })]);

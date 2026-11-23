@@ -141,12 +141,33 @@
     }, REFRESH_MS);
   }
 
+  // While a chat is being opened, the page's spinner says so (over the
+  // conversation, as for an answer), not a line in the list.
+  let openingShown = false;
+  function showOpening() {
+    const spinner = $id('monadic-spinner');
+    if (!spinner) return;
+    const span = spinner.querySelector('span');
+    if (span) {
+      span.textContent = '';
+      span.appendChild(el('i', 'fas fa-clock-rotate-left fa-pulse'));
+      span.appendChild(document.createTextNode(' ' + t('opening', 'Opening the chat…')));
+    }
+    $show(spinner);
+    openingShown = true;
+  }
+  function hideOpening() {
+    if (!openingShown) return;
+    openingShown = false;
+    $hide($id('monadic-spinner'));
+  }
+
   // A chat is continued once the request before has been answered.
   function resume(chatId) {
     if (resuming) return;
     const payload = { message: 'HISTORY_RESUME', chat_id: chatId };
     resuming = true;
-    if (send(payload)) setStatus(t('opening', 'Opening the chat…'), 'busy');
+    if (send(payload)) showOpening();
     else resuming = null;
   }
 
@@ -427,6 +448,7 @@
     // One request is on its way at a time on this connection, so this is
     // its answer, whatever chat it names (a failure may name none).
     resuming = null;
+    hideOpening();
     setStatus('');
     if (data.success || data.error === 'history_chat_here') {
       const lc = window.LayoutController;
@@ -521,6 +543,7 @@
   // A new connection: no answer can come to what the one before asked.
   function connectionOpened() {
     resuming = null;
+    hideOpening();
   }
 
   const api = { onMessage: onMessage, refreshSoon: refreshSoon, connectionOpened: connectionOpened };

@@ -33,10 +33,12 @@ Click **Image** (or **Image/PDF** for models that support PDF) to select an imag
 
 ![Files attached to a message](../assets/images/figures/attachments.svg)
 
-1. The attached file. Click its name to look at it before sending.
+1. The attached file. Click its name to look at it on the work screen before sending (the AI does not see that view; to look at a file together, put it on the work screen, as below).
 2. Removes the file from the message.
 
-After uploading the image, a thumbnail of the uploaded image appears below the message input area with a delete button (×). The image is sent along with your text prompt, and the attachments are cleared once the message is sent.
+After uploading the image, its name appears below the message input area with a delete button (×). The image is sent along with your text prompt, and the attachments are cleared once the message is sent.
+
+To look at a file of your computer together with the AI, put it on the work screen with **Put a file** at the top of the work screen, or drop it there; see [Work Screen](web-interface.md#work-screen).
 
 Attached images are downscaled in the browser before sending (long side up to 2000px, short side up to 768px). For full-resolution analysis of fine details, place the image file in the shared folder instead and ask the AI to analyze it — apps with the image-analysis skill read the original file directly and can be asked to use original fidelity.
 

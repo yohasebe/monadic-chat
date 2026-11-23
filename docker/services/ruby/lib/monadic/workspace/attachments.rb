@@ -28,6 +28,9 @@ module Monadic
         end
       end
 
+      # Between the attachment id and the name of an attached file on disk.
+      SEPARATOR = '__'
+
       module_function
 
       # source is an IO positioned at the start (the upload's temporary file).
@@ -50,7 +53,7 @@ module Monadic
         end
 
         attachment_id = Ids.generate(:attachment)
-        relative_path = File.join(inputs, "#{attachment_id}__#{stored_name(original_name)}")
+        relative_path = File.join(inputs, "#{attachment_id}#{SEPARATOR}#{stored_name(original_name)}")
         ledger.register_attachment(attachment_id: attachment_id, chat_id: chat_id, workspace_id: workspace[:workspace_id],
                                    purpose: purpose, original_name: display_name(original_name),
                                    relative_path: relative_path, created_at: now)
@@ -160,6 +163,13 @@ module Monadic
         end
       rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
         false
+      end
+
+      # The name an attached file is shown by: its name on disk without the
+      # attachment id it starts with (any other name as it is).
+      def shown_name(base_name)
+        id, rest = base_name.to_s.split(SEPARATOR, 2)
+        rest && !rest.empty? && Ids.valid?(:attachment, id) ? rest : base_name.to_s
       end
 
       # The name kept for display: the base name the browser sent, as valid

@@ -63,6 +63,14 @@ RSpec.describe "an attachment opened on the work screen" do
     expect(file).to include(kind: "file", path: records[id][:relative_path], sha256: records[id][:sha256])
   end
 
+  it "puts a file the user put on the work screen on the board too, shown by its own name" do
+    %w[photo.png paper.pdf notes.md].each do |name|
+      answer = open_attachment(attach(name, "bytes of #{name}".b))
+      expect(answer).to include("status" => "accepted", "added" => true), name
+    end
+    expect(items.map { |i| i[:name] }).to contain_exactly("photo.png", "paper.pdf", "notes.md")
+  end
+
   it "refuses an attachment of another chat, an unknown id and one not ready" do
     other = attach("talk.mp3", "other chat".b, of: Monadic::Workspace::Ids.generate(:chat))
     waiting = attach("wait.mp3", "waiting".b, status: "validating")

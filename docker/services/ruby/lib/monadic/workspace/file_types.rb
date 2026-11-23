@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'shared_folder_preview'
+
 module Monadic
   module Workspace
     # What each purpose accepts: an extension from its list and leading bytes
@@ -29,47 +31,66 @@ module Monadic
       ZIP = ->(head) { head.start_with?("PK\x03\x04".b) }
       # Text: no NUL byte in the first bytes.
       TEXT = ->(head) { !head.include?("\0".b) }
+      PNG = ->(head) { head.start_with?("\x89PNG\r\n\x1A\n".b) }
+      JPEG = ->(head) { head.start_with?("\xFF\xD8\xFF".b) }
+      GIF = ->(head) { head.start_with?('GIF87a'.b, 'GIF89a'.b) }
+      WEBP = ->(head) { head.start_with?('RIFF'.b) && head.byteslice(8, 4) == 'WEBP'.b }
+      IMAGES = { 'png' => PNG, 'jpg' => JPEG, 'jpeg' => JPEG, 'gif' => GIF, 'webp' => WEBP }.freeze
 
-      PURPOSES = {
-        'video' => {
-          '.mp4' => ISO_MEDIA,
-          '.m4v' => ISO_MEDIA,
-          '.mov' => ISO_MEDIA,
-          '.webm' => EBML,
-          '.mkv' => EBML,
-          '.avi' => AVI
-        }.freeze,
-        'audio' => {
-          '.mp3' => MP3,
-          '.m4a' => ISO_MEDIA,
-          '.wav' => WAVE,
-          '.ogg' => OGG,
-          '.opus' => OGG,
-          '.flac' => FLAC,
-          '.aac' => ->(head) { ADTS.call(head) || ID3.call(head) },
-          '.webm' => EBML,
-          # Standard MIDI files, for the apps that analyze music
-          '.mid' => MIDI,
-          '.midi' => MIDI
-        }.freeze,
-        # Documents converted to text for a message (Import document)
-        'document' => {
-          '.pdf' => PDF,
-          '.docx' => ZIP,
-          '.xlsx' => ZIP,
-          '.pptx' => ZIP,
-          '.txt' => TEXT,
-          '.md' => TEXT,
-          '.csv' => TEXT,
-          '.tsv' => TEXT,
-          '.json' => TEXT,
-          '.html' => TEXT,
-          '.htm' => TEXT,
-          '.xml' => TEXT,
-          '.yaml' => TEXT,
-          '.yml' => TEXT
-        }.freeze
+      VIDEO = {
+        '.mp4' => ISO_MEDIA,
+        '.m4v' => ISO_MEDIA,
+        '.mov' => ISO_MEDIA,
+        '.webm' => EBML,
+        '.mkv' => EBML,
+        '.avi' => AVI
       }.freeze
+      AUDIO = {
+        '.mp3' => MP3,
+        '.m4a' => ISO_MEDIA,
+        '.wav' => WAVE,
+        '.ogg' => OGG,
+        '.opus' => OGG,
+        '.flac' => FLAC,
+        '.aac' => ->(head) { ADTS.call(head) || ID3.call(head) },
+        '.webm' => EBML,
+        # Standard MIDI files, for the apps that analyze music
+        '.mid' => MIDI,
+        '.midi' => MIDI
+      }.freeze
+      # Documents converted to text for a message (Import document)
+      DOCUMENT = {
+        '.pdf' => PDF,
+        '.docx' => ZIP,
+        '.xlsx' => ZIP,
+        '.pptx' => ZIP,
+        '.txt' => TEXT,
+        '.md' => TEXT,
+        '.csv' => TEXT,
+        '.tsv' => TEXT,
+        '.json' => TEXT,
+        '.html' => TEXT,
+        '.htm' => TEXT,
+        '.xml' => TEXT,
+        '.yaml' => TEXT,
+        '.yml' => TEXT
+      }.freeze
+
+      # A file the user puts on the work screen: the kinds the work screen
+      # shows (SharedFolderPreview), each checked as an attachment of its kind
+      # is.
+      WORKBENCH = begin
+        media = SharedFolderPreview::MEDIA.to_h do |ext, (kind, _type)|
+          check = case kind
+                  when 'image' then IMAGES.fetch(ext)
+                  when 'pdf' then PDF
+                  else (kind == 'video' ? VIDEO : AUDIO)[".#{ext}"] || (ext == 'oga' ? OGG : nil)
+                  end
+          [".#{ext}", check || raise("no check for .#{ext}")]
+        end
+        media.merge(SharedFolderPreview::TEXT.to_h { |ext| [".#{ext}", TEXT] }).freeze
+      end
+      PURPOSES = { 'video' => VIDEO, 'audio' => AUDIO, 'document' => DOCUMENT, 'workbench' => WORKBENCH }.freeze
 
       HEAD_BYTES = 16
 

@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative '../workspace'
+require_relative '../workbench/file_item'
 
 module Monadic
   module Routes
@@ -28,6 +29,11 @@ module Monadic
           upload = params['file']
           unless upload.is_a?(Hash) && upload[:tempfile]
             halt 400, { error: 'No file was sent.', reason: 'no_file' }.to_json
+          end
+          # A file for the work screen is no larger than the work screen reads.
+          if params['purpose'].to_s == 'workbench' && upload[:tempfile].size > Monadic::Workbench::FileItem::LIMIT
+            upload[:tempfile].close! if upload[:tempfile].respond_to?(:close!)
+            halt 413, { error: 'This file is too large for the work screen.', reason: 'too_large' }.to_json
           end
 
           begin

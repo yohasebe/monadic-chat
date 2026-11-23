@@ -5,6 +5,7 @@ require "tmpdir"
 require "digest"
 require_relative "../../../lib/monadic/workspace/ids"
 require_relative "../../../lib/monadic/workbench/channel"
+require_relative "../../../lib/monadic/workbench/retention"
 require_relative "../../../lib/monadic/shared_tools/workbench_tools"
 
 RSpec.describe "files of the shared folder on the workbench (board, channel, asset server, tool)" do
@@ -644,6 +645,8 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
     end
 
     it "drops what a connection selected in a chat it left" do
+      # A chat the history keeps (its workbench stays).
+      allow(Monadic::Workbench::Retention).to receive(:kept?).and_return(true)
       write("a.txt", "a")
       item, = open_file("a.txt")
       Thread.current[:websocket_session_id] = "tab-1"

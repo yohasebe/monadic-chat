@@ -40,6 +40,16 @@ rescue StandardError => e
   puts "[Workspace] Publications check skipped: #{e.class}"
 end
 
+# The workbench folders of chats the history does not keep, idle for a
+# while, are removed. See lib/monadic/workbench/retention.rb.
+begin
+  require_relative "lib/monadic/workbench/retention"
+  removed = Monadic::Workbench::Retention.sweep!
+  puts "[Workbench] Folders removed: #{removed}" if removed.positive?
+rescue StandardError => e
+  puts "[Workbench] Folder check skipped: #{e.class}"
+end
+
 set :logging, true
 set :bind, "0.0.0.0"
 

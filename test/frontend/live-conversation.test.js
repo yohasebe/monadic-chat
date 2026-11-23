@@ -599,6 +599,33 @@ describe('card text refresh (sts_card_text)', () => {
       .toBe('the full text already present');
   });
 
+  it('draws the lines of the files the turn showed on the work screen after the text, and judges growth by the text alone', () => {
+    addCard('m5', 'One moment.');
+    const drawn = [];
+    window.Workbench = {
+      drawShown: (mid, list) => {
+        drawn.push([mid, list.length]);
+        const body = document.querySelector(`#${mid} .card-text`);
+        body.querySelector(':scope > .workbench-shown-note')?.remove();
+        body.insertAdjacentHTML('beforeend', '<div class="workbench-shown-note">plan.md shown in the work screen</div>');
+      }
+    };
+    const shown = [{ path: 'conversations/c/runs/r/plan.md', name: 'plan.md', sha256: 'a'.repeat(64), preview: 'text' }];
+    try {
+      LC.onCardText({ mid: 'm5', content: 'One moment.\n\nDone.', workbench_shown: shown });
+      const body = document.querySelector('#m5 .card-text');
+      expect([...body.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['One moment.', 'Done.']);
+      expect(body.lastElementChild.className).toBe('workbench-shown-note');
+      // The same text again: no growth (the lines are not counted), the
+      // lines still drawn.
+      LC.onCardText({ mid: 'm5', content: 'One moment.\n\nDone.', workbench_shown: shown });
+      expect([...body.querySelectorAll('p')]).toHaveLength(2);
+      expect(drawn).toEqual([['m5', 1], ['m5', 1]]);
+    } finally {
+      delete window.Workbench;
+    }
+  });
+
   it('is inert outside LC mode', () => {
     addCard('m4', 'x');
     LC.setAppMode(normalApp);

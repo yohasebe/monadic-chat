@@ -4,6 +4,7 @@ require 'base64'
 require_relative '../capture'
 require_relative '../pdf_text'
 require_relative '../pointing'
+require_relative '../selection'
 require_relative '../../shell'
 
 module Monadic
@@ -13,7 +14,8 @@ module Monadic
       # for scope visible, the part of the page in view as the tab's page
       # drew it (an image cut from its canvas: what the page showed, not
       # checked against the PDF), the text of that whole page read from the
-      # PDF's version on the server, and the text the user selected in it;
+      # PDF's version on the server, the text the user selected in it, and
+      # the text inside the part they marked (as the tab's text layer has it);
       # for scope whole, the text of its first WHOLE_PAGES pages. A part
       # that could not be had says why; a look that has none is refused.
       module Pdf
@@ -38,6 +40,7 @@ module Monadic
                                    wants: %w[range image selection], deadline: deadline, valid: valid)
           page, pages = page_of(answer)
           selection_text, selection_cut = selection_of(answer)
+          mark_text, mark_cut = mark_text_of(answer)
           image, image_note, crop = image_of(answer)
           # The part the user marked on the page, drawn on the image.
           mark = image && Pointing.mark_of(answer['mark'])
@@ -49,13 +52,14 @@ module Monadic
 
           parts = { 'image' => image ? true : image_note, 'page_text' => text ? true : text_note,
                     'selection' => selection_text ? true : 'none' }
-          unless image || text || selection_text
+          unless image || text || selection_text || mark_text
             raise Refused.new(text_note == 'pdf_text_unavailable' ? 'pdf_text_unavailable' : 'range_unknown',
                               'nothing of the page in view could be had')
           end
 
           cuts = [('page_text' if text_cut), ('selection' if selection_cut)].compact
-          { image: image, mark: mark, text: text.to_s, selection: selection_text, selection_cut: selection_cut, parts: parts,
+          { image: image, mark: mark, mark_text: mark_text, mark_cut: mark_cut,
+            text: text.to_s, selection: selection_text, selection_cut: selection_cut, parts: parts,
             pages: { first: page, last: page, total: pages }, crop: crop, cuts: cuts, truncated: cuts.any?,
             empty: text == '' }
         rescue Capture::Failed => e
@@ -101,6 +105,18 @@ module Monadic
 
           cut = answer['selection_cut'] == true || text.length > SELECTION_CHARS
           [text[0, SELECTION_CHARS], cut]
+        end
+
+        # The text inside the user's mark, as one line (as a selection's
+        # text is), at most SELECTION_CHARS: [text, cut], or [nil, false].
+        def mark_text_of(answer)
+          value = answer['mark_text']
+          return [nil, false] unless value.is_a?(String) && value.valid_encoding?
+
+          text = value.gsub(Selection::DROPPED, '').gsub(Selection::SPACES, ' ').strip
+          return [nil, false] if text.empty?
+
+          [text[0, SELECTION_CHARS], answer['mark_cut'] == true || text.length > SELECTION_CHARS]
         end
 
         # The image the tab cut from its canvas, checked here, with the part

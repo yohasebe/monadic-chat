@@ -1222,6 +1222,30 @@ describe('Workbench', () => {
         delete window.WorkbenchPointer;
       });
 
+      test('gives the text inside the mark, from the pieces of the text layer whose middle is in it', async () => {
+        // The mark on screen: x 100..300, y 50..100 (the canvas's top is
+        // 100px above the window).
+        pointerNow = { page: 2, shape: 'rect', color: 'cyan', x: 0.25, y: 0.3, w: 0.5, h: 0.1 };
+        const piece = (text, left, top) => {
+          const span = document.createElement('span');
+          span.textContent = text;
+          span.getBoundingClientRect = () => ({ left: left, top: top, width: 40, height: 10 });
+          return span;
+        };
+        layer.innerHTML = '';
+        layer.append(piece('the eastern', 102, 52), document.createElement('br'), piece('library', 200, 80),
+                     piece('outside', 200, 300), piece('edge', 290, 60));
+        const body = await answer();
+        expect(body.mark_text).toBe('the eastern library');
+        expect(body.mark_cut).toBe(false);
+        // An ellipse leaves out what is in the corners of its box.
+        pointerNow = Object.assign({}, pointerNow, { shape: 'ellipse' });
+        expect((await answer()).mark_text).toBe('library');
+        // Nothing of the layer inside it: no text.
+        pointerNow = Object.assign({}, pointerNow, { shape: 'rect', y: 0.9, h: 0.05 });
+        expect((await answer()).mark_text).toBeUndefined();
+      });
+
       test('gives the text the user selected on the page when the selection itself is gone', async () => {
         select(layer.querySelector('span'));
         document.dispatchEvent(new Event('selectionchange'));
@@ -1587,9 +1611,14 @@ describe('Workbench', () => {
       expect(window.Workbench.selectionNow()).toBeNull();
     });
 
-    test('offers no mark where the session takes no images', async () => {
+    test('offers the mark in a Gemini session too, whose video input takes the image of a look', async () => {
+      const pointable = await pdfLive('gemini');
+      expect(pointable.at(-1)).toBe(true);
+    });
+
+    test('offers the mark in an xAI session too, whose look takes the text inside it', async () => {
       const pointable = await pdfLive('xai');
-      expect(pointable.at(-1)).toBe(false);
+      expect(pointable.at(-1)).toBe(true);
       expect(document.querySelector('.workbench-selection-chip')).toBeNull();
     });
   });

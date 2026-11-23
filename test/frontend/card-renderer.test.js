@@ -228,6 +228,13 @@ describe('card-renderer', () => {
       expect(window.createCard).toBe(createCard);
     });
 
+    it('names the work screen tools by what they did, and the others by their names', () => {
+      document.body.innerHTML = '<div class="card"><div class="card-text"><p>one</p><p>two</p></div></div>';
+      const card = document.querySelector('.card');
+      insertInlineToolBadge(card, [{ name: 'look_at_workbench', status: 'done', at: 1 }, { name: 'search_web', status: 'done', at: 1 }]);
+      expect(card.querySelector('.lc-tools-badge').textContent.trim()).toBe('Looked at the work screen, search_web');
+    });
+
     it('exports insertInlineToolBadge to window', () => {
       expect(window.insertInlineToolBadge).toBe(insertInlineToolBadge);
     });

@@ -39,6 +39,11 @@
   // Playback position in AudioContext time. Only ever moves forward.
   let nextStartTime = 0;
   let activeTurnId = null;
+  // The turn the timeline was last anchored for. A turn's response can end
+  // (finishTurn) and the same turn go on with another one (an answer after
+  // a tool call): that one plays after what is still to be heard, not over
+  // it.
+  let timelineTurnId = null;
 
   // Speech highlight: per-SEGMENT (= upstream response) playback
   // ranges on the audio clock. The live view maps the current position to
@@ -51,6 +56,12 @@
 
   // turnId -> Set of AudioBufferSourceNode still scheduled or playing.
   const scheduledSources = new Map();
+
+  // turnId -> the last byte of a chunk of an odd length: a sample is two
+  // bytes, and a stream split between them would play every later sample
+  // of the next chunk a byte off (noise). The byte goes before the turn's
+  // next chunk.
+  const leftovers = new Map();
 
   // Turn ids whose remaining deltas must be dropped, newest last.
   const cancelledTurns = [];
@@ -167,7 +178,20 @@
   function scheduleChunk(rawTurnId, pcmBytes, sampleRate, segmentId) {
     const turnId = normalizeTurnId(rawTurnId);
     if (isCancelled(turnId)) return false;
-    if (!pcmBytes || pcmBytes.length < 2) return false;
+    if (!pcmBytes || pcmBytes.length === 0) return false;
+    const left = leftovers.get(turnId);
+    if (left !== undefined) {
+      const joined = new Uint8Array(pcmBytes.length + 1);
+      joined[0] = left;
+      joined.set(pcmBytes, 1);
+      pcmBytes = joined;
+      leftovers.delete(turnId);
+    }
+    if (pcmBytes.length % 2 === 1) {
+      leftovers.set(turnId, pcmBytes[pcmBytes.length - 1]);
+      pcmBytes = pcmBytes.subarray(0, pcmBytes.length - 1);
+    }
+    if (pcmBytes.length < 2) return false;
 
     const ctx = ensureAudioContext();
     if (!ctx) return false;
@@ -186,8 +210,11 @@
       Array.from(scheduledSources.keys()).forEach(function(id) {
         if (id !== turnId) stopSources(id);
       });
+      // The same turn going on keeps its timeline (its next response plays
+      // after the one still being heard); another turn starts its own.
+      if (turnId === null || turnId !== timelineTurnId) nextStartTime = 0;
       activeTurnId = turnId;
-      nextStartTime = 0;
+      timelineTurnId = turnId;
     }
 
     const samples = pcm16ToFloat32(pcmBytes);
@@ -206,12 +233,13 @@
     source.buffer = buffer;
     source.connect(ctx.destination);
 
-    // Underrun: deltas fell behind playback, so the timeline has already
-    // passed. Re-prime forward from now — never rewind nextStartTime, since
-    // start() with a past time plays immediately and would collapse every
-    // remaining chunk into one instant.
-    const earliest = ctx.currentTime + LEAD_IN_SEC;
-    const startAt = nextStartTime > earliest ? nextStartTime : earliest;
+    // A chunk goes right after the one before it while that one has not
+    // ended (a gap there is heard as a click; audio that comes just in time
+    // would get one at every chunk). Only a timeline already passed (an
+    // underrun, or a new timeline) starts after the lead-in from now — never
+    // rewind nextStartTime, since start() with a past time plays immediately
+    // and would collapse every remaining chunk into one instant.
+    const startAt = nextStartTime > ctx.currentTime ? nextStartTime : ctx.currentTime + LEAD_IN_SEC;
 
     try {
       source.start(startAt);
@@ -251,6 +279,7 @@
   function cancelTurn(rawTurnId) {
     const turnId = normalizeTurnId(rawTurnId);
     rememberCancelled(turnId);
+    leftovers.delete(turnId);
     stopSources(turnId);
     segmentTimelines.forEach(function(seg, segId) {
       if (seg.turnId === turnId) segmentTimelines.delete(segId);
@@ -259,13 +288,16 @@
       activeTurnId = null;
       nextStartTime = 0;
     }
+    if (turnId === timelineTurnId) timelineTurnId = null;
   }
 
   function stopAll() {
     Array.from(scheduledSources.keys()).forEach(stopSources);
     scheduledSources.clear();
     segmentTimelines.clear();
+    leftovers.clear();
     activeTurnId = null;
+    timelineTurnId = null;
     nextStartTime = 0;
   }
 

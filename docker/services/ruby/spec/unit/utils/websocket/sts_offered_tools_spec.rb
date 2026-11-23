@@ -112,7 +112,7 @@ RSpec.describe "Live Conversation tool rounds of an utterance" do
     conn = double("conn")
     state = { pending_tool_calls: { "r" => {} }, response_open: false, turn: turn, tool_batch_turns: { "r" => turn } }
     turn[:tool_rounds_over] = WebSocketHelper::STS_TOOL_ROUNDS_GRACE
-    expect(host).to receive(:sts_create_tool_continuation).with(conn, state)
+    expect(host).to receive(:sts_create_tool_continuation).with(conn, state, turn)
     host.send(:sts_maybe_create_tool_response, conn, state, "r")
   end
 end

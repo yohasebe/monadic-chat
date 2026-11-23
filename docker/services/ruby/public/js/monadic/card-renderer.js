@@ -340,6 +340,20 @@ function assistantBadge(content) {
  * @param {HTMLElement} cardEl - the card element or .lc-live-text container
  * @param {Array} toolsUsed - tools_used entries ({name, status, at?})
  */
+// What a tool used in a reply is called on its badge: the work screen's
+// tools by what they did, the others by their names.
+const TOOL_LABELS = {
+  look_at_workbench: ['ui.workbench.toolLooked', 'Looked at the work screen'],
+  write_section: ['ui.workbench.toolWrote', 'Wrote on the work screen'],
+  put_on_workbench: ['ui.workbench.toolPut', 'Put a file on the work screen']
+};
+function toolLabel(name) {
+  const known = TOOL_LABELS[name];
+  if (!known) return name;
+  const text = (typeof webUIi18n !== 'undefined') ? webUIi18n.t(known[0]) : null;
+  return text && text !== known[0] ? text : known[1];
+}
+
 function insertInlineToolBadge(cardEl, toolsUsed) {
   if (!cardEl || !Array.isArray(toolsUsed) || toolsUsed.length === 0) return;
   const isTextContainer = cardEl.classList && cardEl.classList.contains('lc-live-text');
@@ -357,7 +371,7 @@ function insertInlineToolBadge(cardEl, toolsUsed) {
     groups.get(tool.at).push(tool);
   });
   groups.forEach(function(tools, at) {
-    const names = [...new Set(tools.map(function(t) { return t.name; }))];
+    const names = [...new Set(tools.map(function(t) { return toolLabel(t.name); }))];
     // Worst status wins: any error turns the badge red; any still-running
     // call keeps the spinner going.
     const anyError = tools.some(function(t) { return t.status === 'error'; });

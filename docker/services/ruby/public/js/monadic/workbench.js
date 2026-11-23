@@ -744,7 +744,7 @@
       if (drawn.gone) return;
       if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
       drawn.pdf = window.WorkbenchPdf.show(box, bytes);
-      if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(takesImages());
+      if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(true);
       showSelectionChip();
     });
     return box;
@@ -1183,7 +1183,7 @@
   // does not know is taken to).
   // In a Live Conversation, the providers whose session takes the image of
   // a look (with the mark the user drew on it).
-  const LIVE_IMAGE_PROVIDERS = ['openai'];
+  const LIVE_IMAGE_PROVIDERS = ['openai', 'gemini'];
 
   // The provider of the Live Conversation going on in this page, or null.
   function liveProvider() {
@@ -1366,23 +1366,14 @@
     };
   }
 
-  // A Live Conversation began or ended: the pointer's buttons and the chip
-  // follow what its session takes.
+  // A Live Conversation began or ended: the chip follows what its session
+  // takes.
   function liveChanged() {
-    if (drawnBody && drawnBody.pdf && typeof drawnBody.pdf.setPointable === 'function') drawnBody.pdf.setPointable(takesImages());
     showSelectionChip();
   }
   if (typeof MutationObserver === 'function' && document.body) {
     new MutationObserver(liveChanged).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
-
-  // The chat's model changed: the pointer's buttons show where it takes
-  // images.
-  document.addEventListener('change', (e) => {
-    if (!e.target || e.target.id !== 'model') return;
-    const handle = drawnBody && drawnBody.pdf;
-    if (handle && typeof handle.setPointable === 'function') handle.setPointable(takesImages());
-  });
 
   // ---- what the server asks the work screen (a look) ------------------
 
@@ -1447,12 +1438,60 @@
 
   // A capture of a PDF: the page in view and, as asked, the part of it in
   // view and the text selected in it, all from the drawing shown now.
+  // The text of a PDF page's text layer inside the user's mark: each piece
+  // whose middle is in it, in the layer's order, as [text, cut] (at most
+  // SELECTED_TEXT_LIMIT characters), or [null, false].
+  function markedText(handle, pointer) {
+    const canvas = handle.canvas();
+    const layer = typeof handle.textLayer === 'function' ? handle.textLayer() : null;
+    if (!canvas || !layer) return [null, false];
+    const box = canvas.getBoundingClientRect();
+    if (!(box.width > 0 && box.height > 0)) return [null, false];
+    const cx = pointer.x + pointer.w / 2;
+    const cy = pointer.y + pointer.h / 2;
+    const inside = (x, y) => {
+      if (pointer.shape === 'ellipse') {
+        const dx = (x - cx) / (pointer.w / 2);
+        const dy = (y - cy) / (pointer.h / 2);
+        return dx * dx + dy * dy <= 1;
+      }
+      return x >= pointer.x && x <= pointer.x + pointer.w && y >= pointer.y && y <= pointer.y + pointer.h;
+    };
+    const pieces = [];
+    layer.querySelectorAll('span, br').forEach((node) => {
+      if (node.tagName === 'BR') {
+        pieces.push(' ');
+        return;
+      }
+      // A span holding others (marked content) is read through them.
+      if (node.querySelector('span')) return;
+      const r = node.getBoundingClientRect();
+      if (!(r.width > 0 && r.height > 0)) return;
+      if (inside((r.left + r.width / 2 - box.left) / box.width, (r.top + r.height / 2 - box.top) / box.height)) {
+        pieces.push(node.textContent);
+      }
+    });
+    const chars = Array.from(pieces.join('').replace(/\s+/g, ' ').trim());
+    if (chars.length === 0) return [null, false];
+    return [chars.slice(0, SELECTED_TEXT_LIMIT).join(''), chars.length > SELECTED_TEXT_LIMIT];
+  }
+
   function pdfAnswer(data, drawn) {
     const handle = drawn.pdf;
     const shown = handle.shown();
     const wants = Array.isArray(data.wants) ? data.wants : [];
     const out = { range: { page: shown.page, pages: shown.pages }, note: null };
+    // The mark the user put on this page.
+    const pointer = typeof handle.pointer === 'function' ? handle.pointer() : null;
+    const onPage = pointer && pointer.page === shown.page ? pointer : null;
     if (wants.includes('selection')) {
+      if (onPage) {
+        const [marked, markCut] = markedText(handle, onPage);
+        if (marked) {
+          out.mark_text = marked;
+          out.mark_cut = markCut;
+        }
+      }
       let [text, cut] = selectedText(handle.textLayer());
       // The page's selection gone (the user clicked elsewhere): the text
       // they selected on this page, as held.
@@ -1464,10 +1503,8 @@
       }
     }
     if (wants.includes('image')) {
-      // The mark the user put on this page is drawn on what is cut, and
-      // said where it is.
-      const pointer = typeof handle.pointer === 'function' && takesImages() ? handle.pointer() : null;
-      const marked = pointer && pointer.page === shown.page ? drawingMark(handle, pointer) : null;
+      // The mark is drawn on what is cut, and said where it is.
+      const marked = onPage ? drawingMark(handle, onPage) : null;
       let part;
       try {
         part = cutPage(handle, shown.drawing, marked ? marked.decorate : undefined);

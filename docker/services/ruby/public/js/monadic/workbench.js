@@ -1208,7 +1208,7 @@
         const x1 = clip((right - frame.x) / frame.w);
         const y1 = clip((bottom - frame.y) / frame.h);
         if (!(x1 > x0 && y1 > y0)) return;
-        const palette = (window.WorkbenchPdf && window.WorkbenchPdf.COLORS) || {};
+        const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
         const color = palette[pointer.color] ? pointer.color : 'orange';
         mark = { shape: pointer.shape === 'ellipse' ? 'ellipse' : 'rect', color: color, x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
         const px = x0 * frame.width;

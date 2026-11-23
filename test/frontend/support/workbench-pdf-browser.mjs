@@ -39,9 +39,9 @@ function makePdf(total) {
 
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm' };
 const PAGE = '<!doctype html><meta charset="utf-8"><div id="box" style="width:600px"></div>'
-  + '<script src="/js/monadic/workbench-pdf.js"></script>';
+  + '<script src="/js/monadic/workbench-pointer.js"></script><script src="/js/monadic/workbench-pdf.js"></script>';
 
-// The page, the work screen's script and the pinned pdf.js only.
+// The page, the work screen's scripts (the pointer, the PDF) and the pinned pdf.js only.
 function serve() {
   const server = http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
@@ -51,7 +51,7 @@ function serve() {
       return;
     }
     let file = null;
-    if (url === '/js/monadic/workbench-pdf.js') file = path.join(PUBLIC, url);
+    if (url === '/js/monadic/workbench-pdf.js' || url === '/js/monadic/workbench-pointer.js') file = path.join(PUBLIC, url);
     else if (url.startsWith('/vendor/pdfjs/')) file = path.join(VENDOR, url.slice('/vendor/pdfjs/'.length));
     if (!file || !file.startsWith(PUBLIC) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);

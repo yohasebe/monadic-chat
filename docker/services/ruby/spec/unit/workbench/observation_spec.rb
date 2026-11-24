@@ -279,6 +279,13 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(observe.render_for({})).to be_nil
     end
 
+    it "sends none of it when a word is split in a name by another kind of space (no-break, full-width)" do
+      ["Ada\u00a0Lovelace.pdf", "Ada\u3000Lovelace.pdf"].each do |name|
+        open_file(name, "c")
+        expect(observe.render_for(session_with(["Ada Lovelace"]))).to be_nil
+      end
+    end
+
     it "sends it when no word of the chat is in it" do
       expect(observe.render_for(session_with(["nothing like this"]))).to include("group/private")
     end

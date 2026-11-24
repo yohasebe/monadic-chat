@@ -139,6 +139,13 @@ module Monadic
           words.any? { |w| plain.include?(w) || plain.include?(w.to_json[1..-2]) }
         end
 
+        # Whether text holds a word of words, also one split by white space
+        # (any kind), a line break or an invisible mark (WordTable). The one
+        # check of what the work screen sends (its observation, a look).
+        def leaks_word?(text, words)
+          holds_word?(text, words) || WordTable.broken_words(text, words).any?
+        end
+
         # The last check before anything leaves for another service: no word
         # the user marked may be anywhere in it. Nothing is rewritten here
         # (that would change tool names, settings and JSON the request

@@ -214,8 +214,7 @@ module Monadic
         left = false
         unless words.empty?
           outbound.each_text(text) do |value|
-            left ||= outbound.holds_word?(value, words) ||
-                     Monadic::Utils::Privacy::WordTable.broken_words(value, words).any?
+            left ||= outbound.leaks_word?(value, words)
           end
         end
         raise Refused.new('filtered', 'it holds a word this chat hides') if left

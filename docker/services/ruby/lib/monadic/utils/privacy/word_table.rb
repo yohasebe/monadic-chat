@@ -77,7 +77,7 @@ module Monadic
         # zero-width space, a word joiner, a byte order mark), and runs of
         # space (line breaks among them), as a word is looked for when
         # whitespace or such a character may break it.
-        UNSEEN = /[\u0000-\u0008\u000E-\u001F\u007F\u00AD\u200B\u2060\uFEFF]/
+        UNSEEN = /[\u0000-\u0008\u000E-\u001F\u007F\u00AD\u200B\u200E\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]/
         SPACES = /[[:space:]]+/
 
         # The words of words found in text more often when its runs of space

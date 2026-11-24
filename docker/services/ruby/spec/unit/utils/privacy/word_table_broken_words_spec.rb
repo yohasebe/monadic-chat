@@ -14,6 +14,10 @@ RSpec.describe "finding a hidden word that whitespace breaks" do
     expect(table.broken_words("met Ada\n    Lovelace today", words)).to eq(["Ada Lovelace"])
     expect(table.broken_words("met Ada ​Lovelace", words)).to eq(["Ada Lovelace"])
     expect(table.broken_words("Bab­bage", words)).to eq(["Babbage"])
+    # Marks that set the direction of text show nothing either.
+    ["\u200E", "\u200F", "\u202A", "\u202E", "\u2066", "\u2069", "\u2062"].each do |mark|
+      expect(table.broken_words("Bab#{mark}bage", words)).to eq(["Babbage"])
+    end
   end
 
   it "finds a word broken somewhere even where it is also whole elsewhere" do

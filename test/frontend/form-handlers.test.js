@@ -354,87 +354,112 @@ describe('Form Handlers', () => {
   });
 
   describe('showModalWithFocus', () => {
+    // A fake MonadicDialog: open() tells mdialog:shown at once, close()
+    // tells mdialog:hidden after it, as the real one does.
     beforeEach(() => {
-      // Mock setTimeout to execute immediately
-      jest.useFakeTimers();
-
-      // Mock bootstrap.Modal
-      global.bootstrap = {
-        Modal: {
-          getOrCreateInstance: jest.fn().mockReturnValue({
-            show: jest.fn()
-          })
-        }
+      // The document's own lookup (tests above replace it).
+      delete document.getElementById;
+      window.MonadicDialog = {
+        of: (el) => ({
+          open: jest.fn(() => { el.dispatchEvent(new CustomEvent('mdialog:shown')); return true; }),
+          close: () => Promise.resolve(true).then(() => { el.dispatchEvent(new CustomEvent('mdialog:hidden')); return true; })
+        })
       };
     });
 
     afterEach(() => {
-      jest.useRealTimers();
-      delete global.bootstrap;
+      delete window.MonadicDialog;
+      document.body.innerHTML = '';
     });
 
-    it('should show modal and set focus', () => {
-      // Create mocks
-      const focusElement = { focus: jest.fn() };
-      const modalElement = document.createElement('div');
-      modalElement.dataset = {};
-
-      // Mock getElementById to return our mocks
-      document.getElementById = jest.fn().mockImplementation(id => {
-        if (id === 'testModal') return modalElement;
-        if (id === 'focusInput') return focusElement;
-        return null;
-      });
-
-      // Call the function we're testing
+    it('opens the dialog and focuses its field at once (no timer to take the focus later)', () => {
+      document.body.innerHTML = '<dialog id="testModal"><input id="focusInput"></dialog>';
+      jest.useFakeTimers();
       formHandlers.showModalWithFocus('testModal', 'focusInput');
-
-      // Run all pending timers immediately
-      jest.runAllTimers();
-
-      // Verify behavior
-      expect(document.getElementById).toHaveBeenCalledWith('testModal');
-      expect(document.getElementById).toHaveBeenCalledWith('focusInput');
-      expect(global.bootstrap.Modal.getOrCreateInstance).toHaveBeenCalledWith(modalElement);
-
-      // Verify focus is set (after timer)
-      expect(focusElement.focus).toHaveBeenCalled();
+      expect(document.activeElement.id).toBe('focusInput');
+      expect(jest.getTimerCount()).toBe(0);
+      jest.useRealTimers();
     });
 
-    it('should handle cleanup function when modal is hidden', () => {
-      // Create mocks
-      const focusElement = { focus: jest.fn() };
-      const modalElement = document.createElement('div');
-      modalElement.dataset = {};
-
-      // Make addEventListener immediately call the callback for hidden.bs.modal
-      const origAddEventListener = modalElement.addEventListener.bind(modalElement);
-      modalElement.addEventListener = jest.fn().mockImplementation((event, callback) => {
-        if (event === 'hidden.bs.modal' && callback) {
-          // Immediately invoke the callback to simulate modal hidden
-          callback();
-        }
-        origAddEventListener(event, callback);
-      });
-
-      // Mock getElementById to return our mocks
-      document.getElementById = jest.fn().mockImplementation(id => {
-        if (id === 'testModal') return modalElement;
-        if (id === 'focusInput') return focusElement;
-        return null;
-      });
-
-      // Create cleanup function
+    it('runs its cleanup once the dialog it opened has closed, and only then', async () => {
+      document.body.innerHTML = '<dialog id="testModal"><input id="focusInput"></dialog>';
+      const modal = document.getElementById('testModal');
       const cleanupFn = jest.fn();
-
-      // Call the function we're testing
       formHandlers.showModalWithFocus('testModal', 'focusInput', cleanupFn);
+      expect(cleanupFn).not.toHaveBeenCalled();
+      await window.MonadicDialog.of(modal).close();
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
+      modal.dispatchEvent(new CustomEvent('mdialog:hidden'));
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
+    });
+  });
 
-      // Run all pending timers
-      jest.runAllTimers();
+  describe('promptPrivacyImportPassphrase', () => {
+    const VIEW = `<dialog id="privacyImportPassphraseModal">
+      <div id="privacy-import-error"></div><div id="privacy-import-header-info"></div>
+      <input id="privacy-import-passphrase"><button id="privacy-import-cancel" data-dialog-close>Cancel</button>
+      <button id="privacy-import-continue">Continue</button></dialog>`;
+    let closings;
 
-      // Verify cleanup was called
-      expect(cleanupFn).toHaveBeenCalled();
+    beforeEach(() => {
+      delete document.getElementById;
+      document.body.innerHTML = VIEW;
+      closings = [];
+      const el = document.getElementById('privacyImportPassphraseModal');
+      // As the real one: its closing tells mdialog:hidden later (a task),
+      // and opened again meanwhile it opens once it has closed.
+      let closing = null;
+      const fake = {
+        open: () => {
+          if (closing) { closing.then(() => fake.open()); return true; }
+          el.dispatchEvent(new CustomEvent('mdialog:shown'));
+          return true;
+        },
+        close: () => {
+          closing = new Promise((r) => setTimeout(r, 0)).then(() => {
+            closing = null;
+            el.dispatchEvent(new CustomEvent('mdialog:hidden'));
+            return true;
+          });
+          closings.push(closing);
+          return closing;
+        }
+      };
+      window.MonadicDialog = { of: () => fake };
+    });
+
+    afterEach(() => { delete window.MonadicDialog; });
+
+    const type = (text) => {
+      const input = document.getElementById('privacy-import-passphrase');
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+    };
+
+    it('gives what was typed on Continue, and null on Cancel', async () => {
+      const first = formHandlers.promptPrivacyImportPassphrase({}, null);
+      expect(document.activeElement.id).toBe('privacy-import-passphrase');
+      type('secret');
+      document.getElementById('privacy-import-continue').click();
+      await expect(first).resolves.toBe('secret');
+
+      const second = formHandlers.promptPrivacyImportPassphrase({}, null);
+      document.getElementById('privacy-import-cancel').click();
+      await expect(second).resolves.toBeNull();
+    });
+
+    it('asked again after a wrong passphrase, the closing of the one before does not end the new one', async () => {
+      const first = formHandlers.promptPrivacyImportPassphrase({}, null);
+      type('wrong');
+      document.getElementById('privacy-import-continue').click();
+      await expect(first).resolves.toBe('wrong');
+      // Asked again before the first dialog has told that it closed.
+      const again = formHandlers.promptPrivacyImportPassphrase({}, 'wrong_passphrase');
+      await Promise.all(closings);
+      type('right');
+      document.getElementById('privacy-import-continue').click();
+      await expect(again).resolves.toBe('right');
+      expect(document.getElementById('privacy-import-error').textContent).toMatch(/Wrong passphrase/);
     });
   });
 });

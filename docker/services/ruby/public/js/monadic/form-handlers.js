@@ -131,11 +131,14 @@ async function postLoadWithPassphraseRetry(formData, file, lastError) {
   return data;
 }
 
+// The dialog (MonadicDialog) of an element, when there are both.
+function dialogOf(el) {
+  return el && typeof window.MonadicDialog !== 'undefined' ? window.MonadicDialog.of(el) : null;
+}
+
 function suspendLoadModalForPassphrase() {
-  const loadModalEl = document.getElementById('loadModal');
-  if (loadModalEl && window.bootstrap && window.bootstrap.Modal) {
-    window.bootstrap.Modal.getInstance(loadModalEl)?.hide();
-  }
+  const load = dialogOf(document.getElementById('loadModal'));
+  if (load && load.isOpen) load.close('done');
   const spinner = document.getElementById('monadic-spinner');
   if (spinner) spinner.style.display = 'none';
   const loadSpinner = document.getElementById('load-spinner');
@@ -150,10 +153,8 @@ function resumeLoadModalForRetry() {
 }
 
 function hideLoadModalCompletely() {
-  const loadModalEl = document.getElementById('loadModal');
-  if (loadModalEl && window.bootstrap && window.bootstrap.Modal) {
-    window.bootstrap.Modal.getInstance(loadModalEl)?.hide();
-  }
+  const load = dialogOf(document.getElementById('loadModal'));
+  if (load && load.isOpen) load.close('done');
   const spinner = document.getElementById('monadic-spinner');
   if (spinner) spinner.style.display = 'none';
   const loadSpinner = document.getElementById('load-spinner');
@@ -164,7 +165,8 @@ function hideLoadModalCompletely() {
 function promptPrivacyImportPassphrase(serverData, lastError) {
   return new Promise(function (resolve) {
     const modalEl = document.getElementById('privacyImportPassphraseModal');
-    if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) {
+    const dialog = dialogOf(modalEl);
+    if (!dialog) {
       const fallback = window.prompt(
         (lastError === 'wrong_passphrase' ? 'Wrong passphrase. ' : '') +
         'Enter passphrase for the encrypted privacy export:'
@@ -198,42 +200,46 @@ function promptPrivacyImportPassphrase(serverData, lastError) {
     if (passInput) passInput.value = '';
     if (continueBtn) continueBtn.disabled = true;
 
-    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    let settled = false;
+    function settle(value) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    }
 
     function onInput() {
       if (continueBtn) continueBtn.disabled = !passInput || passInput.value.length === 0;
     }
     function onContinue() {
-      cleanup();
       const value = passInput ? passInput.value : '';
-      modal.hide();
-      resolve(value);
+      settle(value);
+      dialog.close('done');
     }
-    function onCancel() {
-      cleanup();
-      resolve(null);
-    }
+    // Cancel (its data-dialog-close closes the dialog), or the dialog
+    // closing in any other way: no passphrase.
+    function onCancel() { settle(null); }
+    function onHidden() { settle(null); }
+    // Listened to only once this prompt's dialog is open, so the closing of
+    // the one before (a wrong passphrase, asked again) does not end it.
+    function onShown() { modalEl.addEventListener('mdialog:hidden', onHidden); }
     function cleanup() {
       if (passInput) passInput.removeEventListener('input', onInput);
       if (continueBtn) continueBtn.removeEventListener('click', onContinue);
-      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+      modalEl.removeEventListener('mdialog:shown', onShown);
+      modalEl.removeEventListener('mdialog:hidden', onHidden);
       const cancelBtn = document.getElementById('privacy-import-cancel');
       if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
-    }
-    function onHidden() {
-      // Resolve null only if neither continue nor explicit cancel resolved already.
-      cleanup();
-      resolve(null);
     }
 
     if (passInput) passInput.addEventListener('input', onInput);
     if (continueBtn) continueBtn.addEventListener('click', onContinue);
     const cancelBtn = document.getElementById('privacy-import-cancel');
     if (cancelBtn) cancelBtn.addEventListener('click', onCancel);
-    modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+    modalEl.addEventListener('mdialog:shown', onShown);
 
-    modal.show();
-    setTimeout(function () { if (passInput) passInput.focus(); }, 200);
+    dialog.open();
+    if (passInput) passInput.focus();
   });
 }
 
@@ -279,41 +285,21 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
   
   if (!modal || !focusElement) return;
   
-  // Show the modal using Bootstrap API
-  const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
-  bsModal.show();
-
-  // Use a clean approach to focus management
-  const timerKey = 'focusTimer';
-
-  // Clear any existing timer
-  const existingTimer = modal.dataset[timerKey];
-  if (existingTimer) {
-    clearTimeout(Number(existingTimer));
-    delete modal.dataset[timerKey];
-  }
-
-  // Set new timer and store reference
-  modal.dataset[timerKey] = setTimeout(function() {
-    focusElement.focus();
-    delete modal.dataset[timerKey];
-  }, 500);
-
-  // Set up cleanup for when modal is hidden
+  const dialog = dialogOf(modal);
+  if (!dialog) return;
+  // Its field is focused as it opens (no timer to take the focus later from
+  // another dialog).
   if (typeof cleanupFn === 'function') {
-    // Use once option to ensure this only happens once
-    modal.addEventListener('hidden.bs.modal', function onHidden() {
-      modal.removeEventListener('hidden.bs.modal', onHidden);
-      cleanupFn();
-
-      // Also clean up any timers
-      const remainingTimer = modal.dataset[timerKey];
-      if (remainingTimer) {
-        clearTimeout(Number(remainingTimer));
-        delete modal.dataset[timerKey];
-      }
+    modal.addEventListener('mdialog:shown', function onShown() {
+      modal.removeEventListener('mdialog:shown', onShown);
+      modal.addEventListener('mdialog:hidden', function onHidden() {
+        modal.removeEventListener('mdialog:hidden', onHidden);
+        cleanupFn();
+      });
     });
   }
+  dialog.open();
+  focusElement.focus();
 }
 
 // What the page says when an import is done: that it was imported, and,
@@ -336,7 +322,8 @@ window.formHandlers = {
   importNotice,
   setupUrlValidation,
   setupFileValidation,
-  showModalWithFocus
+  showModalWithFocus,
+  promptPrivacyImportPassphrase
 };
 
 // Support for Jest testing environment (CommonJS)

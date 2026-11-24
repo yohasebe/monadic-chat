@@ -1183,7 +1183,7 @@
     </dialog>
 
     <!-- Modal: Privacy Import Passphrase Prompt (Block D.4) -->
-    <div class="modal fade" id="privacyImportPassphraseModal" tabindex="-1" aria-labelledby="privacyImportLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <dialog class="mdialog" id="privacyImportPassphraseModal" aria-labelledby="privacyImportLabel" data-dialog-static>
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -1199,12 +1199,12 @@
             <div id="privacy-import-error" class="alert alert-danger small mt-2" style="display:none;"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" id="privacy-import-cancel" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="privacy-import-cancel" data-dialog-close>Cancel</button>
             <button type="button" class="btn btn-sm btn-primary" id="privacy-import-continue" disabled>Continue</button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Modal -->
     <dialog class="mdialog" id="resetConfirmation" aria-labelledby="resetConfirmationLabel">
@@ -1451,12 +1451,12 @@
 
     <!-- Modal -->
     <!-- loading procedure is implemented in monadic.rb -->
-    <div class="modal fade" id="loadModal" tabindex="-1" aria-labelledby="loadModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="loadModal" aria-labelledby="loadModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.modals.loadFile">Load File</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <form action="/load" method="post" enctype="multipart/form-data" type="hidden" id="load-form">
             <div class="modal-body">
@@ -1464,7 +1464,7 @@
               <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
               <div class="spinner-border" role="status" id="load-spinner" style="display: none;">
                 <span class="visually-hidden">Loading . . .</span>
               </div>
@@ -1473,14 +1473,14 @@
           </form>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <div class="modal fade" id="docModal" tabindex="-1" aria-labelledby="docModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="docModal" aria-labelledby="docModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromFile">From file</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="doc-label" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
@@ -1491,7 +1491,7 @@
             <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1499,21 +1499,21 @@
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <div class="modal fade" id="audioUploadModal" tabindex="-1" aria-labelledby="audioUploadModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="audioUploadModal" aria-labelledby="audioUploadModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="audioUploadModalLabel"><i class="fas fa-music"></i> <span data-i18n="ui.modals.audioUploadTitle">Upload Audio/MIDI</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label for="audioFile" class="form-label" data-i18n="ui.modals.audioFileLabel">Audio or MIDI file (mp3, wav, m4a, ogg, flac, mid, midi)</label>
             <input class="form-control form-control-sm" id="audioFile" type="file" name="audioFile" accept=".mp3,.wav,.m4a,.ogg,.flac,.mid,.midi">
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="audio-upload-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1521,14 +1521,14 @@
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <div class="modal fade" id="urlModal" tabindex="-1" aria-labelledby="urlModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="urlModal" aria-labelledby="urlModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="urlModalLabel"><i class="fa-solid fa-globe"></i> <span data-i18n="ui.modals.fromURL">From URL</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="urlLabel" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
@@ -1541,7 +1541,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
@@ -1550,14 +1550,14 @@
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="imageModal" aria-labelledby="imageModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> <span data-i18n="ui.modals.selectFile">Select File</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
@@ -1573,12 +1573,12 @@
             <div id="select_image_error" class="size-error text-warning mt-2"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
     <%# An image of the work screen, shown larger (workbench.js). %>
     <dialog class="mdialog workbench-zoom" id="workbenchZoom" aria-label="Image" data-i18n-aria-label="ui.workbench.enlarged">
       <div class="modal-dialog modal-dialog-centered workbench-zoom-dialog">

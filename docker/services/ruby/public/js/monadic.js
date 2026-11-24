@@ -3141,27 +3141,12 @@ document.addEventListener("DOMContentLoaded", function () {
       formHandlers.showModalWithFocus('loadModal', 'file-load', cleanupFn);
     } else {
       // Show the modal using the fallback
-      bootstrap.Modal.getOrCreateInstance($id("loadModal")).show();
-      
-      // Store focus timer in modal's data to ensure cleanup
-      const $modal = $id("loadModal");
-      const existingTimer = $modal.dataset.focusTimer;
-
-      // Clear any existing timer
-      if (existingTimer) {
-        clearTimeout(parseInt(existingTimer));
-      }
-
-      // Set new timer and store reference
-      $modal.dataset.focusTimer = setTimeout(function () {
-        { const el = $id("file-load"); if (el) el.focus(); }
-        // Clear reference after use
-        delete $modal.dataset.focusTimer;
-      }, 500);
+      window.MonadicDialog.of($id("loadModal")).open();
+      { const el = $id("file-load"); if (el) el.focus(); }
     }
   });
 
-  $on($id("loadModal"), "hidden.bs.modal", function () {
+  $on($id("loadModal"), "mdialog:hidden", function () {
     // Reset form state when modal is closed
     { const el = $id('file-load'); if (el) el.value = ''; }
     { const el = $id('import-button'); if (el) el.disabled = true; }
@@ -3182,37 +3167,14 @@ document.addEventListener("DOMContentLoaded", function () {
       formHandlers.showModalWithFocus('docModal', 'docFile', cleanupFn);
     } else {
       // Show the modal using fallback
-      bootstrap.Modal.getOrCreateInstance($id("docModal")).show();
-      
-      // Store focus timer in modal's data to ensure cleanup
-      const $modal = $id("docModal");
-      const existingTimer = $modal.dataset.focusTimer;
-
-      // Clear any existing timer
-      if (existingTimer) {
-        clearTimeout(parseInt(existingTimer));
-      }
-
-      // Set new timer and store reference
-      $modal.dataset.focusTimer = setTimeout(function () {
-        { const el = $id("docFile"); if (el) el.focus(); }
-        // Clear reference after use
-        delete $modal.dataset.focusTimer;
-      }, 500);
+      window.MonadicDialog.of($id("docModal")).open();
+      { const el = $id("docFile"); if (el) el.focus(); }
     }
   });
 
-  $on($id("docModal"), "hidden.bs.modal", function () {
+  $on($id("docModal"), "mdialog:hidden", function () {
     { const el = $id('docFile'); if (el) el.value = ''; }
     { const el = $id('convertDoc'); if (el) el.disabled = true; }
-
-    // Ensure any remaining timers are cleared
-    const modalEl = this;
-    const existingTimer = modalEl.dataset.focusTimer;
-    if (existingTimer) {
-      clearTimeout(parseInt(existingTimer));
-      delete modalEl.dataset.focusTimer;
-    }
   });
 
   // Use the form handlers module for file input validation
@@ -3260,7 +3222,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI
         $hide($id("doc-spinner"));
         document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
+        window.MonadicDialog.of($id("docModal")).close('done');
         $dispatch($id("back_to_bottom"), "click");
         { const el = $id("message"); if (el) el.focus(); }
       } else {
@@ -3270,7 +3232,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI
         $hide($id("doc-spinner"));
         document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
+        window.MonadicDialog.of($id("docModal")).close('done');
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3281,7 +3243,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Clean up UI on error
       $hide($id("doc-spinner"));
       document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance($id("docModal")).hide();
+      window.MonadicDialog.of($id("docModal")).close('done');
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3300,7 +3262,7 @@ document.addEventListener("DOMContentLoaded", function () {
         { const el = $id('uploadAudioBtn'); if (el) el.disabled = true; }
       });
     } else {
-      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).show();
+      window.MonadicDialog.of($id("audioUploadModal")).open();
     }
   });
 
@@ -3327,12 +3289,12 @@ document.addEventListener("DOMContentLoaded", function () {
       await window.uploadVideoAttachment(file, 'audio');
       $hide($id("audio-upload-spinner"));
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
+      window.MonadicDialog.of($id("audioUploadModal")).close('done');
       { const el = $id("message"); if (el) el.focus(); }
     } catch (error) {
       $hide($id("audio-upload-spinner"));
       document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance($id("audioUploadModal")).hide();
+      window.MonadicDialog.of($id("audioUploadModal")).close('done');
       setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
     }
   });
@@ -3352,38 +3314,15 @@ document.addEventListener("DOMContentLoaded", function () {
       formHandlers.showModalWithFocus('urlModal', 'pageURL', cleanupFn);
     } else {
       // Show the modal using fallback
-      bootstrap.Modal.getOrCreateInstance($id("urlModal")).show();
-      
-      // Store focus timer in modal's data to ensure cleanup
-      const $modal = $id("urlModal");
-      const existingTimer = $modal.dataset.focusTimer;
-
-      // Clear any existing timer
-      if (existingTimer) {
-        clearTimeout(parseInt(existingTimer));
-      }
-
-      // Set new timer and store reference
-      $modal.dataset.focusTimer = setTimeout(function () {
-        { const el = $id("pageURL"); if (el) el.focus(); }
-        // Clear reference after use
-        delete $modal.dataset.focusTimer;
-      }, 500);
+      window.MonadicDialog.of($id("urlModal")).open();
+      { const el = $id("pageURL"); if (el) el.focus(); }
     }
   });
 
-  $on($id("urlModal"), "hidden.bs.modal", function () {
+  $on($id("urlModal"), "mdialog:hidden", function () {
     { const el = $id('pageURL'); if (el) el.value = ''; }
     { const el = $id('fetchPage'); if (el) el.disabled = true; }
     { const el = $id('openPageInWorkScreen'); if (el) el.disabled = true; }
-
-    // Ensure any remaining timers are cleared
-    const modalEl = this;
-    const existingTimer = modalEl.dataset.focusTimer;
-    if (existingTimer) {
-      clearTimeout(parseInt(existingTimer));
-      delete modalEl.dataset.focusTimer;
-    }
   });
 
   // Use the form handlers module for URL input validation
@@ -3418,7 +3357,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const url = (($id("pageURL") || {}).value || "").trim();
     if (!/^(http|https):\/\/[^ "]+$/.test(url)) return;
     if (typeof window.safeWsSend === "function") window.safeWsSend({ message: "WORKBENCH_OPEN_URL", url: url });
-    bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+    window.MonadicDialog.of($id("urlModal")).close('done');
     const lc = window.LayoutController;
     if (lc) {
       if (lc.isMenuHidden()) lc.setMenuHidden(false);
@@ -3456,7 +3395,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI
         $hide($id("url-spinner"));
         document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+        window.MonadicDialog.of($id("urlModal")).close('done');
         $dispatch($id("back_to_bottom"), "click");
         { const el = $id("message"); if (el) el.focus(); }
       } else {
@@ -3466,7 +3405,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // Clean up UI
         $hide($id("url-spinner"));
         document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
-        bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+        window.MonadicDialog.of($id("urlModal")).close('done');
         
         setAlert(`${errorMessage}`, "error");
       }
@@ -3477,7 +3416,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Clean up UI on error
       $hide($id("url-spinner"));
       document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
-      bootstrap.Modal.getOrCreateInstance($id("urlModal")).hide();
+      window.MonadicDialog.of($id("urlModal")).close('done');
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
@@ -3937,7 +3876,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Process the response
       if (response && response.success) {
         // Clean up UI after successful import
-        bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
+        window.MonadicDialog.of($id("loadModal")).close('done');
         if (response.older_words > 0 && window.WordTable) window.WordTable.noticeOlderFile(response.older_words);
         const translate = typeof webUIi18n !== 'undefined' ? (key) => webUIi18n.t(key) : null;
         const importedText = typeof formHandlers.importNotice === 'function'
@@ -3997,7 +3936,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setAlert(`${importErrorMsg}: ${errorMessage}`, "error");
 
       // Hide modal since there was an AJAX error
-      bootstrap.Modal.getOrCreateInstance($id("loadModal")).hide();
+      window.MonadicDialog.of($id("loadModal")).close('done');
 
     } finally {
       // Always clean up UI elements

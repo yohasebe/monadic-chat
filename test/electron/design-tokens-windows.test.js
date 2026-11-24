@@ -3,10 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { tokensPath, createTokenLoader, applyTokens, shareTokens, prepareWindow, showWindow } = require('../../app/design_tokens');
+const { tokensPath, buttonsPath, createTokenLoader, createSheetsLoader, applyTokens, shareTokens, prepareWindow, showWindow } = require('../../app/design_tokens');
 
 const ROOT = path.join(__dirname, '..', '..');
 const TOKENS = 'docker/services/ruby/public/css/tokens.css';
+const BUTTONS = 'docker/services/ruby/public/css/buttons.css';
 
 function fakeContents({ destroyed = false, insert = jest.fn().mockResolvedValue('key') } = {}) {
   const handlers = {};
@@ -30,6 +31,46 @@ describe('where the variables are read from', () => {
     const file = tokensPath({ packaged: true, resourcesPath: '/R', appDir: '/unused' });
     expect(file).toBe(path.join('/R', 'app', ...TOKENS.split('/')));
     expect(() => execFileSync('git', ['ls-files', '--error-unmatch', TOKENS], { cwd: ROOT, stdio: 'ignore' })).not.toThrow();
+  });
+});
+
+describe('where the buttons are read from', () => {
+  test('next to the variables, in the source tree and in the docker payload of a package', () => {
+    const file = buttonsPath({ packaged: false, resourcesPath: '/unused', appDir: path.join(ROOT, 'app') });
+    expect(path.relative(ROOT, file)).toBe(path.join(...BUTTONS.split('/')));
+    expect(fs.readFileSync(file, 'utf8')).toMatch(/var\(--btn-/);
+    expect(buttonsPath({ packaged: true, resourcesPath: '/R', appDir: '/unused' })).toBe(path.join('/R', 'app', ...BUTTONS.split('/')));
+    expect(() => execFileSync('git', ['ls-files', '--error-unmatch', BUTTONS], { cwd: ROOT, stdio: 'ignore' })).not.toThrow();
+  });
+});
+
+describe('reading the variables and the buttons as one sheet', () => {
+  const files = { '/t.css': ':root { --x: 1px; }', '/b.css': '.btn-v2 { color: var(--x); }' };
+  const reader = (present) => jest.fn((file) => {
+    if (!present.includes(file)) throw Object.assign(new Error('x'), { code: 'ENOENT' });
+    return files[file];
+  });
+
+  test('the variables first, then the buttons, each read once', () => {
+    const readFile = reader(['/t.css', '/b.css']);
+    const load = createSheetsLoader({ tokens: '/t.css', buttons: '/b.css' }, { readFile, log: jest.fn() });
+    expect(load()).toBe(`${files['/t.css']}\n${files['/b.css']}`);
+    load();
+    expect(readFile).toHaveBeenCalledTimes(2);
+  });
+
+  test('the variables alone when the buttons cannot be read, saying which file', () => {
+    const log = jest.fn();
+    const load = createSheetsLoader({ tokens: '/t.css', buttons: '/b.css' }, { readFile: reader(['/t.css']), log });
+    expect(load()).toBe(files['/t.css']);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0][0]).toContain('b.css');
+    expect(log.mock.calls[0][0]).not.toContain('/b.css');
+  });
+
+  test('nothing without the variables: the buttons are made of them', () => {
+    const load = createSheetsLoader({ tokens: '/t.css', buttons: '/b.css' }, { readFile: reader(['/b.css']), log: jest.fn() });
+    expect(load()).toBeNull();
   });
 });
 

@@ -1,0 +1,164 @@
+/*
+ * buttons.css — the buttons of the Web UI and of the Electron windows (the
+ * console, the settings), read after tokens.css by all three. It needs no
+ * Bootstrap: the Electron windows do not load it.
+ *
+ * While the screens move to it, it applies only to buttons marked btn-v2
+ * (with their kind and size classes); when every screen has moved, the mark
+ * goes and these rules apply to .btn.
+ *
+ * A button has a meaning, by its color:
+ *   btn-primary   blue   confirm, take in, write out
+ *   btn-secondary grey   act, move about, cancel
+ *   btn-danger    red    delete
+ *   btn-warning   yellow a standing main action (the side column, the console)
+ * and may have a form, whatever its meaning:
+ *   btn-tool  clear on its group's panel (btn-panel), the chosen one filled
+ *   btn-fab   floating over the page
+ *   btn-link  text only
+ *   btn-icon  an icon alone: at least as wide as it is tall
+ * Two sizes, the base and btn-sm, each a least height: the text keeps the
+ * size around it (and the user's settings), and a long label wraps and
+ * makes the button taller, never cut.
+ *
+ * States: hover, pressed, chosen (aria-pressed="true" or .active; a chosen
+ * tool keeps its look under the pointer), the focus ring (keyboard),
+ * disabled (made lighter once; nothing happens under the pointer).
+ */
+@layer components {
+  .btn-v2 {
+    --btn-fg: var(--text-primary);
+    --btn-bg: transparent;
+    --btn-border-color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--btn-gap);
+    box-sizing: border-box;
+    min-block-size: var(--btn-h-md);
+    padding: var(--btn-pad-y) var(--btn-pad-x-md);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 500;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+    color: var(--btn-fg);
+    background: var(--btn-bg);
+    border: var(--border-width, 1px) solid var(--btn-border-color);
+    border-radius: var(--btn-radius);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  }
+  .btn-v2.btn-sm {
+    min-block-size: var(--btn-h-sm);
+    padding-inline: var(--btn-pad-x-sm);
+  }
+  .btn-v2:hover:not(:disabled):not([aria-disabled="true"]) {
+    color: var(--btn-hover-fg, var(--btn-fg));
+    background: var(--btn-hover-bg, var(--btn-bg));
+    border-color: var(--btn-hover-border-color, var(--btn-border-color));
+  }
+  .btn-v2:active:not(:disabled):not([aria-disabled="true"]) {
+    filter: brightness(0.92);
+  }
+  .btn-v2:focus-visible {
+    outline: 2px solid var(--pal-accent-mid);
+    outline-offset: 2px;
+  }
+  .btn-v2:disabled,
+  .btn-v2[aria-disabled="true"] {
+    opacity: var(--opacity-disabled);
+    cursor: not-allowed;
+  }
+  .btn-v2[aria-disabled="true"] {
+    pointer-events: none;
+  }
+
+  /* Meanings, by the theme's own button values. */
+  .btn-v2.btn-primary {
+    --btn-fg: #ffffff;
+    --btn-bg: var(--btn-primary-bg);
+    --btn-border-color: var(--btn-primary-bg);
+    --btn-hover-bg: var(--btn-primary-hover-bg);
+    --btn-hover-border-color: var(--btn-primary-hover-bg);
+  }
+  .btn-v2.btn-secondary {
+    --btn-fg: var(--btn-secondary-text);
+    --btn-bg: var(--btn-secondary-bg);
+    --btn-border-color: var(--btn-secondary-bg);
+    --btn-hover-fg: var(--btn-secondary-hover-text, var(--btn-secondary-text));
+    --btn-hover-bg: var(--btn-secondary-hover-bg);
+    --btn-hover-border-color: var(--btn-secondary-hover-bg);
+  }
+  .btn-v2.btn-danger {
+    --btn-fg: #ffffff;
+    --btn-bg: var(--btn-danger);
+    --btn-border-color: var(--btn-danger);
+    --btn-hover-bg: var(--btn-danger-hover-bg);
+    --btn-hover-border-color: var(--btn-danger-hover-bg);
+  }
+  .btn-v2.btn-warning {
+    --btn-fg: var(--btn-warning-text);
+    --btn-bg: var(--btn-warning-bg);
+    --btn-border-color: var(--btn-warning-bg);
+    --btn-hover-bg: var(--btn-warning-hover-bg);
+    --btn-hover-border-color: var(--btn-warning-hover-bg);
+  }
+  /* A meaning button chosen (a switch that is on): a light inner ring. */
+  .btn-v2.btn-primary[aria-pressed="true"], .btn-v2.btn-secondary[aria-pressed="true"],
+  .btn-v2.btn-danger[aria-pressed="true"], .btn-v2.btn-warning[aria-pressed="true"] {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
+  }
+
+  /* Forms. */
+  .btn-panel {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: var(--tool-panel-bg);
+    border: var(--border-width, 1px) solid var(--tool-panel-border);
+    border-radius: calc(var(--btn-radius) + 2px);
+  }
+  .btn-v2.btn-tool {
+    --btn-fg: var(--tool-fg);
+    --btn-bg: transparent;
+    --btn-border-color: transparent;
+    --btn-hover-fg: var(--text-primary);
+    --btn-hover-bg: var(--tool-hover-bg);
+  }
+  .btn-v2.btn-tool.active,
+  .btn-v2.btn-tool[aria-pressed="true"] {
+    --btn-fg: var(--tool-active-fg);
+    --btn-bg: var(--tool-active-bg);
+    --btn-hover-fg: var(--tool-active-fg);
+    --btn-hover-bg: var(--tool-active-bg);
+  }
+  .btn-v2.btn-tool.btn-danger {
+    --btn-fg: var(--tool-danger-fg);
+    --btn-bg: transparent;
+    --btn-border-color: transparent;
+    --btn-hover-fg: var(--tool-danger-fg);
+    --btn-hover-bg: color-mix(in srgb, var(--tool-danger-fg) 14%, transparent);
+    --btn-hover-border-color: transparent;
+  }
+  .btn-fab {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+  }
+  .btn-v2.btn-link {
+    --btn-fg: var(--pal-accent-text);
+    --btn-hover-fg: var(--pal-accent-strong);
+    min-block-size: auto;
+    padding-inline: 0;
+    text-decoration: underline;
+  }
+  .btn-v2.btn-icon {
+    padding-inline: 0;
+    min-inline-size: var(--btn-h-md);
+  }
+  .btn-v2.btn-sm.btn-icon {
+    min-inline-size: var(--btn-h-sm);
+  }
+}

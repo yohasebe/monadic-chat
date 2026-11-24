@@ -24,10 +24,15 @@ describe('the settings window', () => {
     for (const old of ['#0d6efd', '#0b5ed7', '#0071e3', '#0062cc', '#0a84ff', '#0077e6']) expect(page).not.toContain(old);
   });
 
+  test('Save and Close are the shared buttons (buttons.css), blue and grey, with no rules of their own', () => {
+    expect(page).toMatch(/id="save-settings-btn" class="btn btn-v2 btn-sm btn-primary"/);
+    expect(page).toMatch(/id="close-settings-btn" class="btn btn-v2 btn-sm btn-secondary"/);
+    expect(ruleOf('#sidebar-footer button')).toBe('');
+    expect(ruleOf('#sidebar-footer #close-settings-btn')).toBe('');
+  });
+
   test.each([
-    ['#sidebar-footer button', '--btn-primary-bg'],
     ['.action-btn', '--btn-primary-bg'],
-    ['#sidebar-footer #close-settings-btn', '--btn-secondary-bg'],
     ['.file-picker-row button', '--btn-secondary-bg'],
     ['.confirm-dialog-cancel', '--btn-secondary-bg']
   ])('%s takes its color from %s', (selector, variable) => {

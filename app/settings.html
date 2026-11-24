@@ -95,53 +95,20 @@
     }
 
     /* ─── Sidebar Footer ─── */
+    /* Save and Close are the shared buttons (buttons.css): the footer sets
+       only their row and their text size. */
     #sidebar-footer {
       padding: 12px;
       border-top: 1px solid #d1d1d6;
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-
-    #sidebar-footer button {
-      background-color: var(--btn-primary-bg, #007bff);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 4px 10px;
-      cursor: pointer;
       font-size: 13px;
-      font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: background-color 0.15s ease;
     }
 
-    #sidebar-footer button:hover {
-      background-color: var(--btn-primary-hover-bg, #0069d9);
-    }
-
-    #sidebar-footer button:focus-visible,
     .action-btn:focus-visible {
       outline: none;
       box-shadow: 0 0 0 2.8px var(--btn-primary-focus-shadow-color, rgba(0, 123, 255, 0.25));
-    }
-
-    /* Close uses a neutral grey; specificity bumped via descendant
-       selector so it wins over the default #sidebar-footer button rule. */
-    #sidebar-footer #close-settings-btn {
-      background-color: var(--btn-secondary-bg, #78828c);
-      color: var(--btn-secondary-text, #ffffff);
-    }
-
-    #sidebar-footer #close-settings-btn:hover {
-      background-color: var(--btn-secondary-hover-bg, #5a6268);
-      color: var(--btn-secondary-hover-text, #ffffff);
-    }
-
-    #sidebar-footer #close-settings-btn:focus-visible {
-      box-shadow: 0 0 0 2.8px var(--btn-secondary-focus-shadow-color, rgba(113, 128, 150, 0.25));
     }
 
     /* Brief acknowledgement after a successful save — stays in the
@@ -606,11 +573,11 @@
           </li>
         </ul>
         <div id="sidebar-footer">
-          <button type="button" id="save-settings-btn">
+          <button type="button" id="save-settings-btn" class="btn btn-v2 btn-sm btn-primary">
             <i class="fas fa-save"></i>
             <span data-i18n="settings.buttons.save">Save</span>
           </button>
-          <button type="button" id="close-settings-btn">
+          <button type="button" id="close-settings-btn" class="btn btn-v2 btn-sm btn-secondary">
             <i class="fas fa-xmark"></i>
             <span data-i18n="settings.buttons.close">Close</span>
           </button>

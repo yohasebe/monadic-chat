@@ -202,6 +202,12 @@ module Monadic
         LOCKS_GUARD.synchronize { LOCKS[chat_id.to_s] ||= Mutex.new }
       end
 
+      # The chat is gone (Retention.discard): its lock is let go.
+      def forget(chat_id)
+        LOCKS_GUARD.synchronize { LOCKS.delete(chat_id.to_s) }
+        nil
+      end
+
       # Whether path (relative to the shared folder) is a whiteboard of the
       # chat's folder folder.
       def own?(folder, path)

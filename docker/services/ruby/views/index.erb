@@ -1109,12 +1109,12 @@
     <!-- Modal: Export Dialog -->
     <!-- Two orthogonal axes: encryption (passphrase-protected at rest) and
          content (restored vs masked, only for a chat that hides words). -->
-    <div class="modal fade" id="privacyExportModal" tabindex="-1" aria-labelledby="privacyExportLabel" aria-hidden="true">
+    <dialog class="mdialog" id="privacyExportModal" aria-labelledby="privacyExportLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="privacyExportLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.exportDialogTitle">Export Conversation</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <!-- Encryption axis: always shown -->
@@ -1175,12 +1175,12 @@
             <div id="privacy-export-status" class="small mt-2"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <button type="button" class="btn btn-sm btn-primary" id="privacy-export-continue" data-i18n="ui.exportContinue">Continue</button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Modal: Privacy Import Passphrase Prompt (Block D.4) -->
     <div class="modal fade" id="privacyImportPassphraseModal" tabindex="-1" aria-labelledby="privacyImportLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -1207,32 +1207,32 @@
     </div>
 
     <!-- Modal -->
-    <div class="modal fade" id="resetConfirmation" tabindex="-1" aria-labelledby="resetConfirmationLabel" aria-hidden="true">
+    <dialog class="mdialog" id="resetConfirmation" aria-labelledby="resetConfirmationLabel">
       <div class="modal-dialog modal-confirm">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> <span data-i18n="ui.modals.reset">Reset</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <span data-i18n="ui.modals.resetConfirmation">Are you sure you want to reset the chat?</span>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <button type="button" id="resetSaveAndConfirm" class="btn btn-sm btn-primary" style="display:none;"><i class="fas fa-bookmark"></i> <span data-i18n="ui.modals.saveToKnowledgeBase">Save to Knowledge Base</span></button>
-            <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-i18n="ui.modals.confirm">Confirm</button>
+            <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-dialog-initial data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Modal: Save current conversation to Library -->
-    <div class="modal fade" id="librarySaveModal" tabindex="-1" aria-labelledby="librarySaveModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="librarySaveModal" aria-labelledby="librarySaveModalLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="librarySaveModalLabel"><i class="fas fa-bookmark"></i> <span id="library-save-modal-title-text" data-i18n="ui.libSaveModalTitle">Save Conversation to Knowledge Base</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
@@ -1280,19 +1280,19 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary"><i class="fas fa-bookmark"></i> <span id="library-save-confirm-text" data-i18n="ui.libSaveButton">Save</span></button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
-    <div class="modal fade" id="libraryBrowseModal" tabindex="-1" aria-labelledby="libraryBrowseModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="libraryBrowseModal" aria-labelledby="libraryBrowseModalLabel">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="libraryBrowseModalLabel"><i class="fas fa-book"></i> <span data-i18n="ui.libBrowseModalTitle">Knowledge Base Browser</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
@@ -1347,10 +1347,10 @@
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Modal: Conversation Viewer (read-only verbatim conversation playback + metadata + actions) -->
-    <div class="modal fade" id="libraryViewerModal" tabindex="-1" aria-labelledby="libraryViewerModalLabel" aria-hidden="true">
+    <dialog class="mdialog" id="libraryViewerModal" aria-labelledby="libraryViewerModalLabel">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -1366,7 +1366,7 @@
                 <button type="button" class="btn btn-sm btn-secondary flex-shrink-0" id="library-viewer-rename-cancel" data-i18n="ui.libRenameCancel">Cancel</button>
               </span>
             </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div id="library-viewer-meta" class="text-secondary mb-3"></div>
@@ -1386,11 +1386,11 @@
                 <span id="library-viewer-toggle-label" data-i18n="ui.libMakeGlobal">Make Global</span>
               </button>
             </div>
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.libClose">Close</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.libClose">Close</button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Message Delete Confirmation Modal -->
     <dialog class="mdialog" id="deleteConfirmation" aria-labelledby="deleteConfirmationTitle">
@@ -1431,23 +1431,23 @@
     </dialog>
     
     <!-- App Change Confirmation Modal -->
-    <div class="modal fade" id="appChangeConfirmation" tabindex="-1" aria-labelledby="appChangeConfirmationLabel" aria-hidden="true">
+    <dialog class="mdialog" id="appChangeConfirmation" aria-labelledby="appChangeConfirmationLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="appChangeConfirmationTitle"><i class="fas fa-exchange-alt"></i> <span data-i18n="ui.modals.changeApp">Change App</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p data-i18n="ui.modals.appChangeConfirmation">Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
             <button type="button" id="appChangeConfirmed" class="btn btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Modal -->
     <!-- loading procedure is implemented in monadic.rb -->
@@ -1580,13 +1580,13 @@
       </div>
     </div>
     <%# An image of the work screen, shown larger (workbench.js). %>
-    <div class="modal fade workbench-zoom" id="workbenchZoom" tabindex="-1" aria-label="Image" data-i18n-aria-label="ui.workbench.enlarged">
+    <dialog class="mdialog workbench-zoom" id="workbenchZoom" aria-label="Image" data-i18n-aria-label="ui.workbench.enlarged">
       <div class="modal-dialog modal-dialog-centered workbench-zoom-dialog">
         <div class="modal-content">
           <img id="workbench-zoom-image" alt="">
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- FontAwesome Spinner `#spinner i`-->
     <div id="monadic-spinner" style="display: none;">

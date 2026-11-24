@@ -1881,7 +1881,7 @@ document.addEventListener("DOMContentLoaded", function () {
       updateAppSelectIcon(previousAppValue);
 
       // Show confirmation dialog
-      { const el = $id("appChangeConfirmation"); if (el) { el.dataset.newApp = selectedAppValue; bootstrap.Modal.getOrCreateInstance(el).show(); } }
+      { const el = $id("appChangeConfirmation"); if (el) { el.dataset.newApp = selectedAppValue; window.MonadicDialog.of(el).open(); } }
       return;
     }
 
@@ -1930,7 +1930,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   
   // Handle cancellation of app change
-  $on($id("appChangeConfirmation"), "hidden.bs.modal", function() {
+  $on($id("appChangeConfirmation"), "mdialog:hidden", function() {
     // If user cancelled (not confirmed), restore the original app selection
     const newAppValue = this.dataset.newApp;
     const currentAppValue = ($id("apps") || {}).value;
@@ -1947,7 +1947,7 @@ document.addEventListener("DOMContentLoaded", function () {
   $on($id("appChangeConfirmed"), "click", function() {
     const newAppValue = ($id("appChangeConfirmation") || {}).dataset.newApp;
     // Close the modal
-    bootstrap.Modal.getOrCreateInstance($id("appChangeConfirmation")).hide();
+    window.MonadicDialog.of($id("appChangeConfirmation")).close("done");
     // Apply the app change
     { const el = $id("apps"); if (el) el.value = newAppValue; }
 

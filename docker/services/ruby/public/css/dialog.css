@@ -9,6 +9,7 @@
      which Bootstrap sets on its .modal, here from the tokens. */
   dialog.mdialog {
     --bs-modal-width: 500px;
+    --bs-modal-margin: 1.75rem;
     --bs-modal-padding: 1rem;
     --bs-modal-color: var(--modal-text);
     --bs-modal-bg: var(--modal-bg);

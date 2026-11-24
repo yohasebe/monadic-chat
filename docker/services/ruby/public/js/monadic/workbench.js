@@ -2558,17 +2558,17 @@
   function enlarge(img) {
     const modal = $id('workbenchZoom');
     const big = $id('workbench-zoom-image');
-    if (!modal || !big || typeof bootstrap === 'undefined') return;
+    if (!modal || !big || !window.MonadicDialog) return;
     big.src = img.currentSrc || img.src;
     big.alt = img.alt || '';
-    bootstrap.Modal.getOrCreateInstance(modal).show();
+    window.MonadicDialog.of(modal).open(img);
   }
 
   function onZoomClick(e) {
     const target = e.target && e.target.closest ? e.target : null;
     if (!target) return;
     if (target.id === 'workbench-zoom-image') {
-      bootstrap.Modal.getOrCreateInstance($id('workbenchZoom')).hide();
+      window.MonadicDialog.of($id('workbenchZoom')).close('button');
       return;
     }
     const img = target.closest('#workbench-view .workbench-zoomable');

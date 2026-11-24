@@ -41,7 +41,7 @@
 
   function followWordTable() {
     const modalEl = document.getElementById('privacyExportModal');
-    if (!modalEl || !modalEl.classList.contains('show')) return;
+    if (!modalEl || !modalEl.open) return;
     const chat = shownChat();
     if (_chatShown !== null && chat !== _chatShown) {
       resetExportDialog();
@@ -57,9 +57,9 @@
 
   function openExportDialog() {
     const modalEl = document.getElementById('privacyExportModal');
-    if (!modalEl || !window.bootstrap || !window.bootstrap.Modal) return;
+    if (!modalEl || !window.MonadicDialog) return;
     resetExportDialog();
-    window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    window.MonadicDialog.of(modalEl).open();
   }
 
   function resetExportDialog() {

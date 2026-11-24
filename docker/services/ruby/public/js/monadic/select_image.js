@@ -589,6 +589,10 @@ function updateFileDisplay(files) {
   // Check if mask editing is enabled - separate from basic image generation
   const isMaskEditingEnabled = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp) : false;
 
+  // The remove buttons show only an icon: their name, for screen readers
+  // and as a tooltip.
+  const removeLabel = window.escapeHtml((typeof webUIi18n !== 'undefined' && webUIi18n.t('ui.removeAttachment')) || 'Remove this attachment');
+
   // Create display elements for each file
   files.forEach((file, index) => {
     if (file.source === 'url') {
@@ -597,7 +601,7 @@ function updateFileDisplay(files) {
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container attachment-chip">
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' tabindex="99">
+          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -607,7 +611,7 @@ function updateFileDisplay(files) {
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container attachment-chip">
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}</button>
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' tabindex="99">
+          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -618,7 +622,7 @@ function updateFileDisplay(files) {
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container attachment-chip">
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' tabindex="99">
+          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -654,7 +658,7 @@ function updateFileDisplay(files) {
               <i class="fas fa-brush"></i> Create Mask
             </button>` : ''
           }
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' tabindex="99">
+          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -670,7 +674,7 @@ function updateFileDisplay(files) {
     if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
       <div class="file-container video-attachment attachment-chip">
         <button type="button" class="attachment-chip-name" data-draft-attachment='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)</button>
-        <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-video' data-index='${index}' tabindex="99">
+        <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-video' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
           <i class="fas fa-times"></i>
         </button>
       </div>

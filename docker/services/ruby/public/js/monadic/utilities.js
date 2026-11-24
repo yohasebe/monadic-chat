@@ -1276,13 +1276,8 @@ function resetEvent(_event, resetToDefaultApp = false) {
       && window.libraryPanel.isCurrentAppKbSaveEligible());
     saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
   }
-  if (resetModal) {
-    bootstrap.Modal.getOrCreateInstance(resetModal).show();
-    resetModal.addEventListener("shown.bs.modal", function () {
-      const resetConfirmed = $id("resetConfirmed");
-      if (resetConfirmed) resetConfirmed.focus();
-    }, { once: true });
-  }
+  // Its Confirm is focused when it opens (data-dialog-initial).
+  if (resetModal && window.MonadicDialog) window.MonadicDialog.of(resetModal).open();
   const resetConfirmedBtn = $id("resetConfirmed");
   if (resetConfirmedBtn) {
     resetConfirmedBtn.onclick = function (event) {
@@ -1299,16 +1294,12 @@ function resetEvent(_event, resetToDefaultApp = false) {
       if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
       const m = $id("resetConfirmation");
       const open = function () { window.libraryPanel.openSaveModal(); };
-      if (m && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        const inst = bootstrap.Modal.getInstance(m);
-        if (inst) {
-          // Wait for the reset modal to fully hide before showing the
-          // save modal — overlapping shows produce stacked backdrops
-          // that block both dialogs in Bootstrap 5.
-          m.addEventListener('hidden.bs.modal', open, { once: true });
-          inst.hide();
-          return;
-        }
+      const reset = m && window.MonadicDialog ? window.MonadicDialog.of(m) : null;
+      // The save dialog opens once the reset dialog has closed (and not
+      // when its closing was refused).
+      if (reset && reset.isOpen) {
+        reset.close('button').then(function (closed) { if (closed) open(); });
+        return;
       }
       open();
     };
@@ -1475,7 +1466,7 @@ function doResetActions(resetToDefaultApp = false) {
   }
 
   const resetModalEl = $id("resetConfirmation");
-  if (resetModalEl) bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
+  if (resetModalEl && window.MonadicDialog) window.MonadicDialog.of(resetModalEl).close('done');
   // Hide main-panel immediately to prevent visual flicker while clearing its children below.
   // enterSettingsMode() will also set this (and $hide inline) as the authoritative final state.
   const drMainPanel = $id("main-panel");

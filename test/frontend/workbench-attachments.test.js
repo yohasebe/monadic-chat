@@ -299,8 +299,8 @@ describe('Attachments on the work screen', () => {
   });
 
   test('an image on the work screen is shown larger on a click or a key, and closed by a click on it', () => {
-    const modal = { show: jest.fn(), hide: jest.fn() };
-    window.bootstrap = { Modal: { getOrCreateInstance: () => modal } };
+    const modal = { open: jest.fn(), close: jest.fn() };
+    window.MonadicDialog = { of: () => modal };
     document.body.insertAdjacentHTML('beforeend',
       '<div id="workbenchZoom"><div class="modal-content"><img id="workbench-zoom-image" alt=""></div></div>');
     try {
@@ -311,15 +311,15 @@ describe('Attachments on the work screen', () => {
       expect(img.classList.contains('workbench-zoomable')).toBe(true);
       expect(img.tabIndex).toBe(0);
       img.click();
-      expect(modal.show).toHaveBeenCalledTimes(1);
+      expect(modal.open).toHaveBeenCalledTimes(1);
       expect(document.getElementById('workbench-zoom-image').getAttribute('src')).toBe(PNG);
       expect(document.getElementById('workbench-zoom-image').alt).toBe('cat.png');
       img.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      expect(modal.show).toHaveBeenCalledTimes(2);
+      expect(modal.open).toHaveBeenCalledTimes(2);
       document.getElementById('workbench-zoom-image').click();
-      expect(modal.hide).toHaveBeenCalledTimes(1);
+      expect(modal.close).toHaveBeenCalledTimes(1);
     } finally {
-      delete window.bootstrap;
+      delete window.MonadicDialog;
     }
   });
 

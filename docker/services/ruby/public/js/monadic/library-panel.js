@@ -776,20 +776,20 @@
     // record has no verbatim messages stored.
     send('LIBRARY_GET_CONVERSATION', { contents: { conversation_id: conversationId } });
 
-    var modalEl = viewerEl('libraryViewerModal');
-    if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-      // Bootstrap does not reliably route ESC to the topmost stacked
-      // modal, so layering Viewer over Browse leads to ESC closing
-      // Browse while Viewer stays. Avoid the stacking problem entirely
-      // by hiding Browse first; we'll re-open it when the Viewer is
-      // closed (see init's hidden.bs.modal listener).
-      var browseEl = document.getElementById('libraryBrowseModal');
-      if (browseEl && browseEl.classList.contains('show')) {
+    var viewer = dialogOf(viewerEl('libraryViewerModal'));
+    if (viewer) {
+      // One dialog at a time: the Viewer opens once Browse has closed, and
+      // Browse opens again when the Viewer closes (see init's mdialog:hidden
+      // listener), back on the row the Viewer was opened from.
+      var browse = dialogOf(document.getElementById('libraryBrowseModal'));
+      if (browse && browse.isOpen) {
         state.viewerOpenedFromBrowse = true;
-        var browseInst = window.bootstrap.Modal.getInstance(browseEl);
-        if (browseInst) browseInst.hide();
+        state.browseRow = document.activeElement && document.activeElement.closest
+          ? document.activeElement.closest('[data-conversation-id]') : null;
+        browse.close('button').then(function () { viewer.open(); });
+      } else {
+        viewer.open();
       }
-      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
   }
 
@@ -798,11 +798,8 @@
   function openDetailModal(conversationId) { return openViewerModal(conversationId); }
 
   function closeViewerModalIfOpen() {
-    var modalEl = viewerEl('libraryViewerModal');
-    if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-      var inst = window.bootstrap.Modal.getInstance(modalEl);
-      if (inst) inst.hide();
-    }
+    var viewer = dialogOf(viewerEl('libraryViewerModal'));
+    if (viewer) viewer.close('done');
   }
   // Legacy alias for the previously-removed detail modal close hook.
   function closeDetailModalIfOpen() { return closeViewerModalIfOpen(); }
@@ -852,9 +849,8 @@
     if (!modalEl) return;
     state.page = 0;
     rerenderAll();
-    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    }
+    var browse = dialogOf(modalEl);
+    if (browse) browse.open();
   }
 
   // ─── WebSocket message handlers ──────────────────────────────────────
@@ -916,10 +912,8 @@
       requestList();
       requestStats();
       var modalEl = (typeof document !== 'undefined') ? document.getElementById('librarySaveModal') : null;
-      if (modalEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-        var inst = window.bootstrap.Modal.getInstance(modalEl);
-        if (inst) inst.hide();
-      }
+      var saveDialog = dialogOf(modalEl);
+      if (saveDialog) saveDialog.close('done');
       var defaultLabel = data.updated
         ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
         : t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
@@ -1053,10 +1047,15 @@
 
   // ─── Save modal helpers (unchanged from prior iteration) ─────────────
 
+  // The dialog (MonadicDialog) of an element, when there are both.
+  function dialogOf(el) {
+    return el && typeof window.MonadicDialog !== 'undefined' ? window.MonadicDialog.of(el) : null;
+  }
+
   function setSavePending(pending) {
     if (typeof document === 'undefined') return;
     var btn = document.getElementById('library-save-confirm');
-    var cancelBtn = document.querySelector('#librarySaveModal [data-bs-dismiss="modal"]');
+    var cancelBtns = document.querySelectorAll('#librarySaveModal [data-dialog-close]');
     var titleInput = document.getElementById('library-save-title');
     var radios = document.querySelectorAll('input[name="librarySaveScope"]');
     if (btn) {
@@ -1069,7 +1068,7 @@
         delete btn.dataset.origLabel;
       }
     }
-    if (cancelBtn) cancelBtn.disabled = !!pending;
+    cancelBtns.forEach(function (b) { b.disabled = !!pending; });
     if (titleInput) titleInput.disabled = !!pending;
     radios.forEach(function (r) { r.disabled = !!pending; });
   }
@@ -1214,10 +1213,8 @@
     }
     if (updateNote) updateNote.style.display = isUpdate ? '' : 'none';
 
-    if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-      var inst = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-      inst.show();
-    }
+    var saveDialog = dialogOf(modalEl);
+    if (saveDialog) saveDialog.open();
   }
 
   function buildSavePayload(opts) {
@@ -1891,13 +1888,16 @@
     // This restores the navigation context the user came from.
     var viewerModalEl = document.getElementById('libraryViewerModal');
     if (viewerModalEl) {
-      viewerModalEl.addEventListener('hidden.bs.modal', function () {
+      viewerModalEl.addEventListener('mdialog:hidden', function () {
         if (!state.viewerOpenedFromBrowse) return;
         state.viewerOpenedFromBrowse = false;
-        var browseEl = document.getElementById('libraryBrowseModal');
-        if (browseEl && typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
-          window.bootstrap.Modal.getOrCreateInstance(browseEl).show();
-        }
+        var row = state.browseRow;
+        state.browseRow = null;
+        var browse = dialogOf(document.getElementById('libraryBrowseModal'));
+        if (!browse) return;
+        // Back on the row the Viewer was opened from, if it is still there.
+        browse.open(row && row.isConnected ? row : null);
+        if (row && row.isConnected && typeof row.focus === 'function') row.focus();
       });
     }
 

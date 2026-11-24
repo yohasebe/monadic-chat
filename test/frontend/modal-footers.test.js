@@ -23,7 +23,7 @@ describe('modal footers', () => {
     const tag = m[0];
     const cls = (tag.match(/class="([^"]*)"/) || [, ''])[1].split(/\s+/);
     return {
-      cancel: /data-bs-dismiss="modal"/.test(tag) && /data-i18n="ui\.cancel"/.test(tag) && cls.includes('btn-secondary'),
+      cancel: /data-bs-dismiss="modal"|data-dialog-close/.test(tag) && /data-i18n="ui\.cancel"/.test(tag) && cls.includes('btn-secondary'),
       meaning: ['btn-primary', 'btn-secondary', 'btn-danger', 'btn-warning'].find((k) => cls.includes(k)) || null,
       kinds: cls.filter((c) => /^btn-(warning|outline-)/.test(c))
     };

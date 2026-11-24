@@ -51,9 +51,9 @@ describe('WsPrivacyHandler.resetExportDialog — content default', () => {
   describe('while the dialog is open', () => {
     function openDialog(chat) {
       buildDialog();
-      const modal = document.createElement('div');
+      const modal = document.createElement('dialog');
       modal.id = 'privacyExportModal';
-      modal.className = 'show';
+      modal.setAttribute('open', '');
       document.body.appendChild(modal);
       window.WordTable = { hidesWords: () => false, chat: () => chat };
       window.WsPrivacyHandler.resetExportDialog();

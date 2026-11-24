@@ -1,0 +1,66 @@
+/*
+ * dialog.css — the Web UI's modal dialogs (monadic/dialog.js) on <dialog>:
+ * the dialog fills the window as the backdrop's area, its panel
+ * (.modal-dialog > .modal-content) centered in it. Made of tokens.css.
+ */
+@layer components {
+  /* The panel's parts keep Bootstrap's names (.modal-dialog,
+     .modal-content, .modal-header...) for now: they read these variables,
+     which Bootstrap sets on its .modal, here from the tokens. */
+  dialog.mdialog {
+    --bs-modal-width: 500px;
+    --bs-modal-padding: 1rem;
+    --bs-modal-color: var(--modal-text);
+    --bs-modal-bg: var(--modal-bg);
+    --bs-modal-border-color: var(--modal-border-color);
+    --bs-modal-border-width: var(--border-width, 1px);
+    --bs-modal-border-radius: 0.5rem;
+    --bs-modal-box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    --bs-modal-inner-border-radius: calc(0.5rem - 1px);
+    --bs-modal-header-padding-x: 1rem;
+    --bs-modal-header-padding-y: 1rem;
+    --bs-modal-header-padding: 1rem 1rem;
+    --bs-modal-header-border-color: var(--modal-divider-color);
+    --bs-modal-header-border-width: var(--border-width, 1px);
+    --bs-modal-title-line-height: 1.5;
+    --bs-modal-footer-gap: 0.5rem;
+    --bs-modal-footer-border-color: var(--modal-divider-color);
+    --bs-modal-footer-border-width: var(--border-width, 1px);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    padding: 1.75rem 0.5rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow-y: auto;
+  }
+  dialog.mdialog[open] {
+    display: block;
+  }
+  dialog.mdialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
+  dialog.mdialog > .modal-dialog {
+    max-width: var(--bs-modal-width);
+    margin: 0 auto;
+    pointer-events: auto;
+  }
+  /* Opening fades in; closing is at once (never half closed). */
+  @media (prefers-reduced-motion: no-preference) {
+    dialog.mdialog[open] > .modal-dialog {
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      @starting-style {
+        opacity: 0;
+        transform: translateY(-12px);
+      }
+    }
+  }
+  /* The page does not scroll behind an open dialog. */
+  :root[data-dialog-open] body {
+    overflow: hidden;
+  }
+}

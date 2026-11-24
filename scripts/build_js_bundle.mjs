@@ -46,6 +46,8 @@ const FILES = [
   // tooltip.js defines window.MonadicTip, used by the cards, the alerts,
   // the workflow viewer and the work screen.
   "js/monadic/tooltip.js",
+  // dialog.js defines window.MonadicDialog, the modal dialogs on <dialog>.
+  "js/monadic/dialog.js",
   "js/monadic/markdown-renderer.js",
   "js/monadic/storage-helper.js",
   "js/monadic/theme-manager.js",

@@ -109,7 +109,7 @@ function attachEventListeners(card) {
         if (takeBack) takeBack.checked = true;
 
         // Show the modal
-        if (deleteConfirmEl) bootstrap.Modal.getOrCreateInstance(deleteConfirmEl).show();
+        if (deleteConfirmEl) window.MonadicDialog.of(deleteConfirmEl).open(deleteBtn);
       } else {
         // If no message found, just delete the card
         detachEventListeners(card);

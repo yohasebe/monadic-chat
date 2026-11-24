@@ -248,6 +248,7 @@
     <%# The buttons, made of the tokens (also read by the Electron windows) %>
     <link href="css/buttons.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/tooltip.css?timestamp=<%= @timestamp %>" rel="stylesheet">
+    <link href="css/dialog.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/workflow-viewer.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/print.css?timestamp=<%= @timestamp %>" rel="stylesheet" media="print">
@@ -1392,12 +1393,12 @@
     </div>
 
     <!-- Message Delete Confirmation Modal -->
-    <div class="modal fade" id="deleteConfirmation" tabindex="-1" aria-labelledby="deleteConfirmationLabel" aria-hidden="true">
+    <dialog class="mdialog" id="deleteConfirmation" aria-labelledby="deleteConfirmationTitle">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="deleteConfirmationTitle"><i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.modals.deleteMessage">Delete Message</span></h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
@@ -1422,12 +1423,12 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-dialog-initial data-i18n="ui.cancel">Cancel</button>
             <button type="button" id="deleteConfirmButton" class="btn btn-sm btn-danger"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span data-i18n="ui.deleteConfirm">Delete</span></button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
     
     <!-- App Change Confirmation Modal -->
     <div class="modal fade" id="appChangeConfirmation" tabindex="-1" aria-labelledby="appChangeConfirmationLabel" aria-hidden="true">

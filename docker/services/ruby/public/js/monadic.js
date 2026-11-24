@@ -4489,7 +4489,7 @@ document.addEventListener("DOMContentLoaded", function () {
           else deleteMessageOnly(data.mid, index);
         });
       }
-      bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
+      window.MonadicDialog.of($id("deleteConfirmation")).close("done");
     });
   })();
 });

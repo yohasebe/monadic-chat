@@ -889,6 +889,9 @@
     lockCards(true);
     liveReset();
     applyViewMode();
+    // The answer's player is made now, on the user's press, so it is ready
+    // (and allowed to sound) when the first audio comes.
+    if (window.WsStsPlayback && typeof window.WsStsPlayback.prepare === 'function') window.WsStsPlayback.prepare(24000);
 
     let cap;
     try {

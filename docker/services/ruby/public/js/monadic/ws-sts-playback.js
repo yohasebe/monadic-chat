@@ -11,10 +11,13 @@
  * which is audible as gaps and clicks. Buffering them until the response
  * completes would remove the very latency win STS exists for.
  *
- * So chunks are scheduled ahead of time against `audioCtx.currentTime`
- * instead: each chunk is started at the exact moment the previous one
- * ends, with a small jitter buffer (LEAD_IN_SEC) absorbing network
- * variance.
+ * So chunks are scheduled ahead of time on the audio clock instead: each
+ * chunk starts at the exact frame where the previous one ends, with a small
+ * jitter buffer (LEAD_IN_SEC) absorbing network variance. One worklet node
+ * (sts-stream-worklet.js) plays them, in an AudioContext of their own at the
+ * stream's rate: the chunks are written into one sound, sample for sample.
+ * A node started per chunk (an AudioBufferSourceNode each) is heard in
+ * Electron as a buzz or a pop at the joins, though the schedule is the same.
  *
  * Wire contract:
  *   {"type":"sts_audio_delta","turn_id":..,"content":<base64 PCM16 mono LE>,"sample_rate":24000}
@@ -36,8 +39,9 @@
   // cancelled turn are still recognised without growing without bound.
   const MAX_REMEMBERED_TURNS = 16;
 
-  // Playback position in AudioContext time. Only ever moves forward.
-  let nextStartTime = 0;
+  // Where the next chunk of the timeline starts, in frames of the player's
+  // clock (0: no timeline). Only ever moves forward.
+  let nextStartFrame = 0;
   let activeTurnId = null;
   // The turn the timeline was last anchored for. A turn's response can end
   // (finishTurn) and the same turn go on with another one (an answer after
@@ -54,8 +58,9 @@
   // more chunks of the segment are scheduled ahead).
   const segmentTimelines = new Map();
 
-  // turnId -> Set of AudioBufferSourceNode still scheduled or playing.
-  const scheduledSources = new Map();
+  // turnId -> [start, end] (seconds on the player's clock) of each chunk
+  // given to the player and not yet heard to its end.
+  const scheduledSpans = new Map();
 
   // turnId -> the last byte of a chunk of an odd length: a sample is two
   // bytes, and a stream split between them would play every later sample
@@ -89,23 +94,37 @@
     while (cancelledTurns.length > MAX_REMEMBERED_TURNS) cancelledTurns.shift();
   }
 
-  // ── AudioContext ───────────────────────────────────────────────────
-  function ensureAudioContext() {
-    if (!window.audioCtx) {
+  // ── The player ─────────────────────────────────────────────────────
+  const WORKLET_URL = '/js/monadic/sts-stream-worklet.js';
+  let playCtx = null;
+  let player = null;
+  // Messages for the player given before it was ready, in order.
+  const pending = [];
+
+  // The player's AudioContext (made at the rate of the first chunk), or
+  // null where there is none. Its worklet node is made once the module is
+  // loaded; what is given meanwhile waits (flushPending).
+  function ensurePlayer(sampleRate) {
+    if (!playCtx) {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) return null;
       try {
-        window.audioCtx = new AudioContextClass();
+        playCtx = new AudioContextClass({ sampleRate: sampleRate });
       } catch (e) {
-        console.error("[STS] Failed to create AudioContext:", e);
-        return null;
+        try {
+          playCtx = new AudioContextClass();
+        } catch (e2) {
+          console.error("[STS] Failed to create AudioContext:", e2);
+          return null;
+        }
       }
+      loadPlayer(playCtx);
     }
     // A suspended context does not advance currentTime, so chunks scheduled
     // while suspended stay correctly ordered and play once it resumes.
-    if (window.audioCtx.state === 'suspended' && typeof window.audioCtx.resume === 'function') {
+    if (playCtx.state === 'suspended' && typeof playCtx.resume === 'function') {
       try {
-        const p = window.audioCtx.resume();
+        const p = playCtx.resume();
         if (p && typeof p.catch === 'function') {
           p.catch(function(err) { console.warn("[STS] AudioContext resume failed:", err); });
         }
@@ -113,7 +132,65 @@
         console.warn("[STS] AudioContext resume threw:", e);
       }
     }
-    return window.audioCtx;
+    return playCtx;
+  }
+
+  function loadPlayer(ctx) {
+    if (!ctx.audioWorklet || typeof window.AudioWorkletNode !== 'function') {
+      console.error("[STS] This browser cannot play the stream (no AudioWorklet).");
+      return;
+    }
+    ctx.audioWorklet.addModule(WORKLET_URL).then(function() {
+      if (ctx !== playCtx) return;
+      player = new window.AudioWorkletNode(ctx, 'sts-stream-player', { numberOfInputs: 0, outputChannelCount: [1] });
+      player.connect(ctx.destination);
+      flushPending(ctx);
+    }, function(err) {
+      console.error("[STS] Failed to load the stream player:", err);
+    });
+  }
+
+  function post(message, transfer) {
+    if (player) player.port.postMessage(message, transfer || []);
+    else pending.push([message, transfer]);
+  }
+
+  // What was given before the player was ready starts where it was meant
+  // to, or, when that has passed, the lead-in from now (the whole timeline
+  // moves on together, so its chunks still join).
+  function flushPending(ctx) {
+    const adds = pending.filter(function(entry) { return entry[0].type === 'add'; });
+    if (adds.length > 0) {
+      const first = Math.min.apply(null, adds.map(function(entry) { return entry[0].start; }));
+      const shift = Math.ceil((ctx.currentTime + LEAD_IN_SEC) * ctx.sampleRate) - first;
+      if (shift > 0) {
+        adds.forEach(function(entry) { entry[0].start += shift; });
+        moveTimeline(shift, ctx.sampleRate);
+      }
+    }
+    pending.splice(0).forEach(function(entry) { player.port.postMessage(entry[0], entry[1] || []); });
+  }
+
+  function moveTimeline(frames, rate) {
+    const seconds = frames / rate;
+    if (nextStartFrame > 0) nextStartFrame += frames;
+    scheduledSpans.forEach(function(spans) { spans.forEach(function(span) { span[0] += seconds; span[1] += seconds; }); });
+    segmentTimelines.forEach(function(seg) { seg.start += seconds; seg.end += seconds; });
+  }
+
+  // Samples at rate `from` taken to rate `to` (straight lines between
+  // samples): only for a chunk at another rate than the player's.
+  function resample(samples, from, to) {
+    if (from === to) return samples;
+    const length = Math.max(1, Math.round(samples.length * to / from));
+    const out = new Float32Array(length);
+    for (let i = 0; i < length; i++) {
+      const at = i * from / to;
+      const a = Math.floor(at);
+      const b = Math.min(a + 1, samples.length - 1);
+      out[i] = samples[a] + (samples[b] - samples[a]) * (at - a);
+    }
+    return out;
   }
 
   // ── PCM16 LE → Float32 ─────────────────────────────────────────────
@@ -134,35 +211,21 @@
     return bytes;
   }
 
-  // ── Source bookkeeping ─────────────────────────────────────────────
-  function trackSource(turnId, source) {
-    let set = scheduledSources.get(turnId);
-    if (!set) {
-      set = new Set();
-      scheduledSources.set(turnId, set);
-    }
-    set.add(source);
-    source.onended = function() {
-      set.delete(source);
-      if (set.size === 0) scheduledSources.delete(turnId);
-    };
+  // ── What is scheduled ──────────────────────────────────────────────
+  function liveSpans(turnId) {
+    const spans = scheduledSpans.get(turnId);
+    if (!spans) return [];
+    const now = playCtx ? playCtx.currentTime : 0;
+    const left = spans.filter(function(span) { return span[1] > now; });
+    if (left.length === 0) scheduledSpans.delete(turnId);
+    else scheduledSpans.set(turnId, left);
+    return left;
   }
 
   function stopSources(turnId) {
-    const set = scheduledSources.get(turnId);
-    if (!set) return;
-    set.forEach(function(source) {
-      try {
-        // Detach first: onended fires on stop() too, and we are discarding
-        // this turn wholesale rather than reacting per source.
-        source.onended = null;
-        source.stop();
-      } catch (e) {
-        // stop() throws if the source already ended.
-      }
-    });
-    set.clear();
-    scheduledSources.delete(turnId);
+    if (!scheduledSpans.has(turnId)) return;
+    post({ type: 'drop', turn: turnId });
+    scheduledSpans.delete(turnId);
   }
 
   // ── scheduleChunk ──────────────────────────────────────────────────
@@ -193,7 +256,7 @@
     }
     if (pcmBytes.length < 2) return false;
 
-    const ctx = ensureAudioContext();
+    const ctx = ensurePlayer(sampleRate);
     if (!ctx) return false;
 
     // A new turn starts its own timeline; do not inherit the previous one's
@@ -207,58 +270,45 @@
     // (otherwise two responses talk over each other), so
     // the switch itself silences every other turn's scheduled tail.
     if (turnId !== activeTurnId) {
-      Array.from(scheduledSources.keys()).forEach(function(id) {
+      Array.from(scheduledSpans.keys()).forEach(function(id) {
         if (id !== turnId) stopSources(id);
       });
       // The same turn going on keeps its timeline (its next response plays
       // after the one still being heard); another turn starts its own.
-      if (turnId === null || turnId !== timelineTurnId) nextStartTime = 0;
+      if (turnId === null || turnId !== timelineTurnId) nextStartFrame = 0;
       activeTurnId = turnId;
       timelineTurnId = turnId;
     }
 
-    const samples = pcm16ToFloat32(pcmBytes);
+    const rate = ctx.sampleRate;
+    const samples = resample(pcm16ToFloat32(pcmBytes), sampleRate, rate);
     if (samples.length === 0) return false;
-
-    let buffer;
-    try {
-      buffer = ctx.createBuffer(1, samples.length, sampleRate);
-      buffer.getChannelData(0).set(samples);
-    } catch (e) {
-      console.error("[STS] Failed to create audio buffer:", e);
-      return false;
-    }
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
 
     // A chunk goes right after the one before it while that one has not
     // ended (a gap there is heard as a click; audio that comes just in time
     // would get one at every chunk). Only a timeline already passed (an
     // underrun, or a new timeline) starts after the lead-in from now — never
-    // rewind nextStartTime, since start() with a past time plays immediately
-    // and would collapse every remaining chunk into one instant.
-    const startAt = nextStartTime > ctx.currentTime ? nextStartTime : ctx.currentTime + LEAD_IN_SEC;
-
-    try {
-      source.start(startAt);
-    } catch (e) {
-      // Track only after a successful start: a source that never started
-      // cannot be stopped, so registering it first would leave an entry that
-      // throws on every later cancel.
-      console.error("[STS] Failed to start audio source:", e);
-      return false;
-    }
-    trackSource(turnId, source);
-    nextStartTime = startAt + (samples.length / sampleRate);
+    // rewind the timeline, since a chunk given for frames already played is
+    // cut and would collapse every remaining chunk into one instant.
+    const nowFrame = Math.round(ctx.currentTime * rate);
+    const startFrame = nextStartFrame > nowFrame ? nextStartFrame : nowFrame + Math.round(LEAD_IN_SEC * rate);
+    // The length is taken first: handing the samples over (a transfer)
+    // leaves this array empty.
+    const length = samples.length;
+    post({ type: 'add', turn: turnId, start: startFrame, samples: samples }, [samples.buffer]);
+    nextStartFrame = startFrame + length;
+    const startAt = startFrame / rate;
+    const endAt = nextStartFrame / rate;
+    const spans = scheduledSpans.get(turnId) || [];
+    spans.push([startAt, endAt]);
+    scheduledSpans.set(turnId, spans);
 
     // Extend the segment's playback range on the audio clock.
     const segId = (segmentId === null || segmentId === undefined || segmentId === '')
       ? turnId : String(segmentId);
     if (segId !== null) {
       const seg = segmentTimelines.get(segId) || { turnId: turnId, start: startAt, end: startAt };
-      seg.end = startAt + (samples.length / sampleRate);
+      seg.end = endAt;
       segmentTimelines.set(segId, seg);
     }
 
@@ -286,19 +336,19 @@
     });
     if (turnId === activeTurnId) {
       activeTurnId = null;
-      nextStartTime = 0;
+      nextStartFrame = 0;
     }
     if (turnId === timelineTurnId) timelineTurnId = null;
   }
 
   function stopAll() {
-    Array.from(scheduledSources.keys()).forEach(stopSources);
-    scheduledSources.clear();
+    if (scheduledSpans.size > 0) post({ type: 'dropAll' });
+    scheduledSpans.clear();
     segmentTimelines.clear();
     leftovers.clear();
     activeTurnId = null;
     timelineTurnId = null;
-    nextStartTime = 0;
+    nextStartFrame = 0;
   }
 
   // What is audible RIGHT NOW, as a segment-local playback
@@ -307,7 +357,7 @@
   // do not advance". offset/total are seconds within the segment's
   // scheduled range; total grows as chunks arrive ahead of realtime.
   function getPlaybackPosition() {
-    const ctx = window.audioCtx;
+    const ctx = playCtx;
     if (!ctx) return null;
     const now = ctx.currentTime;
     let best = null;
@@ -354,18 +404,19 @@
     handleStsAudioDone: handleStsAudioDone,
     handleStsAudioCancelled: handleStsAudioCancelled,
     getPlaybackPosition: getPlaybackPosition,
-    // True while any turn still has scheduled/playing sources. Used by the
+    // True while any turn still has audio scheduled or playing. Used by the
     // Live Conversation echo gate (mic chunks are energy-gated while the
     // assistant is audible) — arrival-time flags are wrong for this because
     // deltas arrive faster than realtime and playback outlives them.
-    isPlaying: function() { return scheduledSources.size > 0; },
+    isPlaying: function() {
+      return Array.from(scheduledSpans.keys()).some(function(id) { return liveSpans(id).length > 0; });
+    },
+    // Makes the player ready (its worklet loaded) before the first chunk.
+    prepare: function(sampleRate) { return !!ensurePlayer(sampleRate || 24000); },
     // Diagnostics / tests
-    getNextStartTime: function() { return nextStartTime; },
+    getNextStartTime: function() { return playCtx && nextStartFrame > 0 ? nextStartFrame / playCtx.sampleRate : 0; },
     getActiveTurnId: function() { return activeTurnId; },
-    getScheduledCount: function(turnId) {
-      const set = scheduledSources.get(normalizeTurnId(turnId));
-      return set ? set.size : 0;
-    }
+    getScheduledCount: function(turnId) { return liveSpans(normalizeTurnId(turnId)).length; }
   };
 
   window.WsStsPlayback = ns;

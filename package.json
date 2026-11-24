@@ -218,9 +218,9 @@
   },
   "overrides": {
     "semver": "^7.5.3",
-    "minimatch": "^10.2.1",
+    "minimatch": "^11.0.1",
     "js-yaml": "^4.3.2",
-    "glob": "^10.5.0",
+    "glob": "^14.0.2",
     "@xmldom/xmldom": "^0.8.15",
     "ip-address": "^10.3.1",
     "brace-expansion": "^5.0.9",

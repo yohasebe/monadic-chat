@@ -68,7 +68,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "optimist"
   spec.add_dependency "ostruct"
   # Conversation history store
-  spec.add_dependency "sqlite3", "2.9.6"
+  spec.add_dependency "sqlite3", "2.10.2"
   spec.add_dependency "twitter_cldr"
   spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "rake"

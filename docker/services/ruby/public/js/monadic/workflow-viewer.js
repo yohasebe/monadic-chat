@@ -157,8 +157,10 @@ const WorkflowViewer = (function () {
     container.innerHTML = '';
     createGraph();
     renderGraph(buildGraphData(currentData, getExpanded()), !!savedScale);
-    // Placed again at the preserved zoom level
-    if (savedScale && graph) placeGraph(savedScale);
+    // A diagram that grew or shrank takes the inline panel's new height
+    // (and is fitted to it); else it is placed again at the preserved zoom.
+    if (inlineHeightStale()) applyInlineHeight();
+    else if (savedScale && graph) placeGraph(savedScale);
   }
 
   // Shows the diagram at scale: centred where it fits, from its top-left
@@ -1020,8 +1022,9 @@ const WorkflowViewer = (function () {
   }
 
   // ── Inline-mode height helpers ───────────────────────────────
-  // Inline mode targets the maximum viewport height that still leaves the
-  // Start Session button visible with breathing room. The user can override
+  // Inline mode is as tall as the diagram needs at the size it is shown
+  // (its text no larger than the page's), within the viewport height that
+  // still leaves the Start Session button visible. The user can override
   // with a vertical drag on the corner grip; that override is persisted.
 
   var INLINE_HEIGHT_KEY = 'wv-inline-height';
@@ -1059,12 +1062,30 @@ const WorkflowViewer = (function () {
     return Math.max(MIN_PANEL_H, available);
   }
 
+  // The height the panel needs to show the whole diagram as
+  // fitGraphToContainer shows it at the panel's width: the diagram, its
+  // margins, and the panel's header and legend. null before it is drawn.
+  function contentHeight() {
+    if (!graph || !container || !panelEl || container.clientWidth === 0) return null;
+    var view = graph.getView();
+    var scale = view.scale || 1;
+    var bounds = graph.getGraphBounds();
+    if (!bounds || bounds.width === 0 || bounds.height === 0) return null;
+    var pad = 12;
+    var shown = Math.min((container.clientWidth - pad * 2) / (bounds.width / scale), pageTextScale());
+    var chrome = panelEl.getBoundingClientRect().height - container.clientHeight;
+    return Math.ceil((bounds.height / scale) * shown + pad * 4 + chrome);
+  }
+
   // The height the inline panel takes where it is now: what the user set,
-  // within what the viewport leaves above the Start Session button.
+  // or what the diagram needs, within what the viewport leaves above the
+  // Start Session button.
   function inlineHeight() {
     var available = computeInlineHeight();
     var saved = loadInlineHeight();
-    return (saved && saved > 0) ? Math.min(saved, available) : available;
+    if (saved && saved > 0) return Math.min(saved, available);
+    var needed = contentHeight();
+    return needed ? Math.max(MIN_PANEL_H, Math.min(needed, available)) : available;
   }
 
   // True when the inline panel is shown at another height than its place

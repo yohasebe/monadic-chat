@@ -233,6 +233,11 @@ module Monadic
                     end
           seen(item, 'pdf', file['name'], file['path'], file['sha256'], **content)
         when 'text'
+          if Monadic::Workspace::SharedFolderPreview.render_for(file['path']) == 'whiteboard'
+            bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
+            return seen(item, 'whiteboard', file['name'], file['path'], file['sha256'],
+                        **whiteboard_seen(board, selection, caller, deadline, bytes))
+          end
           lines = scope == 'visible' ? lines_in_view(board, selection, caller, deadline) : nil
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
           content = lines ? visible_text(bytes, **lines) : whole_text(bytes)
@@ -304,6 +309,29 @@ module Monadic
         { mark: mark, image: image && same_shape?(image, original) ? image : nil }
       rescue Capture::Failed
         {}
+      end
+
+      # A whiteboard: the picture of the whole board as the tab draws it, and
+      # the texts written on it, read from the file. { image:, texts:,
+      # shapes: } (image nil when the tab could not give one).
+      def whiteboard_seen(board, selection, caller, deadline, bytes)
+        data = JSON.parse(bytes.to_s)
+        shapes = data.is_a?(Hash) && data['shapes'].is_a?(Array) ? data['shapes'].select { |s| s.is_a?(Hash) } : []
+        texts = shapes.filter_map { |s| s['text'] if s['type'] == 'text' && s['text'].is_a?(String) }
+        image = begin
+          item = selection.item
+          answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
+                                   request_id: caller.request_id, item_id: item['id'],
+                                   version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['image'],
+                                   deadline: deadline, valid: still(board, selection, caller))
+          drawn, = Pdf.image_of(answer)
+          drawn if drawn && (drawn.width * 1000 - drawn.height * 1600).abs <= 16 * drawn.height
+        rescue Capture::Failed
+          nil
+        end
+        { image: image, texts: texts.first(200), shapes: shapes.group_by { |s| s['type'].to_s }.transform_values(&:size) }
+      rescue JSON::ParserError
+        raise Refused.new('unsupported_kind', 'the whiteboard could not be read')
       end
 
       # Whether two images have the same proportions (within 1%).
@@ -420,6 +448,8 @@ module Monadic
         if seen[:kind] == 'pdf'
           out.merge!(pdf_result(seen))
           out['image'] = NO_IMAGE if seen[:image_withheld]
+        elsif seen[:kind] == 'whiteboard'
+          out.merge!(whiteboard_result(seen))
         elsif seen[:image_withheld]
           out['image'] = NO_IMAGE
           out['marked'] = image_marked(seen) if seen[:mark]
@@ -448,6 +478,18 @@ module Monadic
           out['text'] = seen[:text]
         end
         JSON.generate(out)
+      end
+
+      # What a look at a whiteboard gives: the picture (attached, withheld or
+      # not had), the shapes by type, and the texts written on it.
+      def whiteboard_result(seen)
+        out = { 'image' => if seen[:image_withheld] then NO_IMAGE
+                           elsif seen[:image] then 'A picture of the whole whiteboard, as the tab draws it, is attached after this result.'
+                           else 'No picture of the whiteboard could be had now; only its texts are given.'
+                           end,
+                'shapes' => seen[:shapes], 'texts' => seen[:texts] }
+        out['empty'] = true if seen[:shapes].empty?
+        out
       end
 
       # Where the user marked an image, and whether the mark is drawn on the

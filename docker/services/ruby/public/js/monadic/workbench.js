@@ -492,6 +492,7 @@
     const key = drawKey(item);
     const url = assets[item.id];
     const same = drawnBody && drawnBody.key === key;
+    if (same && drawnBody.whiteboard) syncWhiteboard(drawnBody, item);
     if (same && !(drawnBody.failed && drawnBody.url !== url)) return drawnBody;
     const resumeAt = same && drawnBody.node && typeof drawnBody.node.currentTime === 'number' ? drawnBody.node.currentTime : 0;
     // A medium that failed again with a fresh address is not asked for again.
@@ -500,6 +501,133 @@
     letGo(drawnBody);
     drawnBody = drawn;
     return drawn;
+  }
+
+  // ---- the whiteboard -------------------------------------------------
+
+  // How long the user stops drawing before the board is saved.
+  const WHITEBOARD_SAVE_DELAY = 1000;
+  let whiteboardRequest = 0;
+  // The whiteboard drawings waiting for the server's answer to a save, by
+  // its request number.
+  const whiteboardSaves = new Map();
+
+  function isWhiteboard(item) {
+    return !!(item && item.kind === 'file' && item.preview === 'text' && item.render === 'whiteboard');
+  }
+
+  // A whiteboard: its board, drawn from the file and saved as the user
+  // draws (WORKBENCH_WHITEBOARD_SAVE).
+  function whiteboardBody(item, drawn) {
+    const box = element('div', 'workbench-whiteboard');
+    drawn.whiteboardItem = item.id;
+    drawn.whiteboardVersion = item.version || item.sha256 || '';
+    // Drawn, not lines: what is in view is not told by line.
+    drawn.mode = 'drawn';
+    const source = { url: renders[item.id] || drawn.url,
+      get failed() { return drawn.failed; }, set failed(value) { drawn.failed = value; } };
+    fetchInto(box, item, source, async (response) => {
+      const text = await response.text();
+      if (drawn.gone) return;
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (_) {
+        data = null;
+      }
+      drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next) });
+      drawn.loaded = true;
+    });
+    return box;
+  }
+
+  function whiteboardChanged(drawn, data) {
+    drawn.whiteboardPending = data;
+    clearTimeout(drawn.whiteboardTimer);
+    drawn.whiteboardTimer = setTimeout(() => saveWhiteboardNow(drawn), WHITEBOARD_SAVE_DELAY);
+  }
+
+  // Sends the board waiting to be saved, unless a save of it is still on
+  // its way (it is sent when that one is answered, from the new version).
+  function saveWhiteboardNow(drawn) {
+    clearTimeout(drawn.whiteboardTimer);
+    drawn.whiteboardTimer = null;
+    if (!drawn.whiteboardPending || drawn.whiteboardSaving || typeof window.safeWsSend !== 'function') return;
+    const data = drawn.whiteboardPending;
+    drawn.whiteboardPending = null;
+    drawn.whiteboardSaving = true;
+    whiteboardRequest += 1;
+    whiteboardSaves.set(whiteboardRequest, drawn);
+    window.safeWsSend({ message: 'WORKBENCH_WHITEBOARD_SAVE', request: whiteboardRequest, item_id: drawn.whiteboardItem,
+                        version: drawn.whiteboardVersion, data: data });
+  }
+
+  // The server's answer to a new whiteboard or a save.
+  function onWhiteboard(data) {
+    const drawn = data && whiteboardSaves.get(data.request);
+    if (!drawn) {
+      if (data && data.status === 'refused') whiteboardRefused(data.reason);
+      return;
+    }
+    whiteboardSaves.delete(data.request);
+    drawn.whiteboardSaving = false;
+    if (data.status === 'saved' && typeof data.version === 'string') {
+      drawn.whiteboardVersion = data.version;
+      if (drawn.whiteboardPending && !drawn.gone) saveWhiteboardNow(drawn);
+      return;
+    }
+    whiteboardRefused(data.reason);
+    // Saved meanwhile from elsewhere: the board as it is now is drawn again.
+    if (data.reason === 'changed' && !drawn.gone) {
+      drawn.whiteboardPending = null;
+      drawn.whiteboardVersion = '';
+      askView(true);
+    }
+  }
+
+  function whiteboardRefused(reason) {
+    if (typeof window.setAlert !== 'function') return;
+    const text = reason === 'changed'
+      ? t('ui.workbench.wbChanged', 'The whiteboard was changed elsewhere; it is shown as it is now.')
+      : t('ui.workbench.wbNotSaved', 'The whiteboard could not be saved.');
+    window.setAlert(text, 'warning');
+  }
+
+  // The view says the whiteboard has a version this page did not save (in
+  // another tab): it is read and drawn again, unless the user is drawing.
+  function syncWhiteboard(drawn, item) {
+    const version = item.version || item.sha256 || '';
+    if (!drawn.whiteboard || version === drawn.whiteboardVersion || drawn.whiteboardSaving || drawn.whiteboardPending) return;
+    drawn.whiteboardVersion = version;
+    const url = renders[item.id] || assets[item.id];
+    if (!url || typeof fetch !== 'function') return;
+    fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => { if (data && !drawn.gone && drawn.whiteboardVersion === version) drawn.whiteboard.load(data); })
+      .catch(() => {});
+  }
+
+  // A capture of a whiteboard: the whole board painted, when an image is
+  // asked for.
+  function whiteboardAnswer(data, handle) {
+    const out = { range: {}, note: null };
+    const wants = Array.isArray(data.wants) ? data.wants : [];
+    if (!wants.includes('image')) return out;
+    const { WIDTH, HEIGHT } = window.WorkbenchWhiteboard;
+    const board = document.createElement('canvas');
+    board.width = WIDTH;
+    board.height = HEIGHT;
+    const context = board.getContext('2d');
+    if (!context) return Object.assign(out, { image_note: 'failed' });
+    handle.paint(context, WIDTH, HEIGHT);
+    return Object.assign(out, drawnPng(board, 0, 0, WIDTH, HEIGHT));
+  }
+
+  // A new whiteboard for this chat (the server makes it and shows it).
+  function newWhiteboard() {
+    if (typeof window.safeWsSend !== 'function') return;
+    whiteboardRequest += 1;
+    window.safeWsSend({ message: 'WORKBENCH_WHITEBOARD_NEW', request: whiteboardRequest });
   }
 
   // Whether the item is a text file the work screen can draw.
@@ -521,6 +649,9 @@
   // What is drawn is kept while the item, its version and how it is shown
   // stay the same.
   function drawKey(item) {
+    // A whiteboard stays drawn across its versions (each save makes one):
+    // the board takes a new version in place (syncWhiteboard).
+    if (isWhiteboard(item)) return `${item.id}|whiteboard`;
     const mode = modeOf(item);
     return mode ? `${versionKey(item)}|${mode}` : versionKey(item);
   }
@@ -589,6 +720,7 @@
       media.src = url;
       return media;
     }
+    if (isWhiteboard(item) && window.WorkbenchWhiteboard) return whiteboardBody(item, drawn);
     if (kind === 'text' && drawable(item)) return drawableBody(item, drawn);
     if (kind === 'text') return textBody(item, drawn);
     if (kind === 'pdf') return pdfBody(item, drawn);
@@ -830,6 +962,10 @@
     drawn.gone = true;
     if (drawn.pdf) drawn.pdf.dispose();
     if (drawn.image) drawn.image.dispose();
+    if (drawn.whiteboard) {
+      saveWhiteboardNow(drawn);
+      drawn.whiteboard.dispose();
+    }
     if (drawn.render) drawn.render.dispose();
     if (drawn.player) drawn.player.stop();
   }
@@ -1836,9 +1972,10 @@
       return { range: null, note: 'selection_changed' };
     }
     const wants = Array.isArray(data.wants) ? data.wants : [];
-    const drawn = drawnBody && drawnBody.key === `${data.item_id}|${data.version}` ? drawnBody : null;
+    const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     if (drawn && drawn.pdf && now.range && Number.isInteger(now.range.page)) return pdfAnswer(data, drawn);
     if (drawn && drawn.image) return imageAnswer(data, drawn.image);
+    if (drawn && drawn.whiteboard) return whiteboardAnswer(data, drawn.whiteboard);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {
       const out = { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };
@@ -2205,6 +2342,7 @@
   const carriesFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
 
   function wirePut() {
+    $on($id('workbench-new-whiteboard'), 'click', newWhiteboard);
     const button = $id('workbench-put');
     const input = $id('workbench-put-input');
     const pane = $id('work-screen-pane');
@@ -2713,7 +2851,7 @@
   window.Workbench = {
     onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint,
+    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

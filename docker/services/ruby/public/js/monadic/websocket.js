@@ -927,6 +927,12 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // The answer to a new whiteboard or a save of one.
+      case "workbench_whiteboard": {
+        if (window.Workbench && typeof window.Workbench.onWhiteboard === 'function') window.Workbench.onWhiteboard(data);
+        break;
+      }
+
       // The AI pointed at a part of what this tab shows.
       case "workbench_point": {
         if (window.Workbench && typeof window.Workbench.onPoint === 'function') window.Workbench.onPoint(data);

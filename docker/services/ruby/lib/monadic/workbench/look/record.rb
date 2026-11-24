@@ -10,7 +10,7 @@ module Monadic
       module Record
         LIMIT = 8
         STATES = %w[acquired embedded sent unsent refused unknown].freeze
-        KINDS = %w[image text pdf browser].freeze
+        KINDS = %w[image text pdf browser whiteboard].freeze
         PARTS = %w[image page_text selection].freeze
         CROP = %w[x y width height sent_width sent_height].freeze
         # Why a part of a look could not be had (Look::Pdf).

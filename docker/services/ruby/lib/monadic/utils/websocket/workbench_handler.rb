@@ -6,6 +6,7 @@ require_relative '../../workbench/look/record'
 require_relative '../../workbench/document'
 require_relative '../../workbench/picture'
 require_relative '../../workbench/point'
+require_relative '../../workbench/whiteboard'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
@@ -184,6 +185,39 @@ module WebSocketHelper
     end
     workbench_deliver(connection).call(result)
     send_workbench_view(connection, session) unless result['status'] == 'refused'
+  end
+
+  # A new whiteboard for this tab's chat, or the board of one saved as the
+  # page drew it (Workbench::Whiteboard). The page is told how it went, with
+  # the item and its version; the board's other tabs are told it changed.
+  def handle_ws_workbench_whiteboard(connection, obj, session)
+    reply = { 'type' => 'workbench_whiteboard', 'request' => obj['request'].is_a?(Integer) ? obj['request'] : nil }
+    tab, generation = workbench_connection(session).values_at(:tab, :generation)
+    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
+    unless chat_id && WORKBENCH_LIVE.call(tab) == generation
+      return send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'not_allowed'))
+    end
+
+    whiteboard = Monadic::Workbench::Whiteboard
+    origin = { actor: :user, source: :panel, tab: tab, generation: generation }
+    epoch = Monadic::Workspace::Chats.epoch(chat_id)
+    app_name = session.dig(:parameters, 'app_name').to_s
+    item = if obj['message'] == 'WORKBENCH_WHITEBOARD_NEW'
+             whiteboard.create(chat_id, app_name: app_name, origin: origin, epoch: epoch)
+           else
+             whiteboard.save(chat_id, item_id: obj['item_id'], version: obj['version'], data: obj['data'],
+                                      app_name: app_name, origin: origin, epoch: epoch)
+           end
+    send_to_client(connection, reply.merge('status' => 'saved', 'item_id' => item['id'],
+                                           'version' => item.dig('file', 'sha256')))
+    send_workbench_view(connection, session)
+  rescue Monadic::Workbench::Whiteboard::Refused, Monadic::Workbench::Board::Refused => e
+    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => e.message))
+  rescue Monadic::Workbench::FileItem::Busy
+    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'busy'))
+  rescue Monadic::Workspace::Folders::Unavailable, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] whiteboard not saved: #{e.class}" }
+    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'unwritable'))
   end
 
   def handle_ws_workbench_select(connection, obj, session)

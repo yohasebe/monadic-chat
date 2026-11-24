@@ -830,7 +830,7 @@
 
   // ---- drawing -------------------------------------------------------------
 
-  const KINDS = ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite', 'notebook', 'drawio', 'abc'];
+  const KINDS = ['markdown', 'diagram', 'table', 'svg', 'html', 'vega_lite', 'notebook', 'drawio', 'abc', 'whiteboard'];
 
   function draw(box, kind, text, options) {
     const ext = (options && options.name ? String(options.name).toLowerCase() : '');
@@ -853,6 +853,8 @@
       else if (kind === 'svg') work = showing(text);
       else if (kind === 'html') work = drawPage(box, text);
       else if (kind === 'notebook') work = drawNotebook(box, text);
+      // A whiteboard shown, not edited (the work screen edits it).
+      else if (kind === 'whiteboard') work = showing(window.WorkbenchWhiteboard.svgText(JSON.parse(text)));
       else if (kind === 'diagram' || kind === 'drawio' || kind === 'abc') work = frameSvg(kind, text).then(showing);
       else work = chartSvg(text).then(showing);
     } catch (e) {

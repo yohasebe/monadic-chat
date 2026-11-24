@@ -1830,6 +1830,110 @@ describe('Workbench', () => {
     });
   });
 
+  describe('a whiteboard', () => {
+    const wb = { id: 'i_w', kind: 'file', actor: 'user', name: 'whiteboard-1.wb.json', path: 'c/whiteboards/whiteboard-1.wb.json',
+      preview: 'text', render: 'whiteboard', sha256: 'a'.repeat(64), version: 'a'.repeat(64), status: 'ok' };
+    const flushAll = async () => { for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0)); };
+    let fetched;
+
+    beforeEach(async () => {
+      layout.pane = 'work';
+      jest.isolateModules(() => {
+        require(js('monadic/workbench-pointer.js'));
+        require(js('monadic/workbench-whiteboard.js'));
+      });
+      fetched = [];
+      global.fetch = jest.fn((url) => {
+        fetched.push(url);
+        return Promise.resolve({ ok: true, status: 200, text: async () => '{"shapes":[{"id":"a","type":"line","x1":0,"y1":0,"x2":10,"y2":10}]}',
+          json: async () => ({ shapes: [] }), headers: { get: () => null } });
+      });
+      view([wb], { renders: { i_w: '/workbench/asset/render-i_w' }, selected: 'i_w', selection_serial: 2 });
+      await flushAll();
+      const svgEl = document.querySelector('#workbench-view svg');
+      svgEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 500 });
+    });
+
+    afterEach(() => {
+      delete window.WorkbenchWhiteboard;
+      delete global.fetch;
+      jest.useRealTimers();
+    });
+
+    function drawStroke() {
+      const svgEl = document.querySelector('#workbench-view svg');
+      [['pointerdown', 10, 10], ['pointermove', 40, 40], ['pointerup', 40, 40]].forEach(([type, x, y]) => {
+        svgEl.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true }));
+      });
+    }
+
+    const saves = () => sent.filter((x) => x.payload.message === 'WORKBENCH_WHITEBOARD_SAVE').map((x) => x.payload);
+
+    test('draws the board from the file, and saves it a moment after the user stops drawing', async () => {
+      expect(fetched).toContain('/workbench/asset/render-i_w');
+      expect(document.querySelectorAll('#workbench-view .workbench-whiteboard-shape')).toHaveLength(1);
+      jest.useFakeTimers();
+      drawStroke();
+      expect(saves()).toHaveLength(0);
+      jest.advanceTimersByTime(1000);
+      expect(saves()).toHaveLength(1);
+      expect(saves()[0]).toMatchObject({ item_id: 'i_w', version: 'a'.repeat(64) });
+      expect(saves()[0].data.shapes.map((sh) => sh.type)).toEqual(['line', 'pen']);
+    });
+
+    test('saves what was drawn meanwhile from the version the server answered, one save at a time', () => {
+      jest.useFakeTimers();
+      drawStroke();
+      jest.advanceTimersByTime(1000);
+      drawStroke();
+      jest.advanceTimersByTime(1000);
+      expect(saves()).toHaveLength(1);
+      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: saves()[0].request, status: 'saved', item_id: 'i_w',
+        version: 'b'.repeat(64) });
+      expect(saves()).toHaveLength(2);
+      expect(saves()[1].version).toBe('b'.repeat(64));
+      expect(saves()[1].data.shapes).toHaveLength(3);
+    });
+
+    test('keeps the board drawn when the view brings the version it saved', () => {
+      jest.useFakeTimers();
+      drawStroke();
+      jest.advanceTimersByTime(1000);
+      window.Workbench.onWhiteboard({ request: saves()[0].request, status: 'saved', item_id: 'i_w', version: 'b'.repeat(64) });
+      const svgEl = document.querySelector('#workbench-view svg');
+      view([Object.assign({}, wb, { sha256: 'b'.repeat(64), version: 'b'.repeat(64) })],
+        { renders: { i_w: '/workbench/asset/render-i_w-2' }, selected: 'i_w', selection_serial: 2 });
+      expect(document.querySelector('#workbench-view svg')).toBe(svgEl);
+      expect(fetched).not.toContain('/workbench/asset/render-i_w-2');
+    });
+
+    test('paints the whole board for a look that asks for an image', async () => {
+      jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => new Proxy({}, {
+        get: () => () => {}, set: () => true
+      }));
+      jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,V0I=');
+      document.querySelector('#workbench-view .workbench-whiteboard').getBoundingClientRect =
+        () => ({ top: 0, bottom: 500, left: 0, right: 800, height: 500 });
+      const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+      global.fetch = posted;
+      window.Workbench.onCapture({ type: 'workbench_capture', id: 'cap-w', item_id: 'i_w', version: 'a'.repeat(64), serial: 2,
+        wants: ['image'] });
+      await flushAll();
+      const body = JSON.parse(posted.mock.calls[0][1].body);
+      expect(body).toMatchObject({ image: 'V0I=', crop: { x: 0, y: 0, width: 1600, height: 1000, sent_width: 1600, sent_height: 1000 } });
+      jest.restoreAllMocks();
+    });
+
+    test('asks the server for a new whiteboard', () => {
+      document.getElementById('work-screen-pane').insertAdjacentHTML('beforeend', '<button id="workbench-new-whiteboard"></button>');
+      jest.resetModules();
+      require(js('monadic/dom-helpers.js'));
+      require(js('monadic/workbench.js'));
+      document.getElementById('workbench-new-whiteboard').click();
+      expect(sent.at(-1).payload).toMatchObject({ message: 'WORKBENCH_WHITEBOARD_NEW' });
+    });
+  });
+
   describe('the preference to show new items', () => {
     let jar;
 

@@ -306,7 +306,7 @@
           </div>
           <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
           <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#monadic-info-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="monadic-info-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -385,7 +385,7 @@
           </div>
 
           <div id="ai-status-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#ai-status-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="ai-status-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & AI User</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -410,7 +410,7 @@
           </div>
 
           <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#library-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="library-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.knowledgeBase"><i class="fas fa-book"></i> Knowledge Base</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -434,7 +434,7 @@
           </div>
 
           <div id="control-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#control-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="control-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-sliders"></i> Session Controls</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -451,7 +451,7 @@
           </div>
 
           <div id="theme-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#theme-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="theme-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.theme"><i class="fas fa-palette"></i> Theme</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -466,7 +466,7 @@
           </div>
 
           <div id="interaction-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#interaction-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="interaction-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.interactionControls"><i class="fas fa-hand-pointer"></i> Interaction</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -499,7 +499,7 @@
           </div>
 
           <div id="voice-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#voice-panel-body" aria-expanded="true">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="voice-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span>
               <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
             </h5>
@@ -1666,11 +1666,11 @@
 
     <!-- TTS Notice Toast -->
     <div id="tts-toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
-      <div id="tts-toast" class="toast" role="alert" aria-live="polite" aria-atomic="true" data-bs-autohide="false">
+      <div id="tts-toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
         <div class="toast-header">
           <i class="fas fa-volume-up text-primary me-2"></i>
           <strong class="me-auto" data-i18n="ui.tts.noticeTitle">Audio Output</strong>
-          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+          <button type="button" class="btn-close" id="tts-toast-close" aria-label="Close"></button>
         </div>
         <div class="toast-body" id="tts-toast-body">
           <!-- Message will be inserted dynamically -->

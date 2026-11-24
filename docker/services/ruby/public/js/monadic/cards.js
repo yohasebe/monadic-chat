@@ -91,9 +91,22 @@ function attachEventListeners(card) {
         const msgToDeleteEl = $id("messageToDelete");
         if (msgToDeleteEl) msgToDeleteEl.textContent = truncatedText;
 
-        // Configure modal based on message position
-        const deleteSubBtn = $id("deleteMessageAndSubsequent");
-        $toggle(deleteSubBtn, !isLastMessage);
+        // Configure modal based on message position: this message is
+        // chosen first; the turn (the user's message and the reply) is
+        // offered when it has more than this message, the messages after it
+        // when there are some.
+        const onlyThis = $id("deleteScopeMessage");
+        if (onlyThis) onlyThis.checked = true;
+        $toggle($id("deleteScopeBelowRow"), !isLastMessage);
+        const turnMids = midsOfTurn(mid);
+        $toggle($id("deleteScopeTurnRow"), turnMids.length > 1);
+        // Whether the AI's drawings are taken off with the messages is
+        // asked only when one of those that may go drew on a whiteboard.
+        const mayGo = new Set(turnMids.concat(messages.slice(messageIndex).map((m) => m.mid)));
+        const drew = messages.some((m) => mayGo.has(m.mid) && Array.isArray(m.workbench_drawn) && m.workbench_drawn.length > 0);
+        $toggle($id("deleteDrawnChoice"), drew);
+        const takeBack = $id("deleteTakeBackDrawn");
+        if (takeBack) takeBack.checked = true;
 
         // Show the modal
         if (deleteConfirmEl) bootstrap.Modal.getOrCreateInstance(deleteConfirmEl).show();
@@ -905,15 +918,65 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
       detachEventListeners(subsequentCard);
       subsequentCard.remove();
     }
-    window.safeWsSend({ message: "DELETE", mid: m.mid });
+    sendDelete(m.mid);
     mids.delete(m.mid);
   });
 
   // Delete current message
   messages.splice(messageIndex);
   if (cardEl) cardEl.remove();
-  window.safeWsSend({ message: "DELETE", mid: mid });
+  sendDelete(mid);
   mids.delete(mid);
+};
+
+// The mids of the cards of the turn mid is in, in order (none without a
+// turn number).
+function midsOfTurn(mid) {
+  const turn = getCardTurnNumber(mid);
+  if (!turn) return [];
+  return Array.from(document.querySelectorAll(`#discourse .card[data-turn="${turn}"]`)).map((el) => el.id);
+}
+
+// What the deletion dialog chose for the deletes it starts: whether what
+// the AI drew on whiteboards stays (keep_drawn). Reset after them.
+let deleteChoice = { keepDrawn: false };
+
+window.withDeleteChoice = function(choice, run) {
+  deleteChoice = Object.assign({ keepDrawn: false }, choice);
+  try {
+    run();
+  } finally {
+    deleteChoice = { keepDrawn: false };
+  }
+};
+
+function sendDelete(mid) {
+  const payload = { message: "DELETE", mid: mid };
+  if (deleteChoice.keepDrawn) payload.keep_drawn = true;
+  window.safeWsSend(payload);
+}
+
+// Deletes the turn mid is in: the user's message and the reply (every card
+// of that turn number), the later turns numbered again once.
+window.deleteTurn = function(mid) {
+  const turn = getCardTurnNumber(mid);
+  const cardsOfTurn = midsOfTurn(mid).map((id) => $id(id)).filter(Boolean);
+  if (!turn || cardsOfTurn.length === 0) return;
+  if (activeEditSession && cardsOfTurn.some((el) => el.id === activeEditSession.mid)) {
+    cancelEditMode(activeEditSession.cardText, activeEditSession.editButton);
+    activeEditSession = null;
+  }
+  if (typeof cleanupAllTooltips === 'function') cleanupAllTooltips();
+  cardsOfTurn.forEach((cardEl) => {
+    const id = cardEl.id;
+    detachEventListeners(cardEl);
+    const index = messages.findIndex((m) => m.mid === id);
+    if (index !== -1) messages.splice(index, 1);
+    cardEl.remove();
+    sendDelete(id);
+    mids.delete(id);
+  });
+  updateCardTurnNumbers(turn);
 };
 
 window.deleteMessageOnly = function(mid, messageIndex) {
@@ -961,7 +1024,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   // Check if message exists in the array
   if (messageIndex === -1 || !messages[messageIndex]) {
     cardEl.remove();
-    window.safeWsSend({ message: "DELETE", mid: mid });
+    sendDelete(mid);
     mids.delete(mid);
     if (deletedTurn) {
       updateCardTurnNumbers(deletedTurn);
@@ -972,7 +1035,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   // Remove just this message, preserving subsequent messages
   messages.splice(messageIndex, 1);
   cardEl.remove();
-  window.safeWsSend({ message: "DELETE", mid: mid });
+  sendDelete(mid);
   mids.delete(mid);
 
   // Update turn numbers on remaining cards

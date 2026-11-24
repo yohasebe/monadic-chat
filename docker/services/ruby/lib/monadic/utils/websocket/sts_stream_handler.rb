@@ -6,6 +6,7 @@ require_relative "../error_pattern_detector"
 require_relative "../../workbench/caller"
 require_relative "../../workbench/look"
 require_relative "../../workbench/made"
+require_relative "../../workbench/draw_tool"
 require_relative "../../workbench/shown"
 require_relative "../../shared_tools/workbench_tools"
 
@@ -313,6 +314,25 @@ module WebSocketHelper
                                                                       label: args["label"])
       }
     },
+    Monadic::Workbench::DrawTool::NAME => {
+      description: Monadic::Workbench::DrawTool::DESCRIPTION,
+      parameters: {
+        type: "object",
+        properties: {
+          shapes: { type: "string", description: Monadic::Workbench::DrawTool::SHAPES },
+          remove: { type: "array", items: { type: "string" }, description: Monadic::Workbench::DrawTool::REMOVE },
+          new_whiteboard: { type: "boolean", description: Monadic::Workbench::DrawTool::NEW_BOARD }
+        },
+        additionalProperties: false
+      },
+      always: true,
+      records: true,
+      available?: ->(_provider, _session) { true },
+      call: lambda { |args, _session, context|
+        MonadicSharedTools::WorkbenchTools.draw(context[:workbench], shapes: args["shapes"], remove: args["remove"],
+                                                                     new_whiteboard: args["new_whiteboard"])
+      }
+    },
     "get_current_time" => {
       description: "Get the current date and time. Realtime models do not " \
                    "know today's date on their own.",
@@ -487,7 +507,9 @@ module WebSocketHelper
     "document with write_section and rewrite the section each time something is added or changed; then say " \
     "briefly what you changed instead of reading it all aloud. " \
     "When you talk about a part of what the user is looking at, point at it with point_at_workbench " \
-    "(a quote of its text, or lines of a text file) so the user can see where.".freeze
+    "(a quote of its text, or lines of a text file) so the user can see where. " \
+    "To explain with a diagram, or when the user asks you to draw, draw it on a whiteboard with draw_on_whiteboard " \
+    "and talk it through instead of reading out its parts.".freeze
 
   def sts_append_tools_guidance(instructions, state)
     guidance = [STS_WORKBENCH_GUIDANCE]
@@ -856,6 +878,7 @@ module WebSocketHelper
     request_id = turn.is_a?(Hash) && turn.delete(:request_id) or return
     Monadic::Workbench::Shown.close(request_id)
     Monadic::Workbench::Made.close(request_id)
+    Monadic::Workbench::Draw.close(request_id)
     WebSocketHelper::Replies.find(request_id)&.end!
   end
 
@@ -2533,7 +2556,7 @@ module WebSocketHelper
     args = call[:parsed_arguments] || {}
     timeout = { "run_code" => STS_TOOLS_RUN_CODE_TIMEOUT, "look_at_workbench" => STS_LOOK_TIMEOUT,
                 "write_section" => STS_LOOK_TIMEOUT, "put_on_workbench" => STS_LOOK_TIMEOUT,
-                "point_at_workbench" => STS_LOOK_TIMEOUT }
+                "point_at_workbench" => STS_LOOK_TIMEOUT, Monadic::Workbench::DrawTool::NAME => STS_LOOK_TIMEOUT }
               .fetch(call[:name], STS_TOOLS_TIMEOUT)
     context = { tab: ws_session_id, provider: state[:provider] || "openai" }
     if entry[:records]
@@ -2844,6 +2867,8 @@ module WebSocketHelper
     msg["workbench_shown"] = shown if shown
     msg["workbench_made"] = made if made
     msg[workbench::Made::REVISIONS_KEY] = revisions if revisions
+    drawn = workbench::Draw.clean(Array(msg[workbench::Draw::KEY]) + workbench::Draw.seal(request_id))
+    msg[workbench::Draw::KEY] = drawn if drawn
     WebSocketHelper::Replies.find(request_id)&.end!
   end
 

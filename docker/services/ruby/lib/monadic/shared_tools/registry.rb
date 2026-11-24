@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'ostruct'
+require_relative '../workbench/draw_tool'
 
 # Shared Tool Registry for Monadic Chat
 # Centralizes tool group definitions with metadata for Progressive Tool Disclosure
@@ -131,6 +132,17 @@ module MonadicSharedTools
                 required: false },
               { name: :page, type: "integer", description: "For a PDF: the page the quote is on, when known", required: false },
               { name: :label, type: "string", description: "A few words shown beside the mark (at most 40 characters)",
+                required: false }
+            ]
+          },
+          {
+            name: Monadic::Workbench::DrawTool::NAME,
+            description: Monadic::Workbench::DrawTool::DESCRIPTION,
+            parameters: [
+              { name: :shapes, type: "string", description: Monadic::Workbench::DrawTool::SHAPES, required: false },
+              { name: :remove, type: "array", description: Monadic::Workbench::DrawTool::REMOVE, required: false,
+                items: { type: "string" } },
+              { name: :new_whiteboard, type: "boolean", description: Monadic::Workbench::DrawTool::NEW_BOARD,
                 required: false }
             ]
           },

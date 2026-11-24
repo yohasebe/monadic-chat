@@ -42,6 +42,10 @@ module Monadic
 
       class Refused < StandardError; end
 
+      # One write of a whiteboard at a time (a save from a page, a change by
+      # the AI): each reads, checks and writes it whole.
+      LOCK = Mutex.new
+
       module_function
 
       # The board as it is kept: { version, width, height, shapes }, each
@@ -87,19 +91,29 @@ module Monadic
         when 'line', 'arrow'
           out.merge!('x1' => x(shape['x1']), 'y1' => y(shape['y1']), 'x2' => x(shape['x2']), 'y2' => y(shape['y2']))
           out['stroke'] = stroke(shape)
+          # The shapes it joins (its ends drawn at their edges), by id.
+          %w[from to].each { |end_| out[end_] = shape[end_] if shape[end_].is_a?(String) && shape[end_].match?(ID) }
         when 'rect', 'ellipse'
           out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'w' => size(shape['w'], WIDTH), 'h' => size(shape['h'], HEIGHT))
           out['stroke'] = stroke(shape)
           out['fill'] = fill(shape)
+          # A text written in it (its middle), when there is one.
+          unless shape['text'].nil? || shape['text'].to_s.strip.empty?
+            out['text'] = text_of(shape['text'])
+            out['size'] = nearest(shape['size'], SIZES, SIZES[0])
+          end
         when 'text'
-          text = shape['text']
-          raise Refused, 'a text needs some text' unless text.is_a?(String) && text.valid_encoding? && !text.strip.empty?
-          raise Refused, 'a text is too long' if text.length > TEXT_CHARS
-
-          out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'text' => text.gsub(/[^\P{Cc}\n]/, ''),
+          out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'text' => text_of(shape['text']),
                      'size' => nearest(shape['size'], SIZES, SIZES[0]))
         end
         out
+      end
+
+      def text_of(text)
+        raise Refused, 'a text needs some text' unless text.is_a?(String) && text.valid_encoding? && !text.strip.empty?
+        raise Refused, 'a text is too long' if text.length > TEXT_CHARS
+
+        text.gsub(/[^\P{Cc}\n]/, '')
       end
 
       def point(value)
@@ -161,14 +175,53 @@ module Monadic
           raise Refused, 'not a whiteboard of this chat'
         end
 
-        write(dir, name, clean(data))
-        item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
-        Channel.changed(chat_id)
-        item
+        LOCK.synchronize do
+          board.file_entry(item_id.to_s, sha256: version.to_s)
+          write(dir, name, clean(data))
+          item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
+          Channel.changed(chat_id)
+          item
+        end
       rescue Artifact::Changed
         raise Refused, 'changed'
       rescue Artifact::NotAllowed
         raise Refused, 'not a whiteboard of this chat'
+      end
+
+      # Whether path (relative to the shared folder) is a whiteboard of the
+      # chat's folder folder.
+      def own?(folder, path)
+        name = File.basename(path.to_s).delete_suffix(EXTENSION)
+        name.match?(NAME) && path == File.join(folder, DIRNAME, "#{name}#{EXTENSION}")
+      end
+
+      # Changes the whiteboard at path (one of the chat's, on its work
+      # screen) as it is now: its shapes are given to the block, which
+      # changes them in place; the board is kept as clean makes it and the
+      # item takes the new version. Returns the item, or nil when the block
+      # changed nothing. Refused when it is not there or not one.
+      def edit(chat_id, path, app_name:, origin:, epoch:)
+        LOCK.synchronize do
+          board = Board.existing(chat_id) or raise Refused, 'no work screen'
+          folder, dir = folder_of(chat_id, app_name)
+          raise Refused, 'not a whiteboard of this chat' unless own?(folder, path)
+
+          item = board.item_at(path) or raise Refused, 'the whiteboard is not on the work screen'
+          data = JSON.parse(board.file_read(item['id'], sha256: item.dig('file', 'sha256'))[:bytes].to_s)
+          shapes = clean(data)['shapes']
+          before = JSON.generate(shapes)
+          yield shapes
+          next nil if JSON.generate(shapes) == before
+
+          write(dir, File.basename(path).delete_suffix(EXTENSION), clean({ 'shapes' => shapes }))
+          item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
+          Channel.changed(chat_id)
+          item
+        end
+      rescue JSON::ParserError
+        raise Refused, 'the whiteboard could not be read'
+      rescue Artifact::Changed, Artifact::NotAllowed, Board::Refused, FileItem::Busy => e
+        raise Refused, "the whiteboard could not be read (#{e.class.name.split('::').last})"
       end
 
       # The chat's folder (relative to the shared folder) and its

@@ -1395,11 +1395,28 @@
           <div class="modal-body">
             <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
             <p id="messageToDelete" class="text-secondary-styled"></p>
+            <div id="deleteScope" role="radiogroup" aria-labelledby="deleteConfirmationTitle" class="mb-2">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="deleteScope" id="deleteScopeMessage" value="message" checked>
+                <label class="form-check-label" for="deleteScopeMessage" data-i18n="ui.deleteScopeMessage">This message only</label>
+              </div>
+              <div class="form-check" id="deleteScopeTurnRow">
+                <input class="form-check-input" type="radio" name="deleteScope" id="deleteScopeTurn" value="turn">
+                <label class="form-check-label" for="deleteScopeTurn" data-i18n="ui.deleteScopeTurn">This turn (your message and the reply)</label>
+              </div>
+              <div class="form-check" id="deleteScopeBelowRow">
+                <input class="form-check-input" type="radio" name="deleteScope" id="deleteScopeBelow" value="below">
+                <label class="form-check-label" for="deleteScopeBelow" data-i18n="ui.deleteScopeBelow">This message and all after it</label>
+              </div>
+            </div>
+            <div id="deleteDrawnChoice" class="form-check mb-0" style="display: none;">
+              <input class="form-check-input" type="checkbox" id="deleteTakeBackDrawn" checked>
+              <label class="form-check-label" for="deleteTakeBackDrawn" data-i18n="ui.deleteTakeBackDrawn">Also take off what the AI drew on whiteboards in the messages deleted</label>
+            </div>
           </div>
-          <div class="modal-footer flex-column align-items-stretch">
-            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-outline-danger mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
-            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-outline-danger mb-2" data-i18n="ui.deleteMessageAndBelow"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
+          <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="deleteConfirmButton" class="btn btn-sm btn-danger"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span data-i18n="ui.deleteConfirm">Delete</span></button>
           </div>
         </div>
       </div>

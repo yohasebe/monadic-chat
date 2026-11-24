@@ -253,6 +253,168 @@ describe('WorkbenchWhiteboard', () => {
     });
   });
 
+  describe('boxes with a text, and arrows joining them', () => {
+    const boxes = [
+      { id: 'a', type: 'rect', x: 100, y: 100, w: 200, h: 100, text: 'Order', size: 20, color: 'blue', stroke: 6 },
+      { id: 'b', type: 'ellipse', x: 600, y: 100, w: 200, h: 100, text: 'Ship\nit', size: 20, color: 'red', stroke: 6,
+        fill: 'solid' },
+      { id: 'j', type: 'arrow', x1: 200, y1: 150, x2: 700, y2: 150, from: 'a', to: 'b', stroke: 6 }
+    ];
+
+    test('writes a shape\'s text in its middle, light on a dark solid fill', () => {
+      show({ shapes: boxes });
+      const [a, b] = box.querySelectorAll('.workbench-whiteboard-shape');
+      const text = a.querySelector('text');
+      expect(text.getAttribute('text-anchor')).toBe('middle');
+      expect(text.querySelector('tspan').getAttribute('x')).toBe('200');
+      expect(text.querySelector('tspan').getAttribute('y')).toBe('150');
+      expect(text.getAttribute('fill')).toBe('#2f6fd0');
+      expect([...b.querySelectorAll('tspan')].map((t) => t.getAttribute('y'))).toEqual(['137.5', '162.5']);
+      expect(b.querySelector('text').getAttribute('fill')).toBe('#ffffff');
+    });
+
+    test('draws a joining arrow between the edges of its shapes, and keeps it there as they move', () => {
+      show({ shapes: boxes });
+      const line = () => box.querySelector('[data-id="j"] line');
+      // From the rectangle's right edge (300) and the ellipse's left (600),
+      // each 3 + 6 away.
+      expect([line().getAttribute('x1'), line().getAttribute('x2')]).toEqual(['309', '591']);
+      tool('select');
+      const rect = box.querySelector('[data-id="a"]');
+      rect.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 75, button: 0, bubbles: true }));
+      pointer('pointermove', 100, 175);
+      pointer('pointerup', 100, 175);
+      expect(board.data().shapes[0]).toMatchObject({ y: 300 });
+      expect(Number(line().getAttribute('y1'))).toBeGreaterThan(150);
+      expect(board.data().shapes[2]).toMatchObject({ from: 'a', to: 'b' });
+    });
+
+    test('lets an arrow moved by itself go of the shapes it joined', () => {
+      show({ shapes: boxes });
+      tool('select');
+      const arrow = box.querySelector('[data-id="j"] line');
+      arrow.dispatchEvent(new MouseEvent('pointerdown', { clientX: 225, clientY: 75, button: 0, bubbles: true }));
+      pointer('pointermove', 225, 100);
+      pointer('pointerup', 225, 100);
+      const moved = board.data().shapes[2];
+      expect(moved).not.toHaveProperty('from');
+      expect(moved).toMatchObject({ x1: 309, y1: 200, x2: 591, y2: 200 });
+    });
+
+    test('writes a box\'s text again on a double click, and takes it off when left empty', () => {
+      show({ shapes: boxes });
+      tool('select');
+      const twice = () => box.querySelector('[data-id="a"]')
+        .dispatchEvent(new MouseEvent('dblclick', { clientX: 100, clientY: 75, bubbles: true }));
+      twice();
+      let input = box.querySelector('.workbench-whiteboard-input');
+      expect(input.value).toBe('Order');
+      input.value = 'Order\nreceived';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(board.data().shapes[0]).toMatchObject({ text: 'Order\nreceived', size: 20 });
+      twice();
+      input = box.querySelector('.workbench-whiteboard-input');
+      input.value = '';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(board.data().shapes[0]).not.toHaveProperty('text');
+    });
+
+    test('paints the boxes\' texts in their middles, and the arrow at the edges', () => {
+      show({ shapes: boxes });
+      const calls = [];
+      const context = new Proxy({}, {
+        get: (_, name) => (typeof name === 'string' && !['fillStyle', 'strokeStyle', 'lineWidth', 'font', 'textBaseline',
+          'textAlign', 'lineCap', 'lineJoin', 'globalAlpha'].includes(name) ? (...args) => calls.push([name, ...args]) : undefined),
+        set: () => true
+      });
+      board.paint(context, 1600, 1000);
+      expect(calls).toContainEqual(['fillText', 'Order', 200, 150]);
+      expect(calls).toContainEqual(['fillText', 'it', 700, 162.5]);
+      expect(calls).toContainEqual(['moveTo', 309, 150]);
+    });
+  });
+
+  test('zooms the view only: the board, its shapes and where a press lands on them stay', () => {
+    show({ shapes: [{ id: 'a', type: 'rect', x: 100, y: 100, w: 200, h: 100 }] });
+    const sheet = box.querySelector('.workbench-whiteboard-sheet');
+    const level = box.querySelector('.workbench-whiteboard-zoom-level');
+    const zoomIn = box.querySelector('.workbench-whiteboard-zoom-in');
+    expect(level.textContent).toBe('100%');
+    expect(box.querySelector('.workbench-whiteboard-zoom-out').disabled).toBe(true);
+    zoomIn.click();
+    zoomIn.click();
+    expect(level.textContent).toBe('150%');
+    expect(svgEl().style.width).toBe('150%');
+    expect(sheet.dataset.zoomed).toBe('true');
+    // Shown 1.5 times as large: a press at 300, 150 on screen is at 400, 200
+    // on the board.
+    svgEl().getBoundingClientRect = () => ({ left: 0, top: 0, width: 1200, height: 750 });
+    pointer('pointerdown', 300, 150);
+    pointer('pointermove', 330, 150);
+    pointer('pointerup', 330, 150);
+    expect(board.data().shapes[1].points[0]).toEqual([400, 200]);
+    sheet.dispatchEvent(new WheelEvent('wheel', { deltaY: -500, ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(level.textContent).toBe('300%');
+    expect(zoomIn.disabled).toBe(true);
+    level.click();
+    expect(level.textContent).toBe('100%');
+    expect(sheet.dataset.zoomed).toBe('false');
+    expect(board.data().shapes[0]).toMatchObject({ x: 100, y: 100, w: 200, h: 100 });
+  });
+
+  // The shared setup's Blob is a stand-in and jsdom has no TextEncoder:
+  // Node's own are used where a file is made.
+  function withNodeBlob(run) {
+    const blob = global.Blob;
+    const encoder = global.TextEncoder;
+    global.Blob = require('buffer').Blob;
+    global.TextEncoder = require('util').TextEncoder;
+    return Promise.resolve().then(run).finally(() => {
+      global.Blob = blob;
+      global.TextEncoder = encoder;
+    });
+  }
+
+  test('writes the board out as an SVG named after it', () => withNodeBlob(async () => {
+    const stand = global.XMLSerializer;
+    global.XMLSerializer = function Serializer() { this.serializeToString = (node) => node.outerHTML; };
+    const saved = [];
+    try {
+      box = document.createElement('div');
+      document.body.appendChild(box);
+      window.WorkbenchWhiteboard.show(box, { shapes: [{ id: 'a', type: 'text', x: 5, y: 5, text: 'Plan', size: 20 }] },
+        { name: 'whiteboard-2.wb.json', save: (blob, name) => saved.push([blob, name]) }).exportAs('svg');
+    } finally {
+      global.XMLSerializer = stand;
+    }
+    expect(saved).toHaveLength(1);
+    const [blob, name] = saved[0];
+    expect(name).toBe('whiteboard-2.svg');
+    expect(blob.type).toBe('image/svg+xml');
+    const text = await blob.text();
+    expect(text.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(text).toContain('Plan');
+  }));
+
+  test('makes a PDF of one page holding the picture, every offset where it says', () => withNodeBlob(async () => {
+    // The shared setup's Uint8Array is a stand-in: Node's Buffer is one.
+    const jpeg = require('buffer').Buffer.from([0xff, 0xd8, 1, 2, 3, 0xff, 0xd9]);
+    // Read with Node's Buffer: the Blob's bytes are Node's, not the page's.
+    const bytes = require('buffer').Buffer.from(await window.WorkbenchWhiteboard.pdfOf(jpeg, 3200, 2000).arrayBuffer());
+    const text = bytes.toString('latin1');
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text).toContain('/MediaBox [0 0 800 500]');
+    expect(text).toContain('/Width 3200 /Height 2000');
+    expect(text).toContain(`/Length ${jpeg.length}`);
+    const xref = Number(text.match(/startxref\n(\d+)/)[1]);
+    expect(text.slice(xref, xref + 4)).toBe('xref');
+    const offsets = [...text.slice(xref).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+    expect(offsets).toHaveLength(5);
+    offsets.forEach((offset, i) => expect(text.slice(offset, offset + 8)).toBe(`${i + 1} 0 obj\n`));
+    const start = text.indexOf('stream\n') + 7;
+    expect([...bytes.subarray(start, start + jpeg.length)]).toEqual([...jpeg]);
+  }));
+
   test('undoes and redoes, and clears the board as one change', () => {
     show({ shapes: [{ id: 'a', type: 'line', x1: 0, y1: 0, x2: 10, y2: 10 }] });
     box.querySelector('.workbench-whiteboard-clear').click();

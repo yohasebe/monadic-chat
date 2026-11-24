@@ -5,6 +5,7 @@ require 'digest'
 require 'json'
 require 'securerandom'
 require 'time'
+require_relative 'whiteboard'
 require_relative 'board'
 require_relative 'capture'
 require_relative 'image_check'
@@ -41,6 +42,8 @@ module Monadic
       TEXT_MARGIN = 3
       # Seconds a look may take, waiting for the page included.
       DEADLINE = 45
+      # Shapes of a whiteboard a look lists, at most.
+      WHITEBOARD_LISTED = 200
 
       class Refused < StandardError
         attr_reader :reason
@@ -317,7 +320,7 @@ module Monadic
       def whiteboard_seen(board, selection, caller, deadline, bytes)
         data = JSON.parse(bytes.to_s)
         shapes = data.is_a?(Hash) && data['shapes'].is_a?(Array) ? data['shapes'].select { |s| s.is_a?(Hash) } : []
-        texts = shapes.filter_map { |s| s['text'] if s['type'] == 'text' && s['text'].is_a?(String) }
+        texts = shapes.filter_map { |s| s['text'] if s['text'].is_a?(String) }
         image = begin
           item = selection.item
           answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
@@ -329,9 +332,23 @@ module Monadic
         rescue Capture::Failed
           nil
         end
-        { image: image, texts: texts.first(200), shapes: shapes.group_by { |s| s['type'].to_s }.transform_values(&:size) }
+        { image: image, texts: texts.first(200), shapes: shapes.group_by { |s| s['type'].to_s }.transform_values(&:size),
+          list: shapes.first(WHITEBOARD_LISTED).map { |s| listed_shape(s) } }
       rescue JSON::ParserError
         raise Refused.new('unsupported_kind', 'the whiteboard could not be read')
+      end
+
+      # A shape of a whiteboard as the result lists it: its id, type, who
+      # drew it, where it is and its text or the shapes it joins (a pen's
+      # stroke by its box, not its points).
+      def listed_shape(shape)
+        out = shape.slice('id', 'type', 'by', 'color', 'x', 'y', 'w', 'h', 'x1', 'y1', 'x2', 'y2', 'from', 'to', 'text')
+        if shape['points'].is_a?(Array) && !shape['points'].empty?
+          xs = shape['points'].map { |p| p[0] }
+          ys = shape['points'].map { |p| p[1] }
+          out.merge!('x' => xs.min, 'y' => ys.min, 'w' => (xs.max - xs.min).round(1), 'h' => (ys.max - ys.min).round(1))
+        end
+        out
       end
 
       # Whether two images have the same proportions (within 1%).
@@ -487,7 +504,8 @@ module Monadic
                            elsif seen[:image] then 'A picture of the whole whiteboard, as the tab draws it, is attached after this result.'
                            else 'No picture of the whiteboard could be had now; only its texts are given.'
                            end,
-                'shapes' => seen[:shapes], 'texts' => seen[:texts] }
+                'shapes' => seen[:shapes], 'texts' => seen[:texts],
+                'board' => { 'width' => Whiteboard::WIDTH, 'height' => Whiteboard::HEIGHT }, 'list' => seen[:list] }
         out['empty'] = true if seen[:shapes].empty?
         out
       end

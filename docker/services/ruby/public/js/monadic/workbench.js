@@ -429,6 +429,21 @@
     } else if (item.status === 'ok' && item.kind === 'file' && item.sha256) {
       actions.appendChild(fileSaveButton(item, 'btn-primary'));
     }
+    // A whiteboard is also written out as a picture to keep or pass on.
+    if (item.status === 'ok' && isWhiteboard(item)) {
+      const group = element('div', 'workbench-whiteboard-exports');
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', t('ui.workbench.wb_export', 'Export'));
+      group.appendChild(element('span', 'workbench-whiteboard-exports-label', t('ui.workbench.wb_export', 'Export')));
+      ['svg', 'png', 'pdf'].forEach((kind) => {
+        const b = button(kind.toUpperCase(), 'btn-secondary workbench-whiteboard-export-option', () => {
+          if (drawnBody && drawnBody.key === drawKey(item) && drawnBody.whiteboard) drawnBody.whiteboard.exportAs(kind);
+        });
+        b.dataset.kind = kind;
+        group.appendChild(b);
+      });
+      actions.appendChild(group);
+    }
     // A file is read again where it is shown (the board takes it at the
     // version it has now): after it changed, or whenever the user asks.
     if (item.kind === 'file' && item.status === 'changed') {
@@ -535,7 +550,8 @@
       } catch (_) {
         data = null;
       }
-      drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next) });
+      drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next),
+        name: item.name, save: saveBlob });
       drawn.loaded = true;
     });
     return box;
@@ -2676,11 +2692,17 @@
       warn(t('ui.workbench.downloadFailed', 'Could not get the file.'));
       return;
     }
+    saveBlob(blob, data.name);
+  }
+
+  // Hands blob to the browser as a download named name (Electron asks
+  // where to save it).
+  function saveBlob(blob, name) {
     const href = URL.createObjectURL(blob);
     const a = element('a');
     try {
       a.href = href;
-      a.download = String(data.name || 'file');
+      a.download = String(name || 'file');
       a.hidden = true;
       document.body.appendChild(a);
       a.click();

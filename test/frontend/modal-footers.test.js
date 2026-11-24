@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 // Modal footers follow one rule set: confirm and input dialogs end with a grey
-// Cancel and the action on the right; a delete is a red outline. And while a
-// dialog is open, the chat's Easy Submit keys leave the keyboard to it.
+// Cancel and the action on the right; a delete is one red button. And while
+// a dialog is open, the chat's Easy Submit keys leave the keyboard to it.
 const fs = require('fs');
 const path = require('path');
 
@@ -27,9 +27,14 @@ describe('modal footers', () => {
       expect(footer).not.toMatch(/<div class="modal-footer">\s*<div><\/div>/);
     });
 
-  test('deleting is a red outline, never yellow or blue', () => {
-    expect(footerOf('deleteConfirmation')).not.toContain('btn-warning');
-    expect(footerOf('deleteConfirmation').match(/btn-outline-danger/g)).toHaveLength(2);
+  test('deleting ends with a grey Cancel and one red Delete, what goes chosen above them', () => {
+    const footer = footerOf('deleteConfirmation');
+    expect(footer).toContain(CANCEL);
+    expect(footer.match(/btn-danger/g)).toHaveLength(1);
+    expect(footer.indexOf(CANCEL)).toBeLessThan(footer.indexOf('btn-danger'));
+    expect(footer).not.toMatch(/btn-(warning|outline-)/);
+    const body = erb.slice(erb.indexOf('id="deleteConfirmation"'), erb.indexOf('<div class="modal-footer', erb.indexOf('id="deleteConfirmation"')));
+    expect([...body.matchAll(/name="deleteScope" id="[^"]+" value="([a-z]+)"/g)].map((m) => m[1])).toEqual(['message', 'turn', 'below']);
   });
 });
 

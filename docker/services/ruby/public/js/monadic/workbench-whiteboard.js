@@ -16,6 +16,8 @@
  *   let go)
  * - paint(context, width, height): the board painted on a canvas context of
  *   that size (as it is shown, without the tools)
+ * - exportAs(kind): the board written out as an SVG, a PNG or a PDF, handed
+ *   to save(blob, name)
  * - dispose()
  * onChange(data) is called after each change the user makes.
  */
@@ -51,6 +53,8 @@
   const HANDLES = [['nw', 0, 0], ['n', 0.5, 0], ['ne', 1, 0], ['e', 1, 0.5], ['se', 1, 1], ['s', 0.5, 1], ['sw', 0, 1],
     ['w', 0, 0.5]];
   const GRID_KEY = 'monadic-whiteboard-grid';
+  // How large the board is shown: 1 fits its width, at most 3 times that.
+  const ZOOMS = [1, 1.25, 1.5, 2, 3];
   const TOOLS = [
     ['select', 'fa-solid fa-arrow-pointer', 'Select'],
     ['pen', 'fa-solid fa-pen', 'Pen'],
@@ -165,6 +169,59 @@
     return out;
   }
 
+  // How far from a shape's edge the end of a line joining it stops.
+  const GAP = 6;
+
+  // Where the way from a shape's middle toward a point leaves the shape
+  // (a line's or an arrow's middle itself).
+  function edge(shape, toward) {
+    const b = bounds(shape);
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    const dx = toward[0] - cx;
+    const dy = toward[1] - cy;
+    const length = Math.hypot(dx, dy);
+    if (length === 0 || shape.type === 'line' || shape.type === 'arrow') return [cx, cy];
+    let k;
+    if (shape.type === 'ellipse') {
+      k = b.w > 0 && b.h > 0 ? 1 / Math.hypot(dx / (b.w / 2), dy / (b.h / 2)) : 0;
+    } else {
+      k = Math.min(dx === 0 ? Infinity : b.w / 2 / Math.abs(dx), dy === 0 ? Infinity : b.h / 2 / Math.abs(dy));
+    }
+    const out = k + (widthOf(shape) / 2 + GAP) / length;
+    return [round(cx + dx * out), round(cy + dy * out)];
+  }
+
+  // A shape as it is drawn: a line or an arrow joining shapes (from, to)
+  // has its ends at their edges, facing each other; ends whose shape is
+  // gone stay where they were kept. shapes: the board's, by id.
+  function placed(shape, shapes) {
+    if (!(shape.type === 'line' || shape.type === 'arrow') || !(shape.from || shape.to)) return shape;
+    const from = shape.from && shapes.get(shape.from);
+    const to = shape.to && shapes.get(shape.to);
+    if (!from && !to) return shape;
+    const middle = (s) => {
+      const b = bounds(s);
+      return [b.x + b.w / 2, b.y + b.h / 2];
+    };
+    const a = from ? middle(from) : [shape.x1, shape.y1];
+    const z = to ? middle(to) : [shape.x2, shape.y2];
+    const start = from ? edge(from, z) : a;
+    const end = to ? edge(to, a) : z;
+    return Object.assign({}, shape, { x1: start[0], y1: start[1], x2: end[0], y2: end[1] });
+  }
+
+  const byId = (shapes) => new Map(shapes.map((s) => [s.id, s]));
+
+  // The color a text written in a shape takes: the shape's, or, on a solid
+  // fill, black or white as the fill is light or dark.
+  function labelColor(shape) {
+    if (fillOf(shape) !== 'solid') return color(shape);
+    const hex = color(shape).slice(1);
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#222222' : '#ffffff';
+  }
+
   // ---- drawing a shape ------------------------------------------------
 
   // A stroke through points, smoothed: a curve through the middles of its
@@ -189,8 +246,9 @@
     });
   }
 
-  // The SVG element of a shape (its id in data-id).
-  function shapeElement(shape) {
+  // The SVG element of a shape (its id in data-id), among shapes (by id).
+  function shapeElement(given, shapes) {
+    const shape = placed(given, shapes || new Map());
     const stroke = color(shape);
     const width = widthOf(shape);
     let el;
@@ -229,6 +287,21 @@
         el.setAttribute('stroke-width', String(width));
         el.setAttribute('fill', fillOf(shape) !== 'none' ? stroke : 'none');
         if (fillOf(shape) !== 'none') el.setAttribute('fill-opacity', String(fillAlpha(shape)));
+        if (shape.text) {
+          const group = svg('g');
+          const size = sizeOf(shape);
+          const lines = textLines(shape);
+          const label = svg('text', { x: shape.x + shape.w / 2, fill: labelColor(shape), 'font-size': size,
+            'font-family': 'sans-serif', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+          lines.forEach((line, i) => {
+            const span = svg('tspan', { x: shape.x + shape.w / 2,
+              y: round(shape.y + shape.h / 2 + (i - (lines.length - 1) / 2) * size * 1.25) });
+            span.textContent = line || ' ';
+            label.appendChild(span);
+          });
+          group.append(el, label);
+          el = group;
+        }
         break;
       case 'text': {
         const size = sizeOf(shape);
@@ -270,7 +343,9 @@
     context.scale(scale, scale);
     context.lineCap = 'round';
     context.lineJoin = 'round';
-    board.shapes.forEach((shape) => {
+    const shapes = byId(board.shapes);
+    board.shapes.forEach((given) => {
+      const shape = placed(given, shapes);
       const stroke = color(shape);
       const lineWidth = widthOf(shape);
       context.strokeStyle = stroke;
@@ -322,6 +397,17 @@
             context.globalAlpha = 1;
           }
           context.stroke();
+          if (shape.text) {
+            const size = sizeOf(shape);
+            const lines = textLines(shape);
+            context.font = `${size}px sans-serif`;
+            context.fillStyle = labelColor(shape);
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            lines.forEach((line, i) => context.fillText(line, shape.x + shape.w / 2,
+              shape.y + shape.h / 2 + (i - (lines.length - 1) / 2) * size * 1.25));
+            context.textAlign = 'left';
+          }
           break;
         case 'text': {
           const size = sizeOf(shape);
@@ -344,7 +430,8 @@
     const board = boardOf(data);
     const root = svg('svg', { viewBox: `0 0 ${WIDTH} ${HEIGHT}`, width: WIDTH, height: HEIGHT });
     root.appendChild(svg('rect', { x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: '#ffffff' }));
-    board.shapes.map(shapeElement).filter(Boolean).forEach((el) => root.appendChild(el));
+    const shapes = byId(board.shapes);
+    board.shapes.map((s) => shapeElement(s, shapes)).filter(Boolean).forEach((el) => root.appendChild(el));
     return new XMLSerializer().serializeToString(root);
   }
 
@@ -357,22 +444,58 @@
   };
   const fillSwatch = (fill) => `<span class="workbench-whiteboard-fill-swatch" data-fill="${FILLS.includes(fill) ? fill : 'none'}"></span>`;
 
+  // A PDF of one page holding a JPEG of width × height pixels, the page as
+  // large as the board in points (a quarter of the picture's pixels at 2×).
+  function pdfOf(jpeg, width, height) {
+    const encoder = new TextEncoder();
+    const pageW = Math.round(width / 4);
+    const pageH = Math.round(height / 4);
+    const content = `q ${pageW} 0 0 ${pageH} 0 0 cm /Im0 Do Q`;
+    const objects = [
+      ['<< /Type /Catalog /Pages 2 0 R >>'],
+      ['<< /Type /Pages /Kids [3 0 R] /Count 1 >>'],
+      [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`],
+      [`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, '\nendstream'],
+      [`<< /Length ${content.length} >>\nstream\n${content}\nendstream`]
+    ];
+    const parts = [];
+    const offsets = [];
+    let length = 0;
+    const add = (part) => {
+      const bytes = typeof part === 'string' ? encoder.encode(part) : part;
+      parts.push(bytes);
+      length += bytes.length;
+    };
+    add('%PDF-1.4\n');
+    objects.forEach((pieces, i) => {
+      offsets.push(length);
+      add(`${i + 1} 0 obj\n`);
+      pieces.forEach(add);
+      add('\nendobj\n');
+    });
+    const xref = length;
+    add(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
+    offsets.forEach((offset) => add(`${String(offset).padStart(10, '0')} 00000 n \n`));
+    add(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: 'application/pdf' });
+  }
+
   // Whether the grid was last shown (this browser's choice).
   function gridKept() {
     try { return window.localStorage.getItem(GRID_KEY) === '1'; } catch (_) { return false; }
   }
 
-  function show(box, data, { onChange } = {}) {
+  function show(box, data, { onChange, name, save } = {}) {
     let board = data ? boardOf(data) : emptyBoard();
     const past = [];
     const future = [];
-    const state = { tool: 'pen', color: 'black', stroke: STROKES[1], size: SIZES[1], fill: 'none', grid: gridKept(),
+    const state = { zoom: 1, tool: 'pen', color: 'black', stroke: STROKES[1], size: SIZES[1], fill: 'none', grid: gridKept(),
       disposed: false };
     const tips = [];
 
     const control = (className, label, icon) => window.WorkbenchPointer.control(className, label, icon, { tips });
     const group = window.WorkbenchPointer.group;
-    const bar = element('div', 'workbench-whiteboard-bar d-flex flex-wrap align-items-center gap-3');
+    const bar = element('div', 'workbench-whiteboard-bar d-flex flex-wrap align-items-center');
     const toolButtons = TOOLS.map(([tool, icon, name]) => {
       const b = control(`workbench-whiteboard-tool workbench-whiteboard-${tool}`, t(`ui.workbench.wb_${tool}`, name), icon);
       b.dataset.tool = tool;
@@ -472,6 +595,17 @@
     const colorPicker = picker('workbench-whiteboard-colors', t('ui.workbench.wb_colors', 'Color'), swatches);
     const strokePicker = picker('workbench-whiteboard-strokes', t('ui.workbench.wb_strokes', 'Size'), strokes);
     const fillPicker = picker('workbench-whiteboard-fills', t('ui.workbench.wb_fills', 'Fill'), fills);
+    const zoomOut = control('workbench-whiteboard-zoom-out', t('ui.workbench.wb_zoom_out', 'Zoom out'),
+      'fa-solid fa-magnifying-glass-minus');
+    const zoomIn = control('workbench-whiteboard-zoom-in', t('ui.workbench.wb_zoom_in', 'Zoom in'),
+      'fa-solid fa-magnifying-glass-plus');
+    const zoomLevel = element('button', 'btn btn-sm btn-secondary workbench-whiteboard-zoom-level', '100%');
+    zoomLevel.type = 'button';
+    zoomLevel.title = t('ui.workbench.wb_zoom_fit', 'Fit to the width');
+    zoomLevel.setAttribute('aria-label', zoomLevel.title);
+    zoomOut.addEventListener('click', () => zoomTo([...ZOOMS].reverse().find((z) => z < state.zoom - 0.01) || ZOOMS[0]));
+    zoomIn.addEventListener('click', () => zoomTo(ZOOMS.find((z) => z > state.zoom + 0.01) || ZOOMS[ZOOMS.length - 1]));
+    zoomLevel.addEventListener('click', () => zoomTo(1));
     const grid = control('workbench-whiteboard-grid', t('ui.workbench.wb_grid', 'Grid'), 'fa-solid fa-border-all');
     grid.addEventListener('click', () => {
       choose({ grid: !state.grid });
@@ -488,7 +622,7 @@
     });
     bar.append(group(t('ui.workbench.wb_tools', 'Tools'), ...toolButtons),
       group(t('ui.workbench.wb_style', 'Color, size and fill'), colorPicker.wrap, strokePicker.wrap, fillPicker.wrap),
-      group(t('ui.workbench.wb_grid', 'Grid'), grid),
+      group(t('ui.workbench.wb_view', 'View'), zoomOut, zoomLevel, zoomIn, grid),
       group(t('ui.workbench.wb_history', 'Undo and redo'), undo, redo, clear));
 
     const sheet = element('div', 'workbench-whiteboard-sheet');
@@ -507,6 +641,38 @@
     canvas.setAttribute('tabindex', '0');
     canvas.append(gridLayer, layer, preview, chrome);
     sheet.appendChild(canvas);
+
+    // The board shown at level (its size on the board unchanged), the
+    // place under around (a pointer's [x, y] on screen; else the middle of
+    // the view) kept where it is.
+    function zoomTo(level, around) {
+      const next = Math.min(Math.max(level, ZOOMS[0]), ZOOMS[ZOOMS.length - 1]);
+      if (Math.abs(next - state.zoom) < 0.001) return;
+      const rect = sheet.getBoundingClientRect();
+      const ax = around ? around[0] - rect.left : sheet.clientWidth / 2;
+      const ay = around ? around[1] - rect.top : sheet.clientHeight / 2;
+      const ratio = next / state.zoom;
+      state.zoom = next;
+      canvas.style.width = `${next * 100}%`;
+      sheet.dataset.zoomed = next > 1 ? 'true' : 'false';
+      sheet.scrollLeft = (sheet.scrollLeft + ax) * ratio - ax;
+      sheet.scrollTop = (sheet.scrollTop + ay) * ratio - ay;
+      showZoom();
+    }
+
+    function showZoom() {
+      zoomLevel.textContent = `${Math.round(state.zoom * 100)}%`;
+      zoomOut.disabled = state.zoom <= ZOOMS[0];
+      zoomIn.disabled = state.zoom >= ZOOMS[ZOOMS.length - 1];
+    }
+
+    // ⌘ or Ctrl with the wheel (a pinch on a trackpad) zooms where the
+    // pointer is.
+    sheet.addEventListener('wheel', (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      zoomTo(state.zoom * Math.exp(-e.deltaY * 0.01), [e.clientX, e.clientY]);
+    }, { passive: false });
     box.classList.add('workbench-whiteboard');
     box.replaceChildren(bar, sheet);
 
@@ -537,6 +703,15 @@
     // its handles over the board.
     let selected = null;
     const chosen = () => board.shapes.find((s) => s.id === selected) || null;
+    // A shape as it is drawn now (a joined line's ends at its shapes), and
+    // the same let go of what it joins: moved, it stays where it is put.
+    const drawnAs = (shape) => placed(shape, byId(board.shapes));
+    const loose = (shape) => {
+      const out = Object.assign({}, drawnAs(shape));
+      delete out.from;
+      delete out.to;
+      return out;
+    };
 
     function drawChrome() {
       const shape = chosen();
@@ -545,7 +720,7 @@
         chrome.replaceChildren();
         return;
       }
-      const b = bounds(shape);
+      const b = bounds(drawnAs(shape));
       const box = { x: b.x - PAD, y: b.y - PAD, w: b.w + PAD * 2, h: b.h + PAD * 2 };
       const parts = [svg('rect', { x: box.x, y: box.y, width: box.w, height: box.h, class: 'workbench-whiteboard-selection',
         'data-handle': 'move' })];
@@ -573,7 +748,8 @@
     }
 
     function redraw() {
-      layer.replaceChildren(...board.shapes.map(shapeElement).filter(Boolean));
+      const shapes = byId(board.shapes);
+      layer.replaceChildren(...board.shapes.map((s) => shapeElement(s, shapes)).filter(Boolean));
       drawChrome();
       undo.disabled = past.length === 0;
       redo.disabled = future.length === 0;
@@ -732,7 +908,7 @@
       // Else the smallest shape whose box (with a margin) holds the point.
       let best = null;
       board.shapes.forEach((s) => {
-        const b = bounds(s);
+        const b = bounds(drawnAs(s));
         const pad = PAD + widthOf(s) / 2;
         if (point[0] < b.x - pad || point[0] > b.x + b.w + pad || point[1] < b.y - pad || point[1] > b.y + b.h + pad) return;
         const area = (b.w + pad * 2) * (b.h + pad * 2);
@@ -753,7 +929,8 @@
       const shape = chosen();
       if (canvas.focus) canvas.focus({ preventScroll: true });
       if (!shape) return;
-      drawing = { select: true, mode: mode, start: point, from: bounds(shape), original: Object.assign({}, shape),
+      const original = shape.from || shape.to ? loose(shape) : Object.assign({}, shape);
+      drawing = { select: true, mode: mode, start: point, from: bounds(original), original: original,
         before: snapshot(), moved: false };
     }
 
@@ -803,12 +980,13 @@
       } else if (arrows[e.key]) {
         e.preventDefault();
         const by = e.shiftKey ? 10 : 1;
-        const b = bounds(shape);
+        const base = shape.from || shape.to ? loose(shape) : shape;
+        const b = bounds(base);
         const to = { x: within(b.x + arrows[e.key][0] * by, 0, Math.max(0, WIDTH - b.w)),
           y: within(b.y + arrows[e.key][1] * by, 0, Math.max(0, HEIGHT - b.h)), w: b.w, h: b.h };
         change(() => {
           const index = board.shapes.findIndex((s) => s.id === shape.id);
-          board.shapes[index] = fitted(shape, b, to);
+          board.shapes[index] = fitted(base, b, to);
         });
       }
     });
@@ -816,40 +994,107 @@
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
 
-    // A text typed at where the user clicked: Enter keeps it (Shift+Enter
-    // starts a new line), Esc lets it go, and so does leaving it empty.
-    function writeText(point) {
+    // A text typed in a box over the board at point (its top left): Enter
+    // keeps it (Shift+Enter starts a new line), so does leaving the box, and
+    // Esc lets it go. keep(text) is given what was typed (maybe empty).
+    function editText(point, { initial = '', size = state.size, colorName = state.color, keep }) {
       const rect = canvas.getBoundingClientRect();
       const input = element('textarea', 'form-control workbench-whiteboard-input');
-      input.rows = 1;
+      input.rows = Math.max(1, initial.split('\n').length);
+      input.value = initial;
       input.style.left = `${(point[0] / WIDTH) * rect.width}px`;
       input.style.top = `${(point[1] / HEIGHT) * rect.height}px`;
-      input.style.color = COLORS[state.color];
-      input.style.fontSize = `${(state.size / HEIGHT) * rect.height}px`;
+      input.style.color = COLORS[colorName] || COLORS.black;
+      input.style.fontSize = `${(size / HEIGHT) * rect.height}px`;
       input.setAttribute('aria-label', t('ui.workbench.wb_text', 'Text'));
       sheet.appendChild(input);
       let done = false;
-      const keep = (save) => {
+      const finish = (save) => {
         if (done) return;
         done = true;
-        const text = input.value.replace(/\s+$/, '');
+        const text = input.value.replace(/\s+$/, '').slice(0, 1000);
         input.remove();
-        if (!save || !text.trim()) return;
-        const shape = { id: newId(), type: 'text', by: 'user', color: state.color, size: state.size, x: point[0], y: point[1],
-          text: text.slice(0, 1000) };
-        change(() => { board.shapes.push(shape); });
+        if (save) keep(text);
       };
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
           e.preventDefault();
-          keep(true);
+          finish(true);
         } else if (e.key === 'Escape') {
           e.preventDefault();
-          keep(false);
+          finish(false);
         }
       });
-      input.addEventListener('blur', () => keep(true));
+      input.addEventListener('blur', () => finish(true));
       setTimeout(() => input.focus(), 0);
+    }
+
+    // A new text where the user clicked.
+    function writeText(point) {
+      editText(point, {
+        keep: (text) => {
+          if (!text.trim()) return;
+          const shape = { id: newId(), type: 'text', by: 'user', color: state.color, size: state.size, x: point[0],
+            y: point[1], text: text };
+          change(() => { board.shapes.push(shape); });
+        }
+      });
+    }
+
+    // With the select tool, a double click on a rectangle, an ellipse or a
+    // text writes its text again: a shape's text in its middle (none when
+    // left empty), a text's own (taken off when left empty).
+    canvas.addEventListener('dblclick', (e) => {
+      if (state.tool !== 'select' || state.disposed || drawing) return;
+      const id = shapeAt(e, at(e));
+      const shape = board.shapes.find((s) => s.id === id);
+      if (!shape || !['rect', 'ellipse', 'text'].includes(shape.type)) return;
+      e.preventDefault();
+      const b = bounds(shape);
+      editText([b.x, b.y], {
+        initial: shape.text || '', size: sizeOf(shape), colorName: shape.color,
+        keep: (text) => {
+          if ((shape.text || '') === text) return;
+          change(() => {
+            const now = board.shapes.find((s) => s.id === id);
+            if (!now) return;
+            if (text.trim()) {
+              now.text = text;
+              now.size = sizeOf(now);
+            } else if (now.type === 'text') {
+              board.shapes = board.shapes.filter((s) => s.id !== id);
+            } else {
+              delete now.text;
+              delete now.size;
+            }
+          });
+        }
+      });
+    });
+
+    // The board written out as a file of kind (svg, png or pdf) to keep or
+    // pass on, handed to save with the board's name (the file itself stays
+    // the board's shapes).
+    function exportAs(kind) {
+      if (typeof save !== 'function') return;
+      const base = String(name || 'whiteboard').replace(/\.wb\.json$/i, '') || 'whiteboard';
+      if (kind === 'svg') {
+        save(new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${svgText(handle.data())}`], { type: 'image/svg+xml' }),
+          `${base}.svg`);
+        return;
+      }
+      const picture = document.createElement('canvas');
+      picture.width = WIDTH * 2;
+      picture.height = HEIGHT * 2;
+      paint(board, picture.getContext('2d'), picture.width, picture.height);
+      if (kind === 'png') {
+        picture.toBlob((png) => { if (png) save(png, `${base}.png`); }, 'image/png');
+        return;
+      }
+      picture.toBlob(async (jpeg) => {
+        if (!jpeg) return;
+        save(pdfOf(new Uint8Array(await jpeg.arrayBuffer()), picture.width, picture.height), `${base}.pdf`);
+      }, 'image/jpeg', 0.92);
     }
 
     const handle = {
@@ -862,6 +1107,7 @@
         redraw();
       },
       paint: (context, width, height) => paint(board, context, width, height),
+      exportAs: exportAs,
       dispose: () => {
         state.disposed = true;
         pickers.forEach((p) => p.close());
@@ -869,10 +1115,11 @@
       }
     };
     choose({});
+    showZoom();
     redraw();
     return handle;
   }
 
-  window.WorkbenchWhiteboard = { show: show, svgText: svgText, WIDTH: WIDTH, HEIGHT: HEIGHT, COLORS: COLORS };
+  window.WorkbenchWhiteboard = { show: show, svgText: svgText, pdfOf: pdfOf, WIDTH: WIDTH, HEIGHT: HEIGHT, COLORS: COLORS };
   if (typeof module !== 'undefined' && module.exports) module.exports = window.WorkbenchWhiteboard;
 })(typeof window !== 'undefined' ? window : globalThis);

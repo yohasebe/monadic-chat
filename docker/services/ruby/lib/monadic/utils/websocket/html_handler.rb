@@ -12,6 +12,7 @@ require_relative '../../turn_state/notes'
 require_relative '../tts_marker_vocabulary'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
+require_relative '../../workbench/draw'
 
 module WebSocketHelper
   # Maximum number of tool HTML fragments kept per response cycle.
@@ -197,6 +198,10 @@ module WebSocketHelper
           # deleting this message puts it back.
           revisions = request_id && Monadic::Workbench::Made.clean_revisions(Monadic::Workbench::Made.seal_revisions(request_id))
           new_data[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
+          # What it drew on whiteboards (Workbench::Draw): deleting this
+          # message takes those shapes off.
+          drawn = request_id && Monadic::Workbench::Draw.clean(Monadic::Workbench::Draw.seal(request_id))
+          new_data[Monadic::Workbench::Draw::KEY] = drawn if drawn
           # What it changed in its app's state (Monadic::TurnState): deleting
           # this message takes the changes back.
           state_changes = request_id && Monadic::TurnState.seal(request_id, session)

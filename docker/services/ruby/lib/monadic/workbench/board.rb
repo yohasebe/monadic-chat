@@ -482,6 +482,11 @@ module Monadic
         @lock.synchronize { deep_dup(@data['items'][item_id]) }
       end
 
+      # The file item of path (relative to the shared folder), or nil.
+      def item_at(path)
+        @lock.synchronize { deep_dup(@data['items'].values.find { |i| i.dig('file', 'path') == path }) }
+      end
+
       # Takes off the file and image items of paths (relative to the shared
       # folder), and of the files inside a folder among them: what a deleted
       # turn made and moved to the trash. Returns the ids taken off.

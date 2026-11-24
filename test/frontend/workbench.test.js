@@ -1924,6 +1924,25 @@ describe('Workbench', () => {
       jest.restoreAllMocks();
     });
 
+    test('writes the board out from the buttons beside its save button, named after it', () => {
+      const buttons = [...document.querySelectorAll('#workbench-view .workbench-whiteboard-exports .workbench-whiteboard-export-option')];
+      expect(buttons.map((b) => b.dataset.kind)).toEqual(['svg', 'png', 'pdf']);
+      const named = [];
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function record() { named.push(this.download); });
+      const made = URL.createObjectURL;
+      const revoke = URL.revokeObjectURL;
+      URL.createObjectURL = jest.fn(() => 'blob:board');
+      URL.revokeObjectURL = jest.fn();
+      try {
+        buttons[0].click();
+      } finally {
+        click.mockRestore();
+        URL.createObjectURL = made;
+        URL.revokeObjectURL = revoke;
+      }
+      expect(named).toEqual(['whiteboard-1.svg']);
+    });
+
     test('asks the server for a new whiteboard', () => {
       document.getElementById('work-screen-pane').insertAdjacentHTML('beforeend', '<button id="workbench-new-whiteboard"></button>');
       jest.resetModules();

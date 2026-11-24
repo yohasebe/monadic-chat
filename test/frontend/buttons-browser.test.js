@@ -71,6 +71,15 @@ describe('The shared buttons in a browser', () => {
     });
   });
 
+  test('the top bar\'s status label is as tall as the small buttons beside it, on one line with them', () => {
+    const [status, ...buttons] = r.view.wide.bar;
+    near(status.height, SMALL);
+    buttons.forEach((b) => {
+      near(b.height, SMALL);
+      near(b.middle, status.middle);
+    });
+  });
+
   test('the floating buttons over the Web UI are two groups of small square tools, without colors of their own', () => {
     expect(r.floating.map((g) => g.map((b) => b.label))).toEqual([
       ['Zoom In', 'Zoom Out', 'Reset Zoom'], ['Reset All', 'Monadic Chat Console']

@@ -3236,11 +3236,12 @@ img.base64-image,
   margin-right: .5rem;
 }
 
-/* Status message enhancements */
+/* Status message enhancements: as tall as the small buttons beside it
+   (buttons.css), its corners theirs. */
 #status-message {
-  height: 28px;
+  height: var(--btn-h-sm);
   padding: 0 0.5rem;
-  border-radius: 0.25rem;
+  border-radius: var(--btn-radius);
   border: 1px solid #dee2e6;
   transition: all 0.2s ease;
   display: flex;
@@ -3253,7 +3254,7 @@ img.base64-image,
   text-overflow: ellipsis;
   white-space: nowrap;
   background-color: #f8f9fa;
-  line-height: 28px;
+  line-height: normal;
   box-sizing: border-box;
   flex-shrink: 1;
   min-width: 0;

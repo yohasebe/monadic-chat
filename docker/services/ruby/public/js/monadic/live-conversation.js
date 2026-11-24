@@ -78,7 +78,7 @@
       '<div id="lc-controls-row" class="d-flex align-items-center flex-wrap mb-3" style="gap: 0.5rem 1.25rem;"></div>' +
       '<div class="d-flex align-items-center mt-1">' +
       '<span class="me-3"><i class="fas fa-tower-broadcast me-1"></i><span id="lc-app-label"></span></span>' +
-      '<button id="lc-toggle" class="btn btn-v2 btn-sm btn-lc" type="button">' +
+      '<button id="lc-toggle" class="btn btn-sm btn-lc" type="button">' +
       '<span id="lc-toggle-label"></span>' +
       '<i id="lc-action-icon" class="fas fa-play ms-1"></i></button>' +
       '<div id="lc-status" class="text-secondary small ms-3"></div>' +

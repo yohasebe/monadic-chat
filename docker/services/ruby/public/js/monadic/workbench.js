@@ -217,11 +217,9 @@
     return el;
   }
 
-  // A meaning (btn-primary, btn-secondary...) or a tool on a panel
-  // (btn-tool) makes it a shared button (buttons.css).
+  // A shared button (buttons.css): className gives its meaning or form.
   function button(label, className, onClick) {
-    const shared = /^btn-(primary|secondary|danger|warning|tool)$/.test(className) ? 'btn-v2 ' : '';
-    const el = element('button', `btn ${shared}btn-sm ${className}`, label);
+    const el = element('button', `btn btn-sm ${className}`, label);
     el.type = 'button';
     el.addEventListener('click', onClick);
     return el;
@@ -1647,7 +1645,7 @@
         .replace('{last}', String(aiPoint.lines[1]))
       : t('ui.workbench.aiPointPage', 'AI: page {n}').replace('{n}', String(aiPoint.page));
     chip.appendChild(element('span', 'workbench-selection-text', aiPoint.label ? `${where} · ${aiPoint.label}` : where));
-    const clear = element('button', 'btn btn-sm workbench-selection-aside');
+    const clear = element('button', 'btn btn-sm btn-icon workbench-selection-aside');
     clear.type = 'button';
     clear.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
     const label = t('ui.workbench.aiPointClear', "Clear the AI's mark");
@@ -1706,7 +1704,7 @@
       chip = element('span', 'workbench-selection-chip');
       chip.appendChild(element('i', 'fa-solid fa-i-cursor'));
       chip.appendChild(element('span', 'workbench-selection-text'));
-      const aside = element('button', 'btn btn-sm workbench-selection-aside');
+      const aside = element('button', 'btn btn-sm btn-icon workbench-selection-aside');
       aside.type = 'button';
       aside.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
       aside.addEventListener('click', () => {

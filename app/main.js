@@ -380,7 +380,7 @@ function openWebViewWindow(url, forceReload = false) {
         function makeBtn(iconClass, onClick, tooltip) {
           const btn = document.createElement('button');
           btn.type = 'button';
-          btn.className = 'btn btn-v2 btn-sm btn-tool btn-icon';
+          btn.className = 'btn btn-sm btn-tool btn-icon';
           // Use string concatenation to avoid nested template literals
           btn.innerHTML = '<i class="' + iconClass + '" aria-hidden="true"></i>';
           btn.title = tooltip;

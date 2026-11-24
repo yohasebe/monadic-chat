@@ -102,21 +102,30 @@ const measure = (ids) => {
 // Past the buttons' color transition.
 const settled = () => new Promise((resolve) => { setTimeout(resolve, 300); });
 
-// Every btn-v2: its size class and what it measures, and the ones never
+// Every btn: its size class and what it measures, and the ones never
 // shown (none expected).
 const everyButton = () => {
   const seen = new Map();
-  const take = () => document.querySelectorAll('.btn-v2').forEach((b) => {
+  const take = () => document.querySelectorAll('.btn').forEach((b) => {
     const r = b.getBoundingClientRect();
     if (!r.width || seen.has(b)) return;
     const cs = getComputedStyle(b);
     seen.set(b, {
-      id: b.id || b.className, small: b.classList.contains('btn-sm'), icon: b.classList.contains('btn-icon'),
+      id: b.id || b.className, classes: Array.from(b.classList), small: b.classList.contains('btn-sm'), icon: b.classList.contains('btn-icon'), link: b.classList.contains('btn-link'),
       height: r.height, width: r.width, cut: b.scrollWidth - b.clientWidth,
       meaning: ['btn-primary', 'btn-secondary', 'btn-danger', 'btn-warning'].find((k) => b.classList.contains(k)) || null,
       tool: b.classList.contains('btn-tool'),
-      // A tool sits on its group's panel; clear, it shows the panel's color.
-      panel: b.closest('.btn-panel') ? getComputedStyle(b.closest('.btn-panel')).backgroundColor : null,
+      // A tool sits on its group's panel (or on the top bar); clear, it
+      // shows that color.
+      panel: b.closest('.btn-panel, .navbar') ? getComputedStyle(b.closest('.btn-panel, .navbar')).backgroundColor : null,
+      // What shows behind a clear button: the nearest filled box around it.
+      behind: (() => {
+        for (let el = b.parentElement; el; el = el.parentElement) {
+          const color = getComputedStyle(el).backgroundColor;
+          if (color !== 'rgba(0, 0, 0, 0)') return color;
+        }
+        return 'rgb(255, 255, 255)';
+      })(),
       bg: cs.backgroundColor, fg: cs.color
     });
   });
@@ -126,7 +135,7 @@ const everyButton = () => {
     take();
     m.classList.remove('show'); m.style.display = '';
   });
-  Array.from(document.querySelectorAll('.btn-v2')).filter((b) => !seen.has(b)).forEach((b) => {
+  Array.from(document.querySelectorAll('.btn')).filter((b) => !seen.has(b)).forEach((b) => {
     const undo = [];
     const chain = [];
     for (let el = b; el && el !== document.body; el = el.parentElement) chain.unshift(el);
@@ -141,7 +150,7 @@ const everyButton = () => {
     take();
     undo.reverse().forEach((f) => f());
   });
-  return { buttons: Array.from(seen.values()), unseen: Array.from(document.querySelectorAll('.btn-v2')).filter((b) => !seen.has(b)).map((b) => b.id || b.className) };
+  return { buttons: Array.from(seen.values()), unseen: Array.from(document.querySelectorAll('.btn')).filter((b) => !seen.has(b)).map((b) => b.id || b.className) };
 };
 
 const TOOL_IDS = ['image-file', 'doc', 'url', 'anonymize', 'voice'];
@@ -201,7 +210,7 @@ async function main() {
         const button = document.createElement('button');
         button.id = 'lc-toggle';
         button.type = 'button';
-        button.className = 'btn btn-v2 btn-sm btn-lc';
+        button.className = 'btn btn-sm btn-lc';
         button.textContent = 'Start live conversation';
         window.livePressed = 0;
         button.addEventListener('click', () => { window.livePressed += 1; });
@@ -213,11 +222,20 @@ async function main() {
           return { bg: cs.backgroundColor, fg: cs.color, height: button.getBoundingClientRect().height };
         };
         const rest = look();
+        // The table's tokens, as colors in this theme.
+        const probe = document.createElement('div');
+        document.body.append(probe);
+        const tokens = {};
+        ['--btn-live-bg'].forEach((name) => {
+          probe.style.backgroundColor = `var(${name})`;
+          tokens[name] = getComputedStyle(probe).backgroundColor;
+        });
+        probe.remove();
         button.classList.add('btn-lc-live');
         return new Promise((resolve) => setTimeout(() => {
           const live = look();
           button.classList.remove('btn-lc-live');
-          resolve({ focused, rest, live });
+          resolve({ focused, rest, live, tokens });
         }, 300));
       }, scripts);
     }

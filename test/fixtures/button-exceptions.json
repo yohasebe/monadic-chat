@@ -1,0 +1,11 @@
+[
+  {
+    "screen": "web",
+    "element": "#lc-toggle",
+    "class": "btn-lc",
+    "state": "at rest",
+    "rule": "meaning color",
+    "expect": { "background-color": "--btn-live-bg" },
+    "reason": "Pressing it opens a live microphone channel; its own color keeps it apart from sending (blue) and deleting (red). Only the color differs: its size, focus and states are the shared ones."
+  }
+]

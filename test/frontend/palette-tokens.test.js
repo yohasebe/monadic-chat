@@ -37,7 +37,7 @@ describe('the palette', () => {
   });
 
   test.each([
-    'btn-primary-bg', 'btn-primary-hover-bg', 'btn-success-bg', 'btn-secondary-bg', 'btn-warning', 'btn-danger',
+    'btn-primary-bg', 'btn-primary-hover-bg', 'btn-secondary-bg', 'btn-warning', 'btn-danger',
     'status-error', 'status-warning', 'status-info', 'status-success', 'color-link', 'text-link', 'focus-outline',
     'accent-blue', 'accent-green', 'accent-red', 'accent-amber',
     'bdg-blue-bg', 'bdg-green-fg', 'bdg-amber-bd', 'bdg-red-fg', 'bdg-grey-bg'

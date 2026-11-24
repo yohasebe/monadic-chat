@@ -45,8 +45,8 @@ describe('the console in dark', () => {
 
   test('the buttons are the shared ones (buttons.css), yellow for running the app and grey for the rest, with no rules of their own', () => {
     const kind = (id) => (page.match(new RegExp(`<button id="${id}"[^>]*class="([^"]+)"`)) || [])[1];
-    ['start', 'stop', 'restart', 'browser'].forEach((id) => expect(kind(id)).toBe('btn btn-v2 btn-sm btn-warning'));
-    ['sharedfolder', 'settings', 'exit'].forEach((id) => expect(kind(id)).toBe('btn btn-v2 btn-sm btn-secondary'));
+    ['start', 'stop', 'restart', 'browser'].forEach((id) => expect(kind(id)).toBe('btn btn-sm btn-warning'));
+    ['sharedfolder', 'settings', 'exit'].forEach((id) => expect(kind(id)).toBe('btn btn-sm btn-secondary'));
     const selectors = style.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g) || [];
     expect(selectors.filter((sel) => /(^|[\s,>+~])button\b/.test(sel))).toEqual([]);
   });

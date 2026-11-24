@@ -601,7 +601,7 @@ function updateFileDisplay(files) {
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container attachment-chip">
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
+          <button class='btn btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -611,7 +611,7 @@ function updateFileDisplay(files) {
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container attachment-chip">
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-file-pdf"></i> ${window.escapeHtml(file.title)}</button>
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
+          <button class='btn btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -622,7 +622,7 @@ function updateFileDisplay(files) {
       if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
         <div class="file-container attachment-chip">
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(file.title)}</button>
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
+          <button class='btn btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -636,10 +636,10 @@ function updateFileDisplay(files) {
           <img class='mask-overlay opacity-60' alt='${window.escapeHtml(maskData.title)}' src='${window.escapeHtml(maskData.display_data || maskData.data)}' />
           <div class="mask-overlay-label">MASK</div>
           <div class="mask-controls">
-            <button class='btn btn-v2 btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
+            <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
               <i class="fa-regular fa-trash-can"></i> Remove Mask
             </button>
-            <button class='btn btn-v2 btn-sm btn-secondary toggle-mask' tabindex="100">
+            <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
               <i class="fas fa-eye-slash"></i> Toggle Mask
             </button>
           </div>
@@ -654,11 +654,11 @@ function updateFileDisplay(files) {
           <img class='base64-image' hidden alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-image"></i> ${window.escapeHtml(file.title)}</button>
           ${isMaskEditingEnabled ?
-            `<button class='btn btn-v2 btn-primary btn-sm create-mask' data-index='${index}' tabindex="100">
+            `<button class='btn btn-primary btn-sm create-mask' data-index='${index}' tabindex="100">
               <i class="fas fa-brush"></i> Create Mask
             </button>` : ''
           }
-          <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
+          <button class='btn btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -674,7 +674,7 @@ function updateFileDisplay(files) {
     if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', `
       <div class="file-container video-attachment attachment-chip">
         <button type="button" class="attachment-chip-name" data-draft-attachment='${index}'><i class="fas ${icon}"></i> ${window.escapeHtml(video.name)} (${sizeMb} MB)</button>
-        <button class='btn btn-v2 btn-secondary btn-sm btn-icon remove-video' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
+        <button class='btn btn-secondary btn-sm btn-icon remove-video' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
           <i class="fas fa-times"></i>
         </button>
       </div>

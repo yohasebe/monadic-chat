@@ -75,9 +75,9 @@ class ReasoningUIManager {
       <span class="form-label text-nowrap" id="reasoning-mode-label" data-i18n="ui.reasoningMode">Reasoning Mode</span>
       <div class="btn-panel" role="radiogroup" aria-labelledby="reasoning-mode-label">
         <input type="radio" class="btn-choice" name="reasoning-mode" id="reasoning-off" value="disabled">
-        <label class="btn btn-v2 btn-sm btn-tool" for="reasoning-off">Off</label>
+        <label class="btn btn-sm btn-tool" for="reasoning-off">Off</label>
         <input type="radio" class="btn-choice" name="reasoning-mode" id="reasoning-on" value="enabled" checked>
-        <label class="btn btn-v2 btn-sm btn-tool" for="reasoning-on">On</label>
+        <label class="btn btn-sm btn-tool" for="reasoning-on">On</label>
       </div>
     `;
     container.appendChild(deepseekUI);

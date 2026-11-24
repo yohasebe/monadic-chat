@@ -1,0 +1,20 @@
+{
+  "btn-close": "a dialog's or a notice's close (×)",
+  "side-pane-tab": "a tab of the side column (role tab, aria-selected)",
+  "summary-tab": "a tab of the settings summary (role tab, aria-selected)",
+  "attachment-chip-name": "an attachment's name in its chip, opening the file",
+  "sfp-plain-btn": "dismissing a band (clearing a selection): the icon alone",
+  "workbench-selection-aside": "dismissing a chip (×) inside it",
+  "word-table-icon-button": "the word table's help, an icon in its heading",
+  "word-table-status": "the word table's state in the message tools, opening it",
+  "word-table-off": "a word table row's switch",
+  "word-table-putback": "a word set aside, put back by pressing it",
+  "workbench-item": "an item's tab in the work screen",
+  "workbench-item-remove": "removing an item, in its tab (×)",
+  "workbench-draft": "a draft's badge, opening it",
+  "list-group-item": "a row of a list",
+  "workbench-whiteboard-color": "a color's swatch in the whiteboard's picker",
+  "sourcecode-toggle": "a code block's show/hide line",
+  "dropdown-item": "an item of a menu",
+  "sfp-row-menu": "a list row's menu (…), quiet in its row"
+}

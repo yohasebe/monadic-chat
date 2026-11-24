@@ -71,8 +71,8 @@
   // A button of a view's bar: an icon, its name as a tooltip (tips collects
   // the tooltips, to be let go with the view).
   // A tool on its group's panel (buttons.css), square.
-  function control(className, label, icon, { tip, kind = 'btn-tool', tips } = {}) {
-    const b = element('button', `btn btn-v2 btn-sm ${kind} btn-icon workbench-icon-btn ${className}`);
+  function control(className, label, icon, { tip, tips } = {}) {
+    const b = element('button', `btn btn-sm btn-tool btn-icon workbench-icon-btn ${className}`);
     b.type = 'button';
     b.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
     b.setAttribute('aria-label', label);
@@ -115,7 +115,7 @@
     lookMenu.setAttribute('role', 'group');
     lookMenu.setAttribute('aria-label', t('ui.workbench.pointLook', 'The look of the mark'));
     function choice(kind, value, label) {
-      const b = element('button', `btn btn-v2 btn-sm btn-tool btn-icon workbench-icon-btn workbench-pointer-look-${kind}`);
+      const b = element('button', `btn btn-sm btn-tool btn-icon workbench-icon-btn workbench-pointer-look-${kind}`);
       b.type = 'button';
       b.dataset[kind] = value;
       b.setAttribute('aria-label', label);

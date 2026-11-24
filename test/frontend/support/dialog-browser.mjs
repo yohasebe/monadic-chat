@@ -24,6 +24,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <input type="checkbox" id="check-easy-submit" checked><input type="checkbox" id="check-auto-speech">
 <textarea id="message">a draft</textarea>
 <button id="send" type="button">Send</button>
+<button id="voice" type="button">Voice</button><div id="main-panel"></div>
 <button id="opener" type="button">Delete</button>
 ${DELETE}
 <dialog class="mdialog" id="still" data-dialog-static aria-labelledby="still-title"><div class="modal-dialog"><div class="modal-content">
@@ -38,6 +39,8 @@ ${DELETE}
 <script>
   window.sent = 0;
   document.getElementById('send').addEventListener('click', () => { window.sent += 1; });
+  window.voiced = 0;
+  document.getElementById('voice').addEventListener('click', () => { window.voiced += 1; });
   window.log = [];
   ['deleteConfirmation', 'still'].forEach((id) => ['mdialog:shown', 'mdialog:hide', 'mdialog:hidden'].forEach((type) =>
     document.getElementById(id).addEventListener(type, (e) => window.log.push(id + ' ' + type + ' ' + (e.detail.reason || '')))));
@@ -77,7 +80,7 @@ async function main() {
         face: getComputedStyle(d.querySelector('.modal-content')).backgroundColor,
         backdrop: d.open ? getComputedStyle(d, '::backdrop').backgroundColor : null,
         view: { width: innerWidth, height: innerHeight },
-        log: window.log.splice(0), sent: window.sent
+        log: window.log.splice(0), sent: window.sent, voiced: window.voiced
       };
     });
     const openIt = () => page.evaluate(() => { document.getElementById('opener').focus(); MonadicDialog.of(document.getElementById('deleteConfirmation')).open(document.getElementById('opener')); });
@@ -88,7 +91,10 @@ async function main() {
     await wait(250);
     out.opened = await look();
 
-    // Easy Submit leaves Enter to the dialog while it is open.
+    // Easy Submit leaves the arrow and Enter to the dialog while it is open.
+    await page.keyboard.press('ArrowRight');
+    await wait(50);
+    out.arrowInside = await look();
     await page.keyboard.press('Enter');
     await wait(50);
     out.enterInside = await look();
@@ -107,6 +113,9 @@ async function main() {
     await page.keyboard.press('Enter');
     await wait(50);
     out.enterAfter = await look();
+    await page.keyboard.press('ArrowRight');
+    await wait(50);
+    out.arrowAfter = await look();
 
     // The backdrop: a press outside the panel closes it; a drag from inside
     // to outside does not.

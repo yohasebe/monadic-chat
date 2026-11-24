@@ -465,12 +465,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     uiUtils.setupTextarea(aiUserInitialPromptTextarea, initialHeight);
   }
 
-  document.addEventListener('hide.bs.modal', function (_event) {
-    if (document.activeElement) {
-      document.activeElement.blur();
-    }
-  });
-
   // if on Firefox, disable the #voice-panel
   if (runningOnFirefox) {
     const voicePanel = $id("voice-panel");

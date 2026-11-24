@@ -9,12 +9,17 @@ const mockImageData = {
   type: "image/jpeg"
 };
 
-// Mock bootstrap
-const mockModalInstance = { show: jest.fn(), hide: jest.fn() };
-global.bootstrap = {
-  Modal: {
-    getOrCreateInstance: jest.fn().mockReturnValue(mockModalInstance)
-  }
+// A fake MonadicDialog, as the real one: open() opens at once; close()
+// tells mdialog:hidden later (a task).
+const opened = [];
+global.MonadicDialog = window.MonadicDialog = {
+  of: (el) => ({
+    open: () => { opened.push(el); return true; },
+    close: () => new Promise((r) => setTimeout(r, 0)).then(() => {
+      el.dispatchEvent(new CustomEvent('mdialog:hidden'));
+      return true;
+    })
+  })
 };
 
 // Mock canvas context
@@ -108,11 +113,29 @@ describe('Mask Editor', () => {
     it('should create and display the modal properly', () => {
       maskEditor.openMaskEditor(mockImageData);
 
-      // Modal HTML should be inserted into body
-      expect(document.body.innerHTML).toContain('maskEditorModal');
-      // Bootstrap modal show should be called
-      expect(bootstrap.Modal.getOrCreateInstance).toHaveBeenCalled();
-      expect(mockModalInstance.show).toHaveBeenCalled();
+      // A <dialog> named by its title, opened
+      const dialog = document.body.lastElementChild;
+      expect(dialog.tagName).toBe('DIALOG');
+      expect(dialog.id).toBe('maskEditorModal');
+      expect(document.getElementById(dialog.getAttribute('aria-labelledby')).textContent).toContain('Create Mask');
+      expect(opened[opened.length - 1]).toBe(dialog);
+      expect(dialog.querySelectorAll('[data-bs-dismiss]')).toHaveLength(0);
+      expect(dialog.querySelectorAll('[data-dialog-close]')).toHaveLength(2);
+    });
+
+    it('opened again while the one before closes, the new editor stays and the one before goes', async () => {
+      maskEditor.openMaskEditor(mockImageData);
+      const before = document.body.lastElementChild;
+      before.dataset.which = 'before';
+      const closing = window.MonadicDialog.of(before).close('done');
+      maskEditor.openMaskEditor(mockImageData);
+      const after = document.body.lastElementChild;
+      await closing;
+      await new Promise((r) => setTimeout(r, 0));
+      const left = document.querySelectorAll('dialog#maskEditorModal');
+      expect(left).toHaveLength(1);
+      expect(left[0]).toBe(after);
+      expect(left[0].dataset.which).toBeUndefined();
     });
 
     it('should register canvas event listeners', () => {

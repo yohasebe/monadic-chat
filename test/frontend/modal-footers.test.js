@@ -23,7 +23,7 @@ describe('modal footers', () => {
     const tag = m[0];
     const cls = (tag.match(/class="([^"]*)"/) || [, ''])[1].split(/\s+/);
     return {
-      cancel: /data-bs-dismiss="modal"|data-dialog-close/.test(tag) && /data-i18n="ui\.cancel"/.test(tag) && cls.includes('btn-secondary'),
+      cancel: /data-dialog-close/.test(tag) && /data-i18n="ui\.cancel"/.test(tag) && cls.includes('btn-secondary'),
       meaning: ['btn-primary', 'btn-secondary', 'btn-danger', 'btn-warning'].find((k) => cls.includes(k)) || null,
       kinds: cls.filter((c) => /^btn-(warning|outline-)/.test(c))
     };
@@ -63,7 +63,7 @@ describe('Easy Submit keys while a dialog is open', () => {
       <button id="send"></button>
       <button id="voice"></button>
       <div id="main-panel"></div>
-      <div class="modal" id="dialog"><button id="cancel">Cancel</button></div>`;
+      <dialog id="dialog"><button id="cancel">Cancel</button></dialog>`;
     global.$id = (id) => document.getElementById(id);
     sent = jest.fn(); voiced = jest.fn();
     document.getElementById('send').addEventListener('click', sent);
@@ -78,7 +78,8 @@ describe('Easy Submit keys while a dialog is open', () => {
   };
 
   test('Enter and the right arrow belong to the dialog', () => {
-    document.getElementById('dialog').classList.add('show');
+    // MonadicDialog marks the page's root while a dialog is open.
+    document.documentElement.setAttribute('data-dialog-open', '');
     const enter = press('Enter');
     press('ArrowRight');
     expect(sent).not.toHaveBeenCalled();
@@ -87,7 +88,7 @@ describe('Easy Submit keys while a dialog is open', () => {
   });
 
   test('without a dialog, Enter outside the message box still sends the draft', () => {
-    document.getElementById('dialog').classList.remove('show');
+    document.documentElement.removeAttribute('data-dialog-open');
     press('Enter');
     expect(sent).toHaveBeenCalledTimes(1);
   });

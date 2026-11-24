@@ -139,3 +139,26 @@ describe('Reset and saving to the Knowledge Base', () => {
     expect(log).toEqual(['refused resetConfirmation']);
   });
 });
+
+describe('the scripts and the view use MonadicDialog only', () => {
+  const fs = require('fs');
+  const DIR = path.join(__dirname, '../../docker/services/ruby/public/js');
+  const VIEW = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/views/index.erb'), 'utf8');
+  const files = ['monadic.js'].concat(fs.readdirSync(path.join(DIR, 'monadic')).filter((f) => f.endsWith('.js')).map((f) => `monadic/${f}`));
+  const read = (f) => fs.readFileSync(path.join(DIR, f), 'utf8');
+
+  test.each([
+    ['Bootstrap\'s modal', /bootstrap\.Modal/],
+    ['its events', /\.bs\.modal/],
+    ['its close attribute', /data-bs-dismiss="modal"/],
+    ['its marks of an open modal', /modal-open|\.modal\.show/]
+  ])('no script uses %s', (_name, pattern) => {
+    expect(files.filter((f) => pattern.test(read(f)))).toEqual([]);
+  });
+
+  test('the view\'s dialogs are <dialog> elements, closed by their own attribute', () => {
+    expect(VIEW).not.toMatch(/class="modal fade/);
+    expect(VIEW).not.toMatch(/data-bs-dismiss="modal"|data-bs-backdrop|data-bs-keyboard/);
+    expect((VIEW.match(/<dialog class="mdialog/g) || []).length).toBeGreaterThan(10);
+  });
+});

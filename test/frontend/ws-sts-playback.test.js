@@ -14,42 +14,67 @@
 // These tests assert on chunk durations and decode base64, so the stubbed
 // binary globals from test/setup.js would make them measure nothing.
 const { useRealBinaryGlobals } = require('../helpers');
+const { MessageChannel } = require('worker_threads');
 
 let restoreBinaryGlobals;
 beforeAll(() => { restoreBinaryGlobals = useRealBinaryGlobals(); });
 afterAll(() => { restoreBinaryGlobals(); });
 
+// The player's AudioContext and its one worklet node. What the node is told
+// is kept as the chunks it plays (createdSources): each 'add' is a chunk
+// started at its frame, and a 'drop' or 'dropAll' stops the chunks it takes
+// off, as stopping a source did.
 function makeFakeAudioContext() {
-  return {
+  const ctx = {
     state: 'running',
     currentTime: 0,
+    sampleRate: 24000,
     destination: {},
     createdSources: [],
+    messages: [],
+    nodes: [],
     resume: jest.fn(),
-    createBuffer(channels, length, sampleRate) {
-      const data = new Float32Array(length);
-      return {
-        length: length,
-        sampleRate: sampleRate,
-        duration: length / sampleRate,
-        getChannelData: () => data
-      };
-    },
-    createBufferSource() {
-      const ctx = this;
-      const source = {
-        buffer: null,
-        onended: null,
-        startedAt: null,
-        stopped: false,
-        connect: jest.fn(),
-        start: jest.fn(function(when) { source.startedAt = when; }),
-        stop: jest.fn(function() { source.stopped = true; })
-      };
-      ctx.createdSources.push(source);
-        return source;
+    // Loaded at once (a thenable that answers now), unless a test holds it.
+    audioWorklet: { addModule: jest.fn(() => ({ then: (ready) => { ready(); } })) },
+    receive(message) {
+      ctx.messages.push(message);
+      if (message.type === 'add') {
+        const samples = message.samples;
+        ctx.createdSources.push({
+          turn: message.turn,
+          startedAt: message.start / ctx.sampleRate,
+          buffer: { getChannelData: () => samples, duration: samples.length / ctx.sampleRate },
+          stop: jest.fn()
+        });
+      } else if (message.type === 'drop' || message.type === 'dropAll') {
+        ctx.createdSources.forEach((source) => {
+          if (message.type === 'dropAll' || source.turn === message.turn) source.stop();
+        });
+      }
     }
   };
+  return ctx;
+}
+
+function FakeWorkletNode(ctx, name, options) {
+  this.name = name;
+  this.options = options;
+  this.connect = jest.fn();
+  // As a browser does: what is transferred is taken from the sender (its
+  // array is left empty), and the node gets its own copy.
+  this.port = {
+    postMessage: (message, transfer) => {
+      const copy = Object.assign({}, message, message.samples ? { samples: Float32Array.from(message.samples) } : {});
+      if (transfer && transfer.length > 0) {
+        const channel = new MessageChannel();
+        channel.port1.postMessage(null, transfer);
+        channel.port1.close();
+        channel.port2.close();
+      }
+      ctx.receive(copy);
+    }
+  };
+  ctx.nodes.push(this);
 }
 
 const SAMPLE_RATE = 24000;
@@ -65,12 +90,14 @@ let ctx;
 beforeEach(() => {
   jest.resetModules();
   ctx = makeFakeAudioContext();
-  window.audioCtx = ctx;
+  window.AudioContext = jest.fn(() => ctx);
+  window.AudioWorkletNode = FakeWorkletNode;
   Sts = require('../../docker/services/ruby/public/js/monadic/ws-sts-playback');
 });
 
 afterEach(() => {
-  delete window.audioCtx;
+  delete window.AudioContext;
+  delete window.AudioWorkletNode;
   delete window.WsStsPlayback;
 });
 
@@ -103,28 +130,60 @@ describe('scheduling', () => {
     expect(c.startedAt).toBeCloseTo(b.startedAt + 0.25, 6);
   });
 
-  it('connects each source to the destination', () => {
+  it('plays through one player node, in an AudioContext of its own at the stream\'s rate', () => {
+    window.audioCtx = { other: true };
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    Sts.scheduleChunk('t2', chunkBytes(100), SAMPLE_RATE);
 
-    expect(ctx.createdSources[0].connect).toHaveBeenCalledWith(ctx.destination);
+    expect(window.AudioContext).toHaveBeenCalledTimes(1);
+    expect(window.AudioContext).toHaveBeenCalledWith({ sampleRate: SAMPLE_RATE });
+    expect(ctx.audioWorklet.addModule).toHaveBeenCalledWith('/js/monadic/sts-stream-worklet.js');
+    expect(ctx.nodes).toHaveLength(1);
+    expect(ctx.nodes[0].name).toBe('sts-stream-player');
+    expect(ctx.nodes[0].connect).toHaveBeenCalledTimes(1);
+    expect(ctx.nodes[0].connect).toHaveBeenCalledWith(ctx.destination);
+    // The page's other audio keeps its own context.
+    expect(window.audioCtx).toEqual({ other: true });
+    delete window.audioCtx;
+  });
+
+  it('holds what comes before the player is ready, and moves it on a lead-in from then if its time has passed', () => {
+    let ready;
+    ctx.audioWorklet.addModule = jest.fn(() => ({ then: (done) => { ready = done; } }));
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'r1');
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'r1');
+    expect(ctx.createdSources).toHaveLength(0);
+
+    ctx.currentTime = 2;
+    ready();
+    const [a, b] = ctx.createdSources;
+    expect(a.startedAt).toBeCloseTo(2 + Sts.LEAD_IN_SEC, 6);
+    expect(b.startedAt).toBeCloseTo(a.startedAt + 0.1, 6);
+    // The timeline moved with them: the next chunk follows, and the position
+    // is where the audio is.
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE, 'r1');
+    expect(ctx.createdSources[2].startedAt).toBeCloseTo(b.startedAt + 0.1, 6);
+    ctx.currentTime = a.startedAt + 0.05;
+    expect(Sts.getPlaybackPosition().offset).toBeCloseTo(0.05, 5);
+  });
+
+  it('takes a chunk at another rate to the player\'s rate', () => {
+    Sts.scheduleChunk('t1', new Uint8Array(1600 * 2), 16000);
+    expect(ctx.createdSources[0].buffer.getChannelData(0)).toHaveLength(2400);
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
+    expect(ctx.createdSources[1].startedAt).toBeCloseTo(ctx.createdSources[0].startedAt + 0.1, 6);
   });
 
   // The chunk payloads elsewhere in this file are silence, so a decoder that
   // mangled sign or byte order would still schedule correctly-sized buffers
   // and every timing assertion would pass while the audio came out as noise.
   it('decodes PCM16 little-endian samples to the right float values', () => {
-    const written = [];
-    ctx.createBuffer = (channels, length, sampleRate) => {
-      const data = new Float32Array(length);
-      written.push({ data, sampleRate });
-      return { getChannelData: () => data };
-    };
-
     // 0x0000 = 0, 0x7FFF = max positive, 0x8000 = min negative, 0xFFFF = -1
     const bytes = new Uint8Array([0x00, 0x00, 0xff, 0x7f, 0x00, 0x80, 0xff, 0xff]);
     Sts.scheduleChunk('t1', bytes, SAMPLE_RATE);
 
-    const samples = written[0].data;
+    const samples = ctx.createdSources[0].buffer.getChannelData(0);
     expect(samples[0]).toBeCloseTo(0, 6);
     expect(samples[1]).toBeCloseTo(32767 / 32768, 6);
     expect(samples[2]).toBeCloseTo(-1.0, 6);
@@ -268,12 +327,19 @@ describe('turn boundaries', () => {
     expect(Sts.getScheduledCount('t1')).toBe(0);
   });
 
-  it('isPlaying reflects whether any turn still has scheduled sources', () => {
+  it('isPlaying reflects whether any turn still has audio to be heard', () => {
     expect(Sts.isPlaying()).toBe(false);
 
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
     expect(Sts.isPlaying()).toBe(true);
+    expect(Sts.getScheduledCount('t1')).toBe(1);
 
+    // Heard to its end: nothing is playing any more.
+    ctx.currentTime = 1;
+    expect(Sts.isPlaying()).toBe(false);
+    expect(Sts.getScheduledCount('t1')).toBe(0);
+
+    Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
     Sts.stopAll();
     expect(Sts.isPlaying()).toBe(false);
   });
@@ -310,13 +376,12 @@ describe('barge-in', () => {
     expect(Sts.scheduleChunk('t2', chunkBytes(100), SAMPLE_RATE)).toBe(true);
   });
 
-  it('detaches onended before stopping so no per-source cleanup fires', () => {
+  it('tells the player to drop what is left of the cancelled turn, and only of it', () => {
     Sts.scheduleChunk('t1', chunkBytes(100), SAMPLE_RATE);
-    const source = ctx.createdSources[0];
 
     Sts.cancelTurn('t1');
 
-    expect(source.onended).toBeNull();
+    expect(ctx.messages.filter((m) => m.type !== 'add')).toEqual([{ type: 'drop', turn: 't1' }]);
   });
 
   // The server sends `turn_id: turn && turn[:id]`, so an id-less turn is a

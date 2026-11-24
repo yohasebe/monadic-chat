@@ -1661,53 +1661,8 @@ legend {
   z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
 
-/* Button styles (specific selectors override Bootstrap without) */
-
-.image-container .btn.remove-file,
-.image-container .btn.create-mask {
-  background-color: #ffffff;
-  border: 1px solid #dee2e6;
-  color: var(--json-label-primary);
-  padding: 0.5rem;
-  font-size: inherit;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all var(--transition-fast) ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  line-height: 1.2;
-  min-width: 44px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.image-container .btn.remove-file:hover {
-  background-color: #dc3545;
-  color: #ffffff;
-  border-color: #dc3545;
-  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
-}
-
-.image-container .btn.create-mask {
-  background-color: #007bff;
-  color: #ffffff;
-  border-color: #007bff;
-}
-
-.image-container .btn.create-mask:hover {
-  background-color: #0056b3;
-  border-color: #0056b3;
-  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
-}
-
-/* Icon styles */
-
-.image-container .btn i {
-  font-size: 14px;
-  margin: 0;
-}
-
+/* The remove and mask buttons of an attached image are the shared buttons
+   (buttons.css), as on every other attachment. */
 .image-container .btn.create-mask i {
   margin-right: 5px;
 }
@@ -1882,11 +1837,6 @@ legend {
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-top: 1.5rem;
-}
-
-.remove-file:hover {
-  background-color: #dc3545;
-  color: white;
 }
 
 .modal-header {
@@ -3514,7 +3464,7 @@ img.base64-image,
   border-color: var(--btn-primary-hover-border);
 }
 
-.btn-primary:disabled {
+.btn-primary:not(.btn-v2):disabled {
   background-color: var(--btn-primary-disabled-bg);
   border-color: var(--btn-primary-disabled-bg);
 }
@@ -3801,6 +3751,10 @@ img.base64-image,
 #tool-status .fa-cog {
   color: #f59e0b;
 }
+/* A small field is as tall as a small button beside it (buttons.css), and
+   a field as a button. */
+.form-control-sm, .form-select-sm { min-height: var(--btn-h-sm); }
+
 } /* end @layer components */
 
 /* ============================================ */
@@ -4963,13 +4917,6 @@ i.fas.fa-bolt,
     font-size: inherit;
   }
   
-  /* Shrink Run button */
-  #ai_user {
-    padding: 4px 8px;
-    min-width: 40px;
-    font-size: inherit;
-  }
-  
   /* Improve speech input controls */
   #voice-input-row .col-auto {
     width: 100%;
@@ -5016,11 +4963,7 @@ i.fas.fa-bolt,
     width: auto; /* Auto width to fit content */
     margin-right: 10px; /* Space between buttons */
     margin-bottom: 5px;
-    padding: 0.25rem 0.5rem; /* Reduced padding for smaller buttons */
-    height: auto;
-    /* Removed min-height for more compact buttons */
     flex: 0 0 auto; /* Don't grow or shrink */
-    font-size: inherit; /* Match Electron main window buttons */
   }
   
   /* Adjust spacing between voice row and role row */
@@ -5379,10 +5322,7 @@ i.fas.fa-bolt,
   #user-panel .btn-secondary:not(.btn-v2),
   #user-panel .btn-warning:not(.btn-v2),
   #user-panel .btn-info:not(.btn-v2),
-  #send,
-  #clear,
-  #settings,
-  #ai_user {
+  #settings {
     height: auto;
     min-height: auto;
   }
@@ -6349,7 +6289,7 @@ body.side-pane-resizing {
 }
 /* The buttons that show only an icon are one size (the side column's
    panels, the bar of a PDF in the work screen). */
-.shared-files-pane .sfp-icon-btn,
+.shared-files-pane .sfp-icon-btn:not(.btn-v2),
 .workbench-icon-btn {
   flex: 0 0 auto;
   /* As tall as a field beside it (Bootstrap's small field: line, padding,

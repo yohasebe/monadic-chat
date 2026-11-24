@@ -12,9 +12,9 @@
 :root {
   /* ============================================ */
   /* Palette: five families, each one scale (soft background, line,
-     mid, strong fill, strong fill on hover, text). The accent adds the
-     face of a blue button (fill, fill on hover), with white text on it at
-     4.5:1 or more in both themes. Every color token below takes its value
+     mid, strong fill, strong fill on hover, text). The accent and the
+     red add the face of a blue and a red button (fill, fill on hover),
+     with white text on it at 4.5:1 or more in both themes. Every color token below takes its value
      from here; the dark theme redefines the scale. */
   /* ============================================ */
   --pal-accent-soft: #e9eff7;  --pal-accent-line: #c9d6e8;  --pal-accent-mid: #6a92c8;
@@ -26,6 +26,7 @@
   --pal-amber-strong: #b3862a; --pal-amber-strong-hover: #9a7322; --pal-amber-text: #765917;
   --pal-red-soft: #f8eaeb;     --pal-red-line: #e5c3c6;     --pal-red-mid: #c45a66;
   --pal-red-strong: #a83d49;   --pal-red-strong-hover: #91333e; --pal-red-text: #8f2f3a;
+  --pal-red-fill: #a83d49;     --pal-red-fill-hover: #91333e;
   --pal-grey-soft: #eef0f2;    --pal-grey-line: #dadee2;    --pal-grey-mid: #8b939b;
   --pal-grey-strong: #6e7781;  --pal-grey-strong-hover: #5c646d; --pal-grey-text: #58616b;
 
@@ -66,7 +67,7 @@
   --btn-warning-bg: var(--pal-amber-mid);
   --btn-warning-hover-bg: var(--pal-amber-strong);
   --btn-warning-text: #212529;
-  --btn-danger-hover-bg: var(--pal-red-strong-hover);
+  --btn-danger-hover-bg: var(--pal-red-fill-hover);
   --opacity-backdrop: 0.5;
 
   /* Spacing - Based on existing patterns */
@@ -141,7 +142,7 @@
 
   /* Button Colors - Unified for consistency */
   --btn-warning: var(--pal-amber-strong);
-  --btn-danger: var(--pal-red-strong);
+  --btn-danger: var(--pal-red-fill);
   --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons (.btn-primary, .btn-secondary). Hover is
@@ -284,6 +285,7 @@
   --pal-amber-strong: #c19437; --pal-amber-strong-hover: #cca046; --pal-amber-text: #e4c88a;
   --pal-red-soft: #38272a;     --pal-red-line: #643e45;     --pal-red-mid: #d77a85;
   --pal-red-strong: #b4505b;   --pal-red-strong-hover: #c05d68; --pal-red-text: #e9a9b1;
+  --pal-red-fill: #b4505b;     --pal-red-fill-hover: #a3444f;
   --pal-grey-soft: #2c2f33;    --pal-grey-line: #464b51;    --pal-grey-mid: #8e969e;
   --pal-grey-strong: #5c656f;  --pal-grey-strong-hover: #68717b; --pal-grey-text: #bec4ca;
   --btn-live-bg: #6f4ebc;
@@ -341,7 +343,7 @@
 
   /* Button Colors - Adjusted for dark mode visibility */
   --btn-warning: var(--pal-amber-strong);
-  --btn-danger: var(--pal-red-strong);
+  --btn-danger: var(--pal-red-fill);
   --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons */

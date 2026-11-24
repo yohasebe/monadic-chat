@@ -1,11 +1,11 @@
 // Measures the shared buttons (buttons.css) in a headless browser, on the
 // pages that use them, with the stylesheets each page has in the app: the
 // Web UI's message tools row (vendor-layers.css with Bootstrap, tokens.css,
-// buttons.css, monadic.css) and the settings window's Save and Close
-// (settings.html as it is, with tokens.css and buttons.css put in as the
-// Electron window gets them). Run by buttons-browser.test.js as a child
-// process (puppeteer is an ES module); prints what it measured as one JSON
-// line.
+// buttons.css, monadic.css), the console's row (index.html) and the
+// settings window's Save and Close (settings.html as it is), each with
+// tokens.css and buttons.css put in as the Electron window gets them.
+// Run by buttons-browser.test.js as a child process (puppeteer is an ES
+// module); prints what it measured as one JSON line.
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -40,16 +40,24 @@ const WEB = `<!doctype html><html><head><meta charset="utf-8">
 // The settings window as Electron loads it, with the shared sheets put in
 // (or, for the window that cannot read them, left out).
 const SETTINGS = fs.readFileSync(path.join(APP, 'settings.html'), 'utf8');
+const CONSOLE = fs.readFileSync(path.join(APP, 'index.html'), 'utf8');
+const consolePage = () => CONSOLE.replace('<head>', '<head><base href="/app/"><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/buttons.css">');
 const settingsPage = (shared) => SETTINGS.replace('<head>', `<head><base href="/app/">${shared
   ? '<link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/buttons.css">'
   : ''}`);
+
+// The whole view, its ERB and scripts left out: every shared button in it,
+// measured where it shows (the page, each modal opened, the holders the app
+// shows by script opened one at a time).
+const VIEW_PAGE = VIEW.replace(/<%#[\s\S]*?%>/g, '').replace(/<%=[\s\S]*?%>/g, '').replace(/<%[\s\S]*?%>/g, '')
+  .replace(/<script\b[\s\S]*?<\/script>/g, '');
 
 const TYPES = { '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
 
 function serve() {
   const server = http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
-    const pages = { '/web': WEB, '/settings': settingsPage(true), '/settings-alone': settingsPage(false) };
+    const pages = { '/view': VIEW_PAGE, '/console': consolePage(), '/web': WEB, '/settings': settingsPage(true), '/settings-alone': settingsPage(false) };
     if (pages[url]) {
       res.writeHead(200, { 'content-type': 'text/html' });
       res.end(pages[url]);
@@ -89,8 +97,53 @@ const measure = (ids) => {
 // Past the buttons' color transition.
 const settled = () => new Promise((resolve) => { setTimeout(resolve, 300); });
 
+// Every btn-v2: its size class and what it measures, and the ones never
+// shown (none expected).
+const everyButton = () => {
+  const seen = new Map();
+  const take = () => document.querySelectorAll('.btn-v2').forEach((b) => {
+    const r = b.getBoundingClientRect();
+    if (!r.width || seen.has(b)) return;
+    const cs = getComputedStyle(b);
+    seen.set(b, {
+      id: b.id || b.className, small: b.classList.contains('btn-sm'), icon: b.classList.contains('btn-icon'),
+      height: r.height, width: r.width, cut: b.scrollWidth - b.clientWidth,
+      meaning: ['btn-primary', 'btn-secondary', 'btn-danger', 'btn-warning'].find((k) => b.classList.contains(k)) || null,
+      bg: cs.backgroundColor, fg: cs.color
+    });
+  });
+  take();
+  document.querySelectorAll('.modal').forEach((m) => {
+    m.classList.add('show'); m.style.display = 'block';
+    take();
+    m.classList.remove('show'); m.style.display = '';
+  });
+  Array.from(document.querySelectorAll('.btn-v2')).filter((b) => !seen.has(b)).forEach((b) => {
+    const undo = [];
+    const chain = [];
+    for (let el = b; el && el !== document.body; el = el.parentElement) chain.unshift(el);
+    chain.forEach((el) => {
+      if (el.hidden) { el.hidden = false; undo.push(() => { el.hidden = true; }); }
+      if (getComputedStyle(el).display === 'none') {
+        const was = el.style.getPropertyValue('display');
+        el.style.setProperty('display', 'block', 'important');
+        undo.push(() => { el.style.setProperty('display', was); });
+      }
+    });
+    take();
+    undo.reverse().forEach((f) => f());
+  });
+  return { buttons: Array.from(seen.values()), unseen: Array.from(document.querySelectorAll('.btn-v2')).filter((b) => !seen.has(b)).map((b) => b.id || b.className) };
+};
+
 const TOOL_IDS = ['image-file', 'doc', 'url', 'anonymize', 'voice'];
 const SETTINGS_IDS = ['save-settings-btn', 'close-settings-btn'];
+const PANELS = {
+  'panel-actions': ['action-start', 'action-build', 'action-open-jupyter', 'action-import-db', 'action-export-db'],
+  'panel-about': ['check-for-updates-btn'],
+  'panel-voice': ['select-tts-dict']
+};
+const CONSOLE_IDS = ['start', 'stop', 'restart', 'browser', 'sharedfolder', 'settings', 'exit'];
 
 async function look(page, url, ids, { dark = false, width = 1280 } = {}) {
   await page.setViewport({ width, height: 800 });
@@ -109,6 +162,11 @@ async function main() {
     const page = await browser.newPage();
     page.on('pageerror', () => {}); // settings.html's script needs the window's preload; its look does not
     const out = {};
+    out.view = {};
+    for (const [name, options] of Object.entries({ wide: {}, narrow: { width: 390 }, dark: { dark: true } })) {
+      await look(page, `${base}/view`, [], options);
+      out.view[name] = await page.evaluate(everyButton);
+    }
     out.web = await look(page, `${base}/web`, [...TOOL_IDS, 'send']);
     out.webDark = await look(page, `${base}/web`, TOOL_IDS, { dark: true });
     // Hover, then the keyboard's focus ring.
@@ -141,6 +199,39 @@ async function main() {
     out.settings = await look(page, `${base}/settings`, SETTINGS_IDS);
     out.settingsDark = await look(page, `${base}/settings`, SETTINGS_IDS, { dark: true });
     out.settingsAlone = await look(page, `${base}/settings-alone`, SETTINGS_IDS);
+
+    // The settings panels with buttons, shown one by one as a category does.
+    out.panels = {};
+    for (const [panel, ids] of Object.entries(PANELS)) {
+      await look(page, `${base}/settings`, []);
+      out.panels[panel] = await page.evaluate((name, list) => {
+        document.querySelectorAll('.settings-panel').forEach((p) => p.classList.toggle('active', p.id === name));
+        return list;
+      }, panel, ids).then((list) => page.evaluate(measure, list));
+    }
+    // The show-key button inside its field: within the field's box, and
+    // not over the field's text end (the field leaves room for it).
+    out.keyField = await page.evaluate(() => {
+      document.querySelectorAll('.settings-panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-api-keys'));
+      const button = document.querySelector('.toggle-api-key-visibility');
+      const input = document.getElementById(button.getAttribute('data-target'));
+      const b = button.getBoundingClientRect();
+      const i = input.getBoundingClientRect();
+      return {
+        inside: b.left >= i.left && b.right <= i.right && b.top >= i.top - 0.5 && b.bottom <= i.bottom + 0.5,
+        room: parseFloat(getComputedStyle(input).paddingRight) >= b.width - 2,
+        width: b.width, height: b.height, inputHeight: i.height
+      };
+    });
+
+    out.console = await look(page, `${base}/console`, CONSOLE_IDS);
+    out.consoleDark = await look(page, `${base}/console`, CONSOLE_IDS, { dark: true });
+    // A narrow console: the row wraps, and stays inside the window.
+    out.consoleNarrow = await look(page, `${base}/console`, CONSOLE_IDS, { width: 360 });
+    out.consoleNarrowBottom = await page.evaluate(() => ({
+      row: document.querySelector('.button-group').getBoundingClientRect().bottom,
+      window: window.innerHeight
+    }));
     process.stdout.write(`RESULT ${JSON.stringify(out)}\n`);
   } finally {
     await browser.close();

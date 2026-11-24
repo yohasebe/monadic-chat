@@ -197,7 +197,7 @@
     handle.done.then(() => {
       if (drawn.get(placeholder) !== record) return;
       record.state = 'drawn';
-      const button = element('button', 'btn btn-secondary btn-sm', t('downloadSvg', 'Download SVG'));
+      const button = element('button', 'btn btn-v2 btn-secondary btn-sm', t('downloadSvg', 'Download SVG'));
       button.type = 'button';
       button.addEventListener('click', () => {
         const svg = drawn.get(placeholder) === record ? handle.svg() : null;
@@ -210,7 +210,7 @@
       const alert = window.WorkbenchRender.failureNotice(error, 'alert alert-danger');
       // Drawn again only when the user asks (a broken diagram is not
       // drawn over and over).
-      const retry = element('button', 'btn btn-secondary btn-sm', t('retry', 'Try again'));
+      const retry = element('button', 'btn btn-v2 btn-secondary btn-sm', t('retry', 'Try again'));
       retry.type = 'button';
       retry.addEventListener('click', () => {
         if (drawn.get(placeholder) !== record) return;

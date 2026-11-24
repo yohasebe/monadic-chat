@@ -1,6 +1,6 @@
 // The shared buttons (buttons.css) in a real browser, with the stylesheets
-// each page has in the app: the Web UI's message tools row and the settings
-// window's Save and Close. One small size for the row and for the footer, the
+// each page has in the app: the Web UI's message tools row, the settings
+// window's buttons, and the console's row. One small size for the row and for the footer, the
 // meaning's colors readable in both themes, the states, long labels wrapping
 // at a narrow width, and a window that could not read the shared sheets still
 // showing its buttons. Driven by support/buttons-browser.mjs in a child
@@ -12,6 +12,7 @@ const { spawnSync } = require('child_process');
 const TOKENS = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/public/css/tokens.css'), 'utf8');
 const token = (name) => TOKENS.match(new RegExp(`${name}:\\s*([^;]+);`))[1].trim();
 const SMALL = parseFloat(token('--btn-h-sm'));
+const MEDIUM = parseFloat(token('--btn-h-md'));
 const RADIUS = token('--btn-radius');
 const DISABLED = token('--opacity-disabled');
 
@@ -30,6 +31,8 @@ const contrast = (a, b) => {
 
 const TOOLS = ['image-file', 'doc', 'url', 'anonymize', 'voice'];
 const FOOTER = ['save-settings-btn', 'close-settings-btn'];
+const RUNNING = ['start', 'stop', 'restart', 'browser'];
+const OTHERS = ['sharedfolder', 'settings', 'exit'];
 
 describe('The shared buttons in a browser', () => {
   let r;
@@ -47,6 +50,20 @@ describe('The shared buttons in a browser', () => {
   }, 120000);
 
   const near = (a, b, within = 0.5) => expect(Math.abs(a - b)).toBeLessThanOrEqual(within);
+
+  test.each(['wide', 'narrow', 'dark'])('every shared button in the view (%s) is its size, shows its whole label, and has a readable meaning color', (name) => {
+    const { buttons, unseen } = r.view[name];
+    expect(unseen).toEqual([]);
+    expect(buttons.length).toBeGreaterThan(50);
+    buttons.forEach((b) => {
+      const label = `${b.id}`;
+      expect({ label, at: b.height >= (b.small ? SMALL : MEDIUM) - 0.5 }).toEqual({ label, at: true });
+      if (b.icon) near(b.width, b.small ? SMALL : MEDIUM);
+      expect({ label, cut: b.cut }).toEqual({ label, cut: 0 });
+      expect({ label, meaning: !!b.meaning }).toEqual({ label, meaning: true });
+      expect({ label, readable: contrast(b.fg, b.bg) >= 4.5 }).toEqual({ label, readable: true });
+    });
+  });
 
   test('the message tools are one row of small buttons, one height and one look', () => {
     TOOLS.forEach((id) => {
@@ -93,6 +110,45 @@ describe('The shared buttons in a browser', () => {
       const [red, , blue] = rgb(theme[FOOTER[0]].bg);
       expect(blue).toBeGreaterThan(red);
     });
+  });
+
+  test('the console\'s buttons are one row of small buttons: yellow for running the app, grey for the rest, readable in both themes', () => {
+    [r.console, r.consoleDark].forEach((theme) => {
+      [...RUNNING, ...OTHERS].forEach((id) => {
+        near(theme[id].height, SMALL);
+        near(theme[id].top, theme.start.top);
+        expect(contrast(theme[id].fg, theme[id].bg)).toBeGreaterThanOrEqual(4.5);
+      });
+      RUNNING.forEach((id) => expect(theme[id].bg).toBe(theme.start.bg));
+      OTHERS.forEach((id) => expect(theme[id].bg).toBe(theme.exit.bg));
+      expect(theme.start.bg).not.toBe(theme.exit.bg);
+      // Stop, Restart and Open Browser start disabled.
+      ['stop', 'restart', 'browser'].forEach((id) => expect(theme[id].opacity).toBe(DISABLED));
+    });
+  });
+
+  test('in a narrow console the row wraps and stays inside the window', () => {
+    expect(r.consoleNarrow.exit.top).toBeGreaterThan(r.consoleNarrow.start.top);
+    expect(r.consoleNarrowBottom.row).toBeLessThanOrEqual(r.consoleNarrowBottom.window);
+  });
+
+  test('the settings panels\' buttons are the same small buttons: blue to take in or write out, grey for the rest', () => {
+    Object.values(r.panels).forEach((panel) => Object.values(panel).forEach((b) => near(b.height, SMALL)));
+    const actions = r.panels['panel-actions'];
+    expect(actions['action-import-db'].bg).toBe(r.settings[FOOTER[0]].bg);
+    expect(actions['action-export-db'].bg).toBe(r.settings[FOOTER[0]].bg);
+    ['action-start', 'action-build', 'action-open-jupyter'].forEach((id) => expect(actions[id].bg).toBe(r.settings[FOOTER[1]].bg));
+    expect(r.panels['panel-about']['check-for-updates-btn'].bg).toBe(r.settings[FOOTER[1]].bg);
+    expect(r.panels['panel-voice']['select-tts-dict'].bg).toBe(r.settings[FOOTER[1]].bg);
+    // Before the app has started, the container actions are disabled.
+    Object.values(actions).forEach((b) => expect(b.opacity).toBe(DISABLED));
+  });
+
+  test('the show-key button is a small square inside its field, which leaves room for it', () => {
+    expect(r.keyField.inside).toBe(true);
+    expect(r.keyField.room).toBe(true);
+    near(r.keyField.width, SMALL);
+    near(r.keyField.height, SMALL);
   });
 
   test('a settings window that could not read the shared sheets still shows Save and Close', () => {

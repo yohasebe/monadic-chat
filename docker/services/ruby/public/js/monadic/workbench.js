@@ -217,8 +217,11 @@
     return el;
   }
 
+  // A meaning (btn-primary, btn-secondary...) makes it a shared button
+  // (buttons.css); a switch keeps its own look.
   function button(label, className, onClick) {
-    const el = element('button', `btn btn-sm ${className}`, label);
+    const shared = /^btn-(primary|secondary|danger|warning)$/.test(className) ? 'btn-v2 ' : '';
+    const el = element('button', `btn ${shared}btn-sm ${className}`, label);
     el.type = 'button';
     el.addEventListener('click', onClick);
     return el;

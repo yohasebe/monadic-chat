@@ -1570,7 +1570,7 @@ const WorkflowViewer = (function () {
           msgText.textContent = tFn('ui.workflowViewerLoadFailed',
             'Failed to load the workflow viewer.');
           var retryBtn = document.createElement('button');
-          retryBtn.className = 'btn btn-sm btn-secondary ms-2';
+          retryBtn.className = 'btn btn-v2 btn-sm btn-secondary ms-2';
           retryBtn.textContent = tFn('ui.workflowViewerRetry', 'Retry');
           var selfRetry = this;
           retryBtn.addEventListener('click', function () {

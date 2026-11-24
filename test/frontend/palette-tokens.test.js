@@ -12,8 +12,8 @@ const darkPart = TOKENS.slice(dark);
 
 const FAMILIES = ['accent', 'green', 'amber', 'red', 'grey'];
 const STEPS = ['soft', 'line', 'mid', 'strong', 'strong-hover', 'text'];
-// The accent's face of a blue button, with white text on it.
-const EXTRA = ['accent-fill', 'accent-fill-hover'];
+// The face of a blue and of a red button, with white text on it.
+const EXTRA = ['accent-fill', 'accent-fill-hover', 'red-fill', 'red-fill-hover'];
 
 const palette = (part) => Object.fromEntries(
   Array.from(part.matchAll(/--pal-([a-z-]+):\s*(#[0-9a-fA-F]{6});/g), (m) => [m[1], m[2]]));
@@ -25,7 +25,7 @@ describe('the palette', () => {
     expect(Object.keys(palette(darkPart)).sort()).toEqual(names);
   });
 
-  test('a blue button\'s face keeps white text readable in both themes, also under the pointer', () => {
+  test('a blue or red button\'s face keeps white text readable in both themes, also under the pointer', () => {
     const lum = (hex) => {
       const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
         .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));

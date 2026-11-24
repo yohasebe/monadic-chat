@@ -24,19 +24,26 @@ describe('the settings window', () => {
     for (const old of ['#0d6efd', '#0b5ed7', '#0071e3', '#0062cc', '#0a84ff', '#0077e6']) expect(page).not.toContain(old);
   });
 
-  test('Save and Close are the shared buttons (buttons.css), blue and grey, with no rules of their own', () => {
-    expect(page).toMatch(/id="save-settings-btn" class="btn btn-v2 btn-sm btn-primary"/);
-    expect(page).toMatch(/id="close-settings-btn" class="btn btn-v2 btn-sm btn-secondary"/);
-    expect(ruleOf('#sidebar-footer button')).toBe('');
-    expect(ruleOf('#sidebar-footer #close-settings-btn')).toBe('');
+  test('every button is a shared one (buttons.css), by its meaning, with no colors of its own', () => {
+    const kinds = Array.from(page.matchAll(/<button\b[^>]*>/g), (m) => m[0]);
+    expect(kinds.length).toBeGreaterThan(0);
+    kinds.forEach((tag) => {
+      if (/class="category-button"/.test(tag)) return; // the categories are the window's navigation
+      expect(tag).toMatch(/class="btn btn-v2 btn-sm btn-(primary|secondary|tool)\b/);
+    });
+    const kindOf = (id) => (page.match(new RegExp(`<button[^>]*id="${id}"[^>]*>`)) || [''])[0];
+    ['save-settings-btn', 'action-import-db', 'action-export-db', 'actionConfirmOk', 'unsavedSave'].forEach((id) => expect(kindOf(id)).toContain('btn-primary'));
+    ['close-settings-btn', 'action-start', 'action-build', 'action-open-jupyter', 'select-tts-dict', 'check-for-updates-btn', 'actionConfirmCancel', 'unsavedDiscard']
+      .forEach((id) => expect(kindOf(id)).toContain('btn-secondary'));
+    expect(script).toContain("button.className = 'btn btn-v2 btn-sm btn-secondary key-check-btn';");
+    ['#sidebar-footer button', '#sidebar-footer #close-settings-btn', '.action-btn', '.file-picker-row button', '.confirm-dialog-cancel', '.confirm-dialog-ok', '.key-check-btn']
+      .forEach((selector) => expect(ruleOf(selector)).not.toMatch(/background|color/));
   });
 
-  test.each([
-    ['.action-btn', '--btn-primary-bg'],
-    ['.file-picker-row button', '--btn-secondary-bg'],
-    ['.confirm-dialog-cancel', '--btn-secondary-bg']
-  ])('%s takes its color from %s', (selector, variable) => {
-    expect(ruleOf(selector)).toContain(`var(${variable}, `);
+  test('the show-key buttons are named and say whether the key shows', () => {
+    expect(page.match(/btn-tool btn-icon toggle-api-key-visibility" aria-pressed="false"/g)).toHaveLength(9);
+    expect(script).toContain("button.setAttribute('aria-label', settingsI18n.t('settings.buttons.showApiKeys')");
+    expect(script).toContain("button.setAttribute('aria-pressed', String(show));");
   });
 
   test('a saved or failed save keeps its color under the pointer', () => {

@@ -42,6 +42,12 @@ describe('Dialogs in a browser', () => {
     expect(o.backdrop).not.toBe('rgba(0, 0, 0, 0)');
   });
 
+  test('the right arrow does not start voice input while it is open, and does once it has closed', () => {
+    expect(r.arrowInside.open).toBe(true);
+    expect(r.arrowInside.voiced).toBe(0);
+    expect(r.arrowAfter.voiced).toBe(1);
+  });
+
   test('Enter goes to the dialog (its focused Cancel), not to the chat', () => {
     expect(r.enterInside.sent).toBe(0);
     expect(r.enterInside.open).toBe(false);

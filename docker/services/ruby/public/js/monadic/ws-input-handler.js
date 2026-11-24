@@ -32,11 +32,9 @@
       var messageHasFocus = document.activeElement === messageEl;
 
       // An open dialog owns the keyboard: Enter and the arrows there belong
-      // to its fields and buttons, not to the chat. Bootstrap keeps
-      // body.modal-open from the start of showing until the dialog is hidden,
-      // so a dialog still fading in or out counts as open.
-      if (document.body.classList.contains('modal-open') || document.querySelector('.modal.show')
-        || document.documentElement.hasAttribute('data-dialog-open')) return;
+      // to its fields and buttons, not to the chat (MonadicDialog marks the
+      // page's root while one is open).
+      if (document.documentElement.hasAttribute('data-dialog-open')) return;
 
       // Right Arrow — activate voice input while the session is running
       if (easySubmitChecked && !messageHasFocus && event.key === 'ArrowRight') {

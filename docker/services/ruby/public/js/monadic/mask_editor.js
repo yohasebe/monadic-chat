@@ -7,15 +7,15 @@
 function openMaskEditor(imageData) {
   // Create modal dialog
   var modalHTML = `
-    <div class="modal fade" id="maskEditorModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <dialog class="mdialog" id="maskEditorModal" aria-labelledby="maskEditorTitle">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">
+            <h5 class="modal-title" id="maskEditorTitle">
               <i class="fas fa-brush"></i> Create Mask
               <small class="text-muted ms-2">Draw on areas you want AI to edit</small>
             </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <div class="row">
@@ -52,19 +52,21 @@ function openMaskEditor(imageData) {
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close>Cancel</button>
             <button type="button" class="btn btn-sm btn-primary" id="saveMask">
               <i class="fas fa-save"></i> Save Mask
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   `;
 
+  // One editor at a time: one left from before (closed) goes first.
+  document.querySelectorAll('#maskEditorModal').forEach(function (old) { if (!old.open) old.remove(); });
   document.body.insertAdjacentHTML('beforeend', modalHTML);
-  var maskModalEl = $id('maskEditorModal');
-  bootstrap.Modal.getOrCreateInstance(maskModalEl).show();
+  var maskModalEl = document.body.lastElementChild;
+  window.MonadicDialog.of(maskModalEl).open();
 
   // Initialize canvas
   const canvas = $id("maskCanvas");
@@ -462,12 +464,8 @@ function openMaskEditor(imageData) {
         };
       });
 
-      // Close modal
-      bootstrap.Modal.getOrCreateInstance(maskModalEl).hide();
-      setTimeout(function() {
-        var modalToRemove = $id('maskEditorModal');
-        if (modalToRemove) modalToRemove.remove();
-      }, 500);
+      // Close it (it removes itself once closed: below)
+      window.MonadicDialog.of(maskModalEl).close('done');
     } catch (error) {
       console.error("Error saving mask:", error);
       setAlert("Error creating mask: " + error.message, "error");
@@ -475,9 +473,9 @@ function openMaskEditor(imageData) {
     });
   }
 
-  // Cleanup when modal is closed
+  // The editor that closed removes itself (not one opened after it)
   if (maskModalEl) {
-    maskModalEl.addEventListener('hidden.bs.modal', function() {
+    maskModalEl.addEventListener('mdialog:hidden', function() {
       this.remove();
     });
   }

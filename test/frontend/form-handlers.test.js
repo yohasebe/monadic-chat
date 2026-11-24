@@ -442,6 +442,8 @@ describe('Form Handlers', () => {
       type('secret');
       document.getElementById('privacy-import-continue').click();
       await expect(first).resolves.toBe('secret');
+      // Taken, it does not stay on the page.
+      expect(document.getElementById('privacy-import-passphrase').value).toBe('');
 
       const second = formHandlers.promptPrivacyImportPassphrase({}, null);
       document.getElementById('privacy-import-cancel').click();

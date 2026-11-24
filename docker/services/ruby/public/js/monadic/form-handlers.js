@@ -205,6 +205,8 @@ function promptPrivacyImportPassphrase(serverData, lastError) {
       if (settled) return;
       settled = true;
       cleanup();
+      // The passphrase does not stay on the page once it is taken.
+      if (passInput) passInput.value = '';
       resolve(value);
     }
 

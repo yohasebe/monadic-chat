@@ -122,23 +122,56 @@ module Monadic
       end
 
       # Moves shape to the nearest place within REACH where it covers none of
-      # others in part and stays on the board. [dx, dy] moved, or nil.
-      def nudge!(shape, others)
+      # others in part and stays on the board. [dx, dy] moved, nil when no
+      # place is free, :late when deadline (a monotonic clock time) passed.
+      # Only the shapes near a place are looked at (Cells).
+      def nudge!(shape, others, deadline: nil)
         box = bounds(shape)
-        solid = others.select { |o| SOLID.include?(o['type']) }.map { |o| bounds(o) }
-        return nil if solid.none? { |o| overlap?(box, o) }
+        near = [box[0] - REACH, box[1] - REACH, box[2] + (REACH * 2), box[3] + (REACH * 2)]
+        cells = Cells.new(others.select { |o| SOLID.include?(o['type']) }.map { |o| bounds(o) }.select { |b| meets?(b, near) })
+        return nil if cells.around(box).none? { |o| overlap?(box, o) }
 
         (STEP..REACH).step(STEP) do |r|
+          return :late if deadline && Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
           ring(r).each do |dx, dy|
             at = [box[0] + dx, box[1] + dy, box[2], box[3]]
             next unless at[0] >= 0 && at[1] >= 0 && at[0] + at[2] <= WIDTH && at[1] + at[3] <= HEIGHT
-            next if solid.any? { |o| overlap?(at, o) }
+            next if cells.around(at).any? { |o| overlap?(at, o) }
 
             move!(shape, dx, dy)
             return [dx, dy]
           end
         end
         nil
+      end
+
+      # Whether two boxes meet (touch or cover each other at all).
+      def meets?(a, b)
+        a[0] <= b[0] + b[2] && b[0] <= a[0] + a[2] && a[1] <= b[1] + b[3] && b[1] <= a[1] + a[3]
+      end
+
+      # Boxes filed by the cells (SIZE square) they cover, to find the ones
+      # near a box without looking at all.
+      class Cells
+        SIZE = 100
+
+        def initialize(boxes)
+          @cells = Hash.new { |h, k| h[k] = [] }
+          boxes.each { |b| keys(b).each { |k| @cells[k] << b } }
+        end
+
+        def around(box)
+          keys(box).flat_map { |k| @cells.fetch(k, []) }.uniq
+        end
+
+        private
+
+        def keys(b)
+          xs = (b[0] / SIZE).floor..((b[0] + b[2]) / SIZE).floor
+          ys = (b[1] / SIZE).floor..((b[1] + b[3]) / SIZE).floor
+          xs.to_a.product(ys.to_a)
+        end
       end
 
       # The steps on the square ring r away, nearest first.

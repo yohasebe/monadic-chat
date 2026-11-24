@@ -77,6 +77,12 @@ RSpec.describe Monadic::Workbench::Whiteboard do
     expect(board["shapes"][3]).to include("text" => "Plan A\nthen B", "size" => 32)
   end
 
+  it "keeps one lock for each chat, so chats do not wait for each other" do
+    other = Monadic::Workspace::Ids.generate(:chat)
+    expect(described_class.lock_for(chat)).to equal(described_class.lock_for(chat))
+    expect(described_class.lock_for(chat)).not_to equal(described_class.lock_for(other))
+  end
+
   it "refuses a save over a version that is not the item's now" do
     item = create
     save(item, { "shapes" => shapes })

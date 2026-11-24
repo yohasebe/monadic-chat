@@ -43,9 +43,11 @@ module Monadic
 
       class Refused < StandardError; end
 
-      # One write of a whiteboard at a time (a save from a page, a change by
-      # the AI): each reads, checks and writes it whole.
-      LOCK = Mutex.new
+      # One write of a chat's whiteboards at a time (a save from a page, a
+      # change by the AI): each reads, checks and writes it whole. Chats do
+      # not wait for each other.
+      LOCKS = {}
+      LOCKS_GUARD = Mutex.new
 
       module_function
 
@@ -183,7 +185,7 @@ module Monadic
           raise Refused, 'not a whiteboard of this chat'
         end
 
-        LOCK.synchronize do
+        lock_for(chat_id).synchronize do
           board.file_entry(item_id.to_s, sha256: version.to_s)
           write(dir, name, clean(data))
           item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
@@ -194,6 +196,10 @@ module Monadic
         raise Refused, 'changed'
       rescue Artifact::NotAllowed
         raise Refused, 'not a whiteboard of this chat'
+      end
+
+      def lock_for(chat_id)
+        LOCKS_GUARD.synchronize { LOCKS[chat_id.to_s] ||= Mutex.new }
       end
 
       # Whether path (relative to the shared folder) is a whiteboard of the
@@ -209,7 +215,7 @@ module Monadic
       # item takes the new version. Returns the item, or nil when the block
       # changed nothing. Refused when it is not there or not one.
       def edit(chat_id, path, app_name:, origin:, epoch:)
-        LOCK.synchronize do
+        lock_for(chat_id).synchronize do
           board = Board.existing(chat_id) or raise Refused, 'no work screen'
           folder, dir = folder_of(chat_id, app_name)
           raise Refused, 'not a whiteboard of this chat' unless own?(folder, path)

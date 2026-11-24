@@ -4031,18 +4031,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Add global function to clean up all tooltips
+  // Hides any tooltip shown (a press anywhere already does: tooltip.js)
   window.cleanupAllTooltips = function() {
-    document.querySelectorAll('.tooltip').forEach(function(_el) { _el.remove(); }); // Directly remove all tooltip elements
-    document.querySelectorAll("[data-bs-original-title]").forEach(function(_el) { var _tip = bootstrap.Tooltip.getInstance(_el); if (_tip) _tip.dispose(); }); // Bootstrap 5
-    document.querySelectorAll("[data-original-title]").forEach(function(_el) { var _tip = bootstrap.Tooltip.getInstance(_el); if (_tip) _tip.dispose(); }); // Bootstrap 4
+    if (window.MonadicTip) window.MonadicTip.hideAll();
   };
-
-  // Remove tooltips when clicking anywhere in the document
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.func-play, .func-stop, .func-copy, .func-delete, .func-edit')) {
-      cleanupAllTooltips();
-    }
-  });
 
   $on($id("message"), "keydown", function(event) {
     if (event.key === "Tab") {

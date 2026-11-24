@@ -129,13 +129,7 @@ function attachEventListeners(card) {
       const currentCard = playBtn.closest('.card');
 
       // Tooltip cleanup
-      if (typeof cleanupAllTooltips === 'function') {
-        cleanupAllTooltips();
-      } else {
-        const tip = bootstrap.Tooltip.getInstance(playBtn);
-        if (tip) tip.hide();
-        document.querySelectorAll('.tooltip').forEach(el => el.remove());
-      }
+      if (window.MonadicTip) window.MonadicTip.hideAll();
 
       if (window.WordTable && window.WordTable.holdSpeech()) return;
 
@@ -250,13 +244,7 @@ function attachEventListeners(card) {
     // --- func-stop ---
     const stopBtn = event.target.closest(".func-stop");
     if (stopBtn && card.contains(stopBtn)) {
-      if (typeof cleanupAllTooltips === 'function') {
-        cleanupAllTooltips();
-      } else {
-        const tip = bootstrap.Tooltip.getInstance(stopBtn);
-        if (tip) tip.hide();
-        document.querySelectorAll('.tooltip').forEach(el => el.remove());
-      }
+      if (window.MonadicTip) window.MonadicTip.hideAll();
 
       if (typeof window.setTextResponseCompleted === 'function') {
         window.setTextResponseCompleted(true);
@@ -297,13 +285,7 @@ function attachEventListeners(card) {
     const copyBtn = event.target.closest(".func-copy");
     if (copyBtn && card.contains(copyBtn)) {
       (async function() {
-        if (typeof cleanupAllTooltips === 'function') {
-          cleanupAllTooltips();
-        } else {
-          const tip = bootstrap.Tooltip.getInstance(copyBtn);
-          if (tip) tip.hide();
-          document.querySelectorAll('.tooltip').forEach(el => el.remove());
-        }
+        if (window.MonadicTip) window.MonadicTip.hideAll();
 
         const mid = card.id;
         const messageIndex = messages.findIndex((m) => m.mid === mid);
@@ -394,11 +376,7 @@ function attachEventListeners(card) {
     // --- func-verify (confidence via agreement) ---
     const verifyBtn = event.target.closest(".func-verify");
     if (verifyBtn && card.contains(verifyBtn)) {
-      if (typeof cleanupAllTooltips === 'function') {
-        cleanupAllTooltips();
-      } else {
-        document.querySelectorAll('.tooltip').forEach(el => el.remove());
-      }
+      if (window.MonadicTip) window.MonadicTip.hideAll();
       // Don't start while the system is busy (a generation or another verify
       // in flight) — showing the spinner makes isSystemBusy() true, so this also
       // blocks new sends while verification runs.
@@ -423,13 +401,7 @@ function attachEventListeners(card) {
     // --- func-edit ---
     const editBtn = event.target.closest(".func-edit");
     if (editBtn && card.contains(editBtn)) {
-      if (typeof cleanupAllTooltips === 'function') {
-        cleanupAllTooltips();
-      } else {
-        const tip = bootstrap.Tooltip.getInstance(editBtn);
-        if (tip) tip.hide();
-        document.querySelectorAll('.tooltip').forEach(el => el.remove());
-      }
+      if (window.MonadicTip) window.MonadicTip.hideAll();
 
       const mid = card.id;
 
@@ -718,8 +690,8 @@ function attachEventListeners(card) {
   function tooltipEnterHandler(event) {
     const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
     if (target && card.contains(target)) {
-      const tip = bootstrap.Tooltip.getInstance(target);
-      if (tip) tip.show();
+      const tip = window.MonadicTip && window.MonadicTip.get(target);
+      if (tip) tip.show('hover');
       const icon = target.querySelector("i");
       if (icon) icon.classList.add("icon-active");
     }
@@ -728,7 +700,7 @@ function attachEventListeners(card) {
   function tooltipLeaveHandler(event) {
     const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
     if (target && card.contains(target)) {
-      const tip = bootstrap.Tooltip.getInstance(target);
+      const tip = window.MonadicTip && window.MonadicTip.get(target);
       if (tip) tip.hide();
 
       if (event.type === "mouseleave") {
@@ -780,16 +752,8 @@ window.deleteSystemMessage = function(mid, messageIndex) {
   // First detach event listeners to prevent memory leaks
   detachEventListeners(cardEl);
 
-  // Properly clean up all tooltips
-  if (typeof cleanupAllTooltips === 'function') {
-    cleanupAllTooltips();
-  } else {
-    cardEl.querySelectorAll("[title]").forEach(function(el) {
-      const tip = bootstrap.Tooltip.getInstance(el);
-      if (tip) { tip.hide(); tip.dispose(); }
-    });
-    document.querySelectorAll('.tooltip').forEach(el => el.remove());
-  }
+  // Let go of the card's tooltips
+  if (cardEl && window.MonadicTip) window.MonadicTip.disposeWithin(cardEl);
 
   // Immediately remove from DOM
   cardEl.remove();
@@ -836,7 +800,9 @@ function updateCardTurnNumbers(deletedTurn) {
       const badge = cardEl.querySelector('.card-turn-badge');
       if (badge) {
         badge.setAttribute('data-turn', newTurn);
-        badge.setAttribute('title', `${turnLabelText} ${newTurn}`);
+        const tip = window.MonadicTip && window.MonadicTip.get(badge);
+        if (tip) tip.setText(`${turnLabelText} ${newTurn}`);
+        else badge.setAttribute('title', `${turnLabelText} ${newTurn}`);
         badge.textContent = `T${newTurn}`;
       }
     }
@@ -896,16 +862,8 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
     activeEditSession = null;
   }
 
-  // Properly clean up all tooltips
-  if (typeof cleanupAllTooltips === 'function') {
-    cleanupAllTooltips();
-  } else if (cardEl) {
-    cardEl.querySelectorAll("[title]").forEach(function(el) {
-      const tip = bootstrap.Tooltip.getInstance(el);
-      if (tip) { tip.hide(); tip.dispose(); }
-    });
-    document.querySelectorAll('.tooltip').forEach(el => el.remove());
-  }
+  // Let go of the card's tooltips
+  if (cardEl && window.MonadicTip) window.MonadicTip.disposeWithin(cardEl);
 
   // First detach event listeners from the current card
   if (cardEl) detachEventListeners(cardEl);
@@ -966,7 +924,7 @@ window.deleteTurn = function(mid) {
     cancelEditMode(activeEditSession.cardText, activeEditSession.editButton);
     activeEditSession = null;
   }
-  if (typeof cleanupAllTooltips === 'function') cleanupAllTooltips();
+  if (window.MonadicTip) cardsOfTurn.forEach((cardEl) => window.MonadicTip.disposeWithin(cardEl));
   cardsOfTurn.forEach((cardEl) => {
     const id = cardEl.id;
     detachEventListeners(cardEl);
@@ -995,16 +953,8 @@ window.deleteMessageOnly = function(mid, messageIndex) {
   // Get the turn number before deletion (for assistant cards)
   const deletedTurn = getCardTurnNumber(mid);
 
-  // Properly clean up all tooltips
-  if (typeof cleanupAllTooltips === 'function') {
-    cleanupAllTooltips();
-  } else {
-    cardEl.querySelectorAll("[title]").forEach(function(el) {
-      const tip = bootstrap.Tooltip.getInstance(el);
-      if (tip) { tip.hide(); tip.dispose(); }
-    });
-    document.querySelectorAll('.tooltip').forEach(el => el.remove());
-  }
+  // Let go of the card's tooltips
+  if (cardEl && window.MonadicTip) window.MonadicTip.disposeWithin(cardEl);
 
   // Special case: handle system role messages
   if (cardEl.querySelector(".role-system")) {
@@ -1161,25 +1111,9 @@ function detachEventListeners(card) {
 
     // Remove any lingering tooltip effects
     try {
-      if (typeof cleanupAllTooltips === 'function') {
-        cleanupAllTooltips();
-      } else {
-        card.querySelectorAll("[title]").forEach(function(el) {
-          const tip = bootstrap.Tooltip.getInstance(el);
-          if (tip) tip.dispose();
-        });
-        document.querySelectorAll('[data-bs-original-title]').forEach(function(el) {
-          const tip = bootstrap.Tooltip.getInstance(el);
-          if (tip) tip.dispose();
-        });
-        document.querySelectorAll('[data-original-title]').forEach(function(el) {
-          const tip = bootstrap.Tooltip.getInstance(el);
-          if (tip) tip.dispose();
-        });
-        document.querySelectorAll('.tooltip').forEach(el => el.remove());
-      }
+      if (window.MonadicTip) window.MonadicTip.disposeWithin(card);
     } catch (e) {
-      document.querySelectorAll('.tooltip').forEach(el => el.remove());
+      /* nothing more to let go */
     }
   }
 }

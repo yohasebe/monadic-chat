@@ -136,76 +136,49 @@ function adjustScrollButtons() {
 }
 
 /**
- * Sets up tooltips for specific UI elements
- * Includes error handling for Electron compatibility
+ * Gives a card header's controls their tooltips (MonadicTip).
  * @param {HTMLElement} container - Container element to attach tooltips to
  */
 function setupTooltips(container) {
-  try {
-    if (container && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-      var titleEls = container.querySelectorAll('.card-header [title]');
-      titleEls.forEach(function(el) {
-        new bootstrap.Tooltip(el, {
-          trigger: 'hover',
-          delay: { show: 0, hide: 0 },
-          container: 'body'
-        });
-      });
-    }
-  } catch (e) {
-    console.warn('Tooltip initialization error:', e);
-  }
+  if (!container || !window.MonadicTip) return;
+  container.querySelectorAll('.card-header [title]').forEach(function(el) {
+    window.MonadicTip.attach(el, { delay: { show: 0, hide: 0 } });
+  });
 }
 
 /**
  * Shows the tooltip of a card header's control when the pointer or the focus
- * comes to it. The tooltip is made then, so a control added later, or one
- * whose tooltip was removed, needs nothing done for it.
+ * comes to it. The tooltip is made then, so a control added later needs
+ * nothing done for it; made during this first event, it is shown from here
+ * (its own listeners come too late for it).
  * @param {HTMLElement} container - Element the cards are added to
  */
 function showCardTooltipsOnHover(container) {
   if (!container || container._cardTooltipsOnHover) return;
   container._cardTooltipsOnHover = true;
   var show = function(event) {
-    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+    if (!window.MonadicTip) return;
     var target = event.target;
     var el = target && target.closest
-      ? target.closest('.card-header [title], .card-header [data-bs-original-title]')
+      ? target.closest('.card-header [title], .card-header [data-mtip]')
       : null;
-    if (!el || !container.contains(el) || bootstrap.Tooltip.getInstance(el)) return;
-    try {
-      new bootstrap.Tooltip(el, { delay: { show: 0, hide: 0 }, container: 'body' }).show();
-    } catch (e) {
-      console.warn('Tooltip initialization error:', e);
+    if (!el || !container.contains(el) || window.MonadicTip.get(el)) return;
+    var keyboard = event.type === 'focusin';
+    if (keyboard) {
+      try { if (!el.matches(':focus-visible')) keyboard = false; } catch (_) { /* older engines */ }
+      if (!keyboard) return;
     }
+    window.MonadicTip.attach(el, { delay: { show: 0, hide: 0 } }).show(keyboard ? 'focus' : 'hover');
   };
   container.addEventListener('mouseover', show);
   container.addEventListener('focusin', show);
 }
 
 /**
- * Removes all tooltip elements from the DOM
- * Helps prevent memory leaks from lingering tooltips
- * Includes error handling for Electron compatibility
+ * Hides any tooltip shown (MonadicTip); the controls keep theirs.
  */
 function cleanupAllTooltips() {
-  try {
-    document.querySelectorAll('.tooltip').forEach(function(el) { el.remove(); });
-
-    // Safely dispose tooltips if Bootstrap is available
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-      document.querySelectorAll('[data-bs-original-title]').forEach(function(el) {
-        var tip = bootstrap.Tooltip.getInstance(el);
-        if (tip) tip.dispose();
-      });
-      document.querySelectorAll('[data-original-title]').forEach(function(el) {
-        var tip = bootstrap.Tooltip.getInstance(el);
-        if (tip) tip.dispose();
-      });
-    }
-  } catch (e) {
-    console.warn('Tooltip cleanup error:', e);
-  }
+  if (window.MonadicTip) window.MonadicTip.hideAll();
 }
 
 /**

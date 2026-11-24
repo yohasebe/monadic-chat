@@ -93,9 +93,7 @@ function setAlert(text, alertType) {
     if (deleteBtn) {
       deleteBtn.onclick = function(e) {
         e.stopPropagation();
-        var tip = bootstrap.Tooltip.getInstance(this);
-        if (tip) tip.hide();
-        document.querySelectorAll('.tooltip').forEach(function(t) { t.remove(); });
+        if (window.MonadicTip) window.MonadicTip.hideAll();
 
         var card = this.closest(".card");
         var mid = card ? card.getAttribute("id") : null;
@@ -155,30 +153,12 @@ function setAlert(text, alertType) {
     if (statusEl) statusEl.innerHTML = displayText;
     setAlertClass(alertType);
 
-    // Bootstrap tooltip with full text
+    // The full text as the status line's tooltip
     var plainText = displayText.replace(/<[^>]*>/g, '');
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-      try {
-        var existingTip = bootstrap.Tooltip.getInstance(statusEl);
-        if (existingTip) existingTip.dispose();
-        if (statusEl) statusEl.removeAttribute('title');
-        new bootstrap.Tooltip(statusEl, {
-          placement: 'bottom',
-          trigger: 'hover',
-          delay: { show: 500, hide: 100 },
-          title: plainText
-        });
-      } catch (e) {
-        if (statusEl) statusEl.removeAttribute('title');
-        try {
-          new bootstrap.Tooltip(statusEl, {
-            placement: 'bottom',
-            trigger: 'hover',
-            delay: { show: 500, hide: 100 },
-            title: plainText
-          });
-        } catch (e2) { /* ignore */ }
-      }
+    if (statusEl && window.MonadicTip) {
+      var tip = window.MonadicTip.get(statusEl);
+      if (tip) tip.setText(plainText);
+      else window.MonadicTip.attach(statusEl, { placement: 'bottom', delay: { show: 500, hide: 100 }, title: plainText });
     }
   }
 }

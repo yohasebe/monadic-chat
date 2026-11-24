@@ -43,6 +43,9 @@ const FILES = [
   // and must precede card-renderer.js / ws-message-renderer.js.
   "js/monadic/text-utils.js",
   "js/monadic/html-sanitizer.js",
+  // tooltip.js defines window.MonadicTip, used by the cards, the alerts,
+  // the workflow viewer and the work screen.
+  "js/monadic/tooltip.js",
   "js/monadic/markdown-renderer.js",
   "js/monadic/storage-helper.js",
   "js/monadic/theme-manager.js",

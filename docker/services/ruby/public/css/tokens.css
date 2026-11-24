@@ -62,6 +62,9 @@
   --btn-pad-y: 4px;
   --btn-gap: 6px;
   --btn-radius: 6px;
+  /* Tooltips (tooltip.css): grey text's color as their face. */
+  --tip-bg: var(--pal-grey-text);
+  --tip-fg: #ffffff;
   /* The yellow and red buttons' faces (the palette's, in both themes); the
      older --btn-warning names the darker gold of a text. */
   --btn-warning-bg: var(--pal-amber-mid);
@@ -349,6 +352,7 @@
   --tool-danger-fg: #e58a92;
   --btn-secondary-bg: var(--pal-grey-strong);
   --btn-secondary-text: #e5e7eb;
+  --tip-fg: #18191b;
 
   /* Modal dialogs */
   --modal-bg: #2b2b2b;

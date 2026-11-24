@@ -3839,9 +3839,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const speed = animate ? 100 : 0;
 
     // Update button active state and chevron icons
-    { const el = $id("prompt-toggle-assistant"); if (el) el.classList.toggle("active", view === 'assistant'); }
+    { const el = $id("prompt-toggle-assistant"); if (el) { el.classList.toggle("active", view === 'assistant'); el.setAttribute("aria-expanded", String(view === 'assistant')); } }
     { const el = $id("prompt-icon-assistant"); if (el) { el.classList.toggle("fa-chevron-down", view === 'assistant'); el.classList.toggle("fa-chevron-right", view !== 'assistant'); } }
-    { const el = $id("prompt-toggle-aiuser"); if (el) el.classList.toggle("active", view === 'aiuser'); }
+    { const el = $id("prompt-toggle-aiuser"); if (el) { el.classList.toggle("active", view === 'aiuser'); el.setAttribute("aria-expanded", String(view === 'aiuser')); } }
     { const el = $id("prompt-icon-aiuser"); if (el) { el.classList.toggle("fa-chevron-down", view === 'aiuser'); el.classList.toggle("fa-chevron-right", view !== 'aiuser'); } }
 
     // Show/hide textareas

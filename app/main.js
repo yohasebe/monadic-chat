@@ -375,37 +375,39 @@ function openWebViewWindow(url, forceReload = false) {
         container.style.transform = 'scale(1)';
         container.style.transformOrigin = 'bottom right';
 
-        function makeBtn(iconClass, bgColor, onClick, tooltip) {
+        // Two groups of the shared tool buttons (buttons.css): the page's
+        // zoom, and leaving the page (start over, the console).
+        function makeBtn(iconClass, onClick, tooltip) {
           const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-v2 btn-sm btn-tool btn-icon';
           // Use string concatenation to avoid nested template literals
-          btn.innerHTML = '<i class="' + iconClass + '"></i>';
-          // Match toggle-menu dimensions and styling
-          btn.style.width = '30px';
-          btn.style.height = '30px';
-          btn.style.padding = '0';
-          btn.style.background = bgColor;
-          btn.style.border = '1px solid rgba(0, 0, 0, 0.2)';
-          btn.style.borderRadius = '4px';
-          btn.style.cursor = 'pointer';
-          btn.style.fontSize = '14px'; 
-          btn.style.display = 'flex';
-          btn.style.alignItems = 'center';
-          btn.style.justifyContent = 'center';
-          btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-          btn.title = tooltip; // Add tooltip
+          btn.innerHTML = '<i class="' + iconClass + '" aria-hidden="true"></i>';
+          btn.title = tooltip;
+          btn.setAttribute('aria-label', tooltip);
           btn.onclick = onClick;
           return btn;
         }
+        function makeGroup(buttons) {
+          const group = document.createElement('div');
+          group.className = 'btn-panel btn-fab';
+          buttons.forEach((btn) => group.appendChild(btn));
+          return group;
+        }
 
-        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-plus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomIn(), 'Zoom In'));
-        container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut(), 'Zoom Out'));
-        container.appendChild(makeBtn('fa-solid fa-magnifying-glass', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomReset(), 'Reset Zoom'));
-        container.appendChild(makeBtn('fa-solid fa-arrows-rotate', 'rgba(66,139,202,0.9)', () => {
-          if(confirm('Reset All will clear all data and return to the initial state, including app selection. Continue?')) {
-            window.electronAPI.resetWebUI();
-          }
-        }, 'Reset All'));
-        container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow(), 'Monadic Chat Console'));
+        container.appendChild(makeGroup([
+          makeBtn('fa-solid fa-magnifying-glass-plus', () => window.electronAPI.zoomIn(), 'Zoom In'),
+          makeBtn('fa-solid fa-magnifying-glass-minus', () => window.electronAPI.zoomOut(), 'Zoom Out'),
+          makeBtn('fa-solid fa-magnifying-glass', () => window.electronAPI.zoomReset(), 'Reset Zoom')
+        ]));
+        container.appendChild(makeGroup([
+          makeBtn('fa-solid fa-arrows-rotate', () => {
+            if(confirm('Reset All will clear all data and return to the initial state, including app selection. Continue?')) {
+              window.electronAPI.resetWebUI();
+            }
+          }, 'Reset All'),
+          makeBtn('fa-solid fa-terminal', () => window.electronAPI.focusMainWindow(), 'Monadic Chat Console')
+        ]));
 
         document.body.appendChild(container);
         // Adjust overlay container on zoom change

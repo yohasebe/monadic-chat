@@ -1017,7 +1017,9 @@ const WorkflowViewer = (function () {
   function updateSegmentControl(mode) {
     ['hidden', 'inline', 'floating'].forEach(function (m) {
       var btn = $id('wv-mode-' + m);
-      if (btn) btn.classList.toggle('active', m === mode);
+      if (!btn) return;
+      btn.classList.toggle('active', m === mode);
+      btn.setAttribute('aria-pressed', String(m === mode));
     });
   }
 

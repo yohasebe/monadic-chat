@@ -70,8 +70,9 @@
 
   // A button of a view's bar: an icon, its name as a tooltip (tips collects
   // the tooltips, to be let go with the view).
-  function control(className, label, icon, { tip, kind = 'btn-secondary', tips } = {}) {
-    const b = element('button', `btn btn-sm ${kind} workbench-icon-btn ${className}`);
+  // A tool on its group's panel (buttons.css), square.
+  function control(className, label, icon, { tip, kind = 'btn-tool', tips } = {}) {
+    const b = element('button', `btn btn-v2 btn-sm ${kind} btn-icon workbench-icon-btn ${className}`);
     b.type = 'button';
     b.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
     b.setAttribute('aria-label', label);
@@ -87,7 +88,7 @@
   }
 
   function group(label, ...children) {
-    const g = element('div', 'd-inline-flex align-items-center gap-1 workbench-bar-group');
+    const g = element('div', 'btn-panel workbench-bar-group');
     g.setAttribute('role', 'group');
     g.setAttribute('aria-label', label);
     g.append(...children);
@@ -101,7 +102,7 @@
     const point = control('workbench-pointer-point', t('ui.workbench.pointAt', 'Point at a part of it'), 'fa-solid fa-crosshairs', {
       tip: t('ui.workbench.pointHelp',
         'Drag over it to mark the part you mean. Your next message takes a picture of what is in view, mark included. Hidden words are not hidden in the picture.'),
-      kind: 'btn-info', tips
+      tips
     });
     point.setAttribute('aria-pressed', 'false');
     const lookButton = control('workbench-pointer-look', t('ui.workbench.pointLook', 'The look of the mark'), 'fa-regular fa-square', { tips });
@@ -114,7 +115,7 @@
     lookMenu.setAttribute('role', 'group');
     lookMenu.setAttribute('aria-label', t('ui.workbench.pointLook', 'The look of the mark'));
     function choice(kind, value, label) {
-      const b = element('button', `btn btn-sm btn-secondary workbench-icon-btn workbench-pointer-look-${kind}`);
+      const b = element('button', `btn btn-v2 btn-sm btn-tool btn-icon workbench-icon-btn workbench-pointer-look-${kind}`);
       b.type = 'button';
       b.dataset[kind] = value;
       b.setAttribute('aria-label', label);
@@ -189,14 +190,10 @@
     // button with its shape, the chosen shape and color pressed.
     function showLook() {
       const colors = COLORS[look.color];
-      point.style.setProperty('--bs-btn-bg', colors.line);
-      point.style.setProperty('--bs-btn-border-color', colors.line);
-      point.style.setProperty('--bs-btn-hover-bg', colors.line);
-      point.style.setProperty('--bs-btn-hover-border-color', colors.line);
-      // Pressed (drawing): darker.
-      point.style.setProperty('--bs-btn-active-bg', `color-mix(in srgb, ${colors.line} 65%, #000)`);
-      point.style.setProperty('--bs-btn-active-border-color', `color-mix(in srgb, ${colors.line} 65%, #000)`);
-      ['color', 'hover-color', 'active-color', 'disabled-color'].forEach((k) => point.style.setProperty(`--bs-btn-${k}`, colors.ink));
+      // The face's colors (monadic.css: .workbench-pointer-point), darker
+      // while drawing.
+      point.style.setProperty('--mark-face', colors.line);
+      point.style.setProperty('--mark-ink', colors.ink);
       lookButton.firstChild.className = `fa-regular ${look.shape === 'ellipse' ? 'fa-circle' : 'fa-square'}`;
       shapeChoices.forEach((b) => b.setAttribute('aria-pressed', b.dataset.shape === look.shape ? 'true' : 'false'));
       colorChoices.forEach((b) => b.setAttribute('aria-pressed', b.dataset.color === look.color ? 'true' : 'false'));

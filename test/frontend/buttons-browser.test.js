@@ -51,7 +51,7 @@ describe('The shared buttons in a browser', () => {
 
   const near = (a, b, within = 0.5) => expect(Math.abs(a - b)).toBeLessThanOrEqual(within);
 
-  test.each(['wide', 'narrow', 'dark'])('every shared button in the view (%s) is its size, shows its whole label, and has a readable meaning color', (name) => {
+  test.each(['wide', 'narrow', 'dark'])('every shared button in the view (%s) is its size, shows its whole label, and has a readable meaning color or is a tool on a panel', (name) => {
     const { buttons, unseen } = r.view[name];
     expect(unseen).toEqual([]);
     expect(buttons.length).toBeGreaterThan(50);
@@ -60,9 +60,51 @@ describe('The shared buttons in a browser', () => {
       expect({ label, at: b.height >= (b.small ? SMALL : MEDIUM) - 0.5 }).toEqual({ label, at: true });
       if (b.icon) near(b.width, b.small ? SMALL : MEDIUM);
       expect({ label, cut: b.cut }).toEqual({ label, cut: 0 });
-      expect({ label, meaning: !!b.meaning }).toEqual({ label, meaning: true });
-      expect({ label, readable: contrast(b.fg, b.bg) >= 4.5 }).toEqual({ label, readable: true });
+      // A meaning color, or a tool on its group's panel.
+      expect({ label, kind: !!b.meaning || (b.tool && !!b.panel) }).toEqual({ label, kind: true });
+      const face = b.bg === 'rgba(0, 0, 0, 0)' ? b.panel : b.bg;
+      expect({ label, readable: contrast(b.fg, face) >= 4.5 }).toEqual({ label, readable: true });
     });
+  });
+
+  test('the floating buttons over the Web UI are two groups of small square tools, without colors of their own', () => {
+    expect(r.floating.map((g) => g.map((b) => b.label))).toEqual([
+      ['Zoom In', 'Zoom Out', 'Reset Zoom'], ['Reset All', 'Monadic Chat Console']
+    ]);
+    r.floating.flat().forEach((b) => {
+      near(b.width, SMALL);
+      near(b.height, SMALL);
+      expect(b.bg).toBe('rgba(0, 0, 0, 0)');
+      expect(contrast(b.fg, b.panel)).toBeGreaterThanOrEqual(4.5);
+    });
+  });
+
+  test('Live Conversation\'s button is a small shared button in its own violet, red while live, readable in both themes', () => {
+    ['light', 'dark'].forEach((theme) => {
+      const { rest, live } = r.live[theme];
+      [rest, live].forEach((look) => {
+        near(look.height, SMALL);
+        expect(contrast(look.fg, look.bg)).toBeGreaterThanOrEqual(4.5);
+      });
+      expect(live.bg).not.toBe(rest.bg);
+      // Violet: more blue than green in it.
+      const [, green, blue] = rgb(rest.bg);
+      expect(blue).toBeGreaterThan(green);
+    });
+  });
+
+  test('after a start the page puts the focus on Live Conversation\'s button, and Enter presses it', () => {
+    expect(r.live.light.focused).toBe(true);
+    expect(r.live.dark.focused).toBe(true);
+    expect(r.liveEnter).toEqual({ focused: 'lc-toggle', pressed: 1 });
+  });
+
+  test('a choice of one keeps its radios: the checked one\'s label is the chosen tool, the arrows move it, the keyboard\'s ring shows', () => {
+    const filled = (l) => l.bg !== 'rgba(0, 0, 0, 0)';
+    expect(r.choice.start.map((l) => [l.checked, filled(l)])).toEqual([[false, false], [true, true]]);
+    expect(r.choice.arrowed.map((l) => [l.checked, filled(l), l.outline])).toEqual([[true, true, 'solid'], [false, false, 'none']]);
+    expect(r.choice.clicked.map((l) => [l.checked, filled(l)])).toEqual([[false, false], [true, true]]);
+    r.choice.start.forEach((l) => near(l.height, SMALL));
   });
 
   test('the message tools are one row of small buttons, one height and one look', () => {

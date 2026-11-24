@@ -65,10 +65,9 @@
     const userPanel = $id('user-panel');
     if (!userPanel) return;
 
-    // Styled like the other user-panel control rows (left-aligned, small
-    // buttons) but with a hue of its own: this button opens a LIVE audio
-    // channel, not a typed submit — btn-lc (violet, defined in monadic.css)
-    // keeps it visually distinct from the primary/confirm blue.
+    // A shared small button (buttons.css) with a hue of its own: this
+    // button opens a LIVE audio channel, not a typed submit — btn-lc
+    // (violet, defined in monadic.css) keeps it apart from the blue.
     const panel = document.createElement('div');
     panel.id = 'lc-panel';
     panel.className = 'py-3';
@@ -79,7 +78,7 @@
       '<div id="lc-controls-row" class="d-flex align-items-center flex-wrap mb-3" style="gap: 0.5rem 1.25rem;"></div>' +
       '<div class="d-flex align-items-center mt-1">' +
       '<span class="me-3"><i class="fas fa-tower-broadcast me-1"></i><span id="lc-app-label"></span></span>' +
-      '<button id="lc-toggle" class="btn btn-sm btn-lc text-nowrap" type="button">' +
+      '<button id="lc-toggle" class="btn btn-v2 btn-sm btn-lc" type="button">' +
       '<span id="lc-toggle-label"></span>' +
       '<i id="lc-action-icon" class="fas fa-play ms-1"></i></button>' +
       '<div id="lc-status" class="text-secondary small ms-3"></div>' +

@@ -660,7 +660,7 @@
     const pickers = [];
     function picker(className, label, options) {
       const wrap = element('div', 'workbench-whiteboard-picker');
-      const button = element('button', `btn btn-sm btn-tool workbench-icon-btn workbench-whiteboard-picker-button ${className}`);
+      const button = element('button', `btn btn-v2 btn-sm btn-tool workbench-icon-btn workbench-whiteboard-picker-button ${className}`);
       button.type = 'button';
       button.setAttribute('aria-label', label);
       button.setAttribute('aria-haspopup', 'true');
@@ -717,7 +717,7 @@
       return b;
     });
     const strokes = STROKES.map((width, i) => {
-      const b = element('button', 'btn btn-sm btn-tool workbench-icon-btn workbench-whiteboard-stroke');
+      const b = element('button', 'btn btn-v2 btn-sm btn-tool btn-icon workbench-icon-btn workbench-whiteboard-stroke');
       b.type = 'button';
       b.dataset.stroke = String(width);
       b.innerHTML = strokeDot(i);
@@ -731,7 +731,7 @@
       return b;
     });
     const fills = FILLS.map((fill) => {
-      const b = element('button', 'btn btn-sm btn-tool workbench-icon-btn workbench-whiteboard-fill');
+      const b = element('button', 'btn btn-v2 btn-sm btn-tool btn-icon workbench-icon-btn workbench-whiteboard-fill');
       b.type = 'button';
       b.dataset.fill = fill;
       b.innerHTML = fillSwatch(fill);
@@ -751,7 +751,7 @@
       'fa-solid fa-magnifying-glass-minus');
     const zoomIn = control('workbench-whiteboard-zoom-in', t('ui.workbench.wb_zoom_in', 'Zoom in'),
       'fa-solid fa-magnifying-glass-plus');
-    const zoomLevel = element('button', 'btn btn-sm btn-tool workbench-whiteboard-zoom-level', '100%');
+    const zoomLevel = element('button', 'btn btn-v2 btn-sm btn-tool workbench-whiteboard-zoom-level', '100%');
     zoomLevel.type = 'button';
     zoomLevel.title = t('ui.workbench.wb_zoom_fit', 'Fit to the width');
     zoomLevel.setAttribute('aria-label', zoomLevel.title);
@@ -766,6 +766,7 @@
     const undo = control('workbench-whiteboard-undo', t('ui.workbench.wb_undo', 'Undo'), 'fa-solid fa-rotate-left');
     const redo = control('workbench-whiteboard-redo', t('ui.workbench.wb_redo', 'Redo'), 'fa-solid fa-rotate-right');
     const clear = control('workbench-whiteboard-clear', t('ui.workbench.wb_clear', 'Clear the whiteboard'), 'fa-solid fa-trash-can');
+    clear.classList.add('btn-danger');
     undo.addEventListener('click', () => step(past, future));
     redo.addEventListener('click', () => step(future, past));
     clear.addEventListener('click', () => {

@@ -29,15 +29,15 @@ function openMaskEditor(imageData) {
                   <label for="brushSize">Brush Size: <span id="brushSizeValue">20px</span></label>
                   <input type="range" id="brushSize" min="1" max="50" value="20" class="form-range">
                 </div>
-                <div class="btn-group mb-3 w-100" role="group">
-                  <button type="button" id="brushTool" class="btn btn-outline-secondary active" aria-pressed="true">
+                <div class="btn-panel mb-3 w-100" role="group">
+                  <button type="button" id="brushTool" class="btn btn-v2 btn-tool w-50 active" aria-pressed="true">
                     <i class="fas fa-paint-brush"></i> Brush
                   </button>
-                  <button type="button" id="eraserTool" class="btn btn-outline-secondary" aria-pressed="false">
+                  <button type="button" id="eraserTool" class="btn btn-v2 btn-tool w-50" aria-pressed="false">
                     <i class="fas fa-eraser"></i> Eraser
                   </button>
                 </div>
-                <div class="btn-group mb-3 w-100" role="group">
+                <div class="d-flex gap-2 mb-3 w-100">
                   <button type="button" id="undoMask" class="btn btn-v2 btn-secondary w-50">
                     <i class="fas fa-undo"></i> Undo
                   </button>

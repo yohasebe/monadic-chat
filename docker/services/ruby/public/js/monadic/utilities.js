@@ -336,10 +336,14 @@ function listModels(models, openai = false, opts = {}) {
 
   function setInputFocus() {
     const startEl = $id("start");
+    const liveEl = $id("lc-toggle");
     const easySubmitEl = $id("check-easy-submit");
     const autoSpeechEl = $id("check-auto-speech");
     if (startEl && startEl.offsetParent !== null) {
       startEl.focus();
+    } else if (liveEl && liveEl.offsetParent !== null) {
+      // A live conversation has no text to type: Enter starts and ends it.
+      liveEl.focus();
     } else if (easySubmitEl && easySubmitEl.checked && autoSpeechEl && autoSpeechEl.checked) {
       const voiceEl = $id("voice");
       const voiceNoteEl = $id("voice-note");

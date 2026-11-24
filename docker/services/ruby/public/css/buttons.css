@@ -21,7 +21,8 @@
  * size around it (and the user's settings), and a long label wraps and
  * makes the button taller, never cut.
  *
- * States: hover, pressed, chosen (aria-pressed="true" or .active; a chosen
+ * States: hover, pressed, chosen (aria-pressed="true" or .active; for a
+ * choice of one, a checked radio before its label: btn-choice; a chosen
  * tool keeps its look under the pointer), the focus ring (keyboard),
  * disabled (made lighter once; nothing happens under the pointer).
  */
@@ -144,6 +145,34 @@
     --btn-hover-bg: color-mix(in srgb, var(--tool-danger-fg) 14%, transparent);
     --btn-hover-border-color: transparent;
   }
+  /* A choice of one: the radio input stays (the keyboard's arrows, the
+     form's value), out of sight; its label, the next element, is the
+     button, chosen while the input is checked. */
+  .btn-choice {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .btn-choice:checked + .btn-v2.btn-tool {
+    --btn-fg: var(--tool-active-fg);
+    --btn-bg: var(--tool-active-bg);
+    --btn-hover-fg: var(--tool-active-fg);
+    --btn-hover-bg: var(--tool-active-bg);
+  }
+  .btn-choice:focus-visible + .btn-v2 {
+    outline: 2px solid var(--pal-accent-mid);
+    outline-offset: 2px;
+  }
+  .btn-choice:disabled + .btn-v2 {
+    opacity: var(--opacity-disabled);
+    cursor: not-allowed;
+  }
+
   .btn-fab {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
   }

@@ -168,7 +168,7 @@ The **Work screen** tab shows the browser the AI uses in the current conversatio
 4. **Drawn** and **Source code**: for a file that is drawn, switch between the drawing and the text.
 5. The item shown.
 
-The work screen is shared by you and the AI, like a desk between you. When you put a file on it, take an item off it, or draw on a whiteboard, the AI is told with your next message what changed: who did it and to which item (for a whiteboard, how many shapes were added, changed or removed), not what the item shows. When its answer depends on what an item shows, the AI looks at it (see below).
+The work screen is shared by you and the AI, like a desk between you. When you put a file on it, take an item off it, or draw on a whiteboard, the AI is told with your next message what changed: who did it and to which item (for a whiteboard, how many shapes were added, changed or removed), not what the item shows. When its answer depends on what an item shows, the AI looks at it (see below). The AI can also bring an item of the work screen back before you, such as an earlier image or a whiteboard, when it talks about it; as with a new item, the work screen only announces it while you are typing or when **Show new items in the work screen** is off.
 
 The browser stays open after the reply and closes after five minutes without use. **Reset** closes it. Screenshots that the AI captures without opening a browser are shown as images of the work screen.
 

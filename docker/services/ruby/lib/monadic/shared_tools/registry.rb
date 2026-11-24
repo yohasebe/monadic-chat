@@ -85,14 +85,22 @@ module MonadicSharedTools
           {
             name: "show_on_workbench",
             description: "Show a file of the shared folder to the user in the work screen beside the chat " \
-                         "(an image, a text file, audio or video). The file is shown as it is now; it is not copied. " \
-                         "Use it when the user should look at the file while you talk about it.",
+                         "(an image, a text file, audio or video), or bring an item already on the work screen " \
+                         "(an earlier image, a whiteboard, a file; item: its id from the observation) back before them. " \
+                         "A file is shown as it is now; it is not copied. " \
+                         "Use it when the user should look at it while you talk about it.",
             parameters: [
               {
                 name: :path,
                 type: "string",
                 description: "Path of the file relative to the shared folder (e.g. 'reports/chart.png')",
-                required: true
+                required: false
+              },
+              {
+                name: :item,
+                type: "string",
+                description: "An item's id from the work screen observation, to bring it before the user",
+                required: false
               }
             ]
           },

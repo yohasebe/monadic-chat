@@ -290,6 +290,19 @@ module Monadic
         end
       end
 
+      # An item already on the board, brought before the tab of origin (the
+      # reply's): it selects it, and the page shows it as it shows an item
+      # made for it. Refused at another epoch, or for an item that is not
+      # on the board (no other one is shown in its place). Returns the item.
+      def bring(item_id:, origin:, epoch:)
+        change do |data|
+          check_epoch!(epoch)
+          item = data['items'][item_id.to_s] or raise Refused, 'that item is not on the work screen now'
+          select_for_origin(origin, item['id'])
+          deep_dup(item)
+        end
+      end
+
       # The bytes of a file item, read now and checked against its version
       # (FileItem.read), with its entry. sha256: the version the asker was
       # given (a token); another version is Artifact::Changed.

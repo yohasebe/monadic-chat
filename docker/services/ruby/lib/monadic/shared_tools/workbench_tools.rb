@@ -22,8 +22,31 @@ module MonadicSharedTools
 
     # workbench: who called (Monadic::Workbench::Caller), given by the
     # server, never by the model.
-    def show_on_workbench(path:, workbench: nil)
+    # path: a file of the shared folder; item: an item already on the work
+    # screen (its id from the observation), brought before the user.
+    def show_on_workbench(path: nil, item: nil, workbench: nil)
+      return WorkbenchTools.show_item(item, workbench) if item && !item.to_s.empty?
+      return WorkbenchTools.refusal('give a path or an item') if path.nil? || path.to_s.empty?
+
       WorkbenchTools.show_file(path, workbench)
+    end
+
+    # Brings an item of the work screen (by its id) before the user's tab,
+    # as show_on_workbench(item:) does. What is said back, as JSON, or why
+    # not.
+    def self.show_item(item_id, workbench)
+      return refusal('this reply cannot show anything in the work screen') unless workbench
+
+      board = Monadic::Workbench::Board.existing(workbench.chat_id) or return refusal('nothing is on the work screen')
+      item = board.bring(item_id: item_id.to_s, origin: workbench.origin, epoch: workbench.epoch)
+      Monadic::Workbench::Shown.add(workbench.request_id, item) if item['file']
+      Monadic::Workbench::Channel.changed(workbench.chat_id)
+      entry = item['file'] || item['artifact'] || {}
+      JSON.generate({ 'status' => 'shown_in_work_screen', 'item' => item['id'], 'name' => entry['name'],
+                      'note' => 'The item is brought before the user in the work screen (unless they are typing or ' \
+                                'turned this off; then they are told it is there).' }.compact)
+    rescue Monadic::Workbench::Board::Refused => e
+      refusal(e.message)
     end
 
     # Shows a file of the shared folder in the work screen for the reply of

@@ -143,7 +143,6 @@
   /* Button Colors - Unified for consistency */
   --btn-warning: var(--pal-amber-strong);
   --btn-danger: var(--pal-red-fill);
-  --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons (.btn-primary, .btn-secondary). Hover is
      the @media (hover: hover) rule. Active is what the :active/.active rule
@@ -161,12 +160,6 @@
   --btn-primary-disabled-bg: var(--pal-accent-mid);
   --btn-primary-focus-shadow-color: color-mix(in srgb, var(--pal-accent-mid) 35%, transparent);
   /* .btn-success (Continue Session): the green as vivid as the primary blue */
-  --btn-success-bg: var(--pal-green-strong);
-  --btn-success-hover-bg: var(--pal-green-strong-hover);
-  --btn-success-hover-border: var(--pal-green-strong-hover);
-  --btn-success-active-bg: var(--pal-green-strong-hover);
-  --btn-success-active-border: var(--pal-green-text);
-  --btn-success-focus-shadow-color: color-mix(in srgb, var(--pal-green-mid) 35%, transparent);
   /* Toolbar buttons (btn-tool): on a panel per group, the chosen one filled. */
   --tool-panel-bg: #eceff3;
   --tool-panel-border: rgba(0, 0, 0, 0.07);
@@ -344,7 +337,6 @@
   /* Button Colors - Adjusted for dark mode visibility */
   --btn-warning: var(--pal-amber-strong);
   --btn-danger: var(--pal-red-fill);
-  --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons */
   /* Toolbar buttons (btn-tool): on a panel per group, the chosen one filled. */

@@ -45,7 +45,7 @@ describe('where the buttons are read from', () => {
 });
 
 describe('reading the variables and the buttons as one sheet', () => {
-  const files = { '/t.css': ':root { --x: 1px; }', '/b.css': '.btn-v2 { color: var(--x); }' };
+  const files = { '/t.css': ':root { --x: 1px; }', '/b.css': '.btn { color: var(--x); }' };
   const reader = (present) => jest.fn((file) => {
     if (!present.includes(file)) throw Object.assign(new Error('x'), { code: 'ENOENT' });
     return files[file];

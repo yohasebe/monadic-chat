@@ -125,9 +125,9 @@ describe('Mask Editor', () => {
     it('follows the Web UI modal rules: small footer buttons, a grey Undo and a red Clear', () => {
       maskEditor.openMaskEditor(mockImageData);
       const footer = document.querySelectorAll('#maskEditorModal .modal-footer .btn');
-      expect([...footer].map((b) => b.className)).toEqual(['btn btn-v2 btn-sm btn-secondary', 'btn btn-v2 btn-sm btn-primary']);
-      expect(document.getElementById('undoMask').className).toBe('btn btn-v2 btn-secondary w-50');
-      expect(document.getElementById('clearMask').className).toBe('btn btn-v2 btn-danger w-50');
+      expect([...footer].map((b) => b.className)).toEqual(['btn btn-sm btn-secondary', 'btn btn-sm btn-primary']);
+      expect(document.getElementById('undoMask').className).toBe('btn btn-secondary w-50');
+      expect(document.getElementById('clearMask').className).toBe('btn btn-danger w-50');
     });
 
     it('shows which drawing tool is selected', () => {

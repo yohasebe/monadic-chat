@@ -29,13 +29,13 @@ describe('the settings window', () => {
     expect(kinds.length).toBeGreaterThan(0);
     kinds.forEach((tag) => {
       if (/class="category-button"/.test(tag)) return; // the categories are the window's navigation
-      expect(tag).toMatch(/class="btn btn-v2 btn-sm btn-(primary|secondary|tool)\b/);
+      expect(tag).toMatch(/class="btn btn-sm btn-(primary|secondary|tool)\b/);
     });
     const kindOf = (id) => (page.match(new RegExp(`<button[^>]*id="${id}"[^>]*>`)) || [''])[0];
     ['save-settings-btn', 'action-import-db', 'action-export-db', 'actionConfirmOk', 'unsavedSave'].forEach((id) => expect(kindOf(id)).toContain('btn-primary'));
     ['close-settings-btn', 'action-start', 'action-build', 'action-open-jupyter', 'select-tts-dict', 'check-for-updates-btn', 'actionConfirmCancel', 'unsavedDiscard']
       .forEach((id) => expect(kindOf(id)).toContain('btn-secondary'));
-    expect(script).toContain("button.className = 'btn btn-v2 btn-sm btn-secondary key-check-btn';");
+    expect(script).toContain("button.className = 'btn btn-sm btn-secondary key-check-btn';");
     ['#sidebar-footer button', '#sidebar-footer #close-settings-btn', '.action-btn', '.file-picker-row button', '.confirm-dialog-cancel', '.confirm-dialog-ok', '.key-check-btn']
       .forEach((selector) => expect(ruleOf(selector)).not.toMatch(/background|color/));
   });

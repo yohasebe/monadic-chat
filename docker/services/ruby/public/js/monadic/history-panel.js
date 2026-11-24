@@ -277,7 +277,7 @@
     }
     name.addEventListener('click', function () { if (!item.open) resume(item.chat_id); });
     li.appendChild(name);
-    const more = el('button', 'btn btn-sm sfp-row-menu');
+    const more = el('button', 'btn btn-sm btn-icon sfp-row-menu');
     more.type = 'button';
     more.appendChild(icon('fa-solid fa-ellipsis'));
     more.setAttribute('aria-label', t('actionsOf', 'Actions for {name}', { name: displayName(item) }));

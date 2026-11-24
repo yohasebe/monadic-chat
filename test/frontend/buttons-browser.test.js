@@ -51,18 +51,22 @@ describe('The shared buttons in a browser', () => {
 
   const near = (a, b, within = 0.5) => expect(Math.abs(a - b)).toBeLessThanOrEqual(within);
 
+  const PARTS = JSON.parse(fs.readFileSync(path.join(__dirname, '../fixtures/button-parts.json'), 'utf8'));
+
   test.each(['wide', 'narrow', 'dark'])('every shared button in the view (%s) is its size, shows its whole label, and has a readable meaning color or is a tool on a panel', (name) => {
     const { buttons, unseen } = r.view[name];
     expect(unseen).toEqual([]);
     expect(buttons.length).toBeGreaterThan(50);
     buttons.forEach((b) => {
       const label = `${b.id}`;
-      expect({ label, at: b.height >= (b.small ? SMALL : MEDIUM) - 0.5 }).toEqual({ label, at: true });
+      // A link is as tall as its line.
+      if (!b.link) expect({ label, at: b.height >= (b.small ? SMALL : MEDIUM) - 0.5 }).toEqual({ label, at: true });
       if (b.icon) near(b.width, b.small ? SMALL : MEDIUM);
       expect({ label, cut: b.cut }).toEqual({ label, cut: 0 });
       // A meaning color, or a tool on its group's panel.
-      expect({ label, kind: !!b.meaning || (b.tool && !!b.panel) }).toEqual({ label, kind: true });
-      const face = b.bg === 'rgba(0, 0, 0, 0)' ? b.panel : b.bg;
+      const part = b.classes.some((c) => PARTS[c]);
+      expect({ label, kind: !!b.meaning || (b.tool && !!b.panel) || b.link || part }).toEqual({ label, kind: true });
+      const face = b.bg === 'rgba(0, 0, 0, 0)' ? b.behind : b.bg;
       expect({ label, readable: contrast(b.fg, face) >= 4.5 }).toEqual({ label, readable: true });
     });
   });
@@ -90,6 +94,21 @@ describe('The shared buttons in a browser', () => {
       // Violet: more blue than green in it.
       const [, green, blue] = rgb(rest.bg);
       expect(blue).toBeGreaterThan(green);
+    });
+  });
+
+  test('the exceptions in the table differ only as listed, in both themes', () => {
+    const table = JSON.parse(fs.readFileSync(path.join(__dirname, '../fixtures/button-exceptions.json'), 'utf8'));
+    const live = table.find((entry) => entry.element === '#lc-toggle');
+    expect(live).toBeDefined();
+    ['light', 'dark'].forEach((theme) => {
+      const { rest, tokens } = r.live[theme];
+      Object.entries(live.expect).forEach(([property, token]) => {
+        expect(property).toBe('background-color');
+        expect(rest.bg).toBe(tokens[token]);
+      });
+      // Its size is the shared one.
+      near(rest.height, SMALL);
     });
   });
 

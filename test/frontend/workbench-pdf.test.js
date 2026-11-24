@@ -390,7 +390,7 @@ describe('the pointer over a PDF page', () => {
       expect(b.classList.contains('workbench-icon-btn')).toBe(true);
       // Each a square tool on its group's panel; pointing takes the mark's
       // color (below).
-      expect(['btn-v2', 'btn-tool', 'btn-icon'].every((c) => b.classList.contains(c))).toBe(true);
+      expect(['btn', 'btn-tool', 'btn-icon'].every((c) => b.classList.contains(c))).toBe(true);
       expect(b.title).not.toBe('');
       expect(b.getAttribute('aria-label')).not.toBe('');
     });

@@ -274,14 +274,14 @@
           <span class="nav-text"><span class="text-main">Monadic</span><span class="text-highlight"> Chat</span></span>
         </a>
         <div class="ms-auto d-flex align-items-center nav-actions">
-          <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation" data-i18n-title="ui.cancelQuery">
+          <button id="cancel_query" type="button" class="btn btn-sm btn-secondary me-2" aria-label="Cancel Query" title="Cancel current operation" data-i18n-title="ui.cancelQuery">
             <i class="fas fa-ban"></i><span data-i18n="ui.cancelQuery">CANCEL</span>
           </button>
           <%# Indicators that come and go sit left of the status line, so the
               status line keeps its place (the group is aligned right). %>
           <span id="sts-usage-indicator" class="me-2" style="display:none;"></span>
           <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
-          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
+          <button id="toggle-menu" type="button" class="btn btn-sm btn-tool btn-icon" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>
         </div>
@@ -415,13 +415,13 @@
             </h5>
             <div id="library-panel-body" class="collapse show px-3 pb-3">
               <div class="d-flex gap-2 mt-2">
-                <button id="library-save" type="button" class="btn btn-v2 btn-sm btn-warning" title="Save current conversation to Knowledge Base" data-i18n-title="ui.libSaveCurrent"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveShort">Save</span></button>
+                <button id="library-save" type="button" class="btn btn-sm btn-warning" title="Save current conversation to Knowledge Base" data-i18n-title="ui.libSaveCurrent"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveShort">Save</span></button>
                 <!-- Browse is intentionally always enabled — it opens the global
                      Knowledge Base browser which is read-only and not bound to
                      the current app. Even on artifact apps and Privacy-Filter
                      apps where Save is disabled, the user can still consult
                      entries previously saved from other apps. -->
-                <button id="library-browse" type="button" class="btn btn-v2 btn-sm btn-secondary" title="Browse all saved conversations" data-i18n-title="ui.libBrowseAll"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.libBrowseAllShort">Browse</span></button>
+                <button id="library-browse" type="button" class="btn btn-sm btn-secondary" title="Browse all saved conversations" data-i18n-title="ui.libBrowseAll"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.libBrowseAllShort">Browse</span></button>
               </div>
               <div class="form-check form-switch mt-2 mb-1 d-flex align-items-center" id="library-rag-toggle-row">
                 <input class="form-check-input me-2" type="checkbox" role="switch" id="library-rag-toggle">
@@ -439,10 +439,10 @@
             </h5>
             <div id="control-panel-body" class="collapse show px-3 pb-3">
             <div class="session-buttons d-flex align-items-center flex-wrap">
-              <button class="btn btn-v2 btn-sm btn-warning" id="reset" title="Reset Conversation" data-i18n="ui.reset"><i class="fas fa-stop" ></i> Reset</button>
-              <button class="btn btn-v2 btn-sm btn-secondary" id="load" title="Import conversation from file" data-i18n="ui.import"><i class="fas fa-file-import"></i> Import</button>
-              <button class="btn btn-v2 btn-sm btn-secondary" id="save" title="Export conversation to file" data-i18n="ui.export"><i class="fas fa-file-export"></i> Export</button>
-              <button class="btn btn-v2 btn-sm btn-secondary" id="export-pdf" title="Export conversation as PDF" data-i18n="ui.exportPDF"><i class="fas fa-file-pdf"></i> PDF Export</button>
+              <button class="btn btn-sm btn-warning" id="reset" title="Reset Conversation" data-i18n="ui.reset"><i class="fas fa-stop" ></i> Reset</button>
+              <button class="btn btn-sm btn-secondary" id="load" title="Import conversation from file" data-i18n="ui.import"><i class="fas fa-file-import"></i> Import</button>
+              <button class="btn btn-sm btn-secondary" id="save" title="Export conversation to file" data-i18n="ui.export"><i class="fas fa-file-export"></i> Export</button>
+              <button class="btn btn-sm btn-secondary" id="export-pdf" title="Export conversation as PDF" data-i18n="ui.exportPDF"><i class="fas fa-file-pdf"></i> PDF Export</button>
             </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "Reset" to clear conversation and reset parameters to defaults while keeping current app selection.</div>
@@ -456,9 +456,9 @@
             </h5>
             <div id="theme-panel-body" class="collapse show px-3 pb-3">
             <div class="theme-buttons d-flex align-items-center flex-wrap gap-2">
-              <button class="btn btn-v2 btn-sm btn-secondary" id="theme-system" title="Follow system theme preference" data-i18n="ui.themeSystem"><i class="fas fa-desktop"></i> System</button>
-              <button class="btn btn-v2 btn-sm btn-secondary" id="theme-light" title="Use light theme" data-i18n="ui.themeLight"><i class="fas fa-sun"></i> Light</button>
-              <button class="btn btn-v2 btn-sm btn-secondary" id="theme-dark" title="Use dark theme" data-i18n="ui.themeDark"><i class="fas fa-moon"></i> Dark</button>
+              <button class="btn btn-sm btn-secondary" id="theme-system" title="Follow system theme preference" data-i18n="ui.themeSystem"><i class="fas fa-desktop"></i> System</button>
+              <button class="btn btn-sm btn-secondary" id="theme-light" title="Use light theme" data-i18n="ui.themeLight"><i class="fas fa-sun"></i> Light</button>
+              <button class="btn btn-sm btn-secondary" id="theme-dark" title="Use dark theme" data-i18n="ui.themeDark"><i class="fas fa-moon"></i> Dark</button>
             </div>
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.themeDescription">Select your preferred color theme or follow system settings.</div>
             </div><!-- end #theme-panel-body -->
@@ -690,11 +690,11 @@
           <div id="work-screen-pane" role="tabpanel" aria-labelledby="side-tab-work" hidden>
             <%# A file from the computer, put on the work screen: chosen here or dropped on the pane (workbench.js). %>
             <div class="workbench-put mb-2">
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="workbench-put" title="Save a file from your computer in the chat's folder and show it here, for you and the AI to look at and point at. You can also drop files on the work screen." data-i18n-title="ui.workbench.putHelp">
+              <button type="button" class="btn btn-sm btn-secondary" id="workbench-put" title="Save a file from your computer in the chat's folder and show it here, for you and the AI to look at and point at. You can also drop files on the work screen." data-i18n-title="ui.workbench.putHelp">
                 <i class="fa-solid fa-file-arrow-up me-1" aria-hidden="true"></i><span data-i18n="ui.workbench.putFile">Put a file</span>
               </button>
               <input type="file" id="workbench-put-input" multiple hidden>
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary ms-1" id="workbench-new-whiteboard" title="Make a new whiteboard in the chat's folder and show it here, to draw on with the AI." data-i18n-title="ui.workbench.wbNewHelp">
+              <button type="button" class="btn btn-sm btn-secondary ms-1" id="workbench-new-whiteboard" title="Make a new whiteboard in the chat's folder and show it here, to draw on with the AI." data-i18n-title="ui.workbench.wbNewHelp">
                 <i class="fa-solid fa-chalkboard me-1" aria-hidden="true"></i><span data-i18n="ui.workbench.wbNew">New whiteboard</span>
               </button>
             </div>
@@ -715,9 +715,9 @@
             <%# Stays under the column's bar while the list scrolls. %>
             <div class="sfp-head">
               <div class="sfp-bar mb-2">
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFolderPanel.up" data-i18n-aria-label="ui.sharedFolderPanel.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-up" title="Up one folder" aria-label="Up one folder" data-i18n-title="ui.sharedFolderPanel.up" data-i18n-aria-label="ui.sharedFolderPanel.up" disabled><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
                 <nav id="sfp-where" class="sfp-where" aria-label="Folder" data-i18n-aria-label="ui.sharedFolderPanel.folderLabel"></nav>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh" data-i18n-aria-label="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.sharedFolderPanel.refresh" data-i18n-aria-label="ui.sharedFolderPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
               </div>
               <div class="sfp-find mb-2">
                 <input type="search" class="form-control form-control-sm" id="sfp-search" placeholder="Search names" aria-label="Search names" data-i18n-placeholder="ui.sharedFolderPanel.searchPlaceholder" data-i18n-aria-label="ui.sharedFolderPanel.searchPlaceholder">
@@ -726,18 +726,18 @@
                   <option value="modified" data-i18n="ui.sharedFolderPanel.sortModified">Newest first</option>
                   <option value="size" data-i18n="ui.sharedFolderPanel.sortSize">Largest first</option>
                 </select>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.filterToggle" data-i18n-aria-label="ui.sharedFolderPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.selectMenu" data-i18n-aria-label="ui.sharedFolderPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.filterToggle" data-i18n-aria-label="ui.sharedFolderPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.sharedFolderPanel.selectMenu" data-i18n-aria-label="ui.sharedFolderPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
               </div>
               <div id="sfp-filtering" class="sfp-band sfp-filtering mb-2" hidden>
                 <span id="sfp-filtering-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="sfp-filtering-clear" data-i18n="ui.sharedFolderPanel.clearFiltersShort">Clear</button>
+                <button type="button" class="btn btn-sm btn-secondary" id="sfp-filtering-clear" data-i18n="ui.sharedFolderPanel.clearFiltersShort">Clear</button>
               </div>
               <div id="sfp-selection" class="sfp-band sfp-selection mb-2" hidden>
                 <span id="sfp-selection-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
-                <button type="button" class="btn btn-v2 btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
-                <button type="button" class="btn btn-sm sfp-icon-btn sfp-plain-btn" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
+                <button type="button" class="btn btn-sm btn-icon sfp-icon-btn sfp-plain-btn" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 <span id="sfp-trash-why" class="sfp-band-note" hidden></span>
               </div>
               <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
@@ -745,7 +745,7 @@
             <ul id="sfp-list" class="sfp-list mb-2" tabindex="0" aria-label="Files" data-i18n-aria-label="ui.sharedFolderPanel.listLabel"></ul>
             <div class="sfp-foot">
               <span id="sfp-info" class="sfp-info"></span>
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFolderPanel.more" hidden>Show more</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFolderPanel.more" hidden>Show more</button>
             </div>
           </div>
           <%# The kept chats (history-panel.js). %>
@@ -753,25 +753,25 @@
             <div class="sfp-head">
               <div class="sfp-find mb-2">
                 <input type="search" class="form-control form-control-sm" id="history-search" placeholder="Search names and words" aria-label="Search names and words" data-i18n-placeholder="ui.historyPanel.searchPlaceholder" data-i18n-aria-label="ui.historyPanel.searchPlaceholder">
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="history-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.historyPanel.filterToggle" data-i18n-aria-label="ui.historyPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="history-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.historyPanel.selectMenu" data-i18n-aria-label="ui.historyPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary btn-icon sfp-icon-btn" id="history-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.historyPanel.refresh" data-i18n-aria-label="ui.historyPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="history-filter-toggle" title="Filter" aria-label="Filter" aria-haspopup="dialog" aria-expanded="false" data-i18n-title="ui.historyPanel.filterToggle" data-i18n-aria-label="ui.historyPanel.filterToggle"><i class="fa-solid fa-filter" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="history-select-menu" title="Select" aria-label="Select" aria-haspopup="menu" aria-expanded="false" data-i18n-title="ui.historyPanel.selectMenu" data-i18n-aria-label="ui.historyPanel.selectMenu"><i class="fa-regular fa-square-check" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon sfp-icon-btn" id="history-refresh" title="Refresh" aria-label="Refresh" data-i18n-title="ui.historyPanel.refresh" data-i18n-aria-label="ui.historyPanel.refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
               </div>
               <div id="history-filtering" class="sfp-band sfp-filtering mb-2" hidden>
                 <span id="history-filtering-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="history-filtering-clear" data-i18n="ui.historyPanel.clearFilters">Clear</button>
+                <button type="button" class="btn btn-sm btn-secondary" id="history-filtering-clear" data-i18n="ui.historyPanel.clearFilters">Clear</button>
               </div>
               <div id="history-selection" class="sfp-band sfp-selection mb-2" hidden>
                 <span id="history-selection-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-v2 btn-sm btn-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
-                <button type="button" class="btn btn-sm sfp-icon-btn sfp-plain-btn" id="history-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.historyPanel.clearSelection" data-i18n-aria-label="ui.historyPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
+                <button type="button" class="btn btn-sm btn-icon sfp-icon-btn sfp-plain-btn" id="history-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.historyPanel.clearSelection" data-i18n-aria-label="ui.historyPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
               </div>
               <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             </div>
             <ul id="history-list" class="sfp-list mb-2" aria-label="Chats" data-i18n-aria-label="ui.historyPanel.listLabel"></ul>
             <div class="sfp-foot">
               <span id="history-info" class="sfp-info"></span>
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="history-more" data-i18n="ui.historyPanel.more" hidden>Show more</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="history-more" data-i18n="ui.historyPanel.more" hidden>Show more</button>
             </div>
           </div>
         </div>
@@ -900,11 +900,11 @@
             <div class="row my-3">
               <div id="config-prompts">
                 <div class="btn-panel flex-wrap mb-2" role="group">
-                  <button type="button" class="btn btn-v2 btn-sm btn-tool text-start" id="prompt-toggle-assistant" aria-expanded="false" aria-controls="initial-prompt">
+                  <button type="button" class="btn btn-sm btn-tool text-start" id="prompt-toggle-assistant" aria-expanded="false" aria-controls="initial-prompt">
                     <i class="fas fa-chevron-right" id="prompt-icon-assistant"></i>
                     <span data-i18n="ui.initialPromptAssistant">Initial Prompt for AI Assistant</span>
                   </button>
-                  <button type="button" class="btn btn-v2 btn-sm btn-tool text-start" id="prompt-toggle-aiuser" aria-expanded="false" aria-controls="ai-user-initial-prompt">
+                  <button type="button" class="btn btn-sm btn-tool text-start" id="prompt-toggle-aiuser" aria-expanded="false" aria-controls="ai-user-initial-prompt">
                     <i class="fas fa-chevron-right" id="prompt-icon-aiuser"></i>
                     <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
                   </button>
@@ -925,13 +925,13 @@
                     <i class="fas fa-project-diagram"></i> <span data-i18n="ui.workflowViewer">Workflow Viewer</span>
                   </span>
                   <div class="btn-panel" role="group" id="wv-mode-segment" aria-label="Workflow Viewer display mode">
-                    <button type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" id="wv-mode-hidden" data-mode="hidden" aria-pressed="false" data-i18n-title="ui.workflowViewerHidden" title="Hidden" data-i18n-aria-label="ui.workflowViewerHidden" aria-label="Hidden">
+                    <button type="button" class="btn btn-sm btn-tool btn-icon" id="wv-mode-hidden" data-mode="hidden" aria-pressed="false" data-i18n-title="ui.workflowViewerHidden" title="Hidden" data-i18n-aria-label="ui.workflowViewerHidden" aria-label="Hidden">
                       <i class="fas fa-eye-slash"></i>
                     </button>
-                    <button type="button" class="btn btn-v2 btn-sm btn-tool btn-icon active" id="wv-mode-inline" data-mode="inline" aria-pressed="true" data-i18n-title="ui.workflowViewerInline" title="In Panel" data-i18n-aria-label="ui.workflowViewerInline" aria-label="In Panel">
+                    <button type="button" class="btn btn-sm btn-tool btn-icon active" id="wv-mode-inline" data-mode="inline" aria-pressed="true" data-i18n-title="ui.workflowViewerInline" title="In Panel" data-i18n-aria-label="ui.workflowViewerInline" aria-label="In Panel">
                       <i class="fas fa-window-maximize"></i>
                     </button>
-                    <button type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" id="wv-mode-floating" data-mode="floating" aria-pressed="false" data-i18n-title="ui.workflowViewerFloating" title="Floating" data-i18n-aria-label="ui.workflowViewerFloating" aria-label="Floating">
+                    <button type="button" class="btn btn-sm btn-tool btn-icon" id="wv-mode-floating" data-mode="floating" aria-pressed="false" data-i18n-title="ui.workflowViewerFloating" title="Floating" data-i18n-aria-label="ui.workflowViewerFloating" aria-label="Floating">
                       <i class="fas fa-arrow-up-right-from-square"></i>
                     </button>
                   </div>
@@ -945,7 +945,7 @@
 
           <!-- Start button (outside collapse, always visible until session starts) -->
           <div id="config-actions" class="mt-2 mb-2">
-            <button id="start" class="btn btn-v2 btn-sm btn-primary" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
+            <button id="start" class="btn btn-sm btn-primary" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
           </div>
           </div><!-- end #config-wrapper -->
 
@@ -959,17 +959,17 @@
                 </span>
                 <div class="wv-panel-controls">
                   <div class="btn-panel" role="group">
-                    <button id="wv-zoom-out" type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" title="Zoom out" aria-label="Zoom out">
+                    <button id="wv-zoom-out" type="button" class="btn btn-sm btn-tool btn-icon" title="Zoom out" aria-label="Zoom out">
                       <i class="fas fa-search-minus" aria-hidden="true"></i></button>
-                    <button id="wv-zoom-in" type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" title="Zoom in" aria-label="Zoom in">
+                    <button id="wv-zoom-in" type="button" class="btn btn-sm btn-tool btn-icon" title="Zoom in" aria-label="Zoom in">
                       <i class="fas fa-search-plus" aria-hidden="true"></i></button>
-                    <button id="wv-zoom-fit" type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" title="Fit to view" aria-label="Fit to view">
+                    <button id="wv-zoom-fit" type="button" class="btn btn-sm btn-tool btn-icon" title="Fit to view" aria-label="Fit to view">
                       <i class="fas fa-compress-arrows-alt" aria-hidden="true"></i></button>
                   </div>
                   <div class="btn-panel" role="group">
-                    <button id="wv-save-svg" type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" title="Save as SVG" aria-label="Save as SVG">
+                    <button id="wv-save-svg" type="button" class="btn btn-sm btn-tool btn-icon" title="Save as SVG" aria-label="Save as SVG">
                       <i class="fas fa-download" aria-hidden="true"></i></button>
-                    <button id="wv-close" type="button" class="btn btn-v2 btn-sm btn-tool btn-icon" title="Close" aria-label="Close">
+                    <button id="wv-close" type="button" class="btn btn-sm btn-tool btn-icon" title="Close" aria-label="Close">
                       <i class="fas fa-times" aria-hidden="true"></i></button>
                   </div>
                 </div>
@@ -1014,7 +1014,7 @@
                 <div id="word-table-kept" class="word-table-kept"></div>
                 <div id="word-table-error" class="word-table-error" style="display: none;" role="alert"></div>
                 <p class="word-table-note" data-i18n="ui.wordTable.note">These words are replaced in what this chat sends from now on. The history and logs keep the original words. Not covered: images, voice, file contents, files and pages that code or the browser reads, names not listed here, and what was already sent.</p>
-                <button id="word-table-apply" type="button" class="btn btn-v2 btn-sm btn-primary" data-i18n="ui.wordTable.apply">Hide these words</button>
+                <button id="word-table-apply" type="button" class="btn btn-sm btn-primary" data-i18n="ui.wordTable.apply">Hide these words</button>
               </div>
               <div class="row">
                 <div class="col-12 h-25 mt-3">
@@ -1030,20 +1030,20 @@
               <div class="row mt-1 mb-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap message-tools">
-                    <button id="image-file" class="btn btn-v2 btn-sm btn-warning me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
-                    <button id="doc" class="btn btn-v2 btn-sm btn-warning me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
-                    <button id="url" class="btn btn-v2 btn-sm btn-warning me-2" title="Open a page in the work screen, or take in its text" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Open URL</button>
-                    <button id="anonymize" type="button" class="btn btn-v2 btn-sm btn-warning me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
+                    <button id="image-file" class="btn btn-sm btn-warning me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
+                    <button id="doc" class="btn btn-sm btn-warning me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
+                    <button id="url" class="btn btn-sm btn-warning me-2" title="Open a page in the work screen, or take in its text" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Open URL</button>
+                    <button id="anonymize" type="button" class="btn btn-sm btn-warning me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
                     <%# Hidden where the browser cannot record (monadic.js). %>
                     <span id="voice-input-row" class="voice-input">
-                      <button id="voice" class="btn btn-v2 btn-sm btn-warning me-2" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
+                      <button id="voice" class="btn btn-sm btn-warning me-2" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
                       <div id="amplitude" style="display: none; margin-right: 8px; height: 28px; overflow: hidden;">
                         <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
                       </div>
                       <div id="asr-p-value" class="textbox-caption me-2"></div>
                     </span>
                     <button id="word-table-status" type="button" class="word-table-status me-2" style="display: none;"></button>
-                    <button id="audio-upload" class="btn btn-v2 btn-sm btn-warning me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
+                    <button id="audio-upload" class="btn btn-sm btn-warning me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
               </div>
@@ -1084,14 +1084,14 @@
                   <option value="deepseek">DeepSeek</option>
                   <option value="grok">Grok</option>
                 </select>
-                <button id="ai_user" class="btn btn-v2 btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation"><i class="fas fa-play"></i>&nbsp;<span data-i18n="ui.run">Run</span></button>
+                <button id="ai_user" class="btn btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation"><i class="fas fa-play"></i>&nbsp;<span data-i18n="ui.run">Run</span></button>
               </div>
 
               <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
-                    <button id="send" class="btn btn-v2 btn-sm btn-primary me-2" title="Send message to AI assistant" data-i18n="ui.send"><i class="fas fa-paper-plane"></i> Send</button>
-                    <button id="clear" class="btn btn-v2 btn-sm btn-secondary me-2" title="Clear text in input field" data-i18n="ui.clear"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant" data-i18n="ui.send"><i class="fas fa-paper-plane"></i> Send</button>
+                    <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field" data-i18n="ui.clear"><i class="fas fa-eraser"></i> Clear</button>
                   </div>
                   <div class="mt-2 ms-1 textbox-caption">
                     <span data-i18n="ui.pressToSend">Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
@@ -1173,8 +1173,8 @@
             <div id="privacy-export-status" class="small mt-2"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" class="btn btn-v2 btn-sm btn-primary" id="privacy-export-continue" data-i18n="ui.exportContinue">Continue</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" id="privacy-export-continue" data-i18n="ui.exportContinue">Continue</button>
           </div>
         </div>
       </div>
@@ -1197,8 +1197,8 @@
             <div id="privacy-import-error" class="alert alert-danger small mt-2" style="display:none;"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="privacy-import-cancel" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-v2 btn-sm btn-primary" id="privacy-import-continue" disabled>Continue</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="privacy-import-cancel" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-sm btn-primary" id="privacy-import-continue" disabled>Continue</button>
           </div>
         </div>
       </div>
@@ -1216,9 +1216,9 @@
             <span data-i18n="ui.modals.resetConfirmation">Are you sure you want to reset the chat?</span>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="resetSaveAndConfirm" class="btn btn-v2 btn-sm btn-primary" style="display:none;"><i class="fas fa-bookmark"></i> <span data-i18n="ui.modals.saveToKnowledgeBase">Save to Knowledge Base</span></button>
-            <button type="button" id="resetConfirmed" class="btn btn-v2 btn-sm btn-primary" data-bs-dismiss="modal" data-i18n="ui.modals.confirm">Confirm</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="resetSaveAndConfirm" class="btn btn-sm btn-primary" style="display:none;"><i class="fas fa-bookmark"></i> <span data-i18n="ui.modals.saveToKnowledgeBase">Save to Knowledge Base</span></button>
+            <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -1278,8 +1278,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="library-save-confirm" class="btn btn-v2 btn-sm btn-primary"><i class="fas fa-bookmark"></i> <span id="library-save-confirm-text" data-i18n="ui.libSaveButton">Save</span></button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary"><i class="fas fa-bookmark"></i> <span id="library-save-confirm-text" data-i18n="ui.libSaveButton">Save</span></button>
           </div>
         </div>
       </div>
@@ -1294,7 +1294,7 @@
           </div>
           <div class="modal-body">
             <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-              <button type="button" class="btn btn-v2 btn-sm btn-primary" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Knowledge Base">
+              <button type="button" class="btn btn-sm btn-primary" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Knowledge Base">
                 <i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="ui.libImportFile">Import file</span>
               </button>
               <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
@@ -1339,8 +1339,8 @@
           <div class="modal-footer d-flex justify-content-between">
             <span class="small text-secondary" id="library-browse-pageinfo"></span>
             <div class="btn-group">
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="library-browse-prev" disabled><i class="fa-solid fa-chevron-left"></i> <span data-i18n="ui.libPrev">Prev</span></button>
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="library-browse-next" disabled><span data-i18n="ui.libNext">Next</span> <i class="fa-solid fa-chevron-right"></i></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="library-browse-prev" disabled><i class="fa-solid fa-chevron-left"></i> <span data-i18n="ui.libPrev">Prev</span></button>
+              <button type="button" class="btn btn-sm btn-secondary" id="library-browse-next" disabled><span data-i18n="ui.libNext">Next</span> <i class="fa-solid fa-chevron-right"></i></button>
             </div>
           </div>
         </div>
@@ -1360,8 +1360,8 @@
               </button>
               <span id="library-viewer-rename-form" class="d-none flex-grow-1 d-flex align-items-center gap-2" style="min-width: 0;">
                 <input type="text" class="form-control form-control-sm flex-grow-1" id="library-viewer-rename-input" maxlength="200" data-i18n-placeholder="ui.libRenamePlaceholder" placeholder="Conversation title" aria-label="Library item rename" data-i18n-aria-label="ui.libraryRenameAriaLabel" style="min-width: 0;">
-                <button type="button" class="btn btn-v2 btn-sm btn-primary flex-shrink-0" id="library-viewer-rename-save" data-i18n="ui.libRenameSave">Save</button>
-                <button type="button" class="btn btn-v2 btn-sm btn-secondary flex-shrink-0" id="library-viewer-rename-cancel" data-i18n="ui.libRenameCancel">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary flex-shrink-0" id="library-viewer-rename-save" data-i18n="ui.libRenameSave">Save</button>
+                <button type="button" class="btn btn-sm btn-secondary flex-shrink-0" id="library-viewer-rename-cancel" data-i18n="ui.libRenameCancel">Cancel</button>
               </span>
             </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1376,15 +1376,15 @@
           </div>
           <div class="modal-footer d-flex justify-content-between flex-wrap gap-2">
             <div>
-              <button type="button" class="btn btn-v2 btn-sm btn-danger me-1" id="library-viewer-delete">
+              <button type="button" class="btn btn-sm btn-danger me-1" id="library-viewer-delete">
                 <i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.libDelete">Delete</span>
               </button>
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" id="library-viewer-toggle-scope">
+              <button type="button" class="btn btn-sm btn-secondary" id="library-viewer-toggle-scope">
                 <i class="fa-solid fa-arrows-rotate"></i>
                 <span id="library-viewer-toggle-label" data-i18n="ui.libMakeGlobal">Make Global</span>
               </button>
             </div>
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.libClose">Close</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.libClose">Close</button>
           </div>
         </div>
       </div>
@@ -1421,8 +1421,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="deleteConfirmButton" class="btn btn-v2 btn-sm btn-danger"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span data-i18n="ui.deleteConfirm">Delete</span></button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="deleteConfirmButton" class="btn btn-sm btn-danger"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span data-i18n="ui.deleteConfirm">Delete</span></button>
           </div>
         </div>
       </div>
@@ -1440,8 +1440,8 @@
             <p data-i18n="ui.modals.appChangeConfirmation">Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="appChangeConfirmed" class="btn btn-v2 btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="appChangeConfirmed" class="btn btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -1462,11 +1462,11 @@
               <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
               <div class="spinner-border" role="status" id="load-spinner" style="display: none;">
                 <span class="visually-hidden">Loading . . .</span>
               </div>
-              <button id="import-button" type="submit" value="load" class="btn btn-v2 btn-sm btn-primary" disabled data-i18n="ui.modals.load">Load</button>
+              <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.load">Load</button>
             </div>
           </form>
         </div>
@@ -1489,11 +1489,11 @@
             <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="convertDoc" value="doc" class="btn btn-v2 btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
+            <button type="submit" id="convertDoc" value="doc" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
           </div>
         </div>
       </div>
@@ -1511,11 +1511,11 @@
             <input class="form-control form-control-sm" id="audioFile" type="file" name="audioFile" accept=".mp3,.wav,.m4a,.ogg,.flac,.mid,.midi">
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="audio-upload-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="uploadAudioBtn" class="btn btn-v2 btn-sm btn-primary" disabled data-i18n="ui.modals.upload">Upload</button>
+            <button type="submit" id="uploadAudioBtn" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.upload">Upload</button>
           </div>
         </div>
       </div>
@@ -1539,12 +1539,12 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
             <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="button" id="fetchPage" value="url" class="btn btn-v2 btn-sm btn-secondary" disabled data-i18n="ui.modals.takeInAsText">Take in as text</button>
-            <button type="submit" id="openPageInWorkScreen" class="btn btn-v2 btn-sm btn-primary" disabled data-i18n="ui.modals.openInWorkScreen">Open in the work screen</button>
+            <button type="button" id="fetchPage" value="url" class="btn btn-sm btn-secondary" disabled data-i18n="ui.modals.takeInAsText">Take in as text</button>
+            <button type="submit" id="openPageInWorkScreen" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.openInWorkScreen">Open in the work screen</button>
           </div>
         </div>
       </div>
@@ -1565,14 +1565,14 @@
               <label for="imageUrlInput" class="form-label" data-i18n="ui.modals.fileUrlLabel">Or enter file URL</label>
               <div class="input-group input-group-sm">
                 <input type="url" class="form-control" id="imageUrlInput" placeholder="https://...">
-                <button class="btn btn-v2 btn-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
+                <button class="btn btn-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
               </div>
             </div>
             <div id="select_image_error" class="size-error text-warning mt-2"></div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
-            <button type="submit" id="uploadImage" value="image" class="btn btn-v2 btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
           </div>
         </div>
       </div>

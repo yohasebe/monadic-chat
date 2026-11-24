@@ -36,13 +36,6 @@
   outline: none;
 }
 
-/* Button focus styles */
-
-.btn:focus-visible {
-  outline: 2px solid var(--focus-outline);
-  box-shadow: 0 0 0 3px var(--focus-shadow);
-}
-
 /* Input and textarea focus styles */
 
 input:focus-visible,
@@ -190,11 +183,6 @@ textarea {
 /* Components Layer: UI component styles */
 /* ============================================ */
 @layer components {
-
-/* Small buttons: slightly smaller font than base .btn (13px) */
-.btn-sm {
-  font-size: inherit;
-}
 
 /* ============================================== */
 
@@ -465,95 +453,6 @@ textarea {
   align-items: center;
   flex-wrap: nowrap !important;
   gap: 0.5rem;
-}
-
-#main-nav .nav-actions .btn {
-  padding: var(--spacing-sm);
-  background: transparent;
-  border: none;
-}
-
-#main-nav .nav-actions .btn i {
-  color: #333;
-  font-size: 1.25rem;
-}
-
-/* Toggle Menu Button Border for Visibility */
-
-/* CRITICAL: Must use .btn.btn-light to override Bootstrap specificity */
-
-.btn.btn-light#toggle-menu {
-  /* Always transparent background except on hover */
-  background-color: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.15); /* Visible but subtle border */
-  border-radius: 4px;
-  /* Fixed size for toggle menu button (matches logo height in mobile view) */
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  position: relative;
-  flex-shrink: 0;
-  color: #6c757d; /* Muted gray icon for less contrast */
-}
-
-.btn.btn-light#toggle-menu i {
-  color: #6c757d; /* Muted gray icon */
-}
-
-/* Unified hover effect for both menu-hidden and menu-visible states */
-
-.btn.btn-light#toggle-menu:hover {
-  background-color: rgba(0, 0, 0, 0.15);
-  border-color: rgba(0, 0, 0, 0.25);
-  color: #212529;
-}
-
-.btn.btn-light#toggle-menu:hover i {
-  color: #212529;
-}
-
-/* Active state: menu is visible (no menu-hidden class) */
-.btn.btn-light#toggle-menu:not(.menu-hidden) {
-  background-color: #e8f4fd;
-  border-color: #1976d2;
-  color: #1976d2;
-  box-shadow: inset 0 1px 2px rgba(25, 118, 210, 0.15);
-}
-
-.btn.btn-light#toggle-menu:not(.menu-hidden) i {
-  color: #1976d2;
-}
-
-/* --- Workflow Viewer toggle button (same size as toggle-menu, accent icon) --- */
-
-.btn.btn-light#toggle-workflow-viewer {
-  background-color: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.btn.btn-light#toggle-workflow-viewer i {
-  color: var(--color-icon-primary);
-  font-size: 1rem;
-}
-
-.btn.btn-light#toggle-workflow-viewer:hover {
-  background-color: rgba(0, 0, 0, 0.15);
-  border-color: rgba(0, 0, 0, 0.25);
-}
-
-.btn.btn-light#toggle-workflow-viewer:hover i {
-  filter: brightness(1.15);
 }
 
 /* ********************************************** */
@@ -1051,41 +950,7 @@ h5 i,
   color: var(--color-icon-primary);
 }
 
-#cancel_query:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-  text-decoration: none;
-}
-
-/* Match height and style of toggle-menu button */
-
-#cancel_query {
-  position: relative;
-  box-sizing: content-box; /* Ensure height doesn't include borders */
-  height: 26px; /* 26px + 2px borders = 28px total */
-  padding: 0 8px;
-  background-color: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  display: flex; /* Show by default */
-  align-items: center;
-  justify-content: center;
-  opacity: var(--opacity-hover);
-  cursor: pointer;
-  transition: opacity var(--transition-normal) ease;
-}
-
-#cancel_query i {
-  color: var(--color-icon-primary);
-  margin-right: 3px;
-}
-
-#cancel_query span {
-  color: #333;
-  font-size: inherit;
-  font-weight: 500;
-}
-
-/* Main toggle menu styling has been moved to the top of the file */
+/* The top bar's Cancel and menu switch are shared buttons (buttons.css). */
 
 #toggle-menu .navbar-toggler-icon {
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
@@ -1309,13 +1174,6 @@ blockquote ol {
   background-color: #f7fff6;
 }
 
-/* Ensure consistent button styling for all roles */
-
-.card-body .btn-sm {
-  font-size: inherit;
-  padding: 0.25rem 0.5rem;
-  line-height: 1.5;
-}
 
 div.diagram {
   margin: 10px 0;
@@ -2495,8 +2353,6 @@ h1 {
 }
 
 .mask-controls .btn {
-  font-size: inherit;
-  padding: 2px 6px;
   margin-right: 5px;
 }
 
@@ -2800,24 +2656,6 @@ img.base64-image,
   opacity: var(--opacity-disabled);
 }
 
-/* Auto-apply hover lift to common button types */
-
-.btn-warning,
-.btn-secondary,
-.btn-primary,
-.btn-outline-secondary,
-.btn-outline-primary,
-#start-button,
-#reset,
-#load,
-#save,
-#export-pdf,
-#theme-system,
-#theme-light,
-#theme-dark {
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
-}
-
 /* The Initial-Prompt toggles in #config-prompts are shared tool buttons on
    a panel (buttons.css); the one whose prompt shows is chosen. */
 
@@ -2840,19 +2678,6 @@ img.base64-image,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Secondary button style - balanced gray for white text contrast */
-
-.btn-secondary {
-  background-color: var(--btn-secondary-bg); /* Slightly lighter gray (between gray-500 and gray-400) */
-  border-color: var(--btn-secondary-bg);
-  color: var(--btn-secondary-text);
-}
-
-.btn-secondary:hover {
-  background-color: #5a6470;
-  border-color: #5a6470;
-  color: #ffffff;
-}
 
 /* ------------------------------------------------------------------ */
 
@@ -3383,87 +3208,6 @@ img.base64-image,
   margin: 0;
 }
 
-/* Primary button colors */
-.btn-primary {
-  background-color: var(--btn-primary-bg);
-  border-color: var(--btn-primary-bg);
-}
-
-.btn-primary:focus {
-  box-shadow: 0 0 0 0.2rem var(--btn-primary-focus-shadow-color);
-}
-
-.btn-primary:active,
-.btn-primary.active {
-  background-color: var(--btn-primary-active-bg);
-  border-color: var(--btn-primary-active-border);
-}
-
-.btn-primary:hover {
-  background-color: var(--btn-primary-hover-bg);
-  border-color: var(--btn-primary-hover-border);
-}
-
-.btn-primary:not(.btn-v2):disabled {
-  background-color: var(--btn-primary-disabled-bg);
-  border-color: var(--btn-primary-disabled-bg);
-}
-
-.btn-success {
-  background-color: var(--btn-success-bg);
-  border-color: var(--btn-success-bg);
-  color: #fff;
-}
-
-.btn-success:focus {
-  box-shadow: 0 0 0 0.2rem var(--btn-success-focus-shadow-color);
-}
-
-.btn-success:active,
-.btn-success.active {
-  background-color: var(--btn-success-active-bg);
-  border-color: var(--btn-success-active-border);
-}
-
-/* Warning, danger, info and outlined danger buttons take the palette's
-   colors through Bootstrap's own button variables. Warning and info keep
-   dark text on their mid tone; danger is white on its strong tone; an
-   outlined danger is a soft red, not a filled one. */
-.btn-warning {
-  --bs-btn-bg: var(--pal-amber-mid); --bs-btn-border-color: var(--pal-amber-mid);
-  --bs-btn-hover-bg: var(--pal-amber-strong); --bs-btn-hover-border-color: var(--pal-amber-strong);
-  --bs-btn-active-bg: var(--pal-amber-strong-hover); --bs-btn-active-border-color: var(--pal-amber-strong-hover);
-  --bs-btn-disabled-bg: var(--pal-amber-mid); --bs-btn-disabled-border-color: var(--pal-amber-mid);
-}
-.btn-info {
-  --bs-btn-bg: var(--pal-accent-mid); --bs-btn-border-color: var(--pal-accent-mid);
-  --bs-btn-hover-bg: var(--pal-accent-strong); --bs-btn-hover-border-color: var(--pal-accent-strong);
-  --bs-btn-active-bg: var(--pal-accent-strong-hover); --bs-btn-active-border-color: var(--pal-accent-strong-hover);
-  --bs-btn-disabled-bg: var(--pal-accent-mid); --bs-btn-disabled-border-color: var(--pal-accent-mid);
-}
-.btn-danger {
-  --bs-btn-color: #fff; --bs-btn-hover-color: #fff; --bs-btn-active-color: #fff; --bs-btn-disabled-color: #fff;
-  --bs-btn-bg: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-strong);
-  --bs-btn-hover-bg: var(--pal-red-strong-hover); --bs-btn-hover-border-color: var(--pal-red-strong-hover);
-  --bs-btn-active-bg: var(--pal-red-strong-hover); --bs-btn-active-border-color: var(--pal-red-strong-hover);
-  --bs-btn-disabled-bg: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-mid);
-}
-.btn-outline-danger {
-  --bs-btn-color: var(--pal-red-strong); --bs-btn-border-color: var(--pal-red-line);
-  --bs-btn-hover-color: var(--pal-red-text); --bs-btn-hover-bg: var(--pal-red-soft); --bs-btn-hover-border-color: var(--pal-red-mid);
-  --bs-btn-active-color: var(--pal-red-text); --bs-btn-active-bg: var(--pal-red-soft); --bs-btn-active-border-color: var(--pal-red-mid);
-  --bs-btn-disabled-color: var(--pal-red-mid); --bs-btn-disabled-border-color: var(--pal-red-line);
-}
-
-/* Secondary button focus */
-.btn-secondary:focus {
-  box-shadow: 0 0 0 0.2rem var(--btn-secondary-focus-shadow-color);
-}
-
-/* Cancel button focus */
-#cancel_query:focus {
-  box-shadow: 0 0 0 0.2rem rgba(254, 178, 178, 0.25);
-}
 
 /* Initial prompt toggle buttons */
 #initial-prompt-toggle,
@@ -4000,30 +3744,6 @@ img.base64-image,
   color: #1a1a1a;
 }
 
-/* Dark mode: Warning/info button text and icons - use dark color for better contrast */
-
-/* Dark mode AND light mode: Warning buttons should have dark text */
-
-.btn-warning,
-.btn-warning *,
-#doc,
-#doc *,
-#url,
-#url *,
-#image-file,
-#image-file *,
-.dark-theme .btn-warning,
-.dark-theme .btn-warning *,
-.dark-theme .btn-info,
-.dark-theme .btn-info *,
-.dark-theme #doc,
-.dark-theme #doc *,
-.dark-theme #url,
-.dark-theme #url *,
-.dark-theme #image-file,
-.dark-theme #image-file * {
-  color: #1a1a1a;
-}
 
 /* Dark mode: Sidebar heading icons - preserve yellow accent */
 
@@ -4111,17 +3831,6 @@ img.base64-image,
   color: #ccc;
 }
 
-.dark-theme .btn-secondary {
-  background-color: var(--btn-secondary-bg);
-  border-color: var(--btn-secondary-bg);
-  color: var(--btn-secondary-text);
-}
-
-.dark-theme .btn-secondary:hover {
-  background-color: #4b5563;
-  border-color: #4b5563;
-  color: #ffffff;
-}
 
 /* CRITICAL: Sidebar heading icons MUST be yellow (highest priority) */
 
@@ -4307,27 +4016,6 @@ i.fas.fa-bolt,
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
 }
 
-/* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
-
-.dark-theme .btn-outline-secondary {
-  color: #adb5bd;
-  border-color: #4a4a4a; /* Softer border color */
-  background-color: transparent;
-}
-
-.dark-theme .btn-outline-secondary:hover,
-.dark-theme .btn-outline-secondary:focus {
-  color: #f5f5f5;
-  background-color: #3a3a3a;
-  border-color: #5a5a5a; /* Softer border color on hover */
-}
-
-.dark-theme .btn-outline-secondary:active,
-.dark-theme .btn-outline-secondary.active {
-  color: #f5f5f5;
-  background-color: #4a4a4a;
-  border-color: #5a5a5a; /* Softer border color when active */
-}
 
 /* Dark mode: Modal dialogs (high specificity) */
 
@@ -4413,82 +4101,8 @@ i.fas.fa-bolt,
   border-bottom: 1px solid #444;
 }
 
-.dark-theme #main-nav .btn-light {
-  background-color: #3a3a3a;
-  color: #e5e5e5;
-  border: 1px solid #555;
-}
-
-.dark-theme #main-nav .btn-light:hover {
-  background-color: #4a4a4a;
-  color: #fff;
-  border-color: #666;
-}
 
 
-/* Dark mode: Toggle menu button (ID selector has high specificity) */
-
-.dark-theme #toggle-menu {
-  border-color: rgba(255, 255, 255, 0.25); /* Subtle border */
-  color: #d0d0d0; /* Bright gray icon for visibility */
-}
-
-.dark-theme #toggle-menu i {
-  color: #d0d0d0; /* Bright gray icon */
-}
-
-.dark-theme #toggle-menu.menu-hidden {
-  background-color: rgba(255, 255, 255, 0.08); /* Subtle background when hidden */
-}
-
-.dark-theme #toggle-menu.menu-hidden i {
-  color: #e0e0e0; /* Even brighter when menu is hidden */
-}
-
-.dark-theme #toggle-menu:hover {
-  background-color: rgba(255, 255, 255, 0.15); /* Subtle hover background */
-  border-color: rgba(255, 255, 255, 0.35); /* Slightly brighter on hover */
-  color: #f0f0f0; /* Lighter on hover */
-}
-
-.dark-theme #toggle-menu:hover i {
-  color: #f0f0f0; /* Lighter icon on hover */
-}
-
-.dark-theme #toggle-menu:not(.menu-hidden) {
-  background-color: rgba(33, 150, 243, 0.15);
-  border-color: #64b5f6;
-  color: #64b5f6;
-  box-shadow: inset 0 1px 2px rgba(100, 181, 246, 0.15);
-}
-
-.dark-theme #toggle-menu:not(.menu-hidden) i {
-  color: #64b5f6;
-}
-
-.dark-theme #toggle-menu:not(.menu-hidden):hover {
-  background-color: rgba(33, 150, 243, 0.25);
-  border-color: #90caf9;
-}
-
-.dark-theme #toggle-menu:not(.menu-hidden):hover i {
-  color: #90caf9;
-}
-
-/* Dark mode: Workflow viewer toggle button */
-
-.dark-theme #toggle-workflow-viewer {
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-.dark-theme #toggle-workflow-viewer i {
-  color: var(--color-icon-primary);
-}
-
-.dark-theme #toggle-workflow-viewer:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.35);
-}
 
 /* Dark mode: Custom apps dropdown (ID selector has high specificity) */
 
@@ -4604,17 +4218,6 @@ i.fas.fa-bolt,
 
 /* Dark mode: the Cancel button beside the status line */
 
-.dark-theme #cancel_query {
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.dark-theme #cancel_query span {
-  color: var(--text-primary);
-}
-
-.dark-theme #cancel_query:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
 
 } /* end @layer dark-theme */
 
@@ -5129,9 +4732,8 @@ i.fas.fa-bolt,
     position: fixed;
     margin: 0;
     /* Center vertically by aligning button center with navbar center */
-    /* Navbar height: 65px, button height: 2rem (32px) */
-    /* Vertical center: (65px - 32px) / 2 = 16.5px from top */
-    top: 16.5px;
+    /* The navbar's height (65px) less a small button's (30px), halved. */
+    top: calc((65px - var(--btn-h-sm)) / 2);
     right: 15px;
     z-index: 1100;
   }
@@ -5139,7 +4741,7 @@ i.fas.fa-bolt,
   /* Adjust cancel button in mobile view */
   #cancel_query {
     position: fixed;
-    top: 16.5px; /* Match toggle button vertical position */
+    top: calc((65px - var(--btn-h-sm)) / 2); /* As the menu switch */
     right: 65px;
     z-index: 1100;
   }
@@ -5157,65 +4759,6 @@ i.fas.fa-bolt,
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
 
-  .btn-warning:hover:not(:disabled),
-  .btn-secondary:hover:not(:disabled),
-  .btn-primary:hover:not(:disabled),
-  .btn-outline-secondary:hover:not(:disabled),
-  .btn-outline-primary:hover:not(:disabled),
-  #start-button:hover:not(:disabled),
-  #reset:hover:not(:disabled),
-  #load:hover:not(:disabled),
-  #save:hover:not(:disabled),
-  #export-pdf:hover:not(:disabled),
-  #theme-system:hover:not(:disabled),
-  #theme-light:hover:not(:disabled),
-  #theme-dark:hover:not(:disabled) {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  /* Warning buttons - add background color change */
-  .btn-warning:hover:not(:disabled),
-  #reset:hover:not(:disabled) {
-    background-color: var(--pal-amber-strong);
-    border-color: var(--pal-amber-strong);
-  }
-
-  /* Secondary buttons - add background color change */
-  .btn-secondary:hover:not(:disabled),
-  #theme-system:hover:not(:disabled),
-  #theme-light:hover:not(:disabled),
-  #theme-dark:hover:not(:disabled) {
-    background-color: var(--btn-secondary-hover-bg);
-    border-color: var(--btn-secondary-hover-border);
-  }
-
-  /* Primary buttons - add background color change */
-  .btn-primary:hover:not(:disabled),
-  #start-button:hover:not(:disabled) {
-    background-color: var(--btn-primary-hover-bg);
-    border-color: var(--btn-primary-hover-border);
-  }
-
-  .btn-success:hover:not(:disabled) {
-    background-color: var(--btn-success-hover-bg);
-    border-color: var(--btn-success-hover-border);
-  }
-
-  .dark-theme .btn-warning:hover:not(:disabled),
-  .dark-theme .btn-secondary:hover:not(:disabled),
-  .dark-theme .btn-primary:hover:not(:disabled),
-  .dark-theme .btn-outline-secondary:hover:not(:disabled),
-  .dark-theme .btn-outline-primary:hover:not(:disabled),
-  .dark-theme #start-button:hover:not(:disabled),
-  .dark-theme #reset:hover:not(:disabled),
-  .dark-theme #load:hover:not(:disabled),
-  .dark-theme #save:hover:not(:disabled),
-  .dark-theme #export-pdf:hover:not(:disabled),
-  .dark-theme #theme-system:hover:not(:disabled),
-  .dark-theme #theme-light:hover:not(:disabled),
-  .dark-theme #theme-dark:hover:not(:disabled) {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  }
 }
 
 @media (max-width: 767px) {
@@ -5255,13 +4798,6 @@ i.fas.fa-bolt,
     align-items: flex-start;
   }
 
-  /* CRITICAL FIX: All buttons must have auto height */
-  #user-panel .btn:not(.btn-v2),
-  #user-panel .btn-sm:not(.btn-v2),
-  #user-panel .btn-primary:not(.btn-v2),
-  #user-panel .btn-secondary:not(.btn-v2),
-  #user-panel .btn-warning:not(.btn-v2),
-  #user-panel .btn-info:not(.btn-v2),
   #settings {
     height: auto;
     min-height: auto;
@@ -5321,9 +4857,6 @@ i.fas.fa-bolt,
     display: none;
   }
 
-  #cancel_query i {
-    margin-right: 0 !important;
-  }
 }
 
 
@@ -5432,13 +4965,12 @@ i.fas.fa-bolt,
 .column-bar { padding-bottom: var(--spacing-sm); }
 
 /* Text is never smaller than the page's own: Bootstrap's small text and
-   the text of its small buttons and fields take the size around them (their
-   tighter padding stays). */
+   the text of its small fields take the size around them (their tighter
+   padding stays). */
 small, .small,
-.btn-sm, .btn-group-sm > .btn,
 .form-control-sm, .form-select-sm,
 .input-group-sm > .form-control, .input-group-sm > .form-select,
-.input-group-sm > .input-group-text, .input-group-sm > .btn {
+.input-group-sm > .input-group-text {
   font-size: inherit;
 }
 
@@ -5967,14 +5499,14 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
    focus and states are the shared ones). Pressing it opens a live audio
    channel, kept apart from a typed submit (blue) and from deleting (red).
    While live, the red of stopping, with a soft pulse. */
-.btn-v2.btn-lc {
+.btn.btn-lc {
   --btn-fg: #ffffff;
   --btn-bg: var(--btn-live-bg);
   --btn-border-color: var(--btn-live-bg);
   --btn-hover-bg: var(--btn-live-hover-bg);
   --btn-hover-border-color: var(--btn-live-hover-bg);
 }
-.btn-v2.btn-lc.btn-lc-live {
+.btn.btn-lc.btn-lc-live {
   --btn-bg: var(--pal-red-fill);
   --btn-border-color: var(--pal-red-fill);
   --btn-hover-bg: var(--pal-red-fill-hover);
@@ -6219,19 +5751,6 @@ body.side-pane-resizing {
 /* The search box, the order and the buttons beside them are one height. */
 .shared-files-pane .sfp-find {
   align-items: stretch;
-}
-/* The buttons that show only an icon are one size (the side column's
-   panels, the bar of a PDF in the work screen). */
-.shared-files-pane .sfp-icon-btn:not(.btn-v2),
-.workbench-icon-btn:not(.btn-v2) {
-  flex: 0 0 auto;
-  /* As tall as a field beside it (Bootstrap's small field: line, padding,
-     border), on any row of the pane. */
-  min-height: calc(1.5em + 0.5rem + 2px);
-  width: 2.5rem;
-  min-width: 0;
-  padding-left: 0;
-  padding-right: 0;
 }
 /* The filter button while a kind or an age narrows the list. */
 .shared-files-pane .sfp-on {
@@ -6917,13 +6436,13 @@ body.side-pane-resizing {
 }
 /* The point button in the mark's color (set by workbench-pointer.js),
    darker while a mark is being drawn. */
-.workbench-pointer-point.btn-v2 {
+.workbench-pointer-point.btn {
   --btn-bg: var(--mark-face, var(--tool-active-bg));
   --btn-fg: var(--mark-ink, var(--tool-active-fg));
   --btn-hover-bg: var(--btn-bg);
   --btn-hover-fg: var(--btn-fg);
 }
-.workbench-pointer-point.btn-v2.active {
+.workbench-pointer-point.btn.active {
   --btn-bg: color-mix(in srgb, var(--mark-face, var(--tool-active-bg)) 65%, #000);
 }
 .workbench-pointer-look-menu {
@@ -6956,14 +6475,13 @@ body.side-pane-resizing {
 /* The menu's choices are quiet; the one chosen stands out in the accent
    (its face, a strong border), a color chosen with a check too. */
 .workbench-pointer-look-menu .btn {
-  --bs-btn-bg: transparent; --bs-btn-border-color: var(--border-light); --bs-btn-color: var(--text-secondary);
-  --bs-btn-hover-bg: var(--pal-accent-soft); --bs-btn-hover-border-color: var(--pal-accent-line); --bs-btn-hover-color: var(--text-primary);
-  --bs-btn-active-bg: var(--pal-accent-soft); --bs-btn-active-border-color: var(--pal-accent-line); --bs-btn-active-color: var(--text-primary);
+  --btn-bg: transparent; --btn-border-color: var(--border-light); --btn-fg: var(--text-secondary);
+  --btn-hover-bg: var(--pal-accent-soft); --btn-hover-border-color: var(--pal-accent-line); --btn-hover-fg: var(--text-primary);
   border-width: 2px;
 }
 .workbench-pointer-look-menu .btn[aria-pressed="true"] {
-  --bs-btn-bg: var(--pal-accent-soft); --bs-btn-border-color: var(--pal-accent-strong); --bs-btn-color: var(--pal-accent-text);
-  --bs-btn-hover-border-color: var(--pal-accent-strong);
+  --btn-bg: var(--pal-accent-soft); --btn-border-color: var(--pal-accent-strong); --btn-fg: var(--pal-accent-text);
+  --btn-hover-bg: var(--pal-accent-soft); --btn-hover-border-color: var(--pal-accent-strong); --btn-hover-fg: var(--pal-accent-text);
 }
 .workbench-pointer-swatch {
   display: inline-flex;

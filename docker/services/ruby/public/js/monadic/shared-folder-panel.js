@@ -625,7 +625,7 @@
     name.addEventListener('focus', function () { if (cursor !== index) { cursor = index; paintCursor(); } });
     li.appendChild(name);
 
-    const more = el('button', { className: 'btn btn-sm sfp-row-menu', type: 'button' }, [icon('fa-solid fa-ellipsis')]);
+    const more = el('button', { className: 'btn btn-sm btn-icon sfp-row-menu', type: 'button' }, [icon('fa-solid fa-ellipsis')]);
     more.setAttribute('aria-label', t('actionsOf', 'Actions for {name}').replace('{name}', label));
     more.setAttribute('aria-haspopup', 'menu');
     more.setAttribute('aria-expanded', 'false');
@@ -838,7 +838,7 @@
     if (box && box.dataset.kept === 'true') return;
     if (state.items.length) { setStatus('info', null); return; }
     if (state.total > 0) {
-      const clear = el('button', { className: 'btn btn-v2 btn-sm btn-secondary ms-2 sf-clear-filters', type: 'button',
+      const clear = el('button', { className: 'btn btn-sm btn-secondary ms-2 sf-clear-filters', type: 'button',
         text: t('clearFilters', 'Clear the search and filters') });
       clear.addEventListener('click', clearFilters);
       setStatus('info', [t('noMatch', 'No items match the search and filters'), (view.q || view.cls || view.age) ? clear : null]);

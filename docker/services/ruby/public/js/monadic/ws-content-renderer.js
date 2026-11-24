@@ -334,7 +334,7 @@
           btn.className = 'mb-3';
           var dl = document.createElement('button');
           dl.type = 'button';
-          dl.className = 'btn btn-v2 btn-secondary btn-sm';
+          dl.className = 'btn btn-secondary btn-sm';
           dl.textContent = renderText('downloadDrawio', 'Download .drawio');
           btn.appendChild(dl);
           btn.addEventListener('click', function() {

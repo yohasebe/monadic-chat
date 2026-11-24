@@ -148,6 +148,14 @@
   --btn-success-active-bg: var(--pal-green-strong-hover);
   --btn-success-active-border: var(--pal-green-text);
   --btn-success-focus-shadow-color: color-mix(in srgb, var(--pal-green-mid) 35%, transparent);
+  /* Toolbar buttons (btn-tool): on a panel per group, the chosen one filled. */
+  --tool-panel-bg: #eceff3;
+  --tool-panel-border: rgba(0, 0, 0, 0.07);
+  --tool-fg: #4f5864;
+  --tool-hover-bg: rgba(0, 0, 0, 0.07);
+  --tool-active-bg: var(--pal-accent-strong);
+  --tool-active-fg: #ffffff;
+  --tool-danger-fg: var(--pal-red-strong);
   --btn-secondary-bg: var(--pal-grey-strong);
   --btn-secondary-text: #ffffff;
   --btn-secondary-hover-bg: var(--pal-grey-strong-hover);
@@ -322,6 +330,14 @@
   --btn-info: var(--pal-accent-mid);
 
   /* Primary and secondary buttons */
+  /* Toolbar buttons (btn-tool): on a panel per group, the chosen one filled. */
+  --tool-panel-bg: #2b2f36;
+  --tool-panel-border: rgba(255, 255, 255, 0.08);
+  --tool-fg: #c3c9d1;
+  --tool-hover-bg: rgba(255, 255, 255, 0.09);
+  --tool-active-bg: var(--pal-accent-strong);
+  --tool-active-fg: #ffffff;
+  --tool-danger-fg: #e58a92;
   --btn-secondary-bg: var(--pal-grey-strong);
   --btn-secondary-text: #e5e7eb;
 

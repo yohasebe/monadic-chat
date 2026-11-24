@@ -4953,11 +4953,10 @@ i.fas.fa-bolt,
     width: 100%;
   }
   
-  #user-panel button#image-file,
-  #user-panel button#doc,
-  #user-panel button#url {
+  /* The message's tool buttons are one row of one size, wrapping as a row
+     (the row keeps the space between its lines). */
+  .message-tools .btn {
     width: auto;
-    margin: 5px 10px 5px 0;
     padding: 6px 12px;
     font-size: inherit;
     white-space: nowrap;
@@ -5019,14 +5018,6 @@ i.fas.fa-bolt,
     margin-bottom: 10px;
   }
   
-  /* Keep voice button as auto width */
-  #voice {
-    width: auto;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    padding: 6px 12px;
-    font-size: inherit;
-  }
   
   /* Adjust amplitude display to be properly aligned with voice button */
   #amplitude {
@@ -7372,14 +7363,14 @@ body.side-pane-resizing {
   aspect-ratio: 16 / 10;
   overflow: auto;
 }
-/* Under a whiteboard: its export buttons beside the save button. */
+/* Under a whiteboard: its export buttons beside the save button, on one
+   panel with their label. */
 .workbench-whiteboard-exports {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
 }
 .workbench-whiteboard-exports-label {
-  margin-right: 2px;
+  margin: 0 4px 0 8px;
   color: var(--text-secondary);
 }
 .workbench-whiteboard-zoom-level {
@@ -7428,17 +7419,48 @@ body.side-pane-resizing {
 .workbench-whiteboard-sheet[data-tool="eraser"] .workbench-whiteboard-shape {
   cursor: pointer;
 }
-.workbench-whiteboard-tool.active,
-.workbench-whiteboard-stroke.active,
-.workbench-whiteboard-fill.active,
-.workbench-whiteboard-grid.active {
-  box-shadow: inset 0 0 0 2px var(--pal-accent-mid);
+/* Toolbar buttons (btn-tool): each group of the bar on a light panel, its
+   buttons clear on it, the chosen one (a tool, a size, a fill, the grid)
+   filled with the accent. Clearing the board is the one red. */
+.workbench-whiteboard-bar > .workbench-bar-group,
+.workbench-whiteboard-exports {
+  padding: 2px;
+  gap: 2px;
+  background: var(--tool-panel-bg);
+  border: var(--border-width) solid var(--tool-panel-border);
+  border-radius: 8px;
+}
+.btn.btn-tool {
+  color: var(--tool-fg);
+  background: transparent;
+  border: var(--border-width) solid transparent;
+}
+.btn.btn-tool:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--tool-hover-bg);
+}
+.btn.btn-tool.active,
+.btn.btn-tool.active:hover {
+  color: var(--tool-active-fg);
+  background: var(--tool-active-bg);
+}
+.btn.btn-tool:disabled {
+  opacity: 0.4;
+}
+.btn.btn-tool:focus-visible {
+  box-shadow: 0 0 0 2px var(--pal-accent-mid);
+}
+.btn.btn-tool.workbench-whiteboard-clear:not(:disabled) {
+  color: var(--tool-danger-fg);
+}
+.btn.btn-tool.workbench-whiteboard-clear:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tool-danger-fg) 14%, transparent);
 }
 /* The bar's groups, apart by space (no line: a group starting a new row
    would carry it), its rows close together. */
 .workbench-whiteboard-bar {
-  column-gap: 1rem;
-  row-gap: 0.35rem;
+  column-gap: 0.6rem;
+  row-gap: 0.4rem;
 }
 /* A choice opening from its button (color, size, fill), over the board. */
 .workbench-whiteboard-picker {

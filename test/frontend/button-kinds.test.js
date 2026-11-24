@@ -3,9 +3,10 @@
  */
 // Buttons take one of the kinds of the Web UI, filled: blue (confirm),
 // grey (act, move about, cancel), red (delete) and yellow (a standing action
-// of the side column). A white button with only a border, or another colour,
-// is used only where the border or the colour itself says something, listed
-// here.
+// of the side column); in a toolbar, btn-tool (clear on its group's panel,
+// the chosen one filled). A white button with only a border, or another
+// colour, is used only where the border or the colour itself says
+// something, listed here.
 const fs = require('fs');
 const path = require('path');
 
@@ -21,6 +22,7 @@ const EXCEPTIONS = [
   /id="(cancel_query|toggle-menu)" class="btn btn-light/,
   // Switches: the one chosen is filled or pressed, the others are outlined.
   /id="wv-mode-(hidden|inline|floating)"/,
+  /id="prompt-toggle-(assistant|aiuser)"/,
   /id="(brushTool|eraserTool)"/,
   /for="reasoning-(off|on)"/,
   /value === mode \? 'btn-secondary' : 'btn-outline-secondary'/,

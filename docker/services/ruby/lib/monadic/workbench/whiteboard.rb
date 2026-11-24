@@ -187,8 +187,11 @@ module Monadic
 
         lock_for(chat_id).synchronize do
           board.file_entry(item_id.to_s, sha256: version.to_s)
-          write(dir, name, clean(data))
-          item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
+          before = shapes_in(board.file_read(item_id.to_s, sha256: version.to_s)[:bytes])
+          board_data = clean(data)
+          write(dir, name, board_data)
+          item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0,
+                                 event: edit_event(before, board_data['shapes']))
           Channel.changed(chat_id)
           item
         end
@@ -196,6 +199,26 @@ module Monadic
         raise Refused, 'changed'
       rescue Artifact::NotAllowed
         raise Refused, 'not a whiteboard of this chat'
+      end
+
+      # The shapes of a saved board (bytes), or none when they cannot be read.
+      def shapes_in(bytes)
+        clean(JSON.parse(bytes.to_s))['shapes']
+      rescue JSON::ParserError
+        []
+      end
+
+      # What a save changed of the shapes, by their ids (the board's event:
+      # how many were added, changed, removed), or nil when nothing did.
+      def edit_event(before, after)
+        old = before.to_h { |shape| [shape['id'], shape] }
+        now = after.to_h { |shape| [shape['id'], shape] }
+        added = (now.keys - old.keys).size
+        removed = (old.keys - now.keys).size
+        changed = (now.keys & old.keys).count { |id| now[id] != old[id] }
+        return nil if (added + removed + changed).zero?
+
+        { 'kind' => 'edited', 'added' => added, 'changed' => changed, 'removed' => removed }
       end
 
       def lock_for(chat_id)

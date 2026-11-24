@@ -2,6 +2,7 @@
 
 require 'ostruct'
 require_relative '../workbench/draw_tool'
+require_relative '../workbench/look_tool'
 
 # Shared Tool Registry for Monadic Chat
 # Centralizes tool group definitions with metadata for Progressive Tool Disclosure
@@ -159,14 +160,16 @@ module MonadicSharedTools
                          "for the browser, still its viewport, not the whole page). " \
                          "When a PDF's result says page_text_stopped 'time', reading ran out of time after pages.last " \
                          "and the later pages were not read; for one of them, ask the user to show it and look with scope 'visible'. " \
-                         "Use it when the user refers to what they are looking at. Looking is not the user's approval of anything.",
+                         "Use it when the user refers to what they are looking at. " \
+                         "#{Monadic::Workbench::LookTool::CHANGES_HINT} Looking is not the user's approval of anything.",
             parameters: [
               {
                 name: :scope,
                 type: "string",
                 description: "'visible' (default) or 'whole'",
                 required: false
-              }
+              },
+              { name: :item, type: "string", description: Monadic::Workbench::LookTool::ITEM_PARAM, required: false }
             ]
           }
         ],

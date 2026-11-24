@@ -7,6 +7,7 @@ require_relative "../../workbench/caller"
 require_relative "../../workbench/look"
 require_relative "../../workbench/made"
 require_relative "../../workbench/draw_tool"
+require_relative "../../workbench/look_tool"
 require_relative "../../workbench/shown"
 require_relative "../../shared_tools/workbench_tools"
 
@@ -201,7 +202,7 @@ module WebSocketHelper
     chat_id = caller.chat_id
     request_id = caller.request_id
     result = Monadic::Workbench::Look.run(caller, scope: (args["scope"] || "visible").to_s,
-                                                  images: STS_IMAGE_PROVIDERS.include?(provider.to_s))
+                                                  images: STS_IMAGE_PROVIDERS.include?(provider.to_s), item: args["item"])
     return result.to_s unless result.is_a?(Monadic::Workbench::Look::Result)
 
     ledger = Monadic::Workbench::Look::Ledger.of_request(chat_id, request_id)
@@ -236,7 +237,8 @@ module WebSocketHelper
       parameters: {
         type: "object",
         properties: {
-          scope: { type: "string", enum: %w[visible whole], description: "visible (default) or whole" }
+          scope: { type: "string", enum: %w[visible whole], description: "visible (default) or whole" },
+          item: { type: "string", description: Monadic::Workbench::LookTool::ITEM_PARAM }
         },
         additionalProperties: false
       },

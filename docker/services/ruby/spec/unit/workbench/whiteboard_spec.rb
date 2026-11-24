@@ -78,6 +78,21 @@ RSpec.describe Monadic::Workbench::Whiteboard do
     expect(board["shapes"][3]).to include("text" => "Plan A\nthen B", "size" => 32)
   end
 
+  it "records what a save changed of the shapes (added, changed, removed), and nothing for a save that changed none" do
+    item = create
+    first = save(item, { "shapes" => shapes })
+    board = Monadic::Workbench::Board.for(chat, store: store)
+    events = -> { board.observe(tab: "tab-1", generation: 1)[:events].select { |e| e["kind"] == "edited" } }
+    expect(events.call.last).to include("added" => shapes.size, "changed" => 0, "removed" => 0, "by" => "user")
+    moved = shapes.map(&:dup)
+    moved[2] = moved[2].merge("x" => moved[2]["x"] + 10)
+    second = save(first, { "shapes" => moved[0..-2] })
+    expect(events.call.last).to include("added" => 0, "changed" => 1, "removed" => 1)
+    count = events.call.size
+    save(second, { "shapes" => moved[0..-2] })
+    expect(events.call.size).to eq(count)
+  end
+
   it "keeps one lock for each chat, so chats do not wait for each other" do
     other = Monadic::Workspace::Ids.generate(:chat)
     expect(described_class.lock_for(chat)).to equal(described_class.lock_for(chat))

@@ -41,6 +41,13 @@ module Monadic
       ACTIONS = %w[remove].freeze
       # Removed items remembered, so that a removal sent again is answered.
       REMOVED_LIMIT = 50
+      # What happened on the board (events): the most kept. Each has the
+      # next number of the chat's board; the model is told those after the
+      # last one a finished reply was told of (Observation).
+      EVENT_LIMIT = 30
+      # Why an item was taken off when nobody chose to: making room, a
+      # deleted turn.
+      SYSTEM_REMOVALS = %w[room turn_deleted].freeze
 
       class Refused < StandardError; end
 
@@ -145,8 +152,23 @@ module Monadic
         end
         return nil unless data
 
+        told = data['told'].to_i
         { epoch: Monadic::Workspace::Chats.epoch(@chat_id), selected: selected, text: text,
-          items: data['items'].values.map { |item| public_item(item) } }
+          items: data['items'].values.map { |item| public_item(item) },
+          events: Array(data['events']).select { |e| e['seq'].to_i > told },
+          events_tail: data['event_seq'].to_i, events_lost: data['events_lost'].to_i > told }
+      end
+
+      # A finished reply was told of the board's events up to tail (what
+      # its message's observation held): those are not told again. Never
+      # goes back (replies that finish out of order).
+      def told!(tail)
+        return if tail.to_i <= @lock.synchronize { @data['told'].to_i }
+
+        change do |data|
+          data['told'] = [data['told'].to_i, tail.to_i].max
+          nil
+        end
       end
 
       # Places a generator's image in the chat's folder and puts it on the
@@ -210,7 +232,9 @@ module Monadic
       # wait: seconds to wait for a turn to read the file (FileItem.turn).
       # sha256: the version asked for (a message's record names it): another
       # version, as read now, is refused ('changed') and not added.
-      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil)
+      # event: what the change was, for an item already there (a
+      # whiteboard's edit: its counts); a new item is told as placed.
+      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil, event: nil)
         entry = FileItem.entry_for(path, wait: wait)
         raise Refused, 'changed' if sha256 && entry['sha256'] != sha256
 
@@ -226,6 +250,7 @@ module Monadic
             @verdicts.delete(found['id'])
             @texts.delete(found['id'])
             select_for_origin(origin, found['id'])
+            record!(data, event.merge('item_id' => found['id']), origin) if event
             next [deep_dup(found), false]
           end
 
@@ -234,6 +259,7 @@ module Monadic
           data['items'][item_id] = { 'id' => item_id, 'kind' => 'file', 'origin' => kept_origin(origin), 'mid' => nil,
                                      'file' => entry }
           select_for_origin(origin, item_id)
+          record!(data, { 'kind' => 'placed', 'item_id' => item_id }, origin)
           [deep_dup(data['items'][item_id]), true]
         end
       rescue FileItem::Refused => e
@@ -396,6 +422,15 @@ module Monadic
         end
       end
 
+      # Whether item (as it was read) is still on the board at the same
+      # version.
+      def still_there?(item)
+        @lock.synchronize do
+          now = @data['items'][item['id']]
+          now && version_of(now) == version_of(item)
+        end
+      end
+
       # Whether the tab's connection still has item (look_target) selected,
       # at the same version, and (given serial) by the same selection.
       def still_selected?(tab:, generation:, item:, serial: nil)
@@ -538,11 +573,33 @@ module Monadic
         data ? pick.call(data['items']) : @lock.synchronize { pick.call(@data['items']) }
       end
 
+      # Adds an event to the board's (inside change): the next number, who
+      # made it (the origin's actor), what it was. The oldest go past
+      # EVENT_LIMIT; when one not yet told goes, the next observation says
+      # some were left out.
+      def record!(data, event, origin)
+        data['event_seq'] = data['event_seq'].to_i + 1
+        actor = origin && (origin[:actor] || origin['actor'])
+        events = (data['events'] ||= [])
+        events << event.merge('seq' => data['event_seq'], 'by' => actor.to_s.empty? ? 'system' : actor.to_s)
+        while events.size > EVENT_LIMIT
+          gone = events.shift
+          data['events_lost'] = gone['seq'] if gone['seq'].to_i > data['told'].to_i
+        end
+      end
+
       def check_epoch!(epoch)
         raise Refused, 'the chat was replaced' unless epoch == Monadic::Workspace::Chats.epoch(@chat_id)
       end
 
       def take_off!(data, item, removed_by)
+        # Its kind and name from the record (no file is read under the lock).
+        entry = item['file'] || item['artifact'] || {}
+        kind = item['kind'] == 'file' ? entry['preview'].to_s : item['kind'].to_s
+        actor = SYSTEM_REMOVALS.include?(removed_by) ? 'system' : 'user'
+        record!(data, { 'kind' => 'removed', 'item_id' => item['id'], 'item_kind' => kind,
+                        'name' => (entry['name'] || kind).to_s, 'reason' => (actor == 'system' ? removed_by : nil) }.compact,
+                { actor: actor })
         data['items'].delete(item['id'])
         data['removed'][item['id']] = removed_by
         data['removed'].shift while data['removed'].size > REMOVED_LIMIT

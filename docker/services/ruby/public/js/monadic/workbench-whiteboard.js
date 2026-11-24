@@ -115,6 +115,16 @@
 
   // ---- where a shape is -----------------------------------------------
 
+  // [width, height] a text takes at size, estimated by its characters (a
+  // wide one as wide as the text is tall, others 0.6 of it), as the server
+  // does (WhiteboardLayout.text_size).
+  const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\u3000-\u303F\uFF00-\uFFEF]/u;
+  function textSize(text, size) {
+    const lines = String(text || '').split('\n');
+    const width = Math.max(...lines.map((line) => Array.from(line).reduce((w, c) => w + (WIDE.test(c) ? size : size * 0.6), 0)));
+    return [width, lines.length * size * 1.25];
+  }
+
   // The box a shape takes on the board, { x, y, w, h } (a text's by the
   // number of its characters and lines, roughly).
   function bounds(shape) {
@@ -131,12 +141,13 @@
         return box(points.map((p) => p[0]), points.map((p) => p[1]));
       }
       case 'line':
-      case 'arrow':
-        return box([shape.x1, shape.x2], [shape.y1, shape.y2]);
+      case 'arrow': {
+        const path = shape.path || [[shape.x1, shape.y1], [shape.x2, shape.y2]];
+        return box(path.map((p) => p[0]), path.map((p) => p[1]));
+      }
       case 'text': {
-        const size = sizeOf(shape);
-        const lines = textLines(shape);
-        return { x: shape.x, y: shape.y, w: Math.max(...lines.map((l) => l.length)) * size * 0.6, h: lines.length * size * 1.25 };
+        const [w, h] = textSize(shape.text, sizeOf(shape));
+        return { x: shape.x, y: shape.y, w: w, h: h };
       }
       default:
         return { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
@@ -174,7 +185,7 @@
 
   // Where the way from a shape's middle toward a point leaves the shape
   // (a line's or an arrow's middle itself).
-  function edge(shape, toward) {
+  function edge(shape, toward, gap = GAP) {
     const b = bounds(shape);
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
@@ -188,27 +199,119 @@
     } else {
       k = Math.min(dx === 0 ? Infinity : b.w / 2 / Math.abs(dx), dy === 0 ? Infinity : b.h / 2 / Math.abs(dy));
     }
-    const out = k + (widthOf(shape) / 2 + GAP) / length;
+    const out = k + (gap > 0 ? widthOf(shape) / 2 + gap : 0) / length;
     return [round(cx + dx * out), round(cy + dy * out)];
   }
 
+  // ---- the route of a line -------------------------------------------
+  // A right-angled line keeps this far from a box to turn beside it, and
+  // goes round others this far from them (as WhiteboardLayout on the
+  // server, which checks the same routes for lines through boxes).
+  const ROUTE_MIN = 20;
+  const LANE = 30;
+  const asBox = (b) => [b.x, b.y, b.w, b.h];
+
+  // Whether the segment a–b passes through box [x, y, w, h] (Liang–Barsky).
+  function through(a, b, box) {
+    if (box[2] <= 0 || box[3] <= 0) return false;
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    let low = 0;
+    let high = 1;
+    const sides = [[-dx, a[0] - box[0]], [dx, box[0] + box[2] - a[0]], [-dy, a[1] - box[1]], [dy, box[1] + box[3] - a[1]]];
+    for (const [p, q] of sides) {
+      if (p === 0) {
+        if (q < 0) return false;
+      } else {
+        const t = q / p;
+        if (p < 0) low = Math.max(low, t);
+        else high = Math.min(high, t);
+        if (low > high) return false;
+      }
+    }
+    return true;
+  }
+
+  function elbow(a, b) {
+    if (a[0] === b[0] || a[1] === b[1]) return [a, b];
+    const mx = round((a[0] + b[0]) / 2);
+    return [a, [mx, a[1]], [mx, b[1]], b];
+  }
+
+  function sideways(s, e) {
+    if (s[1] === e[1]) return [s, e];
+    const mx = (s[0] + e[0]) / 2;
+    return [s, [mx, s[1]], [mx, e[1]], e];
+  }
+
+  function upright(s, e) {
+    if (s[0] === e[0]) return [s, e];
+    const my = (s[1] + e[1]) / 2;
+    return [s, [s[0], my], [e[0], my], e];
+  }
+
+  // The right-angled route from box a to box b ([x, y, w, h]) that goes
+  // through none of obstacles: out of the side facing b and into the side
+  // facing a (sideways first, then up or down), else round below them,
+  // else round above them; the first when every one goes through one.
+  function route(a, b, obstacles) {
+    const ac = [a[0] + a[2] / 2, a[1] + a[3] / 2];
+    const bc = [b[0] + b[2] / 2, b[1] + b[3] / 2];
+    const candidates = [];
+    if (b[0] >= a[0] + a[2] + ROUTE_MIN) candidates.push(sideways([a[0] + a[2], ac[1]], [b[0], bc[1]]));
+    else if (b[0] + b[2] <= a[0] - ROUTE_MIN) candidates.push(sideways([a[0], ac[1]], [b[0] + b[2], bc[1]]));
+    if (b[1] >= a[1] + a[3] + ROUTE_MIN) candidates.push(upright([ac[0], a[1] + a[3]], [bc[0], b[1]]));
+    else if (b[1] + b[3] <= a[1] - ROUTE_MIN) candidates.push(upright([ac[0], a[1]], [bc[0], b[1] + b[3]]));
+    if (candidates.length === 0) candidates.push([ac, bc]);
+    const low = Math.min(ac[0], bc[0]);
+    const high = Math.max(ac[0], bc[0]);
+    const span = [a, b].concat(obstacles.filter((o) => o[0] <= high && o[0] + o[2] >= low));
+    const below = Math.max(...span.map((o) => o[1] + o[3])) + LANE;
+    const above = Math.min(...span.map((o) => o[1])) - LANE;
+    if (below <= HEIGHT) candidates.push([[ac[0], a[1] + a[3]], [ac[0], below], [bc[0], below], [bc[0], b[1] + b[3]]]);
+    if (above >= 0) candidates.push([[ac[0], a[1]], [ac[0], above], [bc[0], above], [bc[0], b[1]]]);
+    const clear = candidates.find((points) => points.slice(1).every((q, i) =>
+      obstacles.every((o) => !through(points[i], q, [o[0] + 4, o[1] + 4, o[2] - 8, o[3] - 8]))));
+    return (clear || candidates[0]).map(([x, y]) => [round(x), round(y)]);
+  }
+
   // A shape as it is drawn: a line or an arrow joining shapes (from, to)
-  // has its ends at their edges, facing each other; ends whose shape is
-  // gone stay where they were kept. shapes: the board's, by id.
+  // has its ends at their edges, facing each other, or (route 'elbow') goes
+  // with right angles between them, round the boxes in its way; its points
+  // are in path. Ends whose shape is gone stay where they were kept.
+  // shapes: the board's, by id.
   function placed(shape, shapes) {
-    if (!(shape.type === 'line' || shape.type === 'arrow') || !(shape.from || shape.to)) return shape;
+    if (!(shape.type === 'line' || shape.type === 'arrow')) return shape;
     const from = shape.from && shapes.get(shape.from);
     const to = shape.to && shapes.get(shape.to);
-    if (!from && !to) return shape;
+    const ends = (path) => Object.assign({}, shape, { path: path, x1: path[0][0], y1: path[0][1],
+      x2: path[path.length - 1][0], y2: path[path.length - 1][1] });
+    if (shape.route === 'elbow' && from && to) {
+      const obstacles = Array.from(shapes.values())
+        .filter((s) => s.id !== from.id && s.id !== to.id && s.id !== shape.id && s.type !== 'line' && s.type !== 'arrow')
+        .map((s) => asBox(bounds(s)));
+      return ends(route(asBox(bounds(from)), asBox(bounds(to)), obstacles));
+    }
+    if (!from && !to) return ends(shape.route === 'elbow' ? elbow([shape.x1, shape.y1], [shape.x2, shape.y2])
+      : [[shape.x1, shape.y1], [shape.x2, shape.y2]]);
     const middle = (s) => {
       const b = bounds(s);
       return [b.x + b.w / 2, b.y + b.h / 2];
     };
     const a = from ? middle(from) : [shape.x1, shape.y1];
     const z = to ? middle(to) : [shape.x2, shape.y2];
-    const start = from ? edge(from, z) : a;
-    const end = to ? edge(to, a) : z;
-    return Object.assign({}, shape, { x1: start[0], y1: start[1], x2: end[0], y2: end[1] });
+    // Shapes close together: the ends stop at their edges without the gap,
+    // or, when even those would cross, at their middles, so the line still
+    // points from one to the other.
+    const facing = (p, q) => (q[0] - p[0]) * (z[0] - a[0]) + (q[1] - p[1]) * (z[1] - a[1]) > 0;
+    let start = from ? edge(from, z) : a;
+    let end = to ? edge(to, a) : z;
+    if (!facing(start, end)) {
+      start = from ? edge(from, z, 0) : a;
+      end = to ? edge(to, a, 0) : z;
+    }
+    if (!facing(start, end)) [start, end] = [a, z];
+    return ends([start, end]);
   }
 
   const byId = (shapes) => new Map(shapes.map((s) => [s.id, s]));
@@ -269,15 +372,30 @@
         break;
       }
       case 'line':
-      case 'arrow':
-        el = svg('line', { x1: shape.x1, y1: shape.y1, x2: shape.x2, y2: shape.y2, stroke: stroke, 'stroke-width': width,
-          'stroke-linecap': 'round' });
+      case 'arrow': {
+        const path = shape.path;
+        const group = svg('g');
+        group.appendChild(svg('polyline', { points: path.map((p) => p.join(',')).join(' '), fill: 'none', stroke: stroke,
+          'stroke-width': width, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
         if (shape.type === 'arrow') {
-          const group = svg('g');
-          group.append(el, svg('polygon', { points: arrowHead(shape, width).map((p) => p.join(',')).join(' '), fill: stroke }));
-          el = group;
+          group.appendChild(svg('polygon', { points: arrowHead(path, width).map((p) => p.join(',')).join(' '), fill: stroke }));
         }
+        if (shape.text) {
+          const box = lineLabel(shape);
+          group.appendChild(svg('rect', { x: box.x, y: box.y, width: box.w, height: box.h, rx: 4, fill: '#ffffff',
+            'fill-opacity': 0.9 }));
+          const label = svg('text', { x: box.cx, fill: stroke, 'font-size': box.size, 'font-family': 'sans-serif',
+            'text-anchor': 'middle', 'dominant-baseline': 'central' });
+          box.lines.forEach((line, i) => {
+            const span = svg('tspan', { x: box.cx, y: round(box.cy + (i - (box.lines.length - 1) / 2) * box.size * 1.25) });
+            span.textContent = line || ' ';
+            label.appendChild(span);
+          });
+          group.appendChild(label);
+        }
+        el = group;
         break;
+      }
       case 'rect':
       case 'ellipse':
         el = shape.type === 'rect'
@@ -321,16 +439,38 @@
     return el;
   }
 
-  // The three corners of an arrow's head, at its end.
-  function arrowHead(shape, width) {
-    const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
-    const length = 10 + width * 3;
+  // The three corners of an arrow's head, at the end of path: as long as
+  // its width asks, but at most 0.4 of the last step (a short arrow keeps a
+  // shaft), and at least 6.
+  function arrowHead(path, width) {
+    const [x1, y1] = path[path.length - 2];
+    const [x2, y2] = path[path.length - 1];
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const length = Math.min(10 + width * 3, Math.max(6, 0.4 * Math.hypot(x2 - x1, y2 - y1)));
     const spread = Math.PI / 7;
     return [
-      [shape.x2, shape.y2],
-      [shape.x2 - length * Math.cos(angle - spread), shape.y2 - length * Math.sin(angle - spread)],
-      [shape.x2 - length * Math.cos(angle + spread), shape.y2 - length * Math.sin(angle + spread)]
+      [x2, y2],
+      [round(x2 - length * Math.cos(angle - spread)), round(y2 - length * Math.sin(angle - spread))],
+      [round(x2 - length * Math.cos(angle + spread)), round(y2 - length * Math.sin(angle + spread))]
     ];
+  }
+
+  // Where a line's text goes: the middle of its longest step, on a box a
+  // little larger than the text.
+  function lineLabel(shape) {
+    const path = shape.path;
+    let best = 0;
+    for (let i = 1; i < path.length; i += 1) {
+      const d = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+      const bestD = Math.hypot(path[best + 1][0] - path[best][0], path[best + 1][1] - path[best][1]);
+      if (d > bestD) best = i - 1;
+    }
+    const cx = round((path[best][0] + path[best + 1][0]) / 2);
+    const cy = round((path[best][1] + path[best + 1][1]) / 2);
+    const size = sizeOf(shape);
+    const lines = textLines(shape);
+    const [w, h] = textSize(shape.text, size);
+    return { cx: cx, cy: cy, size: size, lines: lines, x: round(cx - w / 2 - 6), y: round(cy - h / 2 - 3), w: round(w + 12), h: round(h + 6) };
   }
 
   // Paints the board on a canvas context of width × height (white, as it is
@@ -374,17 +514,29 @@
         }
         case 'line':
         case 'arrow':
-          context.moveTo(shape.x1, shape.y1);
-          context.lineTo(shape.x2, shape.y2);
+          shape.path.forEach((p, i) => (i === 0 ? context.moveTo(p[0], p[1]) : context.lineTo(p[0], p[1])));
           context.stroke();
           if (shape.type === 'arrow') {
-            const head = arrowHead(shape, lineWidth);
+            const head = arrowHead(shape.path, lineWidth);
             context.beginPath();
             context.moveTo(head[0][0], head[0][1]);
             context.lineTo(head[1][0], head[1][1]);
             context.lineTo(head[2][0], head[2][1]);
             context.closePath();
             context.fill();
+          }
+          if (shape.text) {
+            const box = lineLabel(shape);
+            context.globalAlpha = 0.9;
+            context.fillStyle = '#ffffff';
+            context.fillRect(box.x, box.y, box.w, box.h);
+            context.globalAlpha = 1;
+            context.fillStyle = stroke;
+            context.font = `${box.size}px sans-serif`;
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            box.lines.forEach((line, i) => context.fillText(line, box.cx, box.cy + (i - (box.lines.length - 1) / 2) * box.size * 1.25));
+            context.textAlign = 'left';
           }
           break;
         case 'rect':
@@ -493,7 +645,7 @@
       disposed: false };
     const tips = [];
 
-    const control = (className, label, icon) => window.WorkbenchPointer.control(className, label, icon, { tips });
+    const control = (className, label, icon) => window.WorkbenchPointer.control(className, label, icon, { tips, kind: 'btn-tool' });
     const group = window.WorkbenchPointer.group;
     const bar = element('div', 'workbench-whiteboard-bar d-flex flex-wrap align-items-center');
     const toolButtons = TOOLS.map(([tool, icon, name]) => {
@@ -508,7 +660,7 @@
     const pickers = [];
     function picker(className, label, options) {
       const wrap = element('div', 'workbench-whiteboard-picker');
-      const button = element('button', `btn btn-sm btn-secondary workbench-icon-btn workbench-whiteboard-picker-button ${className}`);
+      const button = element('button', `btn btn-sm btn-tool workbench-icon-btn workbench-whiteboard-picker-button ${className}`);
       button.type = 'button';
       button.setAttribute('aria-label', label);
       button.setAttribute('aria-haspopup', 'true');
@@ -565,7 +717,7 @@
       return b;
     });
     const strokes = STROKES.map((width, i) => {
-      const b = element('button', 'btn btn-sm btn-secondary workbench-icon-btn workbench-whiteboard-stroke');
+      const b = element('button', 'btn btn-sm btn-tool workbench-icon-btn workbench-whiteboard-stroke');
       b.type = 'button';
       b.dataset.stroke = String(width);
       b.innerHTML = strokeDot(i);
@@ -579,7 +731,7 @@
       return b;
     });
     const fills = FILLS.map((fill) => {
-      const b = element('button', 'btn btn-sm btn-secondary workbench-icon-btn workbench-whiteboard-fill');
+      const b = element('button', 'btn btn-sm btn-tool workbench-icon-btn workbench-whiteboard-fill');
       b.type = 'button';
       b.dataset.fill = fill;
       b.innerHTML = fillSwatch(fill);
@@ -599,7 +751,7 @@
       'fa-solid fa-magnifying-glass-minus');
     const zoomIn = control('workbench-whiteboard-zoom-in', t('ui.workbench.wb_zoom_in', 'Zoom in'),
       'fa-solid fa-magnifying-glass-plus');
-    const zoomLevel = element('button', 'btn btn-sm btn-secondary workbench-whiteboard-zoom-level', '100%');
+    const zoomLevel = element('button', 'btn btn-sm btn-tool workbench-whiteboard-zoom-level', '100%');
     zoomLevel.type = 'button';
     zoomLevel.title = t('ui.workbench.wb_zoom_fit', 'Fit to the width');
     zoomLevel.setAttribute('aria-label', zoomLevel.title);
@@ -710,6 +862,7 @@
       const out = Object.assign({}, drawnAs(shape));
       delete out.from;
       delete out.to;
+      delete out.path;
       return out;
     };
 
@@ -1120,6 +1273,6 @@
     return handle;
   }
 
-  window.WorkbenchWhiteboard = { show: show, svgText: svgText, pdfOf: pdfOf, WIDTH: WIDTH, HEIGHT: HEIGHT, COLORS: COLORS };
+  window.WorkbenchWhiteboard = { show: show, svgText: svgText, pdfOf: pdfOf, route: route, textSize: textSize, WIDTH: WIDTH, HEIGHT: HEIGHT, COLORS: COLORS };
   if (typeof module !== 'undefined' && module.exports) module.exports = window.WorkbenchWhiteboard;
 })(typeof window !== 'undefined' ? window : globalThis);

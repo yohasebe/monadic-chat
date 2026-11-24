@@ -321,7 +321,8 @@ module WebSocketHelper
         properties: {
           shapes: { type: "string", description: Monadic::Workbench::DrawTool::SHAPES },
           remove: { type: "array", items: { type: "string" }, description: Monadic::Workbench::DrawTool::REMOVE },
-          new_whiteboard: { type: "boolean", description: Monadic::Workbench::DrawTool::NEW_BOARD }
+          new_whiteboard: { type: "boolean", description: Monadic::Workbench::DrawTool::NEW_BOARD },
+          layout: { type: "string", enum: %w[none right down], description: Monadic::Workbench::DrawTool::LAYOUT }
         },
         additionalProperties: false
       },
@@ -330,7 +331,7 @@ module WebSocketHelper
       available?: ->(_provider, _session) { true },
       call: lambda { |args, _session, context|
         MonadicSharedTools::WorkbenchTools.draw(context[:workbench], shapes: args["shapes"], remove: args["remove"],
-                                                                     new_whiteboard: args["new_whiteboard"])
+                                                                     new_whiteboard: args["new_whiteboard"], layout: args["layout"])
       }
     },
     "get_current_time" => {

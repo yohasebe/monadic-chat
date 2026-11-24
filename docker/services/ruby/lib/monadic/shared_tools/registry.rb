@@ -143,7 +143,8 @@ module MonadicSharedTools
               { name: :remove, type: "array", description: Monadic::Workbench::DrawTool::REMOVE, required: false,
                 items: { type: "string" } },
               { name: :new_whiteboard, type: "boolean", description: Monadic::Workbench::DrawTool::NEW_BOARD,
-                required: false }
+                required: false },
+              { name: :layout, type: "string", description: Monadic::Workbench::DrawTool::LAYOUT, required: false }
             ]
           },
           {

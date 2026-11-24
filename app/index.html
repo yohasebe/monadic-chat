@@ -61,7 +61,7 @@
       width: 40px;
       height: 40px;
       border: 4px solid #f3f3f3;
-      border-top: 4px solid #ffc107;
+      border-top: 4px solid var(--pal-amber-mid, #ecc04f);
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 20px;
@@ -101,7 +101,7 @@
     
     .startup-progress-bar {
       height: 100%;
-      background-color: #ffc107;
+      background-color: var(--pal-amber-mid, #ecc04f);
       width: 0%;
       transition: width 0.5s ease;
     }
@@ -136,9 +136,10 @@
       gap: 5px;
       align-items: center;
     }
+    /* The yellow of the Web UI's buttons (tokens.css), the same in both. */
     .button-group button {
-      background-color: #ffc107;
-      color: #000;
+      background-color: var(--pal-amber-mid, #ecc04f);
+      color: #212529;
       border: none;
       border-radius: 5px;
       padding: 5px 10px;
@@ -148,7 +149,7 @@
       flex-shrink: 0;
     }
     .button-group button:hover {
-      background-color: #e0ac07;
+      background-color: var(--pal-amber-strong, #b3862a);
     }
     .status.running, .status.active {
       color: #5cd65c; /* Softer green */
@@ -229,7 +230,7 @@
     }
     .dark-theme .startup-spinner {
       border-color: var(--border-secondary, #3a3a3a);
-      border-top-color: #ffc107;
+      border-top-color: var(--pal-amber-mid, #d4ab57);
     }
     .dark-theme .startup-progress { background-color: var(--border-secondary, #3a3a3a); }
     .dark-theme hr { background: var(--border-primary, #4a4a4a); }

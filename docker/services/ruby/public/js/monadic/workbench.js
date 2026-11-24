@@ -436,7 +436,7 @@
       group.setAttribute('aria-label', t('ui.workbench.wb_export', 'Export'));
       group.appendChild(element('span', 'workbench-whiteboard-exports-label', t('ui.workbench.wb_export', 'Export')));
       ['svg', 'png', 'pdf'].forEach((kind) => {
-        const b = button(kind.toUpperCase(), 'btn-secondary workbench-whiteboard-export-option', () => {
+        const b = button(kind.toUpperCase(), 'btn-tool workbench-whiteboard-export-option', () => {
           if (drawnBody && drawnBody.key === drawKey(item) && drawnBody.whiteboard) drawnBody.whiteboard.exportAs(kind);
         });
         b.dataset.kind = kind;

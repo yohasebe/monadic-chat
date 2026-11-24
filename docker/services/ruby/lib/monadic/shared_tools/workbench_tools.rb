@@ -95,15 +95,15 @@ module MonadicSharedTools
       "❌ Nothing was pointed at: #{e.message}."
     end
 
-    def draw_on_whiteboard(shapes: nil, remove: nil, new_whiteboard: false, workbench: nil)
-      WorkbenchTools.draw(workbench, shapes: shapes, remove: remove, new_whiteboard: new_whiteboard)
+    def draw_on_whiteboard(shapes: nil, remove: nil, new_whiteboard: false, layout: nil, workbench: nil)
+      WorkbenchTools.draw(workbench, shapes: shapes, remove: remove, new_whiteboard: new_whiteboard, layout: layout)
     end
 
-    def self.draw(workbench, shapes:, remove:, new_whiteboard:)
+    def self.draw(workbench, shapes:, remove:, new_whiteboard:, layout: nil)
       done = Monadic::Workbench::Draw.run(workbench, shapes: shapes, remove: remove,
-                                                     new_board: [true, 'true'].include?(new_whiteboard))
+                                                     new_board: [true, 'true'].include?(new_whiteboard), layout: layout)
       out = { 'status' => 'drawn', 'name' => done[:item].dig('file', 'name') }
-      %i[added changed removed].each { |key| out[key.to_s] = done[key] unless done[key].empty? }
+      %i[added changed removed adjusted issues].each { |key| out[key.to_s] = done[key] unless done[key].empty? }
       JSON.generate(out)
     rescue Monadic::Workbench::Draw::Refused => e
       "❌ Nothing was drawn: #{e.message}."

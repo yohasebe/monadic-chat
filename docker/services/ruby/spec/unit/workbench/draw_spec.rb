@@ -129,6 +129,16 @@ RSpec.describe Monadic::Workbench::Draw do
       expect(shapes["mine"]).to include("x" => 400.0, "y" => 400.0)
     end
 
+    it "tells the shapes it had no time to move, and leaves them where they were given" do
+      stub_const("#{described_class}::TIDY_SECONDS", -1.0)
+      board = whiteboard.create(chat, app_name: "ChatOpenAI", origin: user, epoch: epoch)
+      whiteboard.save(chat, item_id: board["id"], version: board.dig("file", "sha256"), app_name: "ChatOpenAI", origin: user,
+                            epoch: epoch, data: { "shapes" => [{ "id" => "mine", "type" => "rect", "x" => 400, "y" => 400, "w" => 200, "h" => 100 }] })
+      done = described_class.run(caller_for, shapes: [{ "id" => "n", "type" => "box", "x" => 450, "y" => 420 }])
+      expect(done[:issues]).to include("n was not moved off what it covers: no time left")
+      expect(shapes_of(done[:item]).find { |sh| sh["id"] == "n" }).to include("x" => 450.0, "y" => 420.0)
+    end
+
     it "routes a joined arrow round a box in its way, and tells a straight one that goes through it" do
       row = [{ "id" => "a", "type" => "box", "x" => 100, "y" => 100, "text" => "A" },
              { "id" => "b", "type" => "box", "x" => 500, "y" => 100, "text" => "B" },

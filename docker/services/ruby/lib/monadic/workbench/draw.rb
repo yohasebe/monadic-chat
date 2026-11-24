@@ -38,6 +38,9 @@ module Monadic
       CLOSED_LIMIT = 1000
       # The color of what the AI draws when it names none.
       COLOR = 'violet'
+      # How long setting the shapes right after a call may take (it holds the
+      # chat's whiteboard lock); what is left is told, not done.
+      TIDY_SECONDS = 2.0
       NUMBERS = %w[x y w h x1 y1 x2 y2 size stroke].freeze
 
       class Refused < StandardError; end
@@ -152,12 +155,17 @@ module Monadic
           shape = by_id[id] or next
           done[:adjusted] << { 'id' => id, 'grew' => [shape['w'], shape['h']] } if WhiteboardLayout.fit!(shape)
         end
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + TIDY_SECONDS
         (done[:added] - laid).each do |id|
           shape = by_id[id] or next
           next unless WhiteboardLayout::SOLID.include?(shape['type'])
 
-          moved = WhiteboardLayout.nudge!(shape, board_shapes.reject { |s| s['id'] == id })
-          done[:adjusted] << { 'id' => id, 'moved' => moved } if moved
+          moved = WhiteboardLayout.nudge!(shape, board_shapes.reject { |s| s['id'] == id }, deadline: deadline)
+          if moved == :late
+            done[:issues] << "#{id} was not moved off what it covers: no time left"
+          elsif moved
+            done[:adjusted] << { 'id' => id, 'moved' => moved }
+          end
         end
         board_shapes.each do |s|
           next unless WhiteboardLayout::LINES.include?(s['type']) && (s['from'] || s['to'])

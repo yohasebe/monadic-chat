@@ -3,6 +3,7 @@
 require 'fileutils'
 require_relative 'store'
 require_relative 'board'
+require_relative 'whiteboard'
 require_relative '../history'
 require_relative '../history/store'
 require_relative '../workspace/chats'
@@ -26,6 +27,7 @@ module Monadic
         return false unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
 
         Board.forget(chat_id)
+        Whiteboard.forget(chat_id)
         dir = store.chat_dir(chat_id)
         return false unless File.directory?(dir)
 

@@ -47,6 +47,17 @@ RSpec.describe Monadic::Workbench::WhiteboardLayout do
     expect(layout.nudge!(box("m", 0, 0), [there])).to be_nil
   end
 
+  it "stops looking for a free place when its time is up, and looks only near the shape" do
+    there = box("u", 400, 400)
+    new_box = box("n", 450, 420)
+    expect(layout.nudge!(new_box, [there], deadline: Process.clock_gettime(Process::CLOCK_MONOTONIC) - 1)).to eq(:late)
+    expect(new_box["x"]).to eq(450.0)
+    # A crowd far away does not change where it goes.
+    far = Array.new(500) { |i| box("f#{i}", 1500, (i % 25) * 40, 20, 20) }
+    alone = box("m", 450, 420)
+    expect(layout.nudge!(alone, [there] + far)).to eq(layout.nudge!(box("k", 450, 420), [there]))
+  end
+
   it "finds the boxes an arrow goes through, but those it joins" do
     a = box("a", 100, 100)
     b = box("b", 400, 100)

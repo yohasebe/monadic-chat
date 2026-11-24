@@ -7,6 +7,7 @@ require "base64"
 require_relative "../../../lib/monadic/workspace/ids"
 require_relative "../../../lib/monadic/workbench/whiteboard"
 require_relative "../../../lib/monadic/workbench/look"
+require_relative "../../../lib/monadic/workbench/retention"
 
 # A whiteboard: a file of the chat's folder holding the shapes drawn on it,
 # taken only in the form clean makes, saved as the page sends it, and looked
@@ -75,6 +76,17 @@ RSpec.describe Monadic::Workbench::Whiteboard do
                                      "points" => [[10.0, 20.0], [30.3, 40.0]], "stroke" => 6, "fill" => "none")
     expect(board["shapes"][2]).to include("fill" => "light", "color" => "red")
     expect(board["shapes"][3]).to include("text" => "Plan A\nthen B", "size" => 32)
+  end
+
+  it "keeps one lock for each chat, so chats do not wait for each other" do
+    other = Monadic::Workspace::Ids.generate(:chat)
+    expect(described_class.lock_for(chat)).to equal(described_class.lock_for(chat))
+    expect(described_class.lock_for(chat)).not_to equal(described_class.lock_for(other))
+    # A chat discarded lets its lock go.
+    first = described_class.lock_for(chat)
+    Monadic::Workbench::Retention.discard(chat, store: store)
+    expect(described_class::LOCKS).not_to have_key(chat)
+    expect(described_class.lock_for(chat)).not_to equal(first)
   end
 
   it "refuses a save over a version that is not the item's now" do

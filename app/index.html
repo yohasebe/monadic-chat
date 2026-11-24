@@ -15,16 +15,16 @@
       color: #333;
       background-color: #eeeeee;
     }
-    body, input, textarea, button, pre {
+    body, input, textarea, pre {
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
-    }
-    button {
-      color: #888;
     }
     .message-wrapper {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 35px); /* Subtract the height of the button group and any margins */
+      /* What the status line and the button row leave (the row wraps in a
+         narrow window and takes more). */
+      flex: 1 1 auto;
+      min-height: 0;
       overflow: hidden; /* Prevents the content from overflowing */
     }
     #messages, #output {
@@ -128,28 +128,16 @@
     }
     .status-wrapper .status{
     }
+    /* The shared buttons (buttons.css): yellow for the app's running,
+       grey for the rest. The row sets only their place and text size. */
     .button-group {
-      min-height: 35px;
+      flex: none;
       margin: 10px;
       display: flex;
       flex-wrap: wrap;
-      gap: 5px;
+      gap: 6px;
       align-items: center;
-    }
-    /* The yellow of the Web UI's buttons (tokens.css), the same in both. */
-    .button-group button {
-      background-color: var(--pal-amber-mid, #ecc04f);
-      color: #212529;
-      border: none;
-      border-radius: 5px;
-      padding: 5px 10px;
-      cursor: pointer;
       font-size: 13px;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .button-group button:hover {
-      background-color: var(--pal-amber-strong, #b3862a);
     }
     .status.running, .status.active {
       color: #5cd65c; /* Softer green */
@@ -157,21 +145,11 @@
     .status.stopped, .status.inactive {
       color: #ffa64d; /* Softer orange */
     }
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-    button:disabled:hover {
-      background-color: #ccc;
-    }
     hr {
       border: 0;
       height: 1px;
       padding:0;
       background: #777;
-    }
-    button#start, button#browser {
-      color: #000;
     }
     div#messages ul {
       list-style-type: none;
@@ -215,7 +193,7 @@
 
     /* Dark: colors from tokens.css (shared with the Web UI). The second value
        of each var() is the dark value, used if the shared file could not be
-       loaded. The yellow buttons and the status label stay as they are. */
+       loaded. The status label stays as it is. */
     .dark-theme body {
       color: var(--text-primary, #f5f5f5);
       background-color: var(--bg-body, #18191b);
@@ -237,13 +215,6 @@
     .dark-theme a { color: var(--text-link, #6b9bd8); }
     .dark-theme a:hover { color: var(--text-link-hover, #8fb3e8); }
     .dark-theme div#messages i.fa-copy { color: var(--text-secondary, #d0d0d0); }
-    .dark-theme button:disabled,
-    .dark-theme button:disabled:hover,
-    .dark-theme button#start:disabled,
-    .dark-theme button#browser:disabled {
-      background-color: #444;
-      color: #b8b8b8;
-    }
     .dark-theme .msg-version-app,
     .dark-theme .msg-version-container,
     .dark-theme .msg-update-done {
@@ -275,13 +246,13 @@
     <pre id="output"></pre>
   </div>
   <div class="button-group">
-    <button id="start" data-i18n="ui.start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
-    <button id="stop" disabled data-i18n="ui.stop"><i class="fa-solid fa-stop"></i> <span>Stop</span></button>
-    <button id="restart" disabled data-i18n="ui.restart"><i class="fa-solid fa-rotate-right"></i> <span>Restart</span></button>
-    <button id="browser" disabled data-i18n="ui.openBrowser"><i class="fa-solid fa-window-maximize"></i> <span>Open Browser</span></button>
-    <button id="sharedfolder" data-i18n="ui.sharedFolder"><i class="fas fa-folder-open"></i> <span>Shared Folder</span></button>
-    <button id="settings" data-i18n="ui.settings"><i class="fa-solid fa-sliders"></i> <span>Settings</span></button>
-    <button id="exit" data-i18n="ui.quit"><i class="fa-solid fa-xmark"></i> <span>Quit</span></button>
+    <button id="start" type="button" class="btn btn-v2 btn-sm btn-warning" data-i18n="ui.start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
+    <button id="stop" type="button" class="btn btn-v2 btn-sm btn-warning" disabled data-i18n="ui.stop"><i class="fa-solid fa-stop"></i> <span>Stop</span></button>
+    <button id="restart" type="button" class="btn btn-v2 btn-sm btn-warning" disabled data-i18n="ui.restart"><i class="fa-solid fa-rotate-right"></i> <span>Restart</span></button>
+    <button id="browser" type="button" class="btn btn-v2 btn-sm btn-warning" disabled data-i18n="ui.openBrowser"><i class="fa-solid fa-window-maximize"></i> <span>Open Browser</span></button>
+    <button id="sharedfolder" type="button" class="btn btn-v2 btn-sm btn-secondary" data-i18n="ui.sharedFolder"><i class="fas fa-folder-open"></i> <span>Shared Folder</span></button>
+    <button id="settings" type="button" class="btn btn-v2 btn-sm btn-secondary" data-i18n="ui.settings"><i class="fa-solid fa-sliders"></i> <span>Settings</span></button>
+    <button id="exit" type="button" class="btn btn-v2 btn-sm btn-secondary" data-i18n="ui.quit"><i class="fa-solid fa-xmark"></i> <span>Quit</span></button>
   </div>
   <script>
     // Disable Cmd/Ctrl+A in the main window

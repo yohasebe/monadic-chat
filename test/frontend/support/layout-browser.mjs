@@ -1,6 +1,6 @@
 // Drives the page's two columns in a headless browser with the real
-// stylesheets (vendor-layers.css with Bootstrap, tokens.css, monadic.css)
-// and layout-controller.js (run by layout-browser.test.js as a child
+// stylesheets (vendor-layers.css with Bootstrap, tokens.css, buttons.css,
+// monadic.css) and layout-controller.js (run by layout-browser.test.js as a child
 // process: puppeteer is an ES module). The page has the columns' structure
 // of views/index.erb with long content; each case prints what it measured
 // as one JSON line.
@@ -30,6 +30,7 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/vendor/css/montserrat.css">
 <link rel="stylesheet" href="/css/vendor-layers.css">
 <link rel="stylesheet" href="/css/tokens.css">
+<link rel="stylesheet" href="/css/buttons.css">
 <link rel="stylesheet" href="/css/monadic.css">
 <link rel="stylesheet" href="/vendor/css/all.min.css">
 </head><body>

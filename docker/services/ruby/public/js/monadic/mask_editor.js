@@ -38,10 +38,10 @@ function openMaskEditor(imageData) {
                   </button>
                 </div>
                 <div class="btn-group mb-3 w-100" role="group">
-                  <button type="button" id="undoMask" class="btn btn-secondary w-50">
+                  <button type="button" id="undoMask" class="btn btn-v2 btn-secondary w-50">
                     <i class="fas fa-undo"></i> Undo
                   </button>
-                  <button type="button" id="clearMask" class="btn btn-danger w-50">
+                  <button type="button" id="clearMask" class="btn btn-v2 btn-danger w-50">
                     <i class="fa-regular fa-trash-can"></i> Clear
                   </button>
                 </div>
@@ -52,8 +52,8 @@ function openMaskEditor(imageData) {
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-sm btn-primary" id="saveMask">
+            <button type="button" class="btn btn-v2 btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-v2 btn-sm btn-primary" id="saveMask">
               <i class="fas fa-save"></i> Save Mask
             </button>
           </div>
@@ -371,10 +371,10 @@ function openMaskEditor(imageData) {
               <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
               <div class="mask-overlay-label">MASK</div>
               <div class="mask-controls">
-                <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
+                <button class='btn btn-v2 btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
                   <i class="fa-regular fa-trash-can"></i> Remove Mask
                 </button>
-                <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+                <button class='btn btn-v2 btn-sm btn-secondary toggle-mask' tabindex="100">
                   <i class="fas fa-eye-slash"></i> Toggle Mask
                 </button>
               </div>
@@ -396,10 +396,10 @@ function openMaskEditor(imageData) {
               <img class='mask-overlay' alt='${maskFilename}' src='${window.currentMaskData.display_data || window.currentMaskData.data}' />
               <div class="mask-overlay-label">MASK</div>
               <div class="mask-controls">
-                <button class='btn btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
+                <button class='btn btn-v2 btn-sm btn-danger remove-mask' data-mask-filename='${maskFilename}' tabindex="99">
                   <i class="fa-regular fa-trash-can"></i> Remove Mask
                 </button>
-                <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
+                <button class='btn btn-v2 btn-sm btn-secondary toggle-mask' tabindex="100">
                   <i class="fas fa-eye-slash"></i> Toggle Mask
                 </button>
               </div>

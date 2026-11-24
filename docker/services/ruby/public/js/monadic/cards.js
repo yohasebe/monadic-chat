@@ -582,10 +582,10 @@ function attachEventListeners(card) {
       const buttonRow = document.createElement('div');
       buttonRow.className = 'd-flex justify-content-end';
       buttonRow.innerHTML = `
-        <button class="btn btn-sm btn-secondary me-2 cancel-edit">
+        <button class="btn btn-v2 btn-sm btn-secondary me-2 cancel-edit">
           <i class="fas fa-times"></i> Cancel
         </button>
-        <button class="btn btn-sm btn-primary save-edit">
+        <button class="btn btn-v2 btn-sm btn-primary save-edit">
           <i class="fas fa-check"></i> Save
         </button>
       `;

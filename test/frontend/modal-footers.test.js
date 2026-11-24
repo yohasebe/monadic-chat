@@ -17,22 +17,36 @@ function footerOf(id) {
 }
 
 describe('modal footers', () => {
-  const CANCEL = '<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>';
+  // The footer's buttons in order, by meaning: a grey Cancel only closes the
+  // dialog (whatever other classes the shared buttons give it).
+  const buttonsOf = (footer) => Array.from(footer.matchAll(/<button\b[^>]*>/g), (m) => {
+    const tag = m[0];
+    const cls = (tag.match(/class="([^"]*)"/) || [, ''])[1].split(/\s+/);
+    return {
+      cancel: /data-bs-dismiss="modal"/.test(tag) && /data-i18n="ui\.cancel"/.test(tag) && cls.includes('btn-secondary'),
+      meaning: ['btn-primary', 'btn-secondary', 'btn-danger', 'btn-warning'].find((k) => cls.includes(k)) || null,
+      kinds: cls.filter((c) => /^btn-(warning|outline-)/.test(c))
+    };
+  });
 
   test.each(['loadModal', 'docModal', 'audioUploadModal', 'urlModal'])(
     '%s has a Cancel that only closes it, before the action', (id) => {
       const footer = footerOf(id);
-      expect(footer).toContain(CANCEL);
-      expect(footer.indexOf(CANCEL)).toBeLessThan(footer.lastIndexOf('<button'));
+      const buttons = buttonsOf(footer);
+      const cancel = buttons.findIndex((b) => b.cancel);
+      expect(cancel).toBeGreaterThan(-1);
+      expect(cancel).toBeLessThan(buttons.length - 1);
       expect(footer).not.toMatch(/<div class="modal-footer">\s*<div><\/div>/);
     });
 
   test('deleting ends with a grey Cancel and one red Delete, what goes chosen above them', () => {
-    const footer = footerOf('deleteConfirmation');
-    expect(footer).toContain(CANCEL);
-    expect(footer.match(/btn-danger/g)).toHaveLength(1);
-    expect(footer.indexOf(CANCEL)).toBeLessThan(footer.indexOf('btn-danger'));
-    expect(footer).not.toMatch(/btn-(warning|outline-)/);
+    const buttons = buttonsOf(footerOf('deleteConfirmation'));
+    const cancel = buttons.findIndex((b) => b.cancel);
+    const reds = buttons.map((b, i) => (b.meaning === 'btn-danger' ? i : -1)).filter((i) => i >= 0);
+    expect(cancel).toBeGreaterThan(-1);
+    expect(reds).toHaveLength(1);
+    expect(cancel).toBeLessThan(reds[0]);
+    expect(buttons.flatMap((b) => b.kinds)).toEqual([]);
     const body = erb.slice(erb.indexOf('id="deleteConfirmation"'), erb.indexOf('<div class="modal-footer', erb.indexOf('id="deleteConfirmation"')));
     expect([...body.matchAll(/name="deleteScope" id="[^"]+" value="([a-z]+)"/g)].map((m) => m[1])).toEqual(['message', 'turn', 'below']);
   });

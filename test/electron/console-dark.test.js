@@ -43,18 +43,12 @@ describe('the console in dark', () => {
     }
   });
 
-  test('the yellow buttons keep their black text in dark', () => {
-    expect(style).not.toMatch(/\.dark-theme button\s*\{/);
-  });
-
-  test('a disabled button is light gray on dark gray, the ones with their own text color too', () => {
-    const at = style.indexOf('.dark-theme button:disabled,');
-    const rule = style.slice(at, style.indexOf('}', at));
-    // button#start and button#browser set black text by id, which a plain
-    // :disabled rule cannot beat.
-    expect(rule).toContain('.dark-theme button#start:disabled');
-    expect(rule).toContain('.dark-theme button#browser:disabled');
-    expect(rule).toMatch(/color: #b8b8b8/);
+  test('the buttons are the shared ones (buttons.css), yellow for running the app and grey for the rest, with no rules of their own', () => {
+    const kind = (id) => (page.match(new RegExp(`<button id="${id}"[^>]*class="([^"]+)"`)) || [])[1];
+    ['start', 'stop', 'restart', 'browser'].forEach((id) => expect(kind(id)).toBe('btn btn-v2 btn-sm btn-warning'));
+    ['sharedfolder', 'settings', 'exit'].forEach((id) => expect(kind(id)).toBe('btn btn-v2 btn-sm btn-secondary'));
+    const selectors = style.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g) || [];
+    expect(selectors.filter((sel) => /(^|[\s,>+~])button\b/.test(sel))).toEqual([]);
   });
 
   test("the window's dark background is the page's dark body", () => {

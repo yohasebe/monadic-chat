@@ -1764,8 +1764,9 @@ function setStartButtonMode(continuing) {
     }
     const button = $id('start');
     if (!button) return;
-    button.classList.toggle('btn-primary', !continuing);
-    button.classList.toggle('btn-success', !!continuing);
+    // Starting and continuing both go forward: the same blue, told apart
+    // by the icon and the label.
+    button.classList.add('btn-primary');
     const icon = button.querySelector('i');
     if (icon) icon.className = continuing ? 'fas fa-play' : 'fas fa-rocket';
   };

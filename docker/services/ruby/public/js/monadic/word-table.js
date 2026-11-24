@@ -313,7 +313,7 @@
     } else {
       menu.appendChild(element('span', 'word-table-add-label', t('ui.wordTable.addAs', 'Hide as')));
       Object.keys(TYPES).forEach((type) => {
-        const button = element('button', 'btn btn-outline-primary word-table-add-type', typeName(type));
+        const button = element('button', 'btn btn-secondary word-table-add-type', typeName(type));
         button.type = 'button';
         // The button does not take the focus: the selected words stay selected.
         $on(button, 'mousedown', (e) => e.preventDefault());

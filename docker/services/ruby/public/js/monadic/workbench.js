@@ -459,7 +459,7 @@
     // A document put together from sections (Workbench::Document): its
     // earlier versions can be listed and opened as files of their own.
     if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
-      actions.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-outline-secondary', () => askVersions(item.path)));
+      actions.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-secondary', () => askVersions(item.path)));
       info.appendChild(element('div', 'workbench-versions mt-2'));
     }
   }
@@ -683,11 +683,11 @@
     const row = rowItems();
     const at = row.findIndex((i) => i.id === item.id);
     const bar = element('div', 'workbench-stepper d-flex align-items-center gap-2 mb-2');
-    const prev = button('', 'btn-outline-secondary workbench-prev', () => step(-1));
+    const prev = button('', 'btn-secondary workbench-prev', () => step(-1));
     prev.appendChild(element('i', 'fa-solid fa-chevron-left'));
     prev.setAttribute('aria-label', t('ui.workbench.prev', 'Previous item'));
     prev.disabled = at <= 0;
-    const next = button('', 'btn-outline-secondary workbench-next', () => step(1));
+    const next = button('', 'btn-secondary workbench-next', () => step(1));
     next.appendChild(element('i', 'fa-solid fa-chevron-right'));
     next.setAttribute('aria-label', t('ui.workbench.next', 'Next item'));
     next.disabled = at < 0 || at >= row.length - 1;

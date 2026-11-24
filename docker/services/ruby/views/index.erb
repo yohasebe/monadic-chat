@@ -734,7 +734,7 @@
               <div id="sfp-selection" class="sfp-band sfp-selection mb-2" hidden>
                 <span id="sfp-selection-text" class="sfp-band-text"></span>
                 <button type="button" class="btn btn-sm btn-secondary sfp-icon-btn" id="sfp-copy" title="Copy the paths for a chat" aria-label="Copy the paths for a chat" data-i18n-title="ui.sharedFolderPanel.copyPaths" data-i18n-aria-label="ui.sharedFolderPanel.copyPaths"><i class="fa-regular fa-copy" aria-hidden="true"></i></button>
-                <button type="button" class="btn btn-sm btn-outline-danger" id="sfp-trash" aria-describedby="sfp-trash-why"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
+                <button type="button" class="btn btn-sm btn-danger" id="sfp-trash" aria-describedby="sfp-trash-why"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="sfp-trash-label"></span></button>
                 <button type="button" class="btn btn-sm sfp-icon-btn sfp-plain-btn" id="sfp-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.sharedFolderPanel.clearSelection" data-i18n-aria-label="ui.sharedFolderPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                 <span id="sfp-trash-why" class="sfp-band-note" hidden></span>
               </div>
@@ -761,7 +761,7 @@
               </div>
               <div id="history-selection" class="sfp-band sfp-selection mb-2" hidden>
                 <span id="history-selection-text" class="sfp-band-text"></span>
-                <button type="button" class="btn btn-sm btn-outline-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
+                <button type="button" class="btn btn-sm btn-danger" id="history-remove-selected"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> <span id="history-remove-label"></span></button>
                 <button type="button" class="btn btn-sm sfp-icon-btn sfp-plain-btn" id="history-clear-selection" title="Clear selection" aria-label="Clear selection" data-i18n-title="ui.historyPanel.clearSelection" data-i18n-aria-label="ui.historyPanel.clearSelection"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
               </div>
               <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
@@ -898,11 +898,11 @@
             <div class="row my-3">
               <div id="config-prompts">
                 <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                  <button type="button" class="btn btn-sm btn-outline-secondary text-start" id="prompt-toggle-assistant">
+                  <button type="button" class="btn btn-sm btn-secondary text-start" id="prompt-toggle-assistant">
                     <i class="fas fa-chevron-right" id="prompt-icon-assistant"></i>
                     <span data-i18n="ui.initialPromptAssistant">Initial Prompt for AI Assistant</span>
                   </button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary text-start" id="prompt-toggle-aiuser">
+                  <button type="button" class="btn btn-sm btn-secondary text-start" id="prompt-toggle-aiuser">
                     <i class="fas fa-chevron-right" id="prompt-icon-aiuser"></i>
                     <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
                   </button>
@@ -956,15 +956,15 @@
                   <span id="workflowViewerLabel" data-i18n="ui.workflowViewer">Workflow Viewer</span>
                 </span>
                 <div class="wv-panel-controls">
-                  <button id="wv-zoom-out" class="btn btn-sm btn-outline-secondary" title="Zoom out">
+                  <button id="wv-zoom-out" class="btn btn-sm btn-secondary" title="Zoom out">
                     <i class="fas fa-search-minus"></i></button>
-                  <button id="wv-zoom-in" class="btn btn-sm btn-outline-secondary" title="Zoom in">
+                  <button id="wv-zoom-in" class="btn btn-sm btn-secondary" title="Zoom in">
                     <i class="fas fa-search-plus"></i></button>
-                  <button id="wv-zoom-fit" class="btn btn-sm btn-outline-secondary" title="Fit to view">
+                  <button id="wv-zoom-fit" class="btn btn-sm btn-secondary" title="Fit to view">
                     <i class="fas fa-compress-arrows-alt"></i></button>
-                  <button id="wv-save-svg" class="btn btn-sm btn-outline-secondary ms-2" title="Save as SVG">
+                  <button id="wv-save-svg" class="btn btn-sm btn-secondary ms-2" title="Save as SVG">
                     <i class="fas fa-download"></i></button>
-                  <button id="wv-close" class="btn btn-sm btn-outline-secondary ms-2" title="Close">
+                  <button id="wv-close" class="btn btn-sm btn-secondary ms-2" title="Close">
                     <i class="fas fa-times"></i></button>
                 </div>
               </div>
@@ -1370,10 +1370,10 @@
           </div>
           <div class="modal-footer d-flex justify-content-between flex-wrap gap-2">
             <div>
-              <button type="button" class="btn btn-sm btn-outline-danger me-1" id="library-viewer-delete">
+              <button type="button" class="btn btn-sm btn-danger me-1" id="library-viewer-delete">
                 <i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.libDelete">Delete</span>
               </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="library-viewer-toggle-scope">
+              <button type="button" class="btn btn-sm btn-secondary" id="library-viewer-toggle-scope">
                 <i class="fa-solid fa-arrows-rotate"></i>
                 <span id="library-viewer-toggle-label" data-i18n="ui.libMakeGlobal">Make Global</span>
               </button>
@@ -1559,7 +1559,7 @@
               <label for="imageUrlInput" class="form-label" data-i18n="ui.modals.fileUrlLabel">Or enter file URL</label>
               <div class="input-group input-group-sm">
                 <input type="url" class="form-control" id="imageUrlInput" placeholder="https://...">
-                <button class="btn btn-outline-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
+                <button class="btn btn-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
               </div>
             </div>
             <div id="select_image_error" class="size-error text-warning mt-2"></div>

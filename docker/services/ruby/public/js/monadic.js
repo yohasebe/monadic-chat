@@ -4473,32 +4473,31 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     $show($id("monadic-spinner"));
     
-    // Event handlers for the message deletion confirmation dialog
-    $on($id("deleteMessageOnly"), "click", function() {
+    // Event handlers for the message deletion confirmation dialog. What it
+    // chose for the AI's drawings goes with the deletes (withDeleteChoice).
+    const deleteChoice = function() {
+      const row = $id("deleteDrawnChoice");
+      const box = $id("deleteTakeBackDrawn");
+      return { keepDrawn: !!(row && row.style.display !== "none" && box && !box.checked) };
+    };
+    // The one Delete button deletes what the chosen scope names.
+    $on($id("deleteConfirmButton"), "click", function() {
       const data = ($id("deleteConfirmation") || {}).dataset;
-      if (data && data.mid) {
-        // Check if it's a system message that needs special handling
-        if (data.isSystemMessage) {
-          deleteSystemMessage(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
-        } else {
-          deleteMessageOnly(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
-        }
-        bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
+      if (!(data && data.mid)) return;
+      const index = data.messageIndex !== undefined ? data.messageIndex : -1;
+      const chosen = document.querySelector('input[name="deleteScope"]:checked');
+      const scope = chosen ? chosen.value : "message";
+      if (data.isSystemMessage) {
+        // A system message is deleted on its own, whatever the scope.
+        deleteSystemMessage(data.mid, index);
+      } else {
+        window.withDeleteChoice(deleteChoice(), function() {
+          if (scope === "turn") window.deleteTurn(data.mid);
+          else if (scope === "below") deleteMessageAndSubsequent(data.mid, index);
+          else deleteMessageOnly(data.mid, index);
+        });
       }
-    });
-    
-    // Handle deletion of the current message and all subsequent messages
-    $on($id("deleteMessageAndSubsequent"), "click", function() {
-      const data = ($id("deleteConfirmation") || {}).dataset;
-      if (data && data.mid) {
-        // Check if it's a system message that needs special handling
-        if (data.isSystemMessage) {
-          deleteSystemMessage(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
-        } else {
-          deleteMessageAndSubsequent(data.mid, data.messageIndex !== undefined ? data.messageIndex : -1);
-        }
-        bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
-      }
+      bootstrap.Modal.getOrCreateInstance($id("deleteConfirmation")).hide();
     });
   })();
 });

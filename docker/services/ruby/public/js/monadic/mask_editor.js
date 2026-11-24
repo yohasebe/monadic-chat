@@ -38,10 +38,10 @@ function openMaskEditor(imageData) {
                   </button>
                 </div>
                 <div class="btn-group mb-3 w-100" role="group">
-                  <button type="button" id="undoMask" class="btn btn-outline-secondary w-50">
+                  <button type="button" id="undoMask" class="btn btn-secondary w-50">
                     <i class="fas fa-undo"></i> Undo
                   </button>
-                  <button type="button" id="clearMask" class="btn btn-outline-danger w-50">
+                  <button type="button" id="clearMask" class="btn btn-danger w-50">
                     <i class="fa-regular fa-trash-can"></i> Clear
                   </button>
                 </div>

@@ -9,6 +9,7 @@ require_relative '../workbench/put'
 require_relative '../workbench/shown'
 require_relative '../workbench/document'
 require_relative '../workbench/point'
+require_relative '../workbench/draw'
 
 module MonadicSharedTools
   # What every app can do with the work screen (the workbench beside the
@@ -92,6 +93,20 @@ module MonadicSharedTools
       JSON.generate(out)
     rescue Monadic::Workbench::Point::Refused => e
       "❌ Nothing was pointed at: #{e.message}."
+    end
+
+    def draw_on_whiteboard(shapes: nil, remove: nil, new_whiteboard: false, workbench: nil)
+      WorkbenchTools.draw(workbench, shapes: shapes, remove: remove, new_whiteboard: new_whiteboard)
+    end
+
+    def self.draw(workbench, shapes:, remove:, new_whiteboard:)
+      done = Monadic::Workbench::Draw.run(workbench, shapes: shapes, remove: remove,
+                                                     new_board: [true, 'true'].include?(new_whiteboard))
+      out = { 'status' => 'drawn', 'name' => done[:item].dig('file', 'name') }
+      %i[added changed removed].each { |key| out[key.to_s] = done[key] unless done[key].empty? }
+      JSON.generate(out)
+    rescue Monadic::Workbench::Draw::Refused => e
+      "❌ Nothing was drawn: #{e.message}."
     end
 
     # What the asking tab has selected in the work screen, read now

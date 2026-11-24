@@ -9,6 +9,7 @@ require_relative '../../workspace/chats'
 require_relative '../../workbench/board'
 require_relative '../../workbench/channel'
 require_relative '../../workbench/made'
+require_relative '../../workbench/draw'
 require_relative '../../workbench/turn_trash'
 require_relative '../../workbench/picture'
 require_relative '../../workbench/revision'
@@ -37,6 +38,8 @@ module WebSocketHelper
     Monadic::TurnState.changed!(rack_session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
     Monadic::TurnState::Notes.refresh(rack_session)
     later = deleted ? Array(rack_session[:messages])[message_index..] || [] : []
+    # Unless the user chose to keep them.
+    take_off_drawn(rack_session, deleted) unless obj["keep_drawn"] == true
     rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted, later).empty?
     # The picture of the work screen the message was sent with goes with it.
     remove_workbench_picture(rack_session, deleted)
@@ -93,6 +96,18 @@ module WebSocketHelper
   rescue StandardError => e
     warn "[MessageEditor] what the deleted message made was not moved to the trash: #{e.class}"
     []
+  end
+
+  # What a deleted message drew on whiteboards (Workbench::Draw) is taken
+  # off them; what else is on them stays.
+  def take_off_drawn(rack_session, message)
+    drawn = message.is_a?(Hash) && Monadic::Workbench::Draw.clean(message[Monadic::Workbench::Draw::KEY])
+    chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
+    return unless drawn && chat_id
+
+    Monadic::Workbench::Draw.undo(chat_id, drawn, app_name: rack_session.dig(:parameters, 'app_name').to_s)
+  rescue StandardError => e
+    warn "[MessageEditor] what the deleted message drew was not taken off: #{e.class}"
   end
 
   # The revisions the messages keep, in order, as the messages hold them

@@ -7089,7 +7089,8 @@ body.side-pane-resizing {
    under it is its own (the pages scroll under it, not into it). */
 .workbench-pdf-bar,
 .workbench-image-bar,
-.workbench-text-bar {
+.workbench-text-bar,
+.workbench-whiteboard-bar {
   position: sticky;
   top: 0;
   z-index: 4;
@@ -7350,4 +7351,182 @@ body.side-pane-resizing {
   width: 100%;
   height: auto;
   border: var(--border-width) solid var(--border-light);
+}
+
+/* The whiteboard: a white board of 16:10 under its bar, the cursor by the tool. */
+.workbench-whiteboard-sheet {
+  position: relative;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: 6px;
+  background: #ffffff;
+  touch-action: none;
+}
+.workbench-whiteboard-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+}
+/* Zoomed in, the board keeps its place and its picture scrolls in it. */
+.workbench-whiteboard-sheet[data-zoomed="true"] {
+  aspect-ratio: 16 / 10;
+  overflow: auto;
+}
+/* Under a whiteboard: its export buttons beside the save button. */
+.workbench-whiteboard-exports {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.workbench-whiteboard-exports-label {
+  margin-right: 2px;
+  color: var(--text-secondary);
+}
+.workbench-whiteboard-zoom-level {
+  min-width: 4.2em;
+  font-variant-numeric: tabular-nums;
+}
+.workbench-whiteboard-sheet[data-tool="pen"],
+.workbench-whiteboard-sheet[data-tool="line"],
+.workbench-whiteboard-sheet[data-tool="arrow"],
+.workbench-whiteboard-sheet[data-tool="rect"],
+.workbench-whiteboard-sheet[data-tool="ellipse"] {
+  cursor: crosshair;
+}
+/* The select tool: the chosen shape's box (dragged to move it) and its
+   handles (dragged to resize it). */
+.workbench-whiteboard-canvas:focus {
+  outline: none;
+}
+.workbench-whiteboard-selection {
+  fill: transparent;
+  stroke: var(--pal-accent-mid);
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+  pointer-events: all;
+  cursor: move;
+}
+.workbench-whiteboard-handle {
+  fill: #ffffff;
+  stroke: var(--pal-accent-mid);
+  stroke-width: 2;
+}
+.workbench-whiteboard-handle[data-handle="nw"],
+.workbench-whiteboard-handle[data-handle="se"] { cursor: nwse-resize; }
+.workbench-whiteboard-handle[data-handle="ne"],
+.workbench-whiteboard-handle[data-handle="sw"] { cursor: nesw-resize; }
+.workbench-whiteboard-handle[data-handle="n"],
+.workbench-whiteboard-handle[data-handle="s"] { cursor: ns-resize; }
+.workbench-whiteboard-handle[data-handle="e"],
+.workbench-whiteboard-handle[data-handle="w"] { cursor: ew-resize; }
+.workbench-whiteboard-sheet[data-tool="select"] .workbench-whiteboard-shape {
+  cursor: pointer;
+}
+.workbench-whiteboard-sheet[data-tool="text"] {
+  cursor: text;
+}
+.workbench-whiteboard-sheet[data-tool="eraser"] .workbench-whiteboard-shape {
+  cursor: pointer;
+}
+.workbench-whiteboard-tool.active,
+.workbench-whiteboard-stroke.active,
+.workbench-whiteboard-fill.active,
+.workbench-whiteboard-grid.active {
+  box-shadow: inset 0 0 0 2px var(--pal-accent-mid);
+}
+/* The bar's groups, apart by space (no line: a group starting a new row
+   would carry it), its rows close together. */
+.workbench-whiteboard-bar {
+  column-gap: 1rem;
+  row-gap: 0.35rem;
+}
+/* A choice opening from its button (color, size, fill), over the board. */
+.workbench-whiteboard-picker {
+  position: relative;
+}
+.workbench-whiteboard-picker-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.workbench-whiteboard-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+}
+.workbench-whiteboard-caret {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.workbench-whiteboard-color-face {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--wb-color);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+.workbench-whiteboard-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-body);
+  border: var(--border-width) solid var(--border-light);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.workbench-whiteboard-menu[hidden] {
+  display: none;
+}
+/* The colors: two rows of ten squares. */
+.workbench-whiteboard-colors-menu {
+  display: grid;
+  grid-template-columns: repeat(10, 20px);
+}
+.workbench-whiteboard-color {
+  box-sizing: border-box;
+  width: 20px;
+  min-width: 0;
+  height: 20px;
+  padding: 0;
+  border-radius: 4px;
+  background: var(--wb-color);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+.workbench-whiteboard-color.active {
+  outline: 2px solid var(--pal-accent-mid);
+  outline-offset: 1px;
+}
+.workbench-whiteboard-fill-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+.workbench-whiteboard-fill-swatch[data-fill="light"] {
+  background: color-mix(in srgb, currentColor 30%, transparent);
+}
+.workbench-whiteboard-fill-swatch[data-fill="solid"] {
+  background: currentColor;
+}
+.workbench-whiteboard-stroke-dot {
+  display: inline-block;
+  border-radius: 50%;
+  background: currentColor;
+}
+.workbench-whiteboard-input {
+  position: absolute;
+  width: auto;
+  min-width: 12em;
+  padding: 2px 4px;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 2;
 }

@@ -6,6 +6,7 @@ require_relative '../utils/privacy/words'
 require_relative '../workbench/record'
 require_relative '../workbench/shown'
 require_relative '../workbench/made'
+require_relative '../workbench/draw'
 require_relative '../workbench/picture'
 require_relative '../workbench/selection'
 require_relative '../workbench/look/record'
@@ -99,6 +100,9 @@ module Monadic
         out['workbench_selection'] = selection if selection && out['role'] == 'user'
         revisions = Monadic::Workbench::Made.clean_revisions(raw[Monadic::Workbench::Made::REVISIONS_KEY] || raw[:workbench_revisions])
         out[Monadic::Workbench::Made::REVISIONS_KEY] = revisions if revisions
+        # What the reply drew on whiteboards (Workbench::Draw).
+        drawn = Monadic::Workbench::Draw.clean(raw[Monadic::Workbench::Draw::KEY] || raw[:workbench_drawn])
+        out[Monadic::Workbench::Draw::KEY] = drawn if drawn
         # What the reply changed in its app's state (Monadic::TurnState).
         key = Monadic::TurnState::Form::STATE_CHANGES_KEY
         changes = Monadic::TurnState::Form.clean_changes(raw[key] || raw[key.to_sym])

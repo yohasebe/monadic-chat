@@ -32,6 +32,7 @@ module Monadic
       SIZES = [20, 32, 48, 72].freeze
       # How a pen stroke, a rectangle or an ellipse is filled (true: light).
       FILLS = %w[none light solid].freeze
+      ROUTES = %w[straight elbow].freeze
       BY = %w[user ai].freeze
       ID = /\A[A-Za-z0-9_-]{1,32}\z/
       SHAPES_LIMIT = 2000
@@ -93,6 +94,13 @@ module Monadic
           out['stroke'] = stroke(shape)
           # The shapes it joins (its ends drawn at their edges), by id.
           %w[from to].each { |end_| out[end_] = shape[end_] if shape[end_].is_a?(String) && shape[end_].match?(ID) }
+          # Drawn with right angles ('elbow') or straight (the default).
+          out['route'] = shape['route'] if ROUTES.include?(shape['route'])
+          # A text written by it (near its middle), when there is one.
+          unless shape['text'].nil? || shape['text'].to_s.strip.empty?
+            out['text'] = text_of(shape['text'])
+            out['size'] = nearest(shape['size'], SIZES, SIZES[0])
+          end
         when 'rect', 'ellipse'
           out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'w' => size(shape['w'], WIDTH), 'h' => size(shape['h'], HEIGHT))
           out['stroke'] = stroke(shape)

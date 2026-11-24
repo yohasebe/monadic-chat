@@ -253,6 +253,59 @@ describe('WorkbenchWhiteboard', () => {
     });
   });
 
+  describe('the routes and text sizes the server computes too', () => {
+    const cases = JSON.parse(require('fs').readFileSync(path.join(__dirname, '../fixtures/whiteboard_route_cases.json'), 'utf8'));
+
+    test.each(cases.routes.map((c) => [c.name, c]))('routes %s as the shared cases say', (_name, c) => {
+      expect(window.WorkbenchWhiteboard.route(c.a, c.b, c.obstacles)).toEqual(c.route);
+    });
+
+    test('sizes texts as the shared cases say', () => {
+      cases.texts.forEach((c) => expect(window.WorkbenchWhiteboard.textSize(c.text, c.size)).toEqual(c.box));
+    });
+  });
+
+  describe('lines that join shapes', () => {
+    const two = (route, extra = {}) => [
+      { id: 'a', type: 'rect', x: 100, y: 100, w: 160, h: 60 },
+      { id: 'b', type: 'rect', x: 400, y: 300, w: 160, h: 60 },
+      Object.assign({ id: 'j', type: 'arrow', x1: 0, y1: 0, x2: 0, y2: 0, from: 'a', to: 'b', route: route, stroke: 6 }, extra)
+    ];
+    const points = (id) => box.querySelector(`[data-id="${id}"] polyline`).getAttribute('points').split(' ').map((p) => p.split(',').map(Number));
+
+    test('goes with right angles round to the other shape when its route is elbow, and follows it', () => {
+      show({ shapes: two('elbow') });
+      expect(points('j')).toEqual([[260, 130], [330, 130], [330, 330], [400, 330]]);
+      tool('select');
+      box.querySelector('[data-id="b"]').dispatchEvent(new MouseEvent('pointerdown', { clientX: 240, clientY: 165, button: 0, bubbles: true }));
+      pointer('pointermove', 290, 165);
+      pointer('pointerup', 290, 165);
+      expect(points('j')[3]).toEqual([500, 330]);
+    });
+
+    test('keeps a short arrow pointing the right way, with a head shorter than it', () => {
+      show({ shapes: [{ id: 'a', type: 'rect', x: 100, y: 100, w: 160, h: 60 }, { id: 'b', type: 'rect', x: 270, y: 100, w: 160, h: 60 },
+        { id: 'j', type: 'arrow', x1: 0, y1: 0, x2: 0, y2: 0, from: 'a', to: 'b', stroke: 6 }] });
+      const [start, end] = points('j');
+      expect(end[0]).toBeGreaterThan(start[0]);
+      const head = box.querySelector('[data-id="j"] polygon').getAttribute('points').split(' ').map((p) => p.split(',').map(Number));
+      // At most 0.4 of the arrow, but never under 6: still shorter than it.
+      const headLength = Math.abs(head[0][0] - head[1][0]);
+      expect(headLength).toBeLessThanOrEqual(Math.max(6, 0.4 * (end[0] - start[0])) + 0.1);
+      expect(headLength).toBeLessThan(end[0] - start[0]);
+    });
+
+    test('writes a line\'s text on a box near its middle', () => {
+      show({ shapes: two('elbow', { text: 'yes' }) });
+      const group = box.querySelector('[data-id="j"]');
+      expect(group.querySelector('text').textContent).toBe('yes');
+      // The longest step is the upright one, at x 330, between y 130 and 330.
+      expect(group.querySelector('tspan').getAttribute('x')).toBe('330');
+      expect(group.querySelector('tspan').getAttribute('y')).toBe('230');
+      expect(group.querySelector('rect').getAttribute('fill')).toBe('#ffffff');
+    });
+  });
+
   describe('boxes with a text, and arrows joining them', () => {
     const boxes = [
       { id: 'a', type: 'rect', x: 100, y: 100, w: 200, h: 100, text: 'Order', size: 20, color: 'blue', stroke: 6 },
@@ -275,24 +328,28 @@ describe('WorkbenchWhiteboard', () => {
 
     test('draws a joining arrow between the edges of its shapes, and keeps it there as they move', () => {
       show({ shapes: boxes });
-      const line = () => box.querySelector('[data-id="j"] line');
+      // The ends of the joining line, as drawn.
+      const ends = () => {
+        const points = box.querySelector('[data-id="j"] polyline').getAttribute('points').split(' ').map((p) => p.split(',').map(Number));
+        return { x1: points[0][0], y1: points[0][1], x2: points[points.length - 1][0], y2: points[points.length - 1][1] };
+      };
       // From the rectangle's right edge (300) and the ellipse's left (600),
       // each 3 + 6 away.
-      expect([line().getAttribute('x1'), line().getAttribute('x2')]).toEqual(['309', '591']);
+      expect([ends().x1, ends().x2]).toEqual([309, 591]);
       tool('select');
       const rect = box.querySelector('[data-id="a"]');
       rect.dispatchEvent(new MouseEvent('pointerdown', { clientX: 100, clientY: 75, button: 0, bubbles: true }));
       pointer('pointermove', 100, 175);
       pointer('pointerup', 100, 175);
       expect(board.data().shapes[0]).toMatchObject({ y: 300 });
-      expect(Number(line().getAttribute('y1'))).toBeGreaterThan(150);
+      expect(ends().y1).toBeGreaterThan(150);
       expect(board.data().shapes[2]).toMatchObject({ from: 'a', to: 'b' });
     });
 
     test('lets an arrow moved by itself go of the shapes it joined', () => {
       show({ shapes: boxes });
       tool('select');
-      const arrow = box.querySelector('[data-id="j"] line');
+      const arrow = box.querySelector('[data-id="j"] polyline');
       arrow.dispatchEvent(new MouseEvent('pointerdown', { clientX: 225, clientY: 75, button: 0, bubbles: true }));
       pointer('pointermove', 225, 100);
       pointer('pointerup', 225, 100);

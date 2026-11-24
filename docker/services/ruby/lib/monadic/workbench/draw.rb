@@ -7,6 +7,7 @@ require_relative 'look'
 require_relative 'made'
 require_relative 'shown'
 require_relative 'whiteboard'
+require_relative 'whiteboard_layout'
 require_relative '../workspace/shared_folder_preview'
 require_relative '../utils/extra_logger'
 
@@ -17,6 +18,12 @@ module Monadic
     # changed by their id; ids given are removed. A line or an arrow may join
     # two shapes by their ids (from, to): its ends are kept at their middles
     # and drawn at their edges by the page.
+    #
+    # Where the shapes go is set right after they are drawn
+    # (WhiteboardLayout): boxes grow to hold their texts, a new shape that
+    # partly covers another moves to a free place, and with layout 'right'
+    # or 'down' the new boxes are placed in columns or rows by the arrows
+    # between them. What was moved and what is still wrong is told back.
     #
     # What a reply added is kept for its message (KEY): { "path", "ids" }
     # per whiteboard. Deleting the message, or a reply that ends without
@@ -46,7 +53,7 @@ module Monadic
       # shapes of ids in remove, on the whiteboard caller's tab shows (a new
       # one when it shows none, or when new_board). Returns { item:, added:,
       # changed:, removed: }, or Refused (why).
-      def run(caller, shapes: nil, remove: nil, new_board: false)
+      def run(caller, shapes: nil, remove: nil, new_board: false, layout: nil)
         raise Refused, 'this reply cannot draw on the work screen' unless caller
 
         list = parse(shapes)
@@ -54,13 +61,17 @@ module Monadic
         raise Refused, 'give shapes to draw or ids to remove' if list.empty? && removing.empty?
         raise Refused, "at most #{SHAPES_LIMIT} shapes in one call" if list.size > SHAPES_LIMIT
 
+        layout = layout.to_s.strip
+        layout = nil if layout.empty? || layout == 'none'
+        raise Refused, "layout is 'right', 'down' or 'none'" unless layout.nil? || WhiteboardLayout::DIRECTIONS.include?(layout)
+
         app_name = caller.session&.dig(:parameters, 'app_name').to_s
         item = (shown_whiteboard(caller, app_name) unless new_board) || made_whiteboard(caller, app_name)
         path = item.dig('file', 'path')
-        done = { added: [], changed: [], removed: [] }
+        done = { added: [], changed: [], removed: [], adjusted: [], issues: [] }
         edited = Whiteboard.edit(caller.chat_id, path, app_name: app_name, origin: caller.origin,
                                                        epoch: caller.epoch) do |board_shapes|
-          apply(board_shapes, list, removing, done)
+          apply(board_shapes, list, removing, done, layout)
         end
         item = edited || item
         add(caller.request_id, path, done[:added], chat_id: caller.chat_id)
@@ -85,8 +96,9 @@ module Monadic
 
       # Removes, then adds or changes, in place: shapes joined to others
       # last, so they can join shapes of the same call.
-      def apply(board_shapes, list, removing, done)
+      def apply(board_shapes, list, removing, done, layout = nil)
         removing.each { |id| done[:removed] << id if board_shapes.reject! { |s| s['id'] == id } }
+        laid = layout ? lay_out(board_shapes, list, layout, done) : []
         joined, others = list.partition { |s| %w[line arrow].include?(s['type']) && (s['from'] || s['to']) }
         (others + joined).each do |input|
           id = input['id'].is_a?(String) && input['id'].match?(Whiteboard::ID) ? input['id'] : new_id(board_shapes)
@@ -99,8 +111,73 @@ module Monadic
             done[:added] << id
           end
         end
+        tidy(board_shapes, done, laid)
       rescue Whiteboard::Refused => e
         raise Refused, "a shape was not drawn: #{e.message}"
+      end
+
+      # The new boxes of list placed by the arrows of list between them
+      # (WhiteboardLayout.layout!), in a free part of the board. Their ids
+      # (given now to those without one).
+      def lay_out(board_shapes, list, direction, done)
+        on_board = board_shapes.to_h { |s| [s['id'], true] }
+        boxes = list.select do |s|
+          %w[box rect ellipse].include?(s['type']) && !(s['id'].is_a?(String) && on_board[s['id']])
+        end
+        return [] if boxes.empty?
+
+        boxes.each do |b|
+          b['id'] = new_id(board_shapes + list) unless b['id'].is_a?(String) && b['id'].match?(Whiteboard::ID)
+          b['type'] = 'rect' if b['type'] == 'box'
+          %w[w h size].each { |k| b[k] = b[k].to_f if b[k].is_a?(String) && b[k].match?(/\A\d+(\.\d+)?\z/) }
+          b.delete('w') unless b['w'].is_a?(Numeric)
+          b.delete('h') unless b['h'].is_a?(Numeric)
+        end
+        edges = list.filter_map { |s| [s['from'], s['to']] if %w[line arrow].include?(s['type']) && s['from'] && s['to'] }
+        occupied = board_shapes.select { |s| WhiteboardLayout::SOLID.include?(s['type']) }
+                               .map { |s| WhiteboardLayout.bounds(s) }
+        issue = WhiteboardLayout.layout!(boxes, edges, direction, occupied)
+        done[:issues] << issue if issue
+        boxes.map { |b| b['id'] }
+      end
+
+      # After drawing: boxes drawn or changed grow to hold their texts; a
+      # shape added (not laid out) that partly covers another moves to a free
+      # place; joined lines take their shapes' middles again; what is still
+      # wrong is told (an overlap, a line through a box).
+      def tidy(board_shapes, done, laid)
+        by_id = board_shapes.to_h { |s| [s['id'], s] }
+        touched = (done[:added] + done[:changed]).uniq
+        touched.each do |id|
+          shape = by_id[id] or next
+          done[:adjusted] << { 'id' => id, 'grew' => [shape['w'], shape['h']] } if WhiteboardLayout.fit!(shape)
+        end
+        (done[:added] - laid).each do |id|
+          shape = by_id[id] or next
+          next unless WhiteboardLayout::SOLID.include?(shape['type'])
+
+          moved = WhiteboardLayout.nudge!(shape, board_shapes.reject { |s| s['id'] == id })
+          done[:adjusted] << { 'id' => id, 'moved' => moved } if moved
+        end
+        board_shapes.each do |s|
+          next unless WhiteboardLayout::LINES.include?(s['type']) && (s['from'] || s['to'])
+
+          [%w[from x1 y1], %w[to x2 y2]].each do |end_, x, y|
+            other = s[end_] && by_id[s[end_]]
+            s[x], s[y] = middle(other).map { |v| v.to_f.round(1) } if other
+          end
+        end
+        touched.each do |id|
+          shape = by_id[id] or next
+          others = board_shapes.reject { |s| s['id'] == id }
+          if WhiteboardLayout::LINES.include?(shape['type'])
+            through = WhiteboardLayout.crossings(shape, others)
+            done[:issues] << "#{id} goes through #{through.join(', ')}" unless through.empty?
+          elsif WhiteboardLayout::SOLID.include?(shape['type'])
+            covers = WhiteboardLayout.overlaps(shape, others)
+            done[:issues] << "#{id} overlaps #{covers.join(', ')}" unless covers.empty?
+          end
+        end
       end
 
       # A shape as the whiteboard keeps it: 'box' is a rectangle, numbers
@@ -109,8 +186,15 @@ module Monadic
       def shape(input, board_shapes)
         out = input.dup
         out['type'] = 'rect' if out['type'] == 'box'
+        # A box given no size takes one, and grows to its text (tidy).
+        if WhiteboardLayout::BOXES.include?(out['type'])
+          out['w'] ||= WhiteboardLayout::BOX_W
+          out['h'] ||= WhiteboardLayout::BOX_H
+        end
         NUMBERS.each { |key| out[key] = out[key].to_f if out[key].is_a?(String) && out[key].match?(/\A-?\d+(\.\d+)?\z/) }
         if %w[line arrow].include?(out['type'])
+          # Joined lines are drawn with right angles unless asked straight.
+          out['route'] ||= 'elbow' if out['from'] || out['to']
           [%w[from x1 y1], %w[to x2 y2]].each do |end_, x, y|
             next unless out[end_]
 

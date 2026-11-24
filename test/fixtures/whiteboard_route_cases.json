@@ -1,0 +1,21 @@
+{
+  "about": "Right-angled routes between two boxes ([x, y, w, h]) round the obstacles, and text sizes, as both the page (workbench-whiteboard.js) and the server (WhiteboardLayout) compute them.",
+  "routes": [
+    { "name": "to the right, level", "a": [100, 100, 160, 60], "b": [400, 100, 160, 60], "obstacles": [],
+      "route": [[260, 130], [400, 130]] },
+    { "name": "to the right, lower", "a": [100, 100, 160, 60], "b": [400, 300, 160, 60], "obstacles": [],
+      "route": [[260, 130], [330, 130], [330, 330], [400, 330]] },
+    { "name": "straight below", "a": [100, 100, 160, 60], "b": [100, 300, 160, 60], "obstacles": [],
+      "route": [[180, 160], [180, 300]] },
+    { "name": "round below a box in the way", "a": [100, 100, 160, 60], "b": [700, 100, 160, 60], "obstacles": [[400, 100, 160, 60]],
+      "route": [[180, 160], [180, 190], [780, 190], [780, 160]] },
+    { "name": "back to an upper row, up and over", "a": [1400, 300, 200, 100], "b": [700, 100, 200, 100],
+      "obstacles": [[950, 300, 200, 100], [1150, 300, 200, 100], [950, 100, 200, 100]],
+      "route": [[1500, 300], [1500, 250], [800, 250], [800, 200]] }
+  ],
+  "texts": [
+    { "text": "ab", "size": 20, "box": [24, 25] },
+    { "text": "在庫", "size": 20, "box": [40, 25] },
+    { "text": "a\nbcd", "size": 20, "box": [36, 50] }
+  ]
+}

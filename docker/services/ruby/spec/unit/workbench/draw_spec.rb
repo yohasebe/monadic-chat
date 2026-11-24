@@ -96,6 +96,61 @@ RSpec.describe Monadic::Workbench::Draw do
     expect(described_class.seal(request_id).first["ids"]).to eq(done[:added])
   end
 
+  describe "where the shapes go" do
+    let(:layout) { Monadic::Workbench::WhiteboardLayout }
+
+    it "lays out new boxes by their arrows when asked, apart and joined at their middles" do
+      flow = [{ "id" => "a", "type" => "box", "text" => "Order" }, { "id" => "b", "type" => "box", "text" => "Pay" },
+              { "id" => "c", "type" => "box", "text" => "Ship" },
+              { "type" => "arrow", "from" => "a", "to" => "b" }, { "type" => "arrow", "from" => "b", "to" => "c" }]
+      done = described_class.run(caller_for, shapes: flow, layout: "right")
+      shapes = shapes_of(done[:item]).to_h { |sh| [sh["id"], sh] }
+      expect(shapes["a"]["x"]).to be < shapes["b"]["x"]
+      expect(shapes["b"]["x"]).to be < shapes["c"]["x"]
+      %w[a b c].combination(2).each do |p, q|
+        expect(layout.overlap?(layout.bounds(shapes[p]), layout.bounds(shapes[q]))).to be false
+      end
+      link = shapes.values.find { |sh| sh["from"] == "a" }
+      expect([link["x1"], link["y1"]]).to eq([shapes["a"]["x"] + (shapes["a"]["w"] / 2), shapes["a"]["y"] + (shapes["a"]["h"] / 2)])
+      expect(done[:issues]).to eq([])
+      expect { described_class.run(caller_for, shapes: flow, layout: "diagonal") }.to raise_error(described_class::Refused, /layout/)
+    end
+
+    it "moves a new box off what the user drew, grows a box to its text, and tells both" do
+      board = whiteboard.create(chat, app_name: "ChatOpenAI", origin: user, epoch: epoch)
+      whiteboard.save(chat, item_id: board["id"], version: board.dig("file", "sha256"), app_name: "ChatOpenAI", origin: user,
+                            epoch: epoch, data: { "shapes" => [{ "id" => "mine", "type" => "rect", "x" => 400, "y" => 400, "w" => 200, "h" => 100 }] })
+      done = described_class.run(caller_for, shapes: [{ "id" => "n", "type" => "box", "x" => 450, "y" => 420, "w" => 60, "h" => 30,
+                                                        "text" => "A rather long label" }])
+      shapes = shapes_of(done[:item]).to_h { |sh| [sh["id"], sh] }
+      expect(layout.overlap?(layout.bounds(shapes["n"]), layout.bounds(shapes["mine"]))).to be false
+      expect(shapes["n"]["w"]).to be > 60
+      expect(done[:adjusted].map { |a| a.keys.sort }).to contain_exactly(%w[grew id], %w[id moved])
+      expect(shapes["mine"]).to include("x" => 400.0, "y" => 400.0)
+    end
+
+    it "routes a joined arrow round a box in its way, and tells a straight one that goes through it" do
+      row = [{ "id" => "a", "type" => "box", "x" => 100, "y" => 100, "text" => "A" },
+             { "id" => "b", "type" => "box", "x" => 500, "y" => 100, "text" => "B" },
+             { "id" => "c", "type" => "box", "x" => 900, "y" => 100, "text" => "C" },
+             { "id" => "ac", "type" => "arrow", "from" => "a", "to" => "c" },
+             { "id" => "st", "type" => "arrow", "from" => "a", "to" => "c", "route" => "straight", "text" => "direct" }]
+      out = JSON.parse(MonadicSharedTools::WorkbenchTools.draw(caller_for, shapes: JSON.generate(row), remove: nil,
+                                                                           new_whiteboard: false, layout: nil))
+      expect(out["issues"]).to eq(["st goes through b"])
+      shapes = shapes_of(described_class.run(caller_for, shapes: [], remove: ["nothing"])[:item]).to_h { |sh| [sh["id"], sh] }
+      expect(shapes["ac"]).to include("route" => "elbow")
+      expect(shapes["st"]).to include("route" => "straight", "text" => "direct", "size" => 20)
+    end
+  end
+
+  it "describes the tool whole, from the board to deleting a message" do
+    text = Monadic::Workbench::DrawTool::DESCRIPTION
+    expect(text).to start_with("Draw on a whiteboard in the work screen")
+    expect(text).to include('give layout "right"')
+    expect(text).to end_with("what the user drew stays.")
+  end
+
   it "refuses what it cannot draw, and draws nothing of it" do
     expect { described_class.run(caller_for, shapes: "[{") }.to raise_error(described_class::Refused, /not valid JSON/)
     expect { described_class.run(caller_for, shapes: nil) }.to raise_error(described_class::Refused, /give shapes/)

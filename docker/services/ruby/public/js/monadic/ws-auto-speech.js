@@ -31,8 +31,6 @@
   // ── TTS Toast notice ───────────────────────────────────────────────
 
   function showTtsNotice(content) {
-    if (typeof bootstrap === 'undefined') return;
-
     const toastEl = $id('tts-toast');
     const toastBody = $id('tts-toast-body');
     if (!toastEl || !toastBody) return;
@@ -85,19 +83,18 @@
     }
     toastBody.innerHTML = html;
 
-    const toast = new bootstrap.Toast(toastEl);
-    toast.show();
+    // Shown until closed (its close button, or hideTtsToast).
+    toastEl.classList.add('show');
   }
 
   function hideTtsToast() {
     const toastEl = $id('tts-toast');
-    if (!toastEl || typeof bootstrap === 'undefined') return;
-
-    const toast = bootstrap.Toast.getInstance(toastEl);
-    if (toast) {
-      toast.hide();
-    }
+    if (toastEl) toastEl.classList.remove('show');
   }
+
+  document.addEventListener('click', function (event) {
+    if (event.target && event.target.closest && event.target.closest('#tts-toast-close')) hideTtsToast();
+  });
 
   // ── Suppression management ─────────────────────────────────────────
 

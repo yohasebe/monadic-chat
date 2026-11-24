@@ -39,7 +39,7 @@ RSpec.describe Monadic::Workbench::Whiteboard do
   after { Monadic::Workspace::Ledger.clear_unsettled! }
 
   let(:shapes) do
-    [{ "id" => "a1", "type" => "pen", "color" => "blue", "stroke" => 4, "points" => [[10, 20], [30.25, 40]] },
+    [{ "id" => "a1", "type" => "pen", "color" => "blue", "stroke" => 6, "points" => [[10, 20], [30.25, 40]] },
      { "id" => "a2", "type" => "arrow", "x1" => 0, "y1" => 0, "x2" => 100, "y2" => 50 },
      { "id" => "a3", "type" => "rect", "x" => 5, "y" => 5, "w" => 200, "h" => 100, "fill" => true, "color" => "red" },
      { "id" => "a4", "type" => "text", "x" => 50, "y" => 60, "text" => "Plan A\nthen B", "size" => 32 }]
@@ -72,8 +72,8 @@ RSpec.describe Monadic::Workbench::Whiteboard do
     expect(board.keys).to eq(%w[version width height shapes])
     expect(board["shapes"].map { |s| s["type"] }).to eq(%w[pen arrow rect text])
     expect(board["shapes"][0]).to eq("id" => "a1", "type" => "pen", "by" => "user", "color" => "blue",
-                                     "points" => [[10.0, 20.0], [30.3, 40.0]], "stroke" => 4)
-    expect(board["shapes"][2]).to include("fill" => true, "color" => "red")
+                                     "points" => [[10.0, 20.0], [30.3, 40.0]], "stroke" => 6, "fill" => "none")
+    expect(board["shapes"][2]).to include("fill" => "light", "color" => "red")
     expect(board["shapes"][3]).to include("text" => "Plan A\nthen B", "size" => 32)
   end
 
@@ -91,7 +91,14 @@ RSpec.describe Monadic::Workbench::Whiteboard do
 
   it "takes only known shapes, colors and sizes, numbers in range, within the limits" do
     clean = ->(list) { described_class.clean({ "shapes" => list }) }
-    expect(clean.call([shapes[0].merge("color" => "pink", "stroke" => 7)])["shapes"][0]).to include("color" => "black", "stroke" => 4)
+    expect(clean.call([shapes[0].merge("color" => "chartreuse", "stroke" => "4")])["shapes"][0]).to include("color" => "black", "stroke" => 6)
+    expect(clean.call([shapes[0].merge("color" => "peach", "stroke" => 20, "fill" => "solid")])["shapes"][0])
+      .to include("color" => "peach", "stroke" => 24, "fill" => "solid")
+    expect(clean.call([shapes[2].merge("fill" => "dotted")])["shapes"][0]).to include("fill" => "none")
+    expect(clean.call([shapes[3].merge("size" => 65)])["shapes"][0]).to include("size" => 72)
+    marker = clean.call([shapes[0].merge("type" => "marker", "fill" => "solid")])["shapes"][0]
+    expect(marker).to include("type" => "marker", "stroke" => 6)
+    expect(marker).not_to have_key("fill")
     expect(clean.call([shapes[3].merge("text" => "a\u0007b\nc")])["shapes"][0]["text"]).to eq("ab\nc")
     [[{ "id" => "x", "type" => "script" }],
      [shapes[0].merge("id" => "bad id!")],

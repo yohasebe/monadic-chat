@@ -24,10 +24,14 @@ module Monadic
       HEIGHT = 1000
       # How far outside the board a point may be.
       MARGIN = 400
-      TYPES = %w[pen line arrow rect ellipse text].freeze
-      COLORS = %w[black blue red green orange violet].freeze
-      STROKES = [2, 4, 8].freeze
-      SIZES = [20, 32, 48].freeze
+      TYPES = %w[pen marker line arrow rect ellipse text].freeze
+      COLORS = %w[black red orange yellow lime green sky blue violet pink
+                  white silver gray brown peach olive teal navy purple magenta].freeze
+      # A width or size is taken as the nearest of these.
+      STROKES = [3, 6, 12, 24].freeze
+      SIZES = [20, 32, 48, 72].freeze
+      # How a pen stroke, a rectangle or an ellipse is filled (true: light).
+      FILLS = %w[none light solid].freeze
       BY = %w[user ai].freeze
       ID = /\A[A-Za-z0-9_-]{1,32}\z/
       SHAPES_LIMIT = 2000
@@ -73,26 +77,27 @@ module Monadic
         out = { 'id' => shape['id'], 'type' => type, 'by' => BY.include?(shape['by']) ? shape['by'] : 'user',
                 'color' => COLORS.include?(shape['color']) ? shape['color'] : 'black' }
         case type
-        when 'pen'
+        when 'pen', 'marker'
           list = shape['points']
           raise Refused, 'a pen stroke needs points' unless list.is_a?(Array) && list.size.between?(1, PEN_POINTS)
 
           out['points'] = list.map { |p| point(p) }
           out['stroke'] = stroke(shape)
+          out['fill'] = fill(shape) if type == 'pen'
         when 'line', 'arrow'
           out.merge!('x1' => x(shape['x1']), 'y1' => y(shape['y1']), 'x2' => x(shape['x2']), 'y2' => y(shape['y2']))
           out['stroke'] = stroke(shape)
         when 'rect', 'ellipse'
           out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'w' => size(shape['w'], WIDTH), 'h' => size(shape['h'], HEIGHT))
           out['stroke'] = stroke(shape)
-          out['fill'] = shape['fill'] == true
+          out['fill'] = fill(shape)
         when 'text'
           text = shape['text']
           raise Refused, 'a text needs some text' unless text.is_a?(String) && text.valid_encoding? && !text.strip.empty?
           raise Refused, 'a text is too long' if text.length > TEXT_CHARS
 
           out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'text' => text.gsub(/[^\P{Cc}\n]/, ''),
-                     'size' => SIZES.include?(shape['size']) ? shape['size'] : SIZES[0])
+                     'size' => nearest(shape['size'], SIZES, SIZES[0]))
         end
         out
       end
@@ -114,7 +119,21 @@ module Monadic
         value.to_f.round(1)
       end
 
-      def stroke(shape) = STROKES.include?(shape['stroke']) ? shape['stroke'] : STROKES[1]
+      def stroke(shape) = nearest(shape['stroke'], STROKES, STROKES[1])
+
+      def fill(shape)
+        value = shape['fill']
+        return 'light' if value == true
+
+        FILLS.include?(value) ? value : 'none'
+      end
+
+      # The one of choices nearest to value (a finite number), else fallback.
+      def nearest(value, choices, fallback)
+        return fallback unless value.is_a?(Numeric) && value.to_f.finite?
+
+        choices.min_by { |c| (c - value).abs }
+      end
 
       # A new, empty whiteboard in the chat's folder (the next free number),
       # put on the work screen for the tab. Returns the board's item.

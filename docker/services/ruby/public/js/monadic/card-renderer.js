@@ -250,20 +250,12 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
   // Attach event listeners
   attachEventListeners(card);
 
-  // Initialize Bootstrap tooltips
-  try {
-    if (card) {
-      card.querySelectorAll('[title]').forEach(function(el) {
-        new bootstrap.Tooltip(el, {
-          trigger: 'hover',
-          delay: { show: 500, hide: 0 },
-          container: 'body',
-          html: false
-        });
-      });
-    }
-  } catch (e) {
-    console.warn('Tooltip initialization error:', e);
+  // The card's controls' tooltips (MonadicTip); made before the card is on
+  // the page, shown once it is.
+  if (card && window.MonadicTip) {
+    card.querySelectorAll('[title]').forEach(function(el) {
+      window.MonadicTip.attach(el, { delay: { show: 500, hide: 0 } });
+    });
   }
 
   // Track message ID

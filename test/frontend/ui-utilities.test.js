@@ -17,14 +17,8 @@ document.body.innerHTML = `
   <select id="apps"><option value="chat">Chat</option></select>
 `;
 
-// Mock bootstrap
-global.bootstrap = {
-  Tooltip: function(el, opts) {
-    this.el = el;
-    this.opts = opts;
-  }
-};
-global.bootstrap.Tooltip.getInstance = jest.fn().mockReturnValue(null);
+// The page's tooltips (the real tooltip.js)
+(0, eval)(require('fs').readFileSync(require('path').join(__dirname, '../../docker/services/ruby/public/js/monadic/tooltip.js'), 'utf8'));
 
 // Import the module under test
 const uiUtils = require('../../docker/services/ruby/public/js/monadic/ui-utilities');
@@ -142,53 +136,36 @@ describe('UI Utilities', () => {
   });
 
   describe('setupTooltips', () => {
-    it('should set up tooltips for card header elements with title', () => {
+    it('gives the card header controls with a title their tooltips, shown at once', () => {
       const container = document.createElement('div');
-      container.innerHTML = '<div class="card-header"><span title="Test">Hover</span></div>';
-
-      var tooltipSpy = jest.fn();
-      global.bootstrap.Tooltip = tooltipSpy;
-      global.bootstrap.Tooltip.getInstance = jest.fn();
+      container.innerHTML = '<div class="card-header"><span title="Test">Hover</span></div><p title="Text">Body</p>';
+      document.body.appendChild(container);
 
       uiUtils.setupTooltips(container);
 
-      expect(tooltipSpy).toHaveBeenCalledWith(
-        expect.any(HTMLElement),
-        expect.objectContaining({
-          trigger: 'hover',
-          delay: { show: 0, hide: 0 },
-          container: 'body'
-        })
-      );
+      const control = container.querySelector('.card-header span');
+      expect(window.MonadicTip.get(control)).not.toBeNull();
+      expect(window.MonadicTip.get(container.querySelector('p'))).toBeNull();
+      window.MonadicTip.disposeWithin(container);
+      container.remove();
     });
   });
 
   describe('cleanupAllTooltips', () => {
-    it('should remove all tooltip elements and dispose instances', () => {
-      // Add a tooltip element
-      var tooltipEl = document.createElement('div');
-      tooltipEl.classList.add('tooltip');
-      document.body.appendChild(tooltipEl);
-
-      // Add elements with tooltip attribute
-      var bsEl = document.createElement('div');
-      bsEl.setAttribute('data-bs-original-title', 'test');
-      document.body.appendChild(bsEl);
-
-      var disposeMock = jest.fn();
-      global.bootstrap = {
-        Tooltip: {
-          getInstance: jest.fn().mockReturnValue({ dispose: disposeMock })
-        }
-      };
+    it('hides the tooltip shown, and the controls keep theirs', () => {
+      const control = document.createElement('button');
+      control.title = 'Test';
+      document.body.appendChild(control);
+      const tip = window.MonadicTip.attach(control);
+      tip.show();
+      expect(document.getElementById('monadic-tip').hidden).toBe(false);
 
       uiUtils.cleanupAllTooltips();
 
-      expect(document.querySelectorAll('.tooltip').length).toBe(0);
-      expect(disposeMock).toHaveBeenCalled();
-
-      // Cleanup
-      bsEl.remove();
+      expect(document.getElementById('monadic-tip').hidden).toBe(true);
+      expect(window.MonadicTip.get(control)).toBe(tip);
+      tip.dispose();
+      control.remove();
     });
   });
 

@@ -4,7 +4,7 @@
 
 /**
  * The tooltips of a card header's controls (ui-utilities.js,
- * showCardTooltipsOnHover), with the real Bootstrap.
+ * showCardTooltipsOnHover), with the real tooltip.js.
  */
 
 const path = require('path');
@@ -17,16 +17,14 @@ describe('showCardTooltipsOnHover', () => {
   let discourse;
 
   beforeAll(() => {
-    const source = fs.readFileSync(path.join(RUBY, 'vendor/js/bootstrap.bundle.min.js'), 'utf8');
-    // eslint-disable-next-line no-new-func
-    new Function('window', 'document', `${source}\n;window.bootstrap = this.bootstrap || window.bootstrap;`)
-      .call(window, window, document);
-    global.bootstrap = window.bootstrap;
+    (0, eval)(fs.readFileSync(path.join(RUBY, 'js/monadic/tooltip.js'), 'utf8'));
     document.body.innerHTML = '<div id="discourse"></div>';
     uiUtils = require(path.join(RUBY, 'js/monadic/ui-utilities'));
     discourse = document.getElementById('discourse');
     uiUtils.showCardTooltipsOnHover(discourse);
   });
+
+  afterEach(() => window.MonadicTip.hideAll());
 
   function addCard(title) {
     const card = document.createElement('div');
@@ -40,31 +38,37 @@ describe('showCardTooltipsOnHover', () => {
     el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
   }
 
-  test('makes the tooltip of a control when the pointer comes to it, also to what is inside it', () => {
+  const bubble = () => document.getElementById('monadic-tip');
+
+  test('makes the tooltip of a control when the pointer first comes to it, also to what is inside it, and shows it then', () => {
     const control = addCard('Copy');
-    expect(bootstrap.Tooltip.getInstance(control)).toBeNull();
+    expect(window.MonadicTip.get(control)).toBeNull();
     hover(control.querySelector('.icon'));
-    expect(bootstrap.Tooltip.getInstance(control)).not.toBeNull();
-    expect(document.body.querySelector('.tooltip').textContent).toBe('Copy');
+    expect(window.MonadicTip.get(control)).not.toBeNull();
+    expect(bubble().hidden).toBe(false);
+    expect(bubble().textContent).toBe('Copy');
+    // The browser's own tooltip does not show too; the bubble describes it.
+    expect(control.hasAttribute('title')).toBe(false);
+    expect(control.getAttribute('aria-describedby')).toBe('monadic-tip');
   });
 
-  test('makes it again after every tooltip was removed, for an earlier card and a later one', () => {
+  test('makes it again for a card whose tooltips were let go, an earlier card and a later one', () => {
     const earlier = addCard('Copy');
     hover(earlier);
     const later = addCard('Delete');
     hover(later);
 
-    document.querySelectorAll('[data-bs-original-title]').forEach((el) => {
-      const tip = bootstrap.Tooltip.getInstance(el);
-      if (tip) tip.dispose();
-    });
-    expect(bootstrap.Tooltip.getInstance(earlier)).toBeNull();
-    expect(bootstrap.Tooltip.getInstance(later)).toBeNull();
+    window.MonadicTip.disposeWithin(discourse);
+    expect(window.MonadicTip.get(earlier)).toBeNull();
+    expect(window.MonadicTip.get(later)).toBeNull();
+    // The title is back on each control.
+    expect(earlier.getAttribute('title')).toBe('Copy');
 
     hover(earlier);
     hover(later);
-    expect(bootstrap.Tooltip.getInstance(earlier)).not.toBeNull();
-    expect(bootstrap.Tooltip.getInstance(later)).not.toBeNull();
+    expect(window.MonadicTip.get(earlier)).not.toBeNull();
+    expect(window.MonadicTip.get(later)).not.toBeNull();
+    expect(bubble().textContent).toBe('Delete');
   });
 
   test('leaves what is outside a card header', () => {
@@ -72,6 +76,7 @@ describe('showCardTooltipsOnHover', () => {
     body.title = 'In the text';
     discourse.appendChild(body);
     hover(body);
-    expect(bootstrap.Tooltip.getInstance(body)).toBeNull();
+    expect(window.MonadicTip.get(body)).toBeNull();
+    expect(body.getAttribute('title')).toBe('In the text');
   });
 });

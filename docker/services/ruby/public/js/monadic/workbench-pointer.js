@@ -77,12 +77,12 @@
     b.innerHTML = `<i class="${icon}" aria-hidden="true"></i>`;
     b.setAttribute('aria-label', label);
     b.title = tip || label;
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-      try {
-        const tooltip = new bootstrap.Tooltip(b, { trigger: 'hover', delay: { show: 500, hide: 0 }, container: 'body', html: false });
-        if (tips) tips.push(tooltip);
-        b.tip = tooltip;
-      } catch (_) { /* the title stays */ }
+    // Its text kept here too: the tooltip takes the title.
+    b.help = b.title;
+    if (window.MonadicTip) {
+      const tooltip = window.MonadicTip.attach(b, { delay: { show: 500, hide: 0 } });
+      if (tips) tips.push(tooltip);
+      b.tip = tooltip;
     }
     return b;
   }
@@ -220,7 +220,7 @@
 
     // Drawing: the button is pressed (darker, its icon a pen), and its name
     // says how to stop.
-    const POINT_HELP = point.title;
+    const POINT_HELP = point.help;
     const DRAWING_HELP = t('ui.workbench.pointDrawing', 'Drag over it to draw the mark. Press this again or Esc to stop.');
     function drawMode(on) {
       drawing = !!on && pointable;
@@ -230,7 +230,7 @@
       point.firstChild.className = drawing ? 'fa-solid fa-pen' : 'fa-solid fa-crosshairs';
       const help = drawing ? DRAWING_HELP : POINT_HELP;
       point.setAttribute('aria-label', drawing ? DRAWING_HELP : t('ui.workbench.pointAt', 'Point at a part of it'));
-      if (point.tip && typeof point.tip.setContent === 'function') point.tip.setContent({ '.tooltip-inner': help });
+      if (point.tip) point.tip.setText(help);
       else point.title = help;
     }
 

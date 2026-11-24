@@ -1287,23 +1287,14 @@ const WorkflowViewer = (function () {
     panelEl.addEventListener('lostpointercapture', stopResize);
   }
 
-  // Initialise Bootstrap tooltips on Workflow Viewer control buttons so
-  // their `title` attributes appear with a short delay (~150ms) instead of
-  // the browser's native ~1.5s. Includes both the panel-header buttons
-  // (zoom / save / close) and the segment-control buttons in #config.
+  // Tooltips (MonadicTip) on the Workflow Viewer's controls, the panel's
+  // (zoom / save / close) and the display-mode picker's in #config, shown
+  // after a short wait (~150ms) instead of the browser's ~1.5s.
+  var TIP_SELECTORS = '.wv-panel-controls [title], .wv-panel-controls [data-mtip], #wv-mode-segment [title], #wv-mode-segment [data-mtip]';
   function initButtonTooltips() {
-    if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
-    var selectors = ['.wv-panel-controls [title]', '#wv-mode-segment [title]'];
-    selectors.forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (el) {
-        if (bootstrap.Tooltip.getInstance(el)) return;
-        new bootstrap.Tooltip(el, {
-          delay: { show: 150, hide: 50 },
-          container: 'body',
-          placement: 'bottom',
-          trigger: 'hover focus'
-        });
-      });
+    if (!window.MonadicTip) return;
+    document.querySelectorAll(TIP_SELECTORS).forEach(function (el) {
+      window.MonadicTip.attach(el, { delay: { show: 150, hide: 50 }, placement: 'bottom' });
     });
   }
 
@@ -1879,17 +1870,13 @@ const WorkflowViewer = (function () {
       hideTooltip();
       if (tooltip && tooltip.parentNode) { tooltip.parentNode.removeChild(tooltip); tooltip = null; }
       if (themeHandler) { window.removeEventListener('theme-applied', themeHandler); themeHandler = null; }
-      // Dispose Bootstrap Tooltip instances we attached in initButtonTooltips
-      // so they don't leak when the module is recreated (e.g. in tests).
-      if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        ['.wv-panel-controls [title]', '.wv-panel-controls [data-bs-original-title]',
-         '#wv-mode-segment [title]', '#wv-mode-segment [data-bs-original-title]']
-          .forEach(function (sel) {
-            document.querySelectorAll(sel).forEach(function (el) {
-              var tip = bootstrap.Tooltip.getInstance(el);
-              if (tip) tip.dispose();
-            });
-          });
+      // Let go of the tooltips initButtonTooltips attached, so they do not
+      // stay when the module is made again (e.g. in tests).
+      if (window.MonadicTip) {
+        document.querySelectorAll(TIP_SELECTORS).forEach(function (el) {
+          var tip = window.MonadicTip.get(el);
+          if (tip) tip.dispose();
+        });
       }
       currentApp = null; currentData = null; pendingApp = null;
       viewStates = {}; expandedGroups = {}; initialised = false;

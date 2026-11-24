@@ -153,42 +153,17 @@ window.shims.uiUtils = {
     }
   },
 
-  // Sets up tooltips for card header elements
+  // Gives a card header's controls their tooltips (MonadicTip)
   setupTooltips: function(container) {
-    try {
-      if (container && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        var titleEls = container.querySelectorAll('.card-header [title]');
-        titleEls.forEach(function(el) {
-          new bootstrap.Tooltip(el, {
-            trigger: 'hover',
-            delay: { show: 0, hide: 0 },
-            container: 'body'
-          });
-        });
-      }
-    } catch (e) {
-      console.warn('Tooltip initialization error:', e);
-    }
+    if (!container || !window.MonadicTip) return;
+    container.querySelectorAll('.card-header [title]').forEach(function(el) {
+      window.MonadicTip.attach(el, { delay: { show: 0, hide: 0 } });
+    });
   },
 
-  // Removes all tooltip elements to prevent memory leaks
+  // Hides any tooltip shown; the controls keep theirs
   cleanupAllTooltips: function() {
-    try {
-      document.querySelectorAll('.tooltip').forEach(function(el) { el.remove(); });
-
-      if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        document.querySelectorAll('[data-bs-original-title]').forEach(function(el) {
-          var tip = bootstrap.Tooltip.getInstance(el);
-          if (tip) tip.dispose();
-        });
-        document.querySelectorAll('[data-original-title]').forEach(function(el) {
-          var tip = bootstrap.Tooltip.getInstance(el);
-          if (tip) tip.dispose();
-        });
-      }
-    } catch (e) {
-      console.warn('Tooltip cleanup error:', e);
-    }
+    if (window.MonadicTip) window.MonadicTip.hideAll();
   },
 
   // Adjusts image upload button based on selected model and app settings

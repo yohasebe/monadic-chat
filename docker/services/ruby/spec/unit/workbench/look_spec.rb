@@ -119,6 +119,56 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(seen.first.image.bytes).to eq(png(8, 6))
     end
 
+    describe "an item named by its id" do
+      it "reads one the tab has not selected whole, and leaves the tab's selection as it is" do
+        write("notes.txt", "one\ntwo\n")
+        notes = open_file("notes.txt")
+        write("pics/cat.png", png(8, 6))
+        cat = open_file("pics/cat.png")
+        body = JSON.parse(look.run(caller_for, scope: "visible", item: notes["id"]).to_s)
+        expect(body).to include("scope" => "whole")
+        expect(body["item"]).to include("kind" => "text", "name" => "notes.txt")
+        expect(body["text"]).to eq("one\ntwo\n")
+        expect(board.look_target(tab: "tab-1", generation: 1).item["id"]).to eq(cat["id"])
+      end
+
+      it "reads a whiteboard the tab has not selected from its file, without asking the page for its picture" do
+        write("boards/plan.wb.json", JSON.generate({ "shapes" => [{ "id" => "s1", "type" => "text", "x" => 1, "y" => 2, "text" => "Plan A" }] }))
+        plan = open_file("boards/plan.wb.json")
+        write("pics/cat.png", png(8, 6))
+        open_file("pics/cat.png")
+        expect(Monadic::Workbench::Capture).not_to receive(:request)
+        body = JSON.parse(look.run(caller_for, item: plan["id"]).to_s)
+        expect(body["item"]).to include("kind" => "whiteboard")
+        expect(body.to_s).to include("Plan A")
+      end
+
+      it "looks at none in place of one that is not on the work screen" do
+        write("pics/cat.png", png(8, 6))
+        open_file("pics/cat.png")
+        result = look.run(caller_for, item: "i_00000000000000000000")
+        expect(result).to start_with("❌").and include("not_on_screen")
+      end
+
+      it "reads the selected one as before when the one named is selected" do
+        write("pics/cat.png", png(8, 6))
+        cat = open_file("pics/cat.png")
+        body = JSON.parse(look.run(caller_for, scope: "visible", item: cat["id"]).to_s)
+        expect(body).to include("scope" => "visible")
+      end
+
+      it "gives nothing when the named one changed while it was read" do
+        write("notes.txt", "one\n")
+        notes = open_file("notes.txt")
+        write("pics/cat.png", png(8, 6))
+        open_file("pics/cat.png")
+        allow(board).to receive(:still_there?).and_return(false)
+        allow(Monadic::Workbench::Board).to receive(:existing).and_return(board)
+        result = look.run(caller_for, item: notes["id"])
+        expect(result).to start_with("❌").and include("changed")
+      end
+    end
+
     it "keeps no image for a conversation that takes none, and says the image was not given" do
       write("pics/cat.png", png(8, 6))
       open_file("pics/cat.png")

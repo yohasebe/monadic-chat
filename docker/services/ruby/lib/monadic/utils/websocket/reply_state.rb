@@ -42,6 +42,8 @@ module WebSocketHelper
       # What it changed in its app's state and no message took is let go.
       Monadic::TurnState.close(request_id) if defined?(Monadic::TurnState)
       Monadic::Workbench::Put.release(request_id) if defined?(Monadic::Workbench::Put)
+      # A reply that did not finish told nothing of the work screen's changes.
+      Monadic::Workbench::Observation.untold(request_id) if defined?(Monadic::Workbench::Observation)
     end
     ending_step("capture") do
       # What it asked the work screen is not taken now.

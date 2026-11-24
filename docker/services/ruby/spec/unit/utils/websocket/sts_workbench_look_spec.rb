@@ -17,8 +17,8 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
   let(:asked) { [] }
 
   before do
-    allow(Monadic::Workbench::Look).to receive(:run) do |caller, scope:, images:|
-      asked << { caller: caller, scope: scope, images: images }
+    allow(Monadic::Workbench::Look).to receive(:run) do |caller, scope:, images:, item: nil|
+      asked << { caller: caller, scope: scope, images: images, item: item }
       Monadic::Workbench::Look::Result.new(observation_id: 'look_1', text: '{"status":"looked"}')
     end
     observation = double('observation', image: images_given ? image : nil, caption: 'The image below is what look_at_workbench looked at')
@@ -38,6 +38,13 @@ RSpec.describe 'Looking at the work screen in a Live Conversation' do
     expect(caller.epoch).to eq(Monadic::Workspace::Chats.epoch(chat_id))
     expect(Monadic::Workspace::Ids.valid?(:request, caller.request_id)).to be(true)
     expect(asked.last[:scope]).to eq('whole')
+  end
+
+  it 'looks at the item the model named, or at the selected one when it names none' do
+    helper.sts_look_at_workbench({ 'item' => 'i_0123456789abcdef0123' }, session, tab: 'tab-9', provider: 'openai')
+    expect(asked.last[:item]).to eq('i_0123456789abcdef0123')
+    helper.sts_look_at_workbench({}, session, tab: 'tab-9', provider: 'openai')
+    expect(asked.last[:item]).to be_nil
   end
 
   it 'gives OpenAI the text and the image' do

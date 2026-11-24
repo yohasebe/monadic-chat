@@ -143,6 +143,77 @@ RSpec.describe Monadic::Workbench::Observation do
     expect(observation.current?(chat_id: chat)).to be(false)
   end
 
+  describe "what happened on the work screen" do
+    let(:session) { { chat_id: chat, parameters: {} } }
+
+    def changes(observation)
+      observation&.data&.dig("work_screen", "changes")
+    end
+
+    # A request whose observation went to the model and whose reply finished.
+    def tell(observation)
+      context = Monadic::Workspace::RequestContext.new(chat_id: chat, request_id: "r_1", observation: observation)
+      Monadic::Workspace::RequestContext.with(context) do
+        described_class.text_for(session, { "role" => "user", "request_id" => "r_1", "text" => "hi" })
+      end
+      described_class.told("r_1")
+    end
+
+    it "tells what the user placed, by whom and on which item, until a finished reply was told of it" do
+      item = open_file("a.txt", "a")
+      recent = changes(observe)["recent"]
+      expect(recent).to eq([{ "change" => "placed", "by" => "user", "item" => item["id"], "kind" => "text", "name" => "a.txt" }])
+      tell(observe)
+      expect(changes(observe)).to be_nil
+    end
+
+    it "keeps telling them while no reply finished with them, or the observation did not go with the request" do
+      open_file("a.txt", "a")
+      observe
+      described_class.untold("r_1")
+      expect(changes(observe)).not_to be_nil
+      observe
+      described_class.told("r_1")
+      expect(changes(observe)).not_to be_nil
+    end
+
+    it "does not count what happened while the reply ran as told" do
+      open_file("a.txt", "a")
+      observation = observe
+      second = open_file("b.txt", "b")
+      tell(observation)
+      expect(changes(observe)["recent"].map { |c| c["item"] }).to eq([second["id"]])
+    end
+
+    it "tells an item taken off, by the user or to make room, also when the work screen is empty after it" do
+      item = open_file("a.txt", "a")
+      tell(observe)
+      board.accept(item_id: item["id"], action: "remove", operation_id: "op_remove_1", epoch: Monadic::Workspace::Chats.epoch(chat),
+                   sha256: item.dig("file", "sha256"))
+      observation = observe
+      expect(observation).not_to be_nil
+      expect(changes(observation)["recent"]).to eq([{ "change" => "removed", "by" => "user", "item" => item["id"], "kind" => "text", "name" => "a.txt" }])
+      tell(observation)
+      (1..Monadic::Workbench::Board::ITEM_LIMIT + 1).each { |i| open_file("f#{i}.txt", i.to_s) }
+      room = changes(observe)["recent"].find { |c| c["change"] == "removed" }
+      expect(room).to include("by" => "system", "reason" => "room")
+    end
+
+    it "tells the latest changes and counts the older ones, and that some were left out when the board no longer has them" do
+      (1..12).each do |i|
+        open_file("f#{i}.txt", i.to_s)
+      end
+      told = changes(observe)
+      expect(told["recent"].size).to eq(described_class::CHANGE_LIMIT)
+      # 12 placed, and the oldest 4 taken off to make room: 16 in all.
+      expect(told["recent"].size + told["earlier"].values.sum).to eq(16)
+      expect(told["earlier"].keys).to include("placed")
+      stub_const("Monadic::Workbench::Board::EVENT_LIMIT", 3)
+      open_file("g.txt", "g")
+      expect(changes(observe)["some_left_out"]).to be(true)
+    end
+  end
+
   describe ".text_for" do
     let(:session) { { chat_id: chat, parameters: {} } }
 

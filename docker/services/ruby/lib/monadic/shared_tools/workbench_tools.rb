@@ -112,8 +112,8 @@ module MonadicSharedTools
     # What the asking tab has selected in the work screen, read now
     # (Monadic::Workbench::Look): a Look::Result whose image, if any, the
     # provider's helper places after the result, or a refusal.
-    def look_at_workbench(scope: 'visible', workbench: nil)
-      Monadic::Workbench::Look.run(workbench, scope: scope)
+    def look_at_workbench(scope: 'visible', item: nil, workbench: nil)
+      Monadic::Workbench::Look.run(workbench, scope: scope, item: item)
     end
   end
 end

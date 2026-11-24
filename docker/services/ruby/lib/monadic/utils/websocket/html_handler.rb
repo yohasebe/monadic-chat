@@ -13,6 +13,7 @@ require_relative '../tts_marker_vocabulary'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
 require_relative '../../workbench/draw'
+require_relative '../../workbench/observation'
 
 module WebSocketHelper
   # Maximum number of tool HTML fragments kept per response cycle.
@@ -188,6 +189,10 @@ module WebSocketHelper
           # given to this message before it is sent and kept.
           shown = request_id && Monadic::Workbench::Shown.clean(Monadic::Workbench::Shown.seal(request_id))
           new_data["workbench_shown"] = shown if shown
+
+          # The reply finished: what happened on the work screen that its
+          # request told the model of is not told again (Observation).
+          Monadic::Workbench::Observation.told(request_id) if request_id
 
           # What the reply made in the chat's folder (Workbench::Made, the
           # image it placed among it): deleting this message moves it to the

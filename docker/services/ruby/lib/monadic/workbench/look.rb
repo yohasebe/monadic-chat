@@ -6,6 +6,7 @@ require 'json'
 require 'securerandom'
 require 'time'
 require_relative 'whiteboard'
+require_relative 'look_tool'
 require_relative 'board'
 require_relative 'capture'
 require_relative 'image_check'
@@ -27,13 +28,15 @@ module Monadic
     # or the page gives.
     module Look
       TOOL = 'look_at_workbench'
+
       SCOPES = %w[visible whole].freeze
       # Why a look gave nothing. The model is told the reason and a short
       # sentence; a refusal is never a look.
       REASONS = %w[
         private vision_unsupported tools_unsupported transport_unsupported connection_gone no_selection
         selection_changed changed missing range_unknown not_shown drawing rendered capture_timeout
-        browser_unavailable pdf_text_unavailable unsupported_kind too_large busy cancelled filtered
+        browser_unavailable pdf_text_unavailable unsupported_kind too_large busy cancelled filtered not_on_screen
+        not_selected
       ].freeze
       # Bytes of a text file read for scope whole, and characters returned.
       TEXT_WHOLE_BYTES = 1024 * 1024
@@ -126,7 +129,9 @@ module Monadic
       # other tools of the work screen) or a Result. images: false for a
       # conversation that takes no images (a live voice session of such a
       # provider): no image is kept, and the model is told so.
-      def run(caller, scope: 'visible', images: true)
+      # item: an item's id to look at, selected or not (one not selected
+      # is read whole).
+      def run(caller, scope: 'visible', images: true, item: nil)
         scope = scope.to_s
         raise Refused.new('unsupported_kind', "scope must be one of #{SCOPES.join(', ')}") unless SCOPES.include?(scope)
         raise Refused.new('connection_gone', 'this reply cannot look at the work screen') unless caller
@@ -134,14 +139,19 @@ module Monadic
         board = Board.existing(caller.chat_id) or raise Refused.new('no_selection', 'nothing is shown in the work screen')
 
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEADLINE
-        selection = target(board, caller)
-        item = selection.item
+        selection, named = target_for(board, caller, item)
+        scope = 'whole' if named
+        looked_at = selection.item
         ledger = Ledger.for(caller.chat_id, caller.epoch, caller.request_id, session: caller.session, tab: caller.tab)
         ledger.one_at_a_time do
-          seen = read(board, selection, scope, caller: caller, deadline: deadline)
+          seen = read(board, selection, scope, caller: caller, deadline: deadline, named: named)
           seen = seen.merge(image: nil, image_withheld: true) if !images && seen[:image]
-          unless board.still_selected?(tab: caller.tab, generation: caller.generation, item: item, serial: selection.serial) &&
-                 (seen[:holds].nil? || seen[:holds].call)
+          if named
+            unless board.still_there?(looked_at)
+              raise Refused.new('changed', 'the item changed or was taken off meanwhile; nothing was looked at')
+            end
+          elsif !(board.still_selected?(tab: caller.tab, generation: caller.generation, item: looked_at,
+                                        serial: selection.serial) && (seen[:holds].nil? || seen[:holds].call))
             raise Refused.new('selection_changed', 'the work screen shows something else now; nothing was looked at')
           end
           raise Refused.new('cancelled', 'the reply was stopped') unless current?(caller)
@@ -157,6 +167,21 @@ module Monadic
         end
       rescue Refused => e
         "❌ Nothing was looked at in the work screen (#{e.reason}): #{e.message}."
+      end
+
+      # [what to look at, whether it is a named item the tab has not
+      # selected]. The named item must be on the board now (no other one is
+      # looked at in its place); the selected one when none is named or the
+      # named one is the selected one.
+      def target_for(board, caller, item)
+        return [target(board, caller), false] if item.nil? || item.to_s.empty?
+
+        found = board.item(item.to_s) or raise Refused.new('not_on_screen', 'that item is not on the work screen now')
+        selected = board.look_target(tab: caller.tab, generation: caller.generation)
+        return [selected, false] if selected.is_a?(Board::Target) && selected.item['id'] == found['id']
+        raise Refused.new('not_selected', 'the browser can be looked at only when the user has it selected') if found['browser']
+
+        [Board::Target.new(found, nil), true]
       end
 
       # The item the caller's tab has selected and the number of that
@@ -202,7 +227,9 @@ module Monadic
 
       # What the item shows, read now at its version:
       # { item_id:, kind:, name:, path:, version:, image: | text: ... }.
-      def read(board, selection, scope, caller:, deadline:)
+      # named: an item the tab has not selected (no page to ask for its
+      # picture or its view).
+      def read(board, selection, scope, caller:, deadline:, named: false)
         item = selection.item
         if item['artifact']
           entry = item['artifact']
@@ -239,7 +266,7 @@ module Monadic
           if Monadic::Workspace::SharedFolderPreview.render_for(file['path']) == 'whiteboard'
             bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
             return seen(item, 'whiteboard', file['name'], file['path'], file['sha256'],
-                        **whiteboard_seen(board, selection, caller, deadline, bytes))
+                        **whiteboard_seen(board, selection, caller, deadline, bytes, picture: !named))
           end
           lines = scope == 'visible' ? lines_in_view(board, selection, caller, deadline) : nil
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
@@ -317,11 +344,13 @@ module Monadic
       # A whiteboard: the picture of the whole board as the tab draws it, and
       # the texts written on it, read from the file. { image:, texts:,
       # shapes: } (image nil when the tab could not give one).
-      def whiteboard_seen(board, selection, caller, deadline, bytes)
+      # picture: false for a whiteboard the tab has not selected (its page
+      # draws only the selected one).
+      def whiteboard_seen(board, selection, caller, deadline, bytes, picture: true)
         data = JSON.parse(bytes.to_s)
         shapes = data.is_a?(Hash) && data['shapes'].is_a?(Array) ? data['shapes'].select { |s| s.is_a?(Hash) } : []
         texts = shapes.filter_map { |s| s['text'] if s['text'].is_a?(String) }
-        image = begin
+        image = picture ? begin
           item = selection.item
           answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                    request_id: caller.request_id, item_id: item['id'],
@@ -331,7 +360,7 @@ module Monadic
           drawn if drawn && (drawn.width * 1000 - drawn.height * 1600).abs <= 16 * drawn.height
         rescue Capture::Failed
           nil
-        end
+        end : nil
         { image: image, texts: texts.first(200), shapes: shapes.group_by { |s| s['type'].to_s }.transform_values(&:size),
           list: shapes.first(WHITEBOARD_LISTED).map { |s| listed_shape(s) } }
       rescue JSON::ParserError

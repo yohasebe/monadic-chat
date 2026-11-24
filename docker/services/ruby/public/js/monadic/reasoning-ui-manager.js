@@ -72,13 +72,12 @@ class ReasoningUIManager {
     deepseekUI.id = 'reasoning-ui-deepseek';
     deepseekUI.className = 'reasoning-ui-container hidden';
     deepseekUI.innerHTML = `
-      <label class="form-label text-nowrap" data-i18n="ui.reasoningMode">Reasoning Mode</label>
-      <div class="btn-group" role="group">
-        <input type="radio" class="btn-check" name="reasoning-mode" id="reasoning-off" value="disabled">
-        <label class="btn btn-outline-secondary btn-sm" for="reasoning-off">Off</label>
-        
-        <input type="radio" class="btn-check" name="reasoning-mode" id="reasoning-on" value="enabled" checked>
-        <label class="btn btn-outline-secondary btn-sm" for="reasoning-on">On</label>
+      <span class="form-label text-nowrap" id="reasoning-mode-label" data-i18n="ui.reasoningMode">Reasoning Mode</span>
+      <div class="btn-panel" role="radiogroup" aria-labelledby="reasoning-mode-label">
+        <input type="radio" class="btn-choice" name="reasoning-mode" id="reasoning-off" value="disabled">
+        <label class="btn btn-v2 btn-sm btn-tool" for="reasoning-off">Off</label>
+        <input type="radio" class="btn-choice" name="reasoning-mode" id="reasoning-on" value="enabled" checked>
+        <label class="btn btn-v2 btn-sm btn-tool" for="reasoning-on">On</label>
       </div>
     `;
     container.appendChild(deepseekUI);

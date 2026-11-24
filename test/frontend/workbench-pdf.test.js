@@ -388,8 +388,9 @@ describe('the pointer over a PDF page', () => {
       .toEqual([['prev', 'next'], ['out', 'in'], ['point', 'look', 'unpoint']]);
     box.querySelectorAll('.workbench-pdf-bar button').forEach((b) => {
       expect(b.classList.contains('workbench-icon-btn')).toBe(true);
-      // Pointing in the color of the mark (below); the others grey.
-      expect(b.classList.contains(b.classList.contains('workbench-pointer-point') ? 'btn-info' : 'btn-secondary')).toBe(true);
+      // Each a square tool on its group's panel; pointing takes the mark's
+      // color (below).
+      expect(['btn-v2', 'btn-tool', 'btn-icon'].every((c) => b.classList.contains(c))).toBe(true);
       expect(b.title).not.toBe('');
       expect(b.getAttribute('aria-label')).not.toBe('');
     });
@@ -494,7 +495,7 @@ describe('the pointer over a PDF page', () => {
     const colors = window.WorkbenchPointer.COLORS;
     expect(Object.keys(colors)).toEqual(['orange', 'magenta', 'cyan', 'green', 'yellow']);
     // Pointing is in the mark's color.
-    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(colors.orange.line);
+    expect(button('point').style.getPropertyValue('--mark-face')).toBe(colors.orange.line);
     expect(menu.hidden).toBe(true);
     button('look').click();
     expect(menu.hidden).toBe(false);
@@ -502,7 +503,7 @@ describe('the pointer over a PDF page', () => {
     expect(pick('shape', 'rect').getAttribute('aria-pressed')).toBe('true');
     // Chosen before there is a mark: the next takes it.
     pick('color', 'cyan').click();
-    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(colors.cyan.line);
+    expect(button('point').style.getPropertyValue('--mark-face')).toBe(colors.cyan.line);
     expect(handle.pointerSeq()).toBe(0);
     button('point').click();
     layer.dispatchEvent(at('pointerdown', 160, 250));
@@ -532,11 +533,11 @@ describe('the pointer over a PDF page', () => {
   test('starts from the look this browser chose last, and from orange rectangles when it has none it takes', async () => {
     window.localStorage.setItem('monadic-pointer-look', JSON.stringify({ shape: 'ellipse', color: 'magenta' }));
     let { handle } = await shown();
-    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPointer.COLORS.magenta.line);
+    expect(button('point').style.getPropertyValue('--mark-face')).toBe(window.WorkbenchPointer.COLORS.magenta.line);
     handle.dispose();
     window.localStorage.setItem('monadic-pointer-look', JSON.stringify({ shape: 'star', color: 'red' }));
     ({ handle } = await shown());
-    expect(button('point').style.getPropertyValue('--bs-btn-bg')).toBe(window.WorkbenchPointer.COLORS.orange.line);
+    expect(button('point').style.getPropertyValue('--mark-face')).toBe(window.WorkbenchPointer.COLORS.orange.line);
     expect(box.querySelector('[data-shape="rect"]').getAttribute('aria-pressed')).toBe('true');
   });
 

@@ -217,10 +217,10 @@
     return el;
   }
 
-  // A meaning (btn-primary, btn-secondary...) makes it a shared button
-  // (buttons.css); a switch keeps its own look.
+  // A meaning (btn-primary, btn-secondary...) or a tool on a panel
+  // (btn-tool) makes it a shared button (buttons.css).
   function button(label, className, onClick) {
-    const shared = /^btn-(primary|secondary|danger|warning)$/.test(className) ? 'btn-v2 ' : '';
+    const shared = /^btn-(primary|secondary|danger|warning|tool)$/.test(className) ? 'btn-v2 ' : '';
     const el = element('button', `btn ${shared}btn-sm ${className}`, label);
     el.type = 'button';
     el.addEventListener('click', onClick);
@@ -434,7 +434,7 @@
     }
     // A whiteboard is also written out as a picture to keep or pass on.
     if (item.status === 'ok' && isWhiteboard(item)) {
-      const group = element('div', 'workbench-whiteboard-exports');
+      const group = element('div', 'btn-panel workbench-whiteboard-exports');
       group.setAttribute('role', 'group');
       group.setAttribute('aria-label', t('ui.workbench.wb_export', 'Export'));
       group.appendChild(element('span', 'workbench-whiteboard-exports-label', t('ui.workbench.wb_export', 'Export')));
@@ -861,11 +861,11 @@
     const mode = modeOf(item);
     drawn.mode = mode;
     const wrap = element('div', 'workbench-drawable');
-    const bar = element('div', 'btn-group btn-group-sm workbench-mode mb-2');
+    const bar = element('div', 'btn-panel workbench-mode mb-2');
     bar.setAttribute('role', 'group');
     bar.setAttribute('aria-label', t('ui.workbench.viewAs', 'Show the file'));
     [['drawn', t('ui.workbench.viewDrawn', 'Drawn')], ['source', t('ui.workbench.viewSource', 'Source')]].forEach(([value, label]) => {
-      const choice = button(label, value === mode ? 'btn-secondary' : 'btn-outline-secondary', () => setMode(item, value));
+      const choice = button(label, 'btn-tool', () => setMode(item, value));
       choice.setAttribute('aria-pressed', value === mode ? 'true' : 'false');
       choice.dataset.mode = value;
       bar.appendChild(choice);

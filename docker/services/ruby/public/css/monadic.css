@@ -2818,68 +2818,8 @@ img.base64-image,
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-/* Initial-Prompt toggle buttons in #config-prompts share the same three-
-   state visual language as #wv-mode-segment: transparent → subtle hover
-   → distinct active fill with inset shadow. The .active class is added
-   by JS when the corresponding textarea is expanded. */
-#prompt-toggle-assistant,
-#prompt-toggle-aiuser {
-  border-color: rgba(128, 128, 128, 0.3);
-  color: var(--text-secondary, #6c757d);
-  background-color: transparent;
-  transition: background-color 0.12s ease, border-color 0.12s ease,
-              color 0.12s ease, box-shadow 0.12s ease;
-}
-
-#prompt-toggle-assistant:hover:not(.active),
-#prompt-toggle-aiuser:hover:not(.active) {
-  background-color: rgba(0, 0, 0, 0.05);
-  border-color: rgba(128, 128, 128, 0.5);
-  color: var(--text-primary, #333);
-}
-
-#prompt-toggle-assistant.active,
-#prompt-toggle-aiuser.active {
-  background-color: rgba(0, 0, 0, 0.12);
-  border-color: rgba(128, 128, 128, 0.55);
-  color: var(--text-primary, #333);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-#prompt-toggle-assistant:focus,
-#prompt-toggle-aiuser:focus,
-#prompt-toggle-assistant:focus-visible,
-#prompt-toggle-aiuser:focus-visible {
-  box-shadow: 0 0 0 0.15rem rgba(128, 128, 128, 0.25);
-  outline: none;
-}
-
-#prompt-toggle-assistant.active:focus,
-#prompt-toggle-aiuser.active:focus,
-#prompt-toggle-assistant.active:focus-visible,
-#prompt-toggle-aiuser.active:focus-visible {
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08),
-              0 0 0 0.15rem rgba(128, 128, 128, 0.25);
-}
-
-.dark-theme #prompt-toggle-assistant:hover:not(.active),
-.dark-theme #prompt-toggle-aiuser:hover:not(.active),
-[data-theme="dark"] #prompt-toggle-assistant:hover:not(.active),
-[data-theme="dark"] #prompt-toggle-aiuser:hover:not(.active) {
-  background-color: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: var(--text-primary, #f5f5f5);
-}
-
-.dark-theme #prompt-toggle-assistant.active,
-.dark-theme #prompt-toggle-aiuser.active,
-[data-theme="dark"] #prompt-toggle-assistant.active,
-[data-theme="dark"] #prompt-toggle-aiuser.active {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: var(--text-primary, #f5f5f5);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
-}
+/* The Initial-Prompt toggles in #config-prompts are shared tool buttons on
+   a panel (buttons.css); the one whose prompt shows is chosen. */
 
 /* Theme Selection Indicator - Yellow dot in top-right corner */
 
@@ -6022,31 +5962,24 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
   opacity: 0.35;
 }
 
-/* Live Conversation toggle. A hue of its own: this button opens a LIVE
-   audio channel, not a typed submit — so it must not read as the confirm
-   blue (btn-primary) or the destructive red. Violet is otherwise unused in
-   the button palette; tones are desaturated because full-strength Bootstrap
-   colors read too vivid against the muted grey UI palette
-   (#e5e5ea/#f8f9fa). While live, the hue shifts to a muted brick with a
-   soft pulse — "recording" without alarm-red urgency. */
-.btn-lc {
-  background-color: var(--btn-live-bg);
-  border-color: var(--btn-live-bg);
-  color: #fff;
+/* Live Conversation toggle: a shared button (buttons.css) of a hue of its
+   own, the one exception to the meaning colors (only the color: its size,
+   focus and states are the shared ones). Pressing it opens a live audio
+   channel, kept apart from a typed submit (blue) and from deleting (red).
+   While live, the red of stopping, with a soft pulse. */
+.btn-v2.btn-lc {
+  --btn-fg: #ffffff;
+  --btn-bg: var(--btn-live-bg);
+  --btn-border-color: var(--btn-live-bg);
+  --btn-hover-bg: var(--btn-live-hover-bg);
+  --btn-hover-border-color: var(--btn-live-hover-bg);
 }
-.btn-lc:hover, .btn-lc:focus {
-  background-color: var(--btn-live-hover-bg);
-  border-color: var(--btn-live-hover-bg);
-  color: #fff;
-}
-.btn-lc.btn-lc-live {
-  background-color: var(--pal-red-strong);
-  border-color: var(--pal-red-strong);
+.btn-v2.btn-lc.btn-lc-live {
+  --btn-bg: var(--pal-red-fill);
+  --btn-border-color: var(--pal-red-fill);
+  --btn-hover-bg: var(--pal-red-fill-hover);
+  --btn-hover-border-color: var(--pal-red-fill-hover);
   animation: lc-live-pulse 2s ease-in-out infinite;
-}
-.btn-lc.btn-lc-live:hover, .btn-lc.btn-lc-live:focus {
-  background-color: var(--pal-red-strong-hover);
-  border-color: var(--pal-red-strong-hover);
 }
 @keyframes lc-live-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pal-red-strong) 35%, transparent); }
@@ -6290,7 +6223,7 @@ body.side-pane-resizing {
 /* The buttons that show only an icon are one size (the side column's
    panels, the bar of a PDF in the work screen). */
 .shared-files-pane .sfp-icon-btn:not(.btn-v2),
-.workbench-icon-btn {
+.workbench-icon-btn:not(.btn-v2) {
   flex: 0 0 auto;
   /* As tall as a field beside it (Bootstrap's small field: line, padding,
      border), on any row of the pane. */
@@ -6982,8 +6915,16 @@ body.side-pane-resizing {
 .workbench-pointer-controls {
   position: relative;
 }
-.workbench-pointer-point:hover {
-  filter: brightness(0.92);
+/* The point button in the mark's color (set by workbench-pointer.js),
+   darker while a mark is being drawn. */
+.workbench-pointer-point.btn-v2 {
+  --btn-bg: var(--mark-face, var(--tool-active-bg));
+  --btn-fg: var(--mark-ink, var(--tool-active-fg));
+  --btn-hover-bg: var(--btn-bg);
+  --btn-hover-fg: var(--btn-fg);
+}
+.workbench-pointer-point.btn-v2.active {
+  --btn-bg: color-mix(in srgb, var(--mark-face, var(--tool-active-bg)) 65%, #000);
 }
 .workbench-pointer-look-menu {
   position: absolute;
@@ -7307,43 +7248,8 @@ body.side-pane-resizing {
 .workbench-whiteboard-sheet[data-tool="eraser"] .workbench-whiteboard-shape {
   cursor: pointer;
 }
-/* Toolbar buttons (btn-tool): each group of the bar on a light panel, its
-   buttons clear on it, the chosen one (a tool, a size, a fill, the grid)
-   filled with the accent. Clearing the board is the one red. */
-.workbench-whiteboard-bar > .workbench-bar-group,
-.workbench-whiteboard-exports {
-  padding: 2px;
-  gap: 2px;
-  background: var(--tool-panel-bg);
-  border: var(--border-width) solid var(--tool-panel-border);
-  border-radius: 8px;
-}
-.btn.btn-tool {
-  color: var(--tool-fg);
-  background: transparent;
-  border: var(--border-width) solid transparent;
-}
-.btn.btn-tool:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--tool-hover-bg);
-}
-.btn.btn-tool.active,
-.btn.btn-tool.active:hover {
-  color: var(--tool-active-fg);
-  background: var(--tool-active-bg);
-}
-.btn.btn-tool:disabled {
-  opacity: 0.4;
-}
-.btn.btn-tool:focus-visible {
-  box-shadow: 0 0 0 2px var(--pal-accent-mid);
-}
-.btn.btn-tool.workbench-whiteboard-clear:not(:disabled) {
-  color: var(--tool-danger-fg);
-}
-.btn.btn-tool.workbench-whiteboard-clear:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tool-danger-fg) 14%, transparent);
-}
+/* The bars' buttons are the shared tools on their groups' panels
+   (buttons.css); clearing the whiteboard is the one red. */
 /* The bar's groups, apart by space (no line: a group starting a new row
    would carry it), its rows close together. */
 .workbench-whiteboard-bar {

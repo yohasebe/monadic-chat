@@ -52,6 +52,11 @@ const settingsPage = (shared) => SETTINGS.replace('<head>', `<head><base href="/
 const VIEW_PAGE = VIEW.replace(/<%#[\s\S]*?%>/g, '').replace(/<%=[\s\S]*?%>/g, '').replace(/<%[\s\S]*?%>/g, '')
   .replace(/<script\b[\s\S]*?<\/script>/g, '');
 
+// The buttons the app's main process puts over the Web UI (main.js), run
+// as it runs them.
+const MAIN = fs.readFileSync(path.join(APP, 'main.js'), 'utf8');
+const FLOATING = MAIN.match(/const injectButtonJS = `([\s\S]*?)`;/)[1];
+
 const TYPES = { '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
 
 function serve() {
@@ -109,6 +114,9 @@ const everyButton = () => {
       id: b.id || b.className, small: b.classList.contains('btn-sm'), icon: b.classList.contains('btn-icon'),
       height: r.height, width: r.width, cut: b.scrollWidth - b.clientWidth,
       meaning: ['btn-primary', 'btn-secondary', 'btn-danger', 'btn-warning'].find((k) => b.classList.contains(k)) || null,
+      tool: b.classList.contains('btn-tool'),
+      // A tool sits on its group's panel; clear, it shows the panel's color.
+      panel: b.closest('.btn-panel') ? getComputedStyle(b.closest('.btn-panel')).backgroundColor : null,
       bg: cs.backgroundColor, fg: cs.color
     });
   });
@@ -167,6 +175,79 @@ async function main() {
       await look(page, `${base}/view`, [], options);
       out.view[name] = await page.evaluate(everyButton);
     }
+    // The floating groups at the bottom right.
+    await look(page, `${base}/view`, []);
+    out.floating = await page.evaluate((script) => {
+      window.electronAPI = {};
+      (0, eval)(script);
+      const groups = Array.from(document.querySelectorAll('body > div > .btn-panel.btn-fab'));
+      return groups.map((g) => {
+        const panel = getComputedStyle(g).backgroundColor;
+        return Array.from(g.querySelectorAll('button')).map((b) => {
+          const r = b.getBoundingClientRect();
+          const cs = getComputedStyle(b);
+          return { label: b.getAttribute('aria-label'), width: r.width, height: r.height, fg: cs.color, bg: cs.backgroundColor, panel };
+        });
+      });
+    }, FLOATING);
+    // Live Conversation: its button where the page focuses after a start,
+    // Enter pressing it; its colors, at rest and live, in both themes.
+    out.live = {};
+    for (const dark of [false, true]) {
+      await look(page, `${base}/web`, [], { dark });
+      const scripts = ['js/monadic/dom-helpers.js', 'js/monadic/utilities.js'].map((f) => fs.readFileSync(path.join(PUBLIC, f), 'utf8'));
+      out.live[dark ? 'dark' : 'light'] = await page.evaluate((sources) => {
+        sources.forEach((src) => { try { (0, eval)(src); } catch (_) { /* what the page does not need here */ } });
+        const button = document.createElement('button');
+        button.id = 'lc-toggle';
+        button.type = 'button';
+        button.className = 'btn btn-v2 btn-sm btn-lc';
+        button.textContent = 'Start live conversation';
+        window.livePressed = 0;
+        button.addEventListener('click', () => { window.livePressed += 1; });
+        document.getElementById('user-panel').prepend(button);
+        setInputFocus();
+        const focused = document.activeElement === button;
+        const look = () => {
+          const cs = getComputedStyle(button);
+          return { bg: cs.backgroundColor, fg: cs.color, height: button.getBoundingClientRect().height };
+        };
+        const rest = look();
+        button.classList.add('btn-lc-live');
+        return new Promise((resolve) => setTimeout(() => {
+          const live = look();
+          button.classList.remove('btn-lc-live');
+          resolve({ focused, rest, live });
+        }, 300));
+      }, scripts);
+    }
+    await page.keyboard.press('Enter');
+    out.liveEnter = await page.evaluate(() => ({ focused: document.activeElement && document.activeElement.id, pressed: window.livePressed }));
+    // A choice of one (the reasoning switch): the checked radio's label is
+    // the chosen tool; the arrows move the choice; the keyboard's ring shows
+    // on the label.
+    await look(page, `${base}/web`, []);
+    const reasoning = fs.readFileSync(path.join(PUBLIC, 'js/monadic/reasoning-ui-manager.js'), 'utf8')
+      .match(/deepseekUI\.innerHTML = `([\s\S]*?)`;/)[1];
+    await page.evaluate((html) => {
+      const box = document.createElement('div');
+      box.id = 'choice-box';
+      box.innerHTML = html;
+      document.body.prepend(box);
+    }, reasoning);
+    const labels = () => page.evaluate(() => ['reasoning-off', 'reasoning-on'].map((id) => {
+      const l = document.querySelector(`label[for="${id}"]`);
+      const cs = getComputedStyle(l);
+      return { checked: document.getElementById(id).checked, bg: cs.backgroundColor, outline: cs.outlineStyle, height: l.getBoundingClientRect().height };
+    }));
+    out.choice = { start: await labels() };
+    await page.focus('#reasoning-on');
+    await page.keyboard.press('ArrowLeft');
+    await settled();
+    out.choice.arrowed = await labels();
+    await page.click('label[for="reasoning-on"]');
+    await settled();
+    out.choice.clicked = await labels();
     out.web = await look(page, `${base}/web`, [...TOOL_IDS, 'send']);
     out.webDark = await look(page, `${base}/web`, TOOL_IDS, { dark: true });
     // Hover, then the keyboard's focus ring.

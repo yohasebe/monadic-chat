@@ -307,40 +307,24 @@ window.shims.formHandlers = {
     });
   },
 
-  // Shows a modal with proper focus management
+  // Shows a dialog (MonadicDialog) and focuses its field; cleanupFn runs
+  // once it has closed
   showModalWithFocus: function(modalId, focusElementId, cleanupFn) {
     var modal = $id(modalId);
     var focusElement = $id(focusElementId);
-
-    if (!modal || !focusElement) return;
-
-    bootstrap.Modal.getOrCreateInstance(modal).show();
-
-    var timerKey = '_focusTimer';
-    var existingTimer = modal[timerKey];
-
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-      delete modal[timerKey];
-    }
-
-    modal[timerKey] = setTimeout(function() {
-      focusElement.focus();
-      delete modal[timerKey];
-    }, 500);
-
+    if (!modal || !focusElement || typeof window.MonadicDialog === 'undefined') return;
+    var dialog = window.MonadicDialog.of(modal);
     if (typeof cleanupFn === 'function') {
-      modal.addEventListener('hidden.bs.modal', function onHidden() {
-        cleanupFn();
-
-        var remainingTimer = modal[timerKey];
-        if (remainingTimer) {
-          clearTimeout(remainingTimer);
-          delete modal[timerKey];
-        }
-        modal.removeEventListener('hidden.bs.modal', onHidden);
+      modal.addEventListener('mdialog:shown', function onShown() {
+        modal.removeEventListener('mdialog:shown', onShown);
+        modal.addEventListener('mdialog:hidden', function onHidden() {
+          modal.removeEventListener('mdialog:hidden', onHidden);
+          cleanupFn();
+        });
       });
     }
+    dialog.open();
+    focusElement.focus();
   }
 };
 

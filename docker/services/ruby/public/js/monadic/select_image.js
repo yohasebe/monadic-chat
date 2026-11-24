@@ -225,7 +225,7 @@ function limitImageCount() {
 // Modal event listener for cleanup when hidden
 const imageModalEl = $id("imageModal");
 if (imageModalEl) {
-  imageModalEl.addEventListener("hidden.bs.modal", function () {
+  imageModalEl.addEventListener("mdialog:hidden", function () {
     const imageFileInput = $id("imageFile");
     if (imageFileInput) imageFileInput.value = '';
     const imageUrlInput = $id("imageUrlInput");
@@ -371,11 +371,11 @@ if (selectFileButton) {
     }
 
     const imageModal = $id("imageModal");
-    if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).show();
-    setTimeout(() => {
-      const imageFileEl2 = $id("imageFile");
-      if (imageFileEl2) imageFileEl2.focus();
-    }, 500);
+    if (imageModal) window.MonadicDialog.of(imageModal).open();
+    // Its file field is focused as it opens (no timer to take the focus
+    // later from another dialog).
+    const imageFileEl2 = $id("imageFile");
+    if (imageFileEl2) imageFileEl2.focus();
   });
 }
 
@@ -409,7 +409,7 @@ if (uploadImageBtn) {
       uploadVideoAttachment(file, purpose)
         .then(function () {
           if (selectImageError) selectImageError.innerHTML = "";
-          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+          if (imageModal) window.MonadicDialog.of(imageModal).close('done');
         })
         .catch(function (err) {
           if (selectImageError) {
@@ -449,7 +449,7 @@ if (uploadImageBtn) {
         if (!isFileInputsEnabled) {
           const docRestrictionMsg = getTranslation('ui.messages.docModelRestriction', 'This file type requires a model that supports File Inputs');
           setAlert(docRestrictionMsg, "error");
-          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+          if (imageModal) window.MonadicDialog.of(imageModal).close('done');
           return;
         }
       }
@@ -459,13 +459,13 @@ if (uploadImageBtn) {
         if (isImageGenerationApp && !allowPdfInImageApp) {
           const pdfErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.pdfUploadError') : 'PDF files cannot be uploaded in image generation apps';
           setAlert(pdfErrorMsg, "error");
-          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+          if (imageModal) window.MonadicDialog.of(imageModal).close('done');
           return;
         }
         if (!isPdfEnabled && !allowPdfInImageApp) {
           const pdfRestrictionMsg = getTranslation('ui.messages.pdfModelRestriction', 'PDF files can only be uploaded when using a model that supports PDF input');
           setAlert(pdfRestrictionMsg, "error");
-          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+          if (imageModal) window.MonadicDialog.of(imageModal).close('done');
           return;
         }
       }
@@ -487,7 +487,7 @@ if (uploadImageBtn) {
             images.push(fileData); // Add the PDF to existing images array
             limitImageCount();     // Limit the number of images in memory
             updateFileDisplay(images);
-            if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+            if (imageModal) window.MonadicDialog.of(imageModal).close('done');
             if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = false; });
           });
         } else if (isDocument) {
@@ -501,7 +501,7 @@ if (uploadImageBtn) {
             images.push(fileData);
             limitImageCount();
             updateFileDisplay(images);
-            if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+            if (imageModal) window.MonadicDialog.of(imageModal).close('done');
             if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = false; });
           });
         } else {
@@ -515,13 +515,13 @@ if (uploadImageBtn) {
             images.push(imageData);
             limitImageCount();     // Limit the number of images in memory
             updateFileDisplay(images);
-            if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+            if (imageModal) window.MonadicDialog.of(imageModal).close('done');
             if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = false; });
           });
         }
       } catch (error) {
         if (imageModal) imageModal.querySelectorAll("button").forEach(function(btn) { btn.disabled = false; });
-        if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+        if (imageModal) window.MonadicDialog.of(imageModal).close('done');
         const errorUploadingText = getTranslation('ui.messages.errorUploadingFile', 'Error uploading file');
         setAlert(`${errorUploadingText}: ${error}`, "error");
         return;
@@ -919,7 +919,7 @@ function imageToBase64(blob, callback) {
           setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorProcessingText}: ${error.message}`, "error");
           // Close modal if it's open
           const imageModal = $id("imageModal");
-          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+          if (imageModal) window.MonadicDialog.of(imageModal).close('done');
           callback(null);
         }
       };
@@ -933,7 +933,7 @@ function imageToBase64(blob, callback) {
         setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorLoadingText}`, "error");
         // Close modal if it's open
         const imageModal = $id("imageModal");
-        if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+        if (imageModal) window.MonadicDialog.of(imageModal).close('done');
         callback(null);
       };
 
@@ -947,7 +947,7 @@ function imageToBase64(blob, callback) {
       setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorReadingText}`, "error");
       // Close modal if it's open
       const imageModal = $id("imageModal");
-      if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+      if (imageModal) window.MonadicDialog.of(imageModal).close('done');
       callback(null);
     };
 
@@ -1005,7 +1005,7 @@ function imageToBase64(blob, callback) {
           setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorProcessingText}: ${error.message}`, "error");
           // Close modal if it's open
           const imageModal = $id("imageModal");
-          if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+          if (imageModal) window.MonadicDialog.of(imageModal).close('done');
           reject(error);
         }
       };
@@ -1019,7 +1019,7 @@ function imageToBase64(blob, callback) {
         setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorLoadingText}`, "error");
         // Close modal if it's open
         const imageModal = $id("imageModal");
-        if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+        if (imageModal) window.MonadicDialog.of(imageModal).close('done');
         reject(error);
       };
 
@@ -1033,7 +1033,7 @@ function imageToBase64(blob, callback) {
       setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorReadingText}`, "error");
       // Close modal if it's open
       const imageModal = $id("imageModal");
-      if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
+      if (imageModal) window.MonadicDialog.of(imageModal).close('done');
       reject(error);
     };
 

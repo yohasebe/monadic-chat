@@ -647,9 +647,11 @@ let monadicScriptPath = app.isPackaged
   ? path.join(process.resourcesPath, 'app', 'docker', 'monadic.sh')
   : path.join(__dirname, '..', 'docker', 'monadic.sh');
 
-const loadDesignTokens = designTokens.createTokenLoader(designTokens.tokensPath({
-  packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname
-}));
+const designSheetsAt = { packaged: app.isPackaged, resourcesPath: process.resourcesPath, appDir: __dirname };
+const loadDesignTokens = designTokens.createSheetsLoader({
+  tokens: designTokens.tokensPath(designSheetsAt),
+  buttons: designTokens.buttonsPath(designSheetsAt)
+});
 
 const isWindows = os.platform() === 'win32';
 function monadicCmd(args) {

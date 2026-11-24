@@ -12,11 +12,14 @@
 :root {
   /* ============================================ */
   /* Palette: five families, each one scale (soft background, line,
-     mid, strong fill, strong fill on hover, text). Every color token
-     below takes its value from here; the dark theme redefines the scale. */
+     mid, strong fill, strong fill on hover, text). The accent adds the
+     face of a blue button (fill, fill on hover), with white text on it at
+     4.5:1 or more in both themes. Every color token below takes its value
+     from here; the dark theme redefines the scale. */
   /* ============================================ */
   --pal-accent-soft: #e9eff7;  --pal-accent-line: #c9d6e8;  --pal-accent-mid: #6a92c8;
   --pal-accent-strong: #3a68a6; --pal-accent-strong-hover: #2f5891; --pal-accent-text: #335d93;
+  --pal-accent-fill: #3a68a6;   --pal-accent-fill-hover: #2f5891;
   --pal-green-soft: #e7f1eb;   --pal-green-line: #c4dacc;   --pal-green-mid: #5c9a77;
   --pal-green-strong: #3a7a58; --pal-green-strong-hover: #2f6849; --pal-green-text: #326a4c;
   --pal-amber-soft: #f7f0de;   --pal-amber-line: #e3d3a9;   --pal-amber-mid: #ecc04f;
@@ -49,6 +52,21 @@
   /* Opacity Levels */
   --opacity-hover: 0.9;
   --opacity-disabled: 0.5;
+  /* Buttons (buttons.css): two sizes, each a least height (text that wraps
+     or is set larger makes it taller), one rounding. */
+  --btn-h-sm: 30px;
+  --btn-h-md: 36px;
+  --btn-pad-x-sm: 10px;
+  --btn-pad-x-md: 14px;
+  --btn-pad-y: 4px;
+  --btn-gap: 6px;
+  --btn-radius: 6px;
+  /* The yellow and red buttons' faces (the palette's, in both themes); the
+     older --btn-warning names the darker gold of a text. */
+  --btn-warning-bg: var(--pal-amber-mid);
+  --btn-warning-hover-bg: var(--pal-amber-strong);
+  --btn-warning-text: #212529;
+  --btn-danger-hover-bg: var(--pal-red-strong-hover);
   --opacity-backdrop: 0.5;
 
   /* Spacing - Based on existing patterns */
@@ -130,14 +148,14 @@
      the @media (hover: hover) rule. Active is what the :active/.active rule
      sets; a pressed button is also hovered, and the hover rule can win.
      The focus values are colors for the focus ring, not whole shadows. */
-  --btn-primary-bg: var(--pal-accent-strong);
-  --btn-primary-hover-bg: var(--pal-accent-strong-hover);
+  --btn-primary-bg: var(--pal-accent-fill);
+  --btn-primary-hover-bg: var(--pal-accent-fill-hover);
   /* The Live Conversation button: a hue no family of the palette has, in
      the strength of the palette's strong tones. */
   --btn-live-bg: #5e3fa6;
   --btn-live-hover-bg: #523790;
-  --btn-primary-hover-border: var(--pal-accent-strong-hover);
-  --btn-primary-active-bg: var(--pal-accent-strong-hover);
+  --btn-primary-hover-border: var(--pal-accent-fill-hover);
+  --btn-primary-active-bg: var(--pal-accent-fill-hover);
   --btn-primary-active-border: var(--pal-accent-text);
   --btn-primary-disabled-bg: var(--pal-accent-mid);
   --btn-primary-focus-shadow-color: color-mix(in srgb, var(--pal-accent-mid) 35%, transparent);
@@ -153,7 +171,7 @@
   --tool-panel-border: rgba(0, 0, 0, 0.07);
   --tool-fg: #4f5864;
   --tool-hover-bg: rgba(0, 0, 0, 0.07);
-  --tool-active-bg: var(--pal-accent-strong);
+  --tool-active-bg: var(--pal-accent-fill);
   --tool-active-fg: #ffffff;
   --tool-danger-fg: var(--pal-red-strong);
   --btn-secondary-bg: var(--pal-grey-strong);
@@ -231,10 +249,6 @@
   --focus-shadow-light: color-mix(in srgb, var(--pal-accent-mid) 15%, transparent);
 
   /* Voice Button Colors */
-  --voice-btn-bg: var(--pal-accent-mid);
-  --voice-btn-border: var(--pal-accent-mid);
-  --voice-btn-hover-bg: var(--pal-accent-strong);
-  --voice-btn-hover-border: var(--pal-accent-strong);
 
   /* TTS Indicator */
   --tts-active-color: var(--pal-red-mid);
@@ -263,6 +277,7 @@
   /* Palette (dark): the same families and steps, for dark grounds. */
   --pal-accent-soft: #222c39;  --pal-accent-line: #3a4d66;  --pal-accent-mid: #86a9d8;
   --pal-accent-strong: #4d7cbc; --pal-accent-strong-hover: #5c8ac8; --pal-accent-text: #adc5e6;
+  --pal-accent-fill: #4675b5;   --pal-accent-fill-hover: #3a68a6;
   --pal-green-soft: #1f2e26;   --pal-green-line: #355343;   --pal-green-mid: #6fae8a;
   --pal-green-strong: #478a66; --pal-green-strong-hover: #539672; --pal-green-text: #a5d1b5;
   --pal-amber-soft: #332c1b;   --pal-amber-line: #594a26;   --pal-amber-mid: #d4ab57;
@@ -335,7 +350,7 @@
   --tool-panel-border: rgba(255, 255, 255, 0.08);
   --tool-fg: #c3c9d1;
   --tool-hover-bg: rgba(255, 255, 255, 0.09);
-  --tool-active-bg: var(--pal-accent-strong);
+  --tool-active-bg: var(--pal-accent-fill);
   --tool-active-fg: #ffffff;
   --tool-danger-fg: #e58a92;
   --btn-secondary-bg: var(--pal-grey-strong);
@@ -402,10 +417,6 @@
   --focus-shadow-light: color-mix(in srgb, var(--pal-accent-mid) 15%, transparent);
 
   /* Voice Button Colors */
-  --voice-btn-bg: var(--pal-accent-mid);
-  --voice-btn-border: var(--pal-accent-mid);
-  --voice-btn-hover-bg: var(--pal-accent-strong);
-  --voice-btn-hover-border: var(--pal-accent-strong);
 
   /* TTS Indicator */
   --tts-active-color: var(--pal-red-mid);

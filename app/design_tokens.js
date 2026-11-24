@@ -1,19 +1,23 @@
 // The Web UI's design variables (tokens.css: colours, radii, spacing and type,
-// for the light theme and for .dark-theme) are given to the app's own windows
-// too, so that both draw from one table. Only the variables are shared, not
-// the Web UI's reset, Bootstrap or layout. The file is the one the Web UI
-// serves: in the source tree when run from it, under resources/app/docker in a
-// package (the docker payload is made of tracked files).
+// for the light theme and for .dark-theme) and its buttons (buttons.css, made
+// from those variables) are given to the app's own windows too, so that all
+// draw from one table. Only these are shared, not the Web UI's reset,
+// Bootstrap or layout. The files are the ones the Web UI serves: in the source
+// tree when run from it, under resources/app/docker in a package (the docker
+// payload is made of tracked files).
 const fs = require('fs');
 const path = require('path');
 
-const TOKENS = ['docker', 'services', 'ruby', 'public', 'css', 'tokens.css'];
+const CSS = ['docker', 'services', 'ruby', 'public', 'css'];
 
-function tokensPath({ packaged, resourcesPath, appDir }) {
+function sheetPath(name, { packaged, resourcesPath, appDir }) {
   return packaged
-    ? path.join(resourcesPath, 'app', ...TOKENS)
-    : path.join(appDir, '..', ...TOKENS);
+    ? path.join(resourcesPath, 'app', ...CSS, name)
+    : path.join(appDir, '..', ...CSS, name);
 }
+
+const tokensPath = (where) => sheetPath('tokens.css', where);
+const buttonsPath = (where) => sheetPath('buttons.css', where);
 
 // Read once. A file that cannot be read, or is empty, gives null and one log
 // line, so a window is never given an empty sheet in its place. Logs carry an
@@ -25,12 +29,27 @@ function createTokenLoader(file, { readFile = fs.readFileSync, log = console.err
     try {
       const text = readFile(file, 'utf8');
       css = text.trim() ? text : null;
-      if (!css) log('[design-tokens] tokens.css is empty');
+      if (!css) log(`[design-tokens] ${path.basename(file)} is empty`);
     } catch (error) {
       css = null;
-      log(`[design-tokens] tokens.css cannot be read (${reason(error)})`);
+      log(`[design-tokens] ${path.basename(file)} cannot be read (${reason(error)})`);
     }
     return css;
+  };
+}
+
+// The variables, then the buttons, as one sheet (put in at once, so their
+// order holds). The buttons are left out without the variables: made of them,
+// they would be drawn without colors or sizes, and the windows' own buttons
+// are still usable as they are.
+function createSheetsLoader({ tokens, buttons }, options) {
+  const loadTokens = createTokenLoader(tokens, options);
+  const loadButtons = createTokenLoader(buttons, options);
+  return function load() {
+    const variables = loadTokens();
+    if (!variables) return null;
+    const shapes = loadButtons();
+    return shapes ? `${variables}\n${shapes}` : variables;
   };
 }
 
@@ -98,4 +117,4 @@ function showWindow(win, { focus = false } = {}) {
   });
 }
 
-module.exports = { tokensPath, createTokenLoader, applyTokens, shareTokens, prepareWindow, showWindow };
+module.exports = { tokensPath, buttonsPath, createTokenLoader, createSheetsLoader, applyTokens, shareTokens, prepareWindow, showWindow };

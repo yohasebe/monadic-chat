@@ -245,6 +245,8 @@
     <link href="css/syntax-themes.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <!-- Design tokens (CSS variables) used by monadic.css; after vendor-layers.css, which fixes the layer order -->
     <link href="css/tokens.css?timestamp=<%= @timestamp %>" rel="stylesheet">
+    <%# The buttons, made of the tokens (also read by the Electron windows) %>
+    <link href="css/buttons.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/workflow-viewer.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/print.css?timestamp=<%= @timestamp %>" rel="stylesheet" media="print">
@@ -1024,20 +1026,20 @@
               <div class="row mt-1 mb-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap message-tools">
-                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
-                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Open a page in the work screen, or take in its text" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Open URL</button>
-                    <button id="anonymize" type="button" class="btn btn-sm btn-warning text-nowrap me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
+                    <button id="image-file" class="btn btn-v2 btn-sm btn-warning me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
+                    <button id="doc" class="btn btn-v2 btn-sm btn-warning me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
+                    <button id="url" class="btn btn-v2 btn-sm btn-warning me-2" title="Open a page in the work screen, or take in its text" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Open URL</button>
+                    <button id="anonymize" type="button" class="btn btn-v2 btn-sm btn-warning me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
                     <%# Hidden where the browser cannot record (monadic.js). %>
                     <span id="voice-input-row" class="voice-input">
-                      <button id="voice" class="btn btn-sm btn-warning text-nowrap me-2" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
+                      <button id="voice" class="btn btn-v2 btn-sm btn-warning me-2" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
                       <div id="amplitude" style="display: none; margin-right: 8px; height: 28px; overflow: hidden;">
                         <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
                       </div>
                       <div id="asr-p-value" class="textbox-caption me-2"></div>
                     </span>
                     <button id="word-table-status" type="button" class="word-table-status me-2" style="display: none;"></button>
-                    <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
+                    <button id="audio-upload" class="btn btn-v2 btn-sm btn-warning me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
               </div>

@@ -2255,39 +2255,6 @@ div.highlight ul li::before {
   display: none !important;
 }
 
-#voice {
-  background-color: var(--voice-btn-bg); /* Lighter cyan color */
-  border-color: var(--voice-btn-border); /* Border color */
-}
-
-#voice:focus {
-  outline: none; /* Remove outline */
-  box-shadow: 0 0 0 3px rgba(70, 184, 218, 0.4); /* Add a light blue halo effect */
-  background-color: var(--voice-btn-hover-bg); /* Slightly darker when focused */
-  border-color: var(--voice-btn-hover-border); /* Brighter border color for better visibility */
-}
-
-#voice i.fas.fa-microphone {
-  transition: all var(--transition-fast) ease; /* Add transition for smoother changes */
-}
-
-#voice:focus i.fas.fa-microphone {
-  color: white; /* White icon when focused for better contrast */
-  transform: scale(1.1); /* Slightly enlarge the icon */
-}
-
-/* Also change on hover for better UX */
-
-#voice:hover {
-  background-color: var(--voice-btn-hover-bg); /* Slightly darker cyan on hover */
-  border-color: var(--voice-btn-hover-border); /* Brighter border color for better visibility */
-  box-shadow: 0 0 0 2px rgba(70, 184, 218, 0.25); /* Subtle halo effect on hover */
-}
-
-#voice:hover i.fas.fa-microphone {
-  color: white; /* White icon when hovered */
-}
-
 /* START: CODE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 
 code {
@@ -4953,15 +4920,6 @@ i.fas.fa-bolt,
     width: 100%;
   }
   
-  /* The message's tool buttons are one row of one size, wrapping as a row
-     (the row keeps the space between its lines). */
-  .message-tools .btn {
-    width: auto;
-    padding: 6px 12px;
-    font-size: inherit;
-    white-space: nowrap;
-  }
-  
   /* Fix #select-role overflow issues */
   #user-panel .row .col-auto {
     max-width: 100%;
@@ -5339,12 +5297,6 @@ i.fas.fa-bolt,
     border-color: var(--pal-amber-strong);
   }
 
-  /* The voice button keeps its own colour on hover */
-  #voice.btn-warning:hover:not(:disabled) {
-    background-color: var(--voice-btn-hover-bg);
-    border-color: var(--voice-btn-hover-border);
-  }
-
   /* Secondary buttons - add background color change */
   .btn-secondary:hover:not(:disabled),
   #theme-system:hover:not(:disabled),
@@ -5421,19 +5373,15 @@ i.fas.fa-bolt,
   }
 
   /* CRITICAL FIX: All buttons must have auto height */
-  #user-panel .btn,
-  #user-panel .btn-sm,
-  #user-panel .btn-primary,
-  #user-panel .btn-secondary,
-  #user-panel .btn-warning,
-  #user-panel .btn-info,
+  #user-panel .btn:not(.btn-v2),
+  #user-panel .btn-sm:not(.btn-v2),
+  #user-panel .btn-primary:not(.btn-v2),
+  #user-panel .btn-secondary:not(.btn-v2),
+  #user-panel .btn-warning:not(.btn-v2),
+  #user-panel .btn-info:not(.btn-v2),
   #send,
   #clear,
   #settings,
-  #image-file,
-  #doc,
-  #url,
-  #voice,
   #ai_user {
     height: auto;
     min-height: auto;

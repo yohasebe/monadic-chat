@@ -6132,12 +6132,6 @@ body.side-pane-resizing {
   background-color: rgba(191, 98, 94, 0.14);
   color: #bf625e;
 }
-/* The buttons that step through the items show only an arrow. */
-.workbench-prev,
-.workbench-next {
-  width: 2.5rem;
-  min-width: 0;
-}
 .workbench-item-remove:focus-visible {
   outline: 2px solid var(--color-link);
   outline-offset: 2px;

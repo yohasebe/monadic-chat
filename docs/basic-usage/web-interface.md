@@ -164,11 +164,10 @@ The **Work screen** tab shows the browser the AI uses in the current conversatio
 
 1. The items of the work screen: the browser, images and files. Click one to choose it and move to it.
 2. Removes the item from the work screen. Items that can be removed have this button.
-3. Steps through the items.
-4. **Drawn** and **Source code**: for a file that is drawn, switch between the drawing and the text.
-5. The item chosen.
+3. **Drawn** and **Source code**: for a file that is drawn, switch between the drawing and the text.
+4. The item chosen, marked by a band at its left.
 
-The items are shown one under another, in the order they came. The item chosen is marked by a band at its left and has its buttons below it; click another item, or move to it with the keyboard, to choose it. Marking a part of an item and selecting its text work on the item chosen, and there is one mark at a time: choosing another item takes the mark away. One whiteboard is shown at a time, the one chosen, and an open browser is shown on its own while it is chosen.
+The items are shown one under another, in the order they came. The item chosen is marked by a band at its left and has its buttons below it; click another item, or move to it with the keyboard, to choose it (that click only chooses it). The ← and → keys choose the item before or after. Marking a part of an item and selecting its text work on the item chosen, and there is one mark at a time: choosing another item takes the mark away. One whiteboard is shown at a time, the one chosen, and an open browser is shown on its own while it is chosen.
 
 The work screen is shared by you and the AI, like a desk between you. When you put a file on it, take an item off it, or draw on a whiteboard, the AI is told with your next message what changed: who did it and to which item (for a whiteboard, how many shapes were added, changed or removed), not what the item shows. When its answer depends on what an item shows, the AI looks at it (see below). The AI can also bring an item of the work screen back before you, such as an earlier image or a whiteboard, when it talks about it; as with a new item, the work screen only announces it while you are typing or when **Show new items in the work screen** is off.
 

@@ -367,18 +367,6 @@
     }
   }
 
-  // ‹ n / m › above what is shown, for any item.
-  function stepperHost() {
-    let host = $id('workbench-stepper');
-    const area = $id('work-screen-browser');
-    if (!host && area && area.parentNode) {
-      host = element('div', 'workbench-stepper-host');
-      host.id = 'workbench-stepper';
-      area.parentNode.insertBefore(host, area);
-    }
-    return host;
-  }
-
   function drawView() {
     if (local) {
       drawLocal();
@@ -395,13 +383,6 @@
     const live = liveBrowser(item);
     // Nothing selected: the area says there is nothing to show.
     if (browserArea) browserArea.hidden = !!item && !live;
-    const host = stepperHost();
-    if (host) {
-      host.replaceChildren();
-      // Only when there is another item to step to.
-      host.hidden = !item || rowItems().length < 2;
-      if (!host.hidden) host.appendChild(stepper(item));
-    }
     if (!view) return;
     view.hidden = !item || live;
     if (!item || live) {
@@ -449,15 +430,25 @@
     node.append(head, element('div', 'workbench-body'), element('div', 'workbench-info'));
     // Touching another item, or moving to it with the keyboard, makes it
     // the one chosen (where the pointer and the buttons are).
-    node.addEventListener('pointerdown', () => choose(node), true);
+    node.addEventListener('pointerdown', () => { if (choose(node)) node.dataset.chosenBy = 'touch'; }, true);
+    node.addEventListener('click', (e) => {
+      if (node.dataset.chosenBy !== 'touch') return;
+      delete node.dataset.chosenBy;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
     node.addEventListener('focusin', () => choose(node));
     nearby(node);
     return node;
   }
 
+  // Choosing another item by touching it: that touch only chooses (a click
+  // that follows does not also act, such as showing an image larger).
   function choose(node) {
     const id = node.dataset.item;
-    if (id !== selected && itemById(id)) select(id, false);
+    if (id === selected || !itemById(id)) return false;
+    select(id, false);
+    return true;
   }
 
   function headOf(node, item, focused) {
@@ -973,26 +964,6 @@
     drawView();
   }
 
-  // ‹ n / m › for the row.
-  function stepper(item) {
-    const row = rowItems();
-    const at = row.findIndex((i) => i.id === item.id);
-    const bar = element('div', 'workbench-stepper d-flex align-items-center gap-2 mb-2');
-    const prev = button('', 'btn-secondary workbench-prev', () => step(-1));
-    prev.appendChild(element('i', 'fa-solid fa-chevron-left'));
-    prev.setAttribute('aria-label', t('ui.workbench.prev', 'Previous item'));
-    prev.disabled = at <= 0;
-    const next = button('', 'btn-secondary workbench-next', () => step(1));
-    next.appendChild(element('i', 'fa-solid fa-chevron-right'));
-    next.setAttribute('aria-label', t('ui.workbench.next', 'Next item'));
-    next.disabled = at < 0 || at >= row.length - 1;
-    bar.appendChild(prev);
-    bar.appendChild(element('span', 'small text-secondary workbench-item-where',
-      t('ui.workbench.itemOf', 'Item {n} of {total}').replace('{n}', String(at + 1)).replace('{total}', String(row.length))));
-    bar.appendChild(next);
-    return bar;
-  }
-
   // Getting what was drawn failed: a view gives a new address, and the
   // next draw uses it.
   function failed(drawn, now) {
@@ -1493,7 +1464,13 @@
     window.addEventListener('resize', placeJump);
     // What is drawn grows after it is placed (an image, a PDF's pages).
     const pane = $id('work-screen-pane');
-    if (pane && typeof ResizeObserver === 'function') new ResizeObserver(placeJump).observe(pane);
+    if (pane && typeof ResizeObserver === 'function') {
+      new ResizeObserver(() => {
+        keepPinned();
+        placeJump();
+      }).observe(pane);
+    }
+    ['wheel', 'touchstart', 'keydown'].forEach((type) => $on(column(), type, unpin, { passive: true }));
     placeJump();
   }
 
@@ -1525,8 +1502,23 @@
     const head = document.querySelector('#work-screen-pane .workbench-head');
     const under = head ? head.getBoundingClientRect().bottom : scroller.getBoundingClientRect().top;
     const by = node.getBoundingClientRect().top - under - 8;
-    if (Math.abs(by) > 1) scroller.scrollBy({ top: by, behavior: 'smooth' });
+    if (Math.abs(by) > 1) scroller.scrollBy({ top: by, behavior: pinned ? 'auto' : 'smooth' });
+    // Items above it may still grow (an image, a PDF drawn): it is kept
+    // there a moment, until the user moves the view.
+    if (!pinned) pinned = { id: id, until: Date.now() + PIN_MS };
   }
+
+  const PIN_MS = 3000;
+  let pinned = null;
+  function keepPinned() {
+    if (!pinned) return;
+    if (Date.now() > pinned.until || pinned.id !== selected) {
+      pinned = null;
+      return;
+    }
+    bringIntoView(pinned.id);
+  }
+  function unpin() { pinned = null; }
 
   // The server keeps what this tab shows (it keeps that item on the board).
   function tellSelected() {
@@ -2639,11 +2631,6 @@
     const browserArea = $id('work-screen-browser');
     const view = $id('workbench-view');
     if (browserArea) browserArea.hidden = true;
-    const host = stepperHost();
-    if (host) {
-      host.replaceChildren();
-      host.hidden = true;
-    }
     if (!view) return;
     view.hidden = false;
     delete view.dataset.item;

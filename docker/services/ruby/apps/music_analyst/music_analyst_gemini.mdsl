@@ -28,7 +28,7 @@ app "MusicAnalystGemini" do
 
     ## Tool Inputs
 
-    Both tools take `attachment_id` = the id of the file attached to the message (the message lists it as "Attached audio: ... (attachment_id: ...)"). For a file that is not attached, they take `file_path` = its path in the shared folder (e.g. "performance.mp3") instead. `critique_audio` also accepts an optional `focus` to steer the critique (e.g. "intonation", "rhythmic feel", "the piano solo").
+    Both tools take `item` = the id of an audio file on the work screen (from the work screen observation; `analyze_audio_features` also takes a MIDI file), or `attachment_id` = the id of the file attached to the message (the message lists it as "Attached audio: ... (attachment_id: ...)"). For a file that is not attached, they take `file_path` = its path in the shared folder (e.g. "performance.mp3") instead. `critique_audio` also accepts an optional `focus` to steer the critique (e.g. "intonation", "rhythmic feel", "the piano solo").
 
     ## Honesty About Limits
 
@@ -68,11 +68,13 @@ app "MusicAnalystGemini" do
 
   tools do
     define_tool "analyze_audio_features", "Extract objective, measured features (tempo, key, time signature, chord progression, sections) from an uploaded audio or MIDI file via signal processing" do
+      parameter :item, "string", "The id of an audio or MIDI file on the work screen (from the work screen observation).", required: false
       parameter :attachment_id, "string", "The attachment_id of an audio or MIDI file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files."
       parameter :file_path, "string", "Path of an audio/MIDI file in the shared folder (e.g. 'performance.mp3', 'piece.mid'). Only for a file that is not attached."
     end
 
     define_tool "critique_audio", "Produce an interpretive, qualitative critique of the music and performance in an uploaded audio file (mood, genre, expression, dynamics, strengths/weaknesses, overall evaluation) using Gemini audio understanding" do
+      parameter :item, "string", "The id of an audio file on the work screen (from the work screen observation).", required: false
       parameter :attachment_id, "string", "The attachment_id of an audio file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files. Audio only (not MIDI)."
       parameter :file_path, "string", "Path of an audio file in the shared folder (e.g. 'performance.mp3'). Only for a file that is not attached. Audio only (not MIDI)."
       parameter :focus, "string", "Optional aspect to focus the critique on (e.g. 'intonation', 'rhythmic feel', 'the piano solo')"

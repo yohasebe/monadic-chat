@@ -82,6 +82,22 @@ RSpec.describe VideoAnalyzeAgent do
     })
   end
 
+  describe 'a video on the work screen' do
+    it 'is read as an attachment when the user put it there, by its path when opened from the shared folder' do
+      allow(agent).to receive(:extract_from_record).and_return("from record")
+      allow(agent).to receive(:extract_from_shared_file).and_return("from path")
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).with(:wb, "i_put", kinds: %w[video]).and_return(record: { path: "/x" })
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).with(:wb, "i_opened", kinds: %w[video]).and_return(path: "clip.mp4")
+      expect(agent.analyze_video(item: "i_put", workbench: :wb)).to eq("from record")
+      expect(agent).to have_received(:extract_from_record).with({ path: "/x" }, 1, anything, false)
+      expect(agent.analyze_video(item: "i_opened", workbench: :wb)).to eq("from path")
+      expect(agent).to have_received(:extract_from_shared_file).with("clip.mp4", 1, anything, false)
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).and_raise(Monadic::Workbench::MediaItem::Refused, "that item is not video")
+      expect(agent.analyze_video(item: "i_song", workbench: :wb)).to eq("Error: that item is not video")
+      expect(agent.analyze_video).to start_with("Error: item, attachment_id or file is required")
+    end
+  end
+
   describe '#analyze_video' do
     context 'when video processing is successful' do
       before do
@@ -131,12 +147,12 @@ RSpec.describe VideoAnalyzeAgent do
     context 'when file parameter is missing' do
       it 'returns error message for nil' do
         result = agent.analyze_video(file: nil)
-        expect(result).to eq("Error: attachment_id or file is required.")
+        expect(result).to eq("Error: item, attachment_id or file is required.")
       end
 
       it 'returns error message for empty string' do
         result = agent.analyze_video(file: "")
-        expect(result).to eq("Error: attachment_id or file is required.")
+        expect(result).to eq("Error: item, attachment_id or file is required.")
       end
     end
 

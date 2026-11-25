@@ -18,6 +18,10 @@ module MonadicSharedTools
           parameters: {
             type: "object",
             properties: {
+              item: {
+                type: "string",
+                description: "The id of a video on the work screen (from the work screen observation)."
+              },
               attachment_id: {
                 type: "string",
                 description: "The attachment_id of a video the user attached to this chat (use this when one is given)"

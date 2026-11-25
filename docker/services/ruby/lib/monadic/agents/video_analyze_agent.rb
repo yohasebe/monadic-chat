@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../workbench/media_item"
 require 'shellwords'
 require_relative "../utils/gemini_request"
 require_relative '../utils/environment'
@@ -87,11 +88,15 @@ module VideoAnalyzeAgent
   UNTIMED_NOTE = "(Without times: the Python container predates timed transcripts. " \
                  "Rebuild it with Actions > Build Python Container to get them.)"
 
-  # attachment_id: a video the user attached to this chat (preferred).
-  # file: a file in the shared folder, for videos placed there by hand.
+  # item: a video on the work screen (its id); attachment_id: a video the
+  # user attached to this chat; file: a file in the shared folder, for
+  # videos placed there by hand.
   # detailed: the user asked for a detailed analysis (see DETAILED_WINDOW_SECONDS).
-  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil, detailed: false)
-    return "Error: attachment_id or file is required." if attachment_id.to_s.empty? && file.to_s.empty?
+  def analyze_video(file: nil, attachment_id: nil, fps: 1, query: nil, session: nil, detailed: false, item: nil,
+                    workbench: nil)
+    if attachment_id.to_s.empty? && file.to_s.empty? && item.to_s.empty?
+      return "Error: item, attachment_id or file is required."
+    end
 
     # Models sometimes pass the attachment id as the file name. A shared-folder
     # video always has an extension, so an exact attachment id is one.
@@ -114,7 +119,9 @@ module VideoAnalyzeAgent
     safe_fps = 1 if safe_fps <= 0
     detailed = [true, "true"].include?(detailed)
 
-    extracted = if attachment_id.to_s.empty?
+    extracted = if !item.to_s.empty?
+                  extract_from_item(item.to_s, workbench, safe_fps, frame_limit, detailed)
+                elsif attachment_id.to_s.empty?
                   extract_from_shared_file(file, safe_fps, frame_limit, detailed)
                 else
                   extract_from_attachment(attachment_id.to_s, session, safe_fps, frame_limit, detailed)
@@ -246,6 +253,25 @@ module VideoAnalyzeAgent
     record = Monadic::Workspace::Attachments.resolve_for_request!(attachment_id: attachment_id, context: context, session: session)
     return "Error: attachment #{record[:original_name]} is not a video." unless record[:purpose] == "video"
 
+    extract_from_record(record, fps, frame_limit, detailed)
+  rescue Monadic::Workspace::Attachments::Unusable => e
+    "Error: #{e.message}"
+  end
+
+  # A video on the work screen (Workbench::MediaItem): one the user put
+  # there as its attachment, one opened from the shared folder by its path.
+  def extract_from_item(item_id, workbench, fps, frame_limit, detailed)
+    found = Monadic::Workbench::MediaItem.resolve(workbench, item_id, kinds: %w[video])
+    return extract_from_shared_file(found[:path], fps, frame_limit, detailed) if found[:path]
+
+    extract_from_record(found[:record], fps, frame_limit, detailed)
+  rescue Monadic::Workbench::MediaItem::Refused => e
+    "Error: #{e.message}"
+  end
+
+  # The frames and the audio of an attached video (its record), extracted
+  # into a run folder of its chat, with the address the page plays it from.
+  def extract_from_record(record, fps, frame_limit, detailed)
     workspace = Monadic::Workspace::Ledger.default.workspace(record[:workspace_id])
     job = Monadic::Workspace::Jobs.create!(workspace[:workspace_id])
     input = Monadic::Utils::SharedPathGuard.command_path(record[:path], container: "python")

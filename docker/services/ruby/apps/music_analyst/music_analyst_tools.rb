@@ -24,8 +24,8 @@ module MusicAnalystTools
   CRITIQUE_AUDIO_EXTS = %w[mp3 mpeg m4a mp4 wav ogg flac].freeze
 
   # The measured lens: features estimated by signal processing.
-  def analyze_audio_features(file_path: nil, attachment_id: nil, session: nil, workbench: nil)
-    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
+  def analyze_audio_features(file_path: nil, attachment_id: nil, session: nil, workbench: nil, item: nil)
+    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench, item: item)
     return "❌ Audio feature analysis failed: #{file[:error]}" if file[:error]
 
     result = measure_music_features(file)
@@ -39,8 +39,8 @@ module MusicAnalystTools
   end
 
   # INTERPRETIVE lens: Gemini listens and critiques the music/performance.
-  def critique_audio(file_path: nil, attachment_id: nil, focus: nil, session: nil, workbench: nil)
-    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench)
+  def critique_audio(file_path: nil, attachment_id: nil, focus: nil, session: nil, workbench: nil, item: nil)
+    file = music_file(file_path: file_path, attachment_id: attachment_id, session: session, workbench: workbench, item: item)
     return "❌ Audio critique failed: #{file[:error]}" if file[:error]
 
     ext = File.extname(file[:relative]).delete_prefix(".").downcase

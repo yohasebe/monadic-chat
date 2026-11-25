@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'availability'
+require_relative '../sent'
 require_relative '../../workspace/chats'
 
 module Monadic
@@ -11,7 +12,8 @@ module Monadic
       class Withheld < StandardError; end
 
       # One post of a request that holds looks (the ids a helper put in it).
-      # Checked right before it is sent, then settled by
+      # Checked right before it is sent; the images it holds are kept as
+      # sent (Sent) as it is handed to the provider, then it is settled by
       # what happened to it; a post that never settles (the thread stopped)
       # settles in its ensure.
       class Attempt
@@ -34,6 +36,7 @@ module Monadic
           started = false
           settled = false
           begin
+            keep_images(session)
             started = true
             res = yield
             ok = res.respond_to?(:status) && res.status.success?
@@ -64,6 +67,26 @@ module Monadic
         end
 
         private
+
+        # The images the post holds, kept as sent before it goes. When the
+        # chat keeps too much, the post is kept back (Withheld), as nothing
+        # went; an image the chat has no folder for goes without being kept.
+        def keep_images(session)
+          images = @ledger.observations(@ids).filter_map(&:image)
+          return if images.empty?
+
+          app_name = session.respond_to?(:[]) ? session[:parameters]&.dig('app_name') : nil
+          shas = []
+          images.each do |image|
+            shas << Sent.keep!(@ledger.chat_id, image.bytes, image.content_type, app_name: app_name)
+          rescue Sent::Unavailable
+            next
+          end
+          @ledger.kept(shas)
+        rescue Sent::Full => e
+          Sent.done(@ledger.chat_id, shas)
+          raise Withheld, "The request was not sent: #{e.message}."
+        end
 
         def network_errors
           defined?(HTTP::Error) ? [HTTP::Error, HTTP::TimeoutError, *NETWORK_ERRORS] : NETWORK_ERRORS

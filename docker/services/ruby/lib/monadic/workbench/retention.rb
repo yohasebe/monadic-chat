@@ -4,6 +4,7 @@ require 'fileutils'
 require_relative 'store'
 require_relative 'board'
 require_relative 'whiteboard'
+require_relative 'sent'
 require_relative '../history'
 require_relative '../history/store'
 require_relative '../workspace/chats'
@@ -12,7 +13,8 @@ require_relative '../workspace/ids'
 module Monadic
   module Workbench
     # How long a chat's workbench folder (its manifest, the pictures sent with
-    # its messages, the runs going on) is kept: as long as the chat is. It is
+    # its messages, the runs going on) and the images it sent (Sent, in its
+    # folder of the shared folder) are kept: as long as the chat is. They are
     # removed with the chat from the history, and when the user leaves a chat
     # the history does not keep. At start, the folder of a chat the history
     # does not keep is removed once nothing was written in it for IDLE_DAYS
@@ -28,6 +30,7 @@ module Monadic
 
         Board.forget(chat_id)
         Whiteboard.forget(chat_id)
+        Sent.release(chat_id, nil)
         dir = store.chat_dir(chat_id)
         return false unless File.directory?(dir)
 

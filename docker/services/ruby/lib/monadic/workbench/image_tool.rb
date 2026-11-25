@@ -2,8 +2,11 @@
 
 require 'base64'
 require 'json'
+require 'securerandom'
 require_relative 'board'
 require_relative 'board_edit'
+require_relative 'edit_inputs'
+require_relative 'sent'
 require_relative 'image_check'
 require_relative 'caller'
 require_relative 'job_output'
@@ -218,6 +221,12 @@ module Monadic
       # said. Returns the Offered image, or what the generator said when it
       # made none. The job folder is removed in every case.
       def run_job(workbench, board_input: nil, drawn: nil)
+        sending = work_screen_inputs(board_input, drawn)
+        begin
+          Sent.check_room!(workbench.chat_id, sending.sum { |input| input[:bytes].bytesize })
+        rescue Sent::Full => e
+          return "❌ Image generation failed: #{e.message}."
+        end
         job = JobOutput.make(workbench.chat_id)
         begin
           inputs = []
@@ -231,6 +240,7 @@ module Monadic
             inputs << JobOutput.put_input!(job, "input-#{i + 1}-#{input.role}.#{ext}", input.bytes)
           end
           said = yield JobOutput.out_dir(job), inputs
+          keep_sent(workbench, sending, said)
           return said if JobOutput.files(job).empty?
 
           # An edit of a generated image keeps where it came from; one of a
@@ -250,6 +260,42 @@ module Monadic
             Monadic::Utils::ExtraLogger.log { "[Workbench] Job folder not removed: #{e.class}: #{e.message}" }
           end
         end
+      end
+
+      # The images of the work screen an edit sends (a board image, or a
+      # whiteboard's picture and the reference drawn on it), with their roles.
+      def work_screen_inputs(board_input, drawn)
+        out = []
+        out << { role: 'original', bytes: board_input[:bytes], content_type: board_input[:content_type] } if board_input
+        Array(drawn).each { |input| out << { role: input.role, bytes: input.bytes, content_type: input.content_type } }
+        out
+      end
+
+      # When the generator handed its request to the provider (said:
+      # its JSON says posted), the images of the work screen it sent are
+      # kept as sent and recorded for the reply's message (EditInputs),
+      # taken or refused as the generator says; otherwise nothing is.
+      def keep_sent(workbench, sending, said)
+        return if sending.empty?
+
+        result = JSON.parse(said.to_s[/\{.*\}/m].to_s)
+        return unless result.is_a?(Hash) && result['posted'] == true
+
+        state = result['success'] == true ? 'sent' : 'refused'
+        call = "e_#{SecureRandom.hex(8)}"
+        app_name = workbench.session.respond_to?(:[]) ? workbench.session[:parameters]&.dig('app_name') : nil
+        sending.each do |input|
+          sha256 = Sent.keep!(workbench.chat_id, input[:bytes], input[:content_type], app_name: app_name)
+          recorded = EditInputs.add(workbench.request_id, workbench.chat_id, call: call, role: input[:role],
+                                                                             sha256: sha256,
+                                                                             content_type: input[:content_type], state: state,
+                                                                             session: workbench.session)
+          Sent.done(workbench.chat_id, [sha256]) unless recorded
+        rescue Sent::Refused
+          next
+        end
+      rescue JSON::ParserError
+        nil
       end
 
       # An image of the shared folder as an input sent with a request:

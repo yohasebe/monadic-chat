@@ -20,7 +20,7 @@ For example, after generating an image, you can say:
 
 You can also upload an image and give editing instructions for it. Up to 5 images can be attached to a message.
 
-To show where and what to change, draw on the image: under the image in the work screen, **Draw on it** makes a whiteboard with the image laid under it (see [Work Screen](../basic-usage/web-interface.md#work-screen)). Mark the place with arrows, circles or words, and ask for the change while the whiteboard is shown: the image and the whiteboard with your drawing are sent together, the drawing as a guide to the change, and the marks are left out of the new image. An earlier image or whiteboard of the work screen is edited when you refer to it; a whiteboard must be shown in your tab.
+To show where and what to change, draw on the image: under the image in the work screen, **Draw on it** makes a whiteboard with the image laid under it (see [Work Screen](../basic-usage/web-interface.md#work-screen)). Mark the place with arrows, circles or words, and ask for the change while the whiteboard is shown: the image and the whiteboard with your drawing are sent together, the drawing as a guide to the change, and the marks are left out of the new image. An earlier image or whiteboard of the work screen is edited when you refer to it; a whiteboard must be shown in your tab. The images of the work screen sent for an edit are kept in the chat's folder (`sent/`) and removed when no message of the chat names them.
 
 ## Options by Provider
 

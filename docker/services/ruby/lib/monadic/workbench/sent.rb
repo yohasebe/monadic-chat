@@ -62,6 +62,15 @@ module Monadic
         raise Unavailable, 'the image could not be kept'
       end
 
+      # Full when the chat could not keep bytes more (checked before what
+      # would send them goes); a chat without a folder yet has room.
+      def check_room!(chat_id, bytes)
+        return if bytes.zero?
+
+        dir = dir_for(chat_id) or return
+        raise Full, 'the images this chat sent are too large to keep' if total(dir) + bytes > LIMIT_BYTES
+      end
+
       # The images of shas256 a reply sent are named by its message now, or
       # will not be: they are no longer pending.
       def done(chat_id, shas256)
@@ -87,14 +96,18 @@ module Monadic
       end
 
       # The sha256 of every image the messages name as sent (a look's image
-      # that left, whatever came back).
+      # that left, whatever came back; the picture of the work screen a
+      # message went with).
       def named_by(messages)
         Array(messages).flat_map do |message|
           next [] unless message.is_a?(Hash)
 
-          Array(message['workbench_looks']).filter_map do |look|
+          looks = Array(message['workbench_looks']).filter_map do |look|
             look['image_sha256'] if look.is_a?(Hash) && %w[sent refused unknown].include?(look['state'])
           end
+          picture = message['workbench_picture']
+          edits = Array(message['workbench_edit_inputs']).filter_map { |e| e['sha256'] if e.is_a?(Hash) }
+          looks + edits + [picture.is_a?(Hash) ? picture['sha256'] : nil].compact
         end.uniq
       end
 

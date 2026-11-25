@@ -11,6 +11,7 @@ require_relative '../../turn_state'
 require_relative '../../turn_state/notes'
 require_relative '../tts_marker_vocabulary'
 require_relative '../../workbench/shown'
+require_relative '../../workbench/edit_inputs'
 require_relative '../../workbench/made'
 require_relative '../../workbench/draw'
 require_relative '../../workbench/observation'
@@ -189,6 +190,11 @@ module WebSocketHelper
           # given to this message before it is sent and kept.
           shown = request_id && Monadic::Workbench::Shown.clean(Monadic::Workbench::Shown.seal(request_id))
           new_data["workbench_shown"] = shown if shown
+
+          # The images of the work screen its image edits sent
+          # (Workbench::EditInputs), kept as sent.
+          edits = request_id && Monadic::Workbench::EditInputs.clean(Monadic::Workbench::EditInputs.seal(request_id))
+          new_data[Monadic::Workbench::EditInputs::KEY] = edits if edits
 
           # The reply finished: what happened on the work screen that its
           # request told the model of is not told again (Observation).

@@ -5,6 +5,7 @@ require_relative '../../workbench/look'
 require_relative '../../workbench/look/record'
 require_relative '../../workbench/document'
 require_relative '../../workbench/picture'
+require_relative '../../workbench/edit_inputs'
 require_relative '../../workbench/point'
 require_relative '../../workbench/whiteboard'
 
@@ -117,6 +118,19 @@ module WebSocketHelper
     return nil unless ledger && ledger.chat_id == session[Monadic::Workspace::Chats::SESSION_KEY]
 
     Monadic::Workbench::Look::Record.clean(ledger.records)
+  end
+
+  # A reply ended without its message: the images of the work screen its
+  # image edits sent are kept on the user's message of the request, in the
+  # session they were sent from, while it is still in that chat.
+  def workbench_edits_without_reply(request_id)
+    entry = Monadic::Workbench::EditInputs.take(request_id)
+    session = entry && entry[:session]
+    return unless session.respond_to?(:[]) && session[Monadic::Workspace::Chats::SESSION_KEY] == entry[:chat_id]
+
+    records = Monadic::Workbench::EditInputs.clean(entry[:records])
+    turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
+    turn[Monadic::Workbench::EditInputs::KEY] = records if turn && records
   end
 
   # A reply ended without its message: what it looked at in the work

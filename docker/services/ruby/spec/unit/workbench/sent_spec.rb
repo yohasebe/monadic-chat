@@ -99,6 +99,49 @@ RSpec.describe Monadic::Workbench::Sent do
     end
   end
 
+  describe "a post of the picture of the work screen a message went with" do
+    let(:helper) { Class.new { include BaseVendorHelper }.new }
+    let(:request_id) { Monadic::Workspace::Ids.generate(:request) }
+    let(:picture) do
+      Monadic::Workbench::Picture.new(id: "p_#{'c' * 20}", chat_id: chat, request_id: request_id, item_id: "i_1",
+                                      version: "v" * 64, page: nil, pages: nil, mark: { "shape" => "rect", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 },
+                                      bytes: png("picture"), kind: "image")
+    end
+    let(:message) { { "role" => "user", "text" => "here", "request_id" => request_id, "workbench_picture" => picture.reference } }
+    let(:session) do
+      { Monadic::Workspace::Chats::SESSION_KEY => chat, parameters: { "app_name" => "ChatOpenAI" }, messages: [message] }
+    end
+    let(:ok) { double(status: HTTP::Response::Status.new(200)) }
+
+    around do |example|
+      Monadic::Workbench::Look::Ledger.reset!
+      context = Monadic::Workspace::RequestContext.new(chat_id: chat, request_id: request_id, picture: picture)
+      Monadic::Workspace::RequestContext.with(context) { example.run }
+    end
+
+    def post(&block) = helper.post_with_workbench_looks(session, provider: "openai", model: "m", &block)
+
+    it "keeps it once as the first post of its turn goes, and names it on the message" do
+      post { ok }
+      sha = Digest::SHA256.hexdigest(png("picture"))
+      expect(message["workbench_picture"]["sha256"]).to eq(sha)
+      expect(Monadic::Workbench::Picture.clean(message["workbench_picture"])["sha256"]).to eq(sha)
+      expect(described_class.named_by([message])).to eq([sha])
+      expect(files).to eq(["#{sha}.png"])
+      expect(described_class::PENDING).not_to have_key(chat.to_s)
+      expect(described_class).not_to receive(:keep!)
+      post { ok }
+    end
+
+    it "sends nothing when the chat keeps too much, rather than go on without it" do
+      stub_const("#{described_class}::LIMIT_BYTES", 10)
+      posted = false
+      expect { post { posted = true } }.to raise_error(Monadic::Workbench::Look::Withheld, /too large/)
+      expect(posted).to be(false)
+      expect(message["workbench_picture"]).not_to have_key("sha256")
+    end
+  end
+
   describe "a post of a look's image" do
     let(:helper) { Class.new { include BaseVendorHelper }.new }
     let(:request_id) { Monadic::Workspace::Ids.generate(:request) }

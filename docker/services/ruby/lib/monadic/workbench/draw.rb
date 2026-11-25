@@ -73,8 +73,8 @@ module Monadic
         path = item.dig('file', 'path')
         done = { added: [], changed: [], removed: [], adjusted: [], issues: [] }
         edited = Whiteboard.edit(caller.chat_id, path, app_name: app_name, origin: caller.origin,
-                                                       epoch: caller.epoch) do |board_shapes|
-          apply(board_shapes, list, removing, done, layout)
+                                                       epoch: caller.epoch) do |board_shapes, frame|
+          apply(board_shapes, list, removing, done, layout, frame)
         end
         item = edited || item
         add(caller.request_id, path, done[:added], chat_id: caller.chat_id)
@@ -98,23 +98,24 @@ module Monadic
       end
 
       # Removes, then adds or changes, in place: shapes joined to others
-      # last, so they can join shapes of the same call.
-      def apply(board_shapes, list, removing, done, layout = nil)
+      # last, so they can join shapes of the same call. On the board's
+      # sheet (frame).
+      def apply(board_shapes, list, removing, done, layout = nil, frame = Whiteboard::PLAIN)
         removing.each { |id| done[:removed] << id if board_shapes.reject! { |s| s['id'] == id } }
-        laid = layout ? lay_out(board_shapes, list, layout, done) : []
+        laid = layout ? lay_out(board_shapes, list, layout, done, frame) : []
         joined, others = list.partition { |s| %w[line arrow].include?(s['type']) && (s['from'] || s['to']) }
         (others + joined).each do |input|
           id = input['id'].is_a?(String) && input['id'].match?(Whiteboard::ID) ? input['id'] : new_id(board_shapes)
           at = board_shapes.index { |s| s['id'] == id }
           if at
-            board_shapes[at] = shape(board_shapes[at].merge(input).merge('id' => id), board_shapes)
+            board_shapes[at] = shape(board_shapes[at].merge(input).merge('id' => id), board_shapes, frame)
             done[:changed] << id
           else
-            board_shapes << shape({ 'color' => COLOR }.merge(input).merge('id' => id, 'by' => 'ai'), board_shapes)
+            board_shapes << shape({ 'color' => COLOR }.merge(input).merge('id' => id, 'by' => 'ai'), board_shapes, frame)
             done[:added] << id
           end
         end
-        tidy(board_shapes, done, laid)
+        tidy(board_shapes, done, laid, frame)
       rescue Whiteboard::Refused => e
         raise Refused, "a shape was not drawn: #{e.message}"
       end
@@ -122,7 +123,7 @@ module Monadic
       # The new boxes of list placed by the arrows of list between them
       # (WhiteboardLayout.layout!), in a free part of the board. Their ids
       # (given now to those without one).
-      def lay_out(board_shapes, list, direction, done)
+      def lay_out(board_shapes, list, direction, done, frame)
         on_board = board_shapes.to_h { |s| [s['id'], true] }
         boxes = list.select do |s|
           %w[box rect ellipse].include?(s['type']) && !(s['id'].is_a?(String) && on_board[s['id']])
@@ -139,7 +140,7 @@ module Monadic
         edges = list.filter_map { |s| [s['from'], s['to']] if %w[line arrow].include?(s['type']) && s['from'] && s['to'] }
         occupied = board_shapes.select { |s| WhiteboardLayout::SOLID.include?(s['type']) }
                                .map { |s| WhiteboardLayout.bounds(s) }
-        issue = WhiteboardLayout.layout!(boxes, edges, direction, occupied)
+        issue = WhiteboardLayout.layout!(boxes, edges, direction, occupied, frame: frame)
         done[:issues] << issue if issue
         boxes.map { |b| b['id'] }
       end
@@ -148,19 +149,19 @@ module Monadic
       # shape added (not laid out) that partly covers another moves to a free
       # place; joined lines take their shapes' middles again; what is still
       # wrong is told (an overlap, a line through a box).
-      def tidy(board_shapes, done, laid)
+      def tidy(board_shapes, done, laid, frame)
         by_id = board_shapes.to_h { |s| [s['id'], s] }
         touched = (done[:added] + done[:changed]).uniq
         touched.each do |id|
           shape = by_id[id] or next
-          done[:adjusted] << { 'id' => id, 'grew' => [shape['w'], shape['h']] } if WhiteboardLayout.fit!(shape)
+          done[:adjusted] << { 'id' => id, 'grew' => [shape['w'], shape['h']] } if WhiteboardLayout.fit!(shape, frame: frame)
         end
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + TIDY_SECONDS
         (done[:added] - laid).each do |id|
           shape = by_id[id] or next
           next unless WhiteboardLayout::SOLID.include?(shape['type'])
 
-          moved = WhiteboardLayout.nudge!(shape, board_shapes.reject { |s| s['id'] == id }, deadline: deadline)
+          moved = WhiteboardLayout.nudge!(shape, board_shapes.reject { |s| s['id'] == id }, deadline: deadline, frame: frame)
           if moved == :late
             done[:issues] << "#{id} was not moved off what it covers: no time left"
           elsif moved
@@ -179,7 +180,7 @@ module Monadic
           shape = by_id[id] or next
           others = board_shapes.reject { |s| s['id'] == id }
           if WhiteboardLayout::LINES.include?(shape['type'])
-            through = WhiteboardLayout.crossings(shape, others)
+            through = WhiteboardLayout.crossings(shape, others, frame: frame)
             done[:issues] << "#{id} goes through #{through.join(', ')}" unless through.empty?
           elsif WhiteboardLayout::SOLID.include?(shape['type'])
             covers = WhiteboardLayout.overlaps(shape, others)
@@ -191,7 +192,7 @@ module Monadic
       # A shape as the whiteboard keeps it: 'box' is a rectangle, numbers
       # written as text are numbers, and the ends of a line or an arrow
       # joining shapes are at their middles.
-      def shape(input, board_shapes)
+      def shape(input, board_shapes, frame = Whiteboard::PLAIN)
         out = input.dup
         out['type'] = 'rect' if out['type'] == 'box'
         # A box given no size takes one, and grows to its text (tidy).
@@ -212,7 +213,7 @@ module Monadic
             out[x], out[y] = middle(other)
           end
         end
-        Whiteboard.shape_of(out)
+        Whiteboard.shape_of(out, frame)
       end
 
       def middle(shape)

@@ -3,6 +3,7 @@
 require 'json'
 require_relative 'board'
 require_relative 'channel'
+require_relative 'whiteboard_background'
 require_relative '../workspace/folders'
 require_relative '../workspace/chats'
 require_relative '../utils/shared_path_guard'
@@ -11,7 +12,9 @@ module Monadic
   module Workbench
     # A whiteboard on the work screen: a file of the chat's folder,
     # whiteboards/whiteboard-<n>.wb.json, holding the shapes drawn on it
-    # (on a board of WIDTH × HEIGHT). The user's page draws on it and sends
+    # (on a sheet, its Frame). Version 1 is a plain sheet of WIDTH ×
+    # HEIGHT; version 2 is drawn on a picture (WhiteboardBackground's
+    # record), the sheet taking its proportions. The user's page draws on it and sends
     # the whole board when it changes (save); it is taken only as clean
     # makes it (known shapes, colors and sizes, numbers in range, within
     # the limits), written in place of the file, and the work screen's item
@@ -22,6 +25,11 @@ module Monadic
       NAME = /\Awhiteboard-([1-9]\d{0,3})\z/
       WIDTH = 1600
       HEIGHT = 1000
+      # The sheet shapes are placed on (its width and height): PLAIN, or one
+      # made from the picture under the board, its longer side LONG_SIDE.
+      Frame = Data.define(:width, :height)
+      PLAIN = Frame.new(width: WIDTH, height: HEIGHT)
+      LONG_SIDE = 1600
       # How far outside the board a point may be.
       MARGIN = 400
       TYPES = %w[pen marker line arrow rect ellipse text].freeze
@@ -51,18 +59,21 @@ module Monadic
 
       module_function
 
-      # The board as it is kept: { version, width, height, shapes }, each
-      # shape with the keys of its type only. Refused (why) otherwise.
-      def clean(data)
+      # The board as it is kept: { version, width, height, background,
+      # shapes }, each shape with the keys of its type only, on the sheet of
+      # background (the picture under it, WhiteboardBackground's record, or
+      # nil for a plain one). Refused (why) otherwise.
+      def clean(data, background: nil)
         raise Refused, 'not a whiteboard' unless data.is_a?(Hash) && data['shapes'].is_a?(Array)
 
         shapes = data['shapes']
         raise Refused, 'too many shapes' if shapes.size > SHAPES_LIMIT
 
+        frame = frame_of(background)
         points = 0
         ids = {}
         kept = shapes.map do |shape|
-          out = shape_of(shape)
+          out = shape_of(shape, frame)
           raise Refused, 'a shape is named twice' if ids.key?(out['id'])
 
           ids[out['id']] = true
@@ -71,10 +82,33 @@ module Monadic
 
           out
         end
-        { 'version' => 1, 'width' => WIDTH, 'height' => HEIGHT, 'shapes' => kept }
+        board = { 'version' => background ? 2 : 1, 'width' => frame.width, 'height' => frame.height }
+        board['background'] = background if background
+        board.merge('shapes' => kept)
       end
 
-      def shape_of(shape)
+      # The picture under a kept board (data: its JSON, parsed), or nil for
+      # a plain one. Refused for a kind this version does not know.
+      def background_of(data)
+        raise Refused, 'not a whiteboard' unless data.is_a?(Hash)
+
+        case data['version']
+        when 1 then nil
+        when 2 then WhiteboardBackground.clean(data['background']) or raise Refused, 'the picture under it is not named'
+        else raise Refused, 'a whiteboard of a kind this version does not know'
+        end
+      end
+
+      # The sheet of a board with background under it (nil: PLAIN). It is
+      # made from the picture's record, never read from the file.
+      def frame_of(background)
+        return PLAIN unless background
+
+        width, height = WhiteboardBackground.size_for(background, LONG_SIDE)
+        Frame.new(width: width, height: height)
+      end
+
+      def shape_of(shape, frame = PLAIN)
         raise Refused, 'a shape is not one' unless shape.is_a?(Hash)
 
         type = shape['type']
@@ -88,11 +122,12 @@ module Monadic
           list = shape['points']
           raise Refused, 'a pen stroke needs points' unless list.is_a?(Array) && list.size.between?(1, PEN_POINTS)
 
-          out['points'] = list.map { |p| point(p) }
+          out['points'] = list.map { |p| point(p, frame) }
           out['stroke'] = stroke(shape)
           out['fill'] = fill(shape) if type == 'pen'
         when 'line', 'arrow'
-          out.merge!('x1' => x(shape['x1']), 'y1' => y(shape['y1']), 'x2' => x(shape['x2']), 'y2' => y(shape['y2']))
+          out.merge!('x1' => x(shape['x1'], frame), 'y1' => y(shape['y1'], frame), 'x2' => x(shape['x2'], frame),
+                     'y2' => y(shape['y2'], frame))
           out['stroke'] = stroke(shape)
           # The shapes it joins (its ends drawn at their edges), by id.
           %w[from to].each { |end_| out[end_] = shape[end_] if shape[end_].is_a?(String) && shape[end_].match?(ID) }
@@ -104,7 +139,8 @@ module Monadic
             out['size'] = nearest(shape['size'], SIZES, SIZES[0])
           end
         when 'rect', 'ellipse'
-          out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'w' => size(shape['w'], WIDTH), 'h' => size(shape['h'], HEIGHT))
+          out.merge!('x' => x(shape['x'], frame), 'y' => y(shape['y'], frame), 'w' => size(shape['w'], frame.width),
+                     'h' => size(shape['h'], frame.height))
           out['stroke'] = stroke(shape)
           out['fill'] = fill(shape)
           # A text written in it (its middle), when there is one.
@@ -113,7 +149,7 @@ module Monadic
             out['size'] = nearest(shape['size'], SIZES, SIZES[0])
           end
         when 'text'
-          out.merge!('x' => x(shape['x']), 'y' => y(shape['y']), 'text' => text_of(shape['text']),
+          out.merge!('x' => x(shape['x'], frame), 'y' => y(shape['y'], frame), 'text' => text_of(shape['text']),
                      'size' => nearest(shape['size'], SIZES, SIZES[0]))
         end
         out
@@ -126,14 +162,14 @@ module Monadic
         text.gsub(/[^\P{Cc}\n]/, '')
       end
 
-      def point(value)
+      def point(value, frame)
         raise Refused, 'a point is not two numbers' unless value.is_a?(Array) && value.size == 2
 
-        [x(value[0]), y(value[1])]
+        [x(value[0], frame), y(value[1], frame)]
       end
 
-      def x(value) = number(value, -MARGIN, WIDTH + MARGIN)
-      def y(value) = number(value, -MARGIN, HEIGHT + MARGIN)
+      def x(value, frame) = number(value, -MARGIN, frame.width + MARGIN)
+      def y(value, frame) = number(value, -MARGIN, frame.height + MARGIN)
 
       def size(value, limit) = number(value, 0, limit + MARGIN)
 
@@ -159,23 +195,46 @@ module Monadic
         choices.min_by { |c| (c - value).abs }
       end
 
-      # A new, empty whiteboard in the chat's folder (the next free number),
-      # put on the work screen for the tab. Returns the board's item.
-      def create(chat_id, app_name:, origin:, epoch:)
+      # A new, empty whiteboard in the chat's folder (the next free number;
+      # one board is numbered at a time), on background (a picture's
+      # record, its copy kept) or plain, put on the work screen for the tab.
+      # Returns the board's item.
+      def create(chat_id, app_name:, origin:, epoch:, background: nil)
         folder, dir = folder_of(chat_id, app_name)
-        taken = Dir.children(dir).filter_map { |f| f.delete_suffix(EXTENSION)[NAME, 1]&.to_i if f.end_with?(EXTENSION) }
-        name = "whiteboard-#{(taken.max || 0) + 1}"
-        write(dir, name, clean({ 'shapes' => [] }))
+        name = lock_for(chat_id).synchronize do
+          taken = Dir.children(dir).filter_map { |f| f.delete_suffix(EXTENSION)[NAME, 1]&.to_i if f.end_with?(EXTENSION) }
+          "whiteboard-#{(taken.max || 0) + 1}".tap do |new_name|
+            write(dir, new_name, clean({ 'shapes' => [] }, background: background), replace: false)
+          end
+        end
         item, = Board.for(chat_id).add_file(path: File.join(folder, DIRNAME, "#{name}#{EXTENSION}"), origin: origin,
                                             epoch: epoch, wait: 0)
         Channel.changed(chat_id)
         item
       end
 
+      # A new whiteboard on the image item item_id of the work screen (at
+      # version, as the user saw it): the image is copied into the chat's
+      # whiteboards folder now (WhiteboardBackground), so the board keeps
+      # it when the image's file changes or its item leaves the work screen.
+      # Returns the board's item.
+      def create_on(chat_id, item_id:, version:, app_name:, origin:, epoch:)
+        board = Board.existing(chat_id) or raise Refused, 'no work screen'
+        bytes = WhiteboardBackground.bytes_of(board, item_id, version)
+        background = WhiteboardBackground.record_for(bytes)
+        _, dir = folder_of(chat_id, app_name)
+        WhiteboardBackground.keep!(dir, bytes, background)
+        create(chat_id, app_name: app_name, origin: origin, epoch: epoch, background: background)
+      rescue WhiteboardBackground::Refused => e
+        raise Refused, e.message
+      end
+
       # The board item_id (a whiteboard of the chat, at version: what the
       # page drew on) as data now has it. Refused when the item is not a
       # whiteboard of this chat or changed since (another tab saved it).
-      # Returns the item at its new version.
+      # The page saves the kind of board it read (data's version): the sheet
+      # and the picture under it stay as kept. Returns the item at its new
+      # version.
       def save(chat_id, item_id:, version:, data:, app_name:, origin:, epoch:)
         board = Board.existing(chat_id) or raise Refused, 'no work screen'
         path = board.file_entry(item_id.to_s, sha256: version.to_s)['path'].to_s
@@ -187,8 +246,15 @@ module Monadic
 
         lock_for(chat_id).synchronize do
           board.file_entry(item_id.to_s, sha256: version.to_s)
-          before = shapes_in(board.file_read(item_id.to_s, sha256: version.to_s)[:bytes])
-          board_data = clean(data)
+          kept = parse(board.file_read(item_id.to_s, sha256: version.to_s)[:bytes])
+          background = background_of(kept)
+          # A page that names no kind saves a plain board (as before kinds).
+          unless data.is_a?(Hash) && (data['version'] || 1) == kept['version']
+            raise Refused, 'this page does not save this kind of whiteboard; reload it'
+          end
+
+          before = clean(kept, background: background)['shapes']
+          board_data = clean(data, background: background)
           write(dir, name, board_data)
           item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0,
                                  event: edit_event(before, board_data['shapes']))
@@ -201,11 +267,11 @@ module Monadic
         raise Refused, 'not a whiteboard of this chat'
       end
 
-      # The shapes of a saved board (bytes), or none when they cannot be read.
-      def shapes_in(bytes)
-        clean(JSON.parse(bytes.to_s))['shapes']
+      # A kept board (bytes) as JSON, or Refused.
+      def parse(bytes)
+        JSON.parse(bytes.to_s)
       rescue JSON::ParserError
-        []
+        raise Refused, 'the whiteboard could not be read'
       end
 
       # What a save changed of the shapes, by their ids (the board's event:
@@ -239,8 +305,9 @@ module Monadic
       end
 
       # Changes the whiteboard at path (one of the chat's, on its work
-      # screen) as it is now: its shapes are given to the block, which
-      # changes them in place; the board is kept as clean makes it and the
+      # screen) as it is now: its shapes and its sheet (Frame) are given to
+      # the block, which changes the shapes in place; the board is kept (on
+      # the picture it has) as clean makes it and the
       # item takes the new version. Returns the item, or nil when the block
       # changed nothing. Refused when it is not there or not one.
       def edit(chat_id, path, app_name:, origin:, epoch:)
@@ -250,19 +317,18 @@ module Monadic
           raise Refused, 'not a whiteboard of this chat' unless own?(folder, path)
 
           item = board.item_at(path) or raise Refused, 'the whiteboard is not on the work screen'
-          data = JSON.parse(board.file_read(item['id'], sha256: item.dig('file', 'sha256'))[:bytes].to_s)
-          shapes = clean(data)['shapes']
+          data = parse(board.file_read(item['id'], sha256: item.dig('file', 'sha256'))[:bytes])
+          background = background_of(data)
+          shapes = clean(data, background: background)['shapes']
           before = JSON.generate(shapes)
-          yield shapes
+          yield shapes, frame_of(background)
           next nil if JSON.generate(shapes) == before
 
-          write(dir, File.basename(path).delete_suffix(EXTENSION), clean({ 'shapes' => shapes }))
+          write(dir, File.basename(path).delete_suffix(EXTENSION), clean({ 'shapes' => shapes }, background: background))
           item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
           Channel.changed(chat_id)
           item
         end
-      rescue JSON::ParserError
-        raise Refused, 'the whiteboard could not be read'
       rescue Artifact::Changed, Artifact::NotAllowed, Board::Refused, FileItem::Busy => e
         raise Refused, "the whiteboard could not be read (#{e.class.name.split('::').last})"
       end
@@ -277,11 +343,11 @@ module Monadic
         [folder, dir]
       end
 
-      def write(dir, name, board_data)
+      def write(dir, name, board_data, replace: true)
         json = JSON.generate(board_data)
         raise Refused, 'the whiteboard is too large' if json.bytesize > BYTES_LIMIT
 
-        Monadic::Utils::SharedPathGuard.write_file!(File.join(dir, "#{name}#{EXTENSION}"), json, mode: 'w', replace: true,
+        Monadic::Utils::SharedPathGuard.write_file!(File.join(dir, "#{name}#{EXTENSION}"), json, mode: 'w', replace: replace,
                                                                                                   strict: true)
       end
     end

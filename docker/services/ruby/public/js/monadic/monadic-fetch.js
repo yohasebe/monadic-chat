@@ -13,7 +13,7 @@
  * server-side rule is the `lint:xhr_pair` anti-pattern check in CI.
  *
  * Usage:
- *   const data = await monadicFetch.postJson('/document', formData);
+ *   const data = await monadicFetch.postJson('/fetch_webpage', formData);
  *   // → returns parsed JSON, throws { status, body, message } on failure
  *
  *   const data = await monadicFetch.postJson('/api/foo', { a: 1 });

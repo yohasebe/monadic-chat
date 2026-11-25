@@ -214,6 +214,10 @@ if __FILE__ == $PROGRAM_NAME
   end
 end
 
+# Whether a request was handed to the API (the server keeps the images
+# it was given as sent only then).
+POSTED = { value: false }
+
 def get_api_key
   # Through config_value: config/env may hold an op:// reference, which only
   # the delivered secrets resolve. Reading the file here sent the reference
@@ -306,6 +310,7 @@ def generate_image(options, num_retrials = 3)
       
       puts "Sending request to generate image with prompt: #{options[:prompt]}" if options[:verbose]
       puts "Request body: #{body.to_json}" if options[:verbose]
+      POSTED[:value] = true
       res = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: body)
       
     when "edit"
@@ -349,6 +354,7 @@ def generate_image(options, num_retrials = 3)
           "Content-Type": "application/json",
           Authorization: "Bearer #{api_key}"
         }
+        POSTED[:value] = true
         res = Monadic::Utils::HttpClient.generation.headers(headers).post(url, json: body)
       else
         # Multipart mode: upload local files directly
@@ -399,6 +405,8 @@ def generate_image(options, num_retrials = 3)
             end
           end
         end
+
+        POSTED[:value] = true
 
         res = Monadic::Utils::HttpClient.generation.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
       end
@@ -512,6 +520,7 @@ if __FILE__ == $PROGRAM_NAME
   # Execute the operation and print the result
 
   result = generate_image(options)
+  result[:posted] = true if POSTED[:value] && result.is_a?(Hash)
   puts JSON.pretty_generate(result)
 
   if result[:success]

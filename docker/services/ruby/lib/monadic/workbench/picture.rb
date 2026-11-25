@@ -22,7 +22,8 @@ module Monadic
     #
     # The message keeps a reference (reference): the item, version, page
     # (of a PDF; an image's has kind 'image' instead) and the mark, never
-    # the bytes.
+    # the bytes; and, once a request with it was handed to the provider,
+    # the sha256 of the image kept as sent (Sent).
     class Picture
       DIRNAME = 'pictures'
       PNG = "\x89PNG\r\n\x1A\n".b
@@ -70,6 +71,7 @@ module Monadic
           return nil unless value['item_id'].is_a?(String) && value['version'].is_a?(String)
 
           out = { 'id' => value['id'], 'item_id' => value['item_id'][0, 64], 'version' => value['version'][0, 128] }
+          out['sha256'] = value['sha256'] if value['sha256'].is_a?(String) && value['sha256'].match?(/\A\h{64}\z/)
           return out.merge('kind' => 'image', 'mark' => mark) if value['kind'] == 'image'
 
           pages = Pointing.whole(value['pages'], PAGES_LIMIT) or return nil

@@ -144,6 +144,10 @@ end
 # The images to edit as data URIs, read once (a try again sends the same):
 # images of the shared folder, and those the server put in the job's input
 # folder (read only from there, for the run that writes to out_dir).
+# Whether a request was handed to the API (the server keeps the images
+# it was given as sent only then).
+POSTED = { value: false }
+
 def encode_inputs(images, job_inputs, out_dir)
   encoded = images.map do |img_path|
     resolved = resolve_image_path(img_path)
@@ -221,6 +225,7 @@ def generate_image(prompt, operation: "generate", aspect_ratio: nil, quality: ni
     body[:quality] = quality if quality
 
     puts "Sending #{operation} request with prompt: #{prompt}" if ENV["EXTRA_LOGGING"]
+    POSTED[:value] = true
     res = HTTP.headers(headers).timeout(120).post(url, json: body)
   rescue HTTP::Error, HTTP::TimeoutError => e
     error_msg = "ERROR: #{e.message}"
@@ -312,5 +317,6 @@ if __FILE__ == $PROGRAM_NAME
   res = generate_image(options[:prompt], operation: options[:operation], aspect_ratio: options[:aspect_ratio], quality: options[:quality],
                        images: options[:images], model: resolve_grok_image_model(options[:model]),
                        job_inputs: Array(options[:job_inputs]), out_dir: options[:out_dir])
+  res[:posted] = true if POSTED[:value] && res.is_a?(Hash)
   puts JSON.pretty_generate(res)
 end

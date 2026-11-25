@@ -55,7 +55,11 @@ module WebSocketHelper
       ending_step("offer") { Monadic::Workbench::Offer.close(request_id) }
       # What it looked at in the work screen is said on the user's message.
       ending_step("looks") { workbench_looks_without_reply(request_id, ws_session_id) }
+      # So are the images of the work screen its image edits sent.
+      ending_step("edits") { workbench_edits_without_reply(request_id) }
     end
+    # A reply with its message took them already; none other takes them.
+    ending_step("edits sealed") { Monadic::Workbench::EditInputs.seal(request_id) if defined?(Monadic::Workbench::EditInputs) }
     ending_step("notice") do
       send_or_broadcast({ "type" => "reply_state", "state" => "finished", "outcome" => outcome,
                           "request_id" => request_id }.to_json, ws_session_id)

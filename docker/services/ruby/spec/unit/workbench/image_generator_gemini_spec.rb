@@ -159,11 +159,18 @@ RSpec.describe "the Gemini image tool on the workbench" do
       out = host.generate_image_with_gemini_native(prompt: "a cat", model: model, images: nil,
                                                    session: { messages: messages, gemini3_last_image: "x.png" },
                                                    out_dir: Monadic::Workbench::JobOutput.out_dir(job))
-      expect(JSON.parse(out)["success"]).to be(true)
+      expect(JSON.parse(out)).to include("success" => true, "posted" => true)
       expect(sent.last.dig("contents", 0, "parts").size).to eq(1)
       expect(messages.size).to eq(1)
       expect(Monadic::Workbench::JobOutput.files(job).size).to eq(1)
       expect(Dir.children(shared)).to be_empty
+    end
+
+    it "says it posted nothing when it stops before the request" do
+      stub_const("CONFIG", {})
+      out = host.generate_image_with_gemini_native(prompt: "a cat", model: model, out_dir: "/nowhere")
+      expect(JSON.parse(out)).not_to have_key("posted")
+      expect(sent).to be_empty
     end
   end
 

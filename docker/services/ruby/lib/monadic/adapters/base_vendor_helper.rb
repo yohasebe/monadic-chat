@@ -403,11 +403,36 @@ module BaseVendorHelper
   # nothing is sent (Look::Withheld) and they are unsent. Then how far they
   # went is recorded (Look::Attempt).
   def post_with_workbench_looks(session, provider:, model:, &)
+    keep_workbench_picture(session)
     ledger = workbench_look_ledger || workbench_look_ledger_held_here
     ids = ledger ? ledger.held : []
     return yield if ids.empty?
 
     Monadic::Workbench::Look::Attempt.new(ledger, ids).send!(session, provider: provider, model: model, &)
+  end
+
+  # The picture of the work screen the message being answered went with (it
+  # is in each request of its turn), kept as sent (Workbench::Sent) as the
+  # first of them is handed to the provider, and named on the message.
+  # When the chat keeps too much, nothing is sent (Look::Withheld); a chat
+  # without a folder for it sends it without keeping it.
+  def keep_workbench_picture(session)
+    picture = workbench_picture_now(session)
+    return unless picture && session.respond_to?(:[])
+
+    message = Array(session[:messages]).reverse.find do |m|
+      m.is_a?(Hash) && m['request_id'] == picture.request_id && m['workbench_picture'].is_a?(Hash)
+    end
+    return if message.nil? || message['workbench_picture']['sha256']
+
+    sent = Monadic::Workbench::Sent
+    sha256 = sent.keep!(picture.chat_id, picture.bytes, 'image/png', app_name: session[:parameters]&.dig('app_name'))
+    message['workbench_picture']['sha256'] = sha256
+    sent.done(picture.chat_id, [sha256])
+  rescue Monadic::Workbench::Sent::Full => e
+    raise Monadic::Workbench::Look::Withheld, "The request was not sent: #{e.message}."
+  rescue Monadic::Workbench::Sent::Unavailable
+    nil
   end
 
   # The ledger this thread kept for the request (one that was let go

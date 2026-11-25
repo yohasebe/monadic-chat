@@ -404,6 +404,8 @@ RSpec.describe 'Tool input boundaries' do
         allow(STDERR).to receive(:puts)
         _script, output = GeneratorScriptLoader.run_cli(script_name, args)
         expect(output).to include('Invalid shared image path', 'false')
+        # Stopped before any request: the server keeps no image as sent.
+        expect(output).not_to include('posted')
       end
     end
 

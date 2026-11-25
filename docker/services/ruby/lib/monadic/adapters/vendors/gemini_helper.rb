@@ -203,6 +203,9 @@ module GeminiHelper
     ]
     response = nil
 
+    # Whether a request was handed to the API (the images it was given are
+    # kept as sent only then).
+    posted = false
     Monadic::Utils::ProgressBroadcaster.with_progress(
       source: "ImageGeneratorGemini",
       label: "Generating image with #{model_id}"
@@ -214,6 +217,7 @@ module GeminiHelper
         request['x-goog-api-key'] = api_key
         request.body = Monadic::Utils::GeminiRequest.without_storage(body).to_json
 
+        posted = true
         response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
           http.request(request)
         end
@@ -240,21 +244,21 @@ module GeminiHelper
               end
         filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
         Monadic::Workbench::JobOutput.write!(out_dir, filename, Base64.decode64(b64))
-        return { success: true, filename: filename, model: model, prompt: prompt }.to_json
+        return { success: true, filename: filename, model: model, prompt: prompt, posted: true }.to_json
       end
 
-      return { success: false, error: gemini_block_reason(data, kind: :image) }.to_json
+      return { success: false, error: gemini_block_reason(data, kind: :image), posted: true }.to_json
     else
       error_data = JSON.parse(response.body) rescue {}
       error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
-      return { success: false, error: error_message }.to_json
+      return { success: false, error: error_message, posted: true }.to_json
     end
   rescue StandardError => e
     return { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
       provider: "Gemini",
       tool_name: "generate_image_with_gemini",
       message: e.message
-    ) }.to_json
+    ), posted: posted == true }.to_json
   end
 
 

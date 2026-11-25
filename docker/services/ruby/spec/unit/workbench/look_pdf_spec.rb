@@ -407,7 +407,7 @@ RSpec.describe "looking at a PDF on the work screen" do
     it "gives its text instead for another provider, a model not known to take PDFs, too many pages, or a chat that hides words" do
       open_pdf
       [
-        -> { allow(availability).to receive(:request_of).and_return(["openai", "pdf-model"]) },
+        -> { allow(availability).to receive(:request_of).and_return(["grok", "pdf-model"]) },
         -> { allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("pdf-model", "supports_pdf").and_return(nil) },
         -> { allow(pdf_text).to receive(:extract).and_return(texts([1, "one"], total: 101)) },
         -> { allow(Monadic::Utils::Privacy::Outbound).to receive(:terms_of).and_return(["Secret"]) }
@@ -435,7 +435,7 @@ RSpec.describe "looking at a PDF on the work screen" do
       look.run(caller_for, scope: "whole")
       id = ledger.observations_with_content.first.id
       attempt = Monadic::Workbench::Look::Attempt.new(ledger, [id])
-      expect { attempt.send!(session, provider: "openai", model: "pdf-model") { raise "posted" } }
+      expect { attempt.send!(session, provider: "grok", model: "pdf-model") { raise "posted" } }
         .to raise_error(Monadic::Workbench::Look::Withheld, /PDF as it is/)
     end
   end

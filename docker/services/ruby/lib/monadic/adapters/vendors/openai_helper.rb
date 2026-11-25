@@ -671,12 +671,16 @@ module OpenAIHelper
     turn_message = body["messages"].last
 
     if role == "tool"
-      body["messages"] += with_workbench_looks(obj["function_returns"], session, tool_id: method(:chat_tool_call_id)) do |looks|
+      body["messages"] += with_workbench_looks(obj["function_returns"], session, tool_id: method(:chat_tool_call_id),
+                                                                 files: true) do |looks|
         { role: "user",
           content: looks.flat_map do |look|
             parts = workbench_look_parts(look)
             [{ "type" => "text", "text" => parts[:text] },
-             (parts[:image] && { "type" => "image_url", "image_url" => { "url" => parts[:image].data_url, "detail" => "high" } })].compact
+             (parts[:image] && { "type" => "image_url", "image_url" => { "url" => parts[:image].data_url, "detail" => "high" } }),
+             # A file a look gives as it is: its data, never uploaded.
+             (parts[:file] && { "type" => "file", "file" => { "filename" => parts[:file].filename,
+                                                               "file_data" => parts[:file].data_url } })].compact
           end }
       end
       body.delete("tool_choice") if body["tool_choice"]

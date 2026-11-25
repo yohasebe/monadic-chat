@@ -320,7 +320,9 @@ module BaseVendorHelper
   # observations (workbench_look_parts). tool_id gives a message's tool
   # call id, or nil for any other message. The request then holds every
   # look it names (workbench_looks_prepared).
-  def with_workbench_looks(messages, session, tool_id:)
+  # files: the helper's provider takes a file a look gives as it is
+  # (Look::Availability::NATIVE_FILES), placed with the images.
+  def with_workbench_looks(messages, session, tool_id:, files: false)
     ledger = workbench_look_ledger
     return messages unless ledger
 
@@ -328,7 +330,7 @@ module BaseVendorHelper
     run = []
     all = []
     flush = lambda do
-      looks = ledger.images_for(run)
+      looks = files ? ledger.answering(run).select { |o| o.image || o.file } : ledger.images_for(run)
       out << yield(looks) if looks.any?
       run = []
     end
@@ -396,6 +398,11 @@ module BaseVendorHelper
       text += "\n#{result}" if earlier && look.text_chars.to_i.positive?
       return { text: text, image: look.image }
     end
+    if look.file
+      text = look.caption.to_s
+      text += "\n#{result}" if earlier
+      return { text: text, image: nil, file: look.file }
+    end
 
     { text: result, image: nil }
   end
@@ -455,7 +462,7 @@ module BaseVendorHelper
   # an image's data (a data URL, or the base64 data of Claude's, Gemini's
   # and Ollama's image parts). Anything else is left as it is.
   LOOK_RESULT = /\\?"status\\?"\s*:\s*\\?"looked\\?"/
-  IMAGE_DATA_URL = %r{data:image/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+}i
+  IMAGE_DATA_URL = %r{data:(?:image|application)/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+}i
   IMAGE_DATA_KEYS = %w[data images].freeze
 
   def workbench_loggable(value, key = nil)

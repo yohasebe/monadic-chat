@@ -49,6 +49,25 @@ RSpec.describe "DeepSeek vision support" do
     end
   end
 
+  describe "a message with a file the vision model does not read" do
+    it "is refused before it is sent or recorded, without the file's name" do
+      stub_const("CONFIG", CONFIG.merge("DEEPSEEK_API_KEY" => "test-key"))
+      pdf = { "title" => "private-report.pdf", "type" => "application/pdf", "data" => "data:application/pdf;base64,AAA" }
+      session = { parameters: { "app_name" => "ChatDeepSeek", "model" => "deepseek-v4-pro", "message" => "Read this",
+                                "images" => [pdf] },
+                  messages: [] }
+      expect(helper).not_to receive(:post_json_with_retries)
+      expect(HTTP).not_to receive(:headers)
+      shown = []
+      result = helper.api_request("user", session) { |res| shown << res }
+      expect(result.first["type"]).to eq("error")
+      expect(shown.map { |r| r["type"] }).to eq(["error"])
+      expect(shown.first["content"]).to include("JPEG, PNG, GIF and WebP")
+      expect(shown.first["content"]).not_to include("private-report")
+      expect(session[:messages]).to be_empty
+    end
+  end
+
   describe "#switch_to_deepseek_vision_model" do
     it "swaps a text model for the vision model and says so" do
       body = { "model" => "deepseek-v4-pro" }

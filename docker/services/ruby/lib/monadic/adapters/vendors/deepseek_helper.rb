@@ -227,6 +227,20 @@ module DeepSeekHelper
     if role != "tool"
       message = obj["message"].to_s
 
+      # A file the vision model does not read (a PDF, a document) is not
+      # sent: the message is refused, as it would be by the API, rather than
+      # sent without it.
+      if role == "user" && deepseek_unread_attachment?(obj["images"])
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "DeepSeek",
+          message: "DeepSeek reads JPEG, PNG, GIF and WebP images only. Remove the other attached file and send again.",
+          code: 400
+        )
+        res = { "type" => "error", "content" => formatted_error }
+        block&.call res
+        return [res]
+      end
+
       if user_turn_to_record?(role, message, session)
         res = { "type" => "user",
                 "content" => {
@@ -709,10 +723,17 @@ module DeepSeekHelper
     message
   end
 
-  # DeepSeek's vision model reads JPEG, PNG, GIF and WebP. The attachment array
-  # also carries PDFs, which would 400, so they are dropped here rather than at
-  # the API.
+  # DeepSeek's vision model reads JPEG, PNG, GIF and WebP. A message that
+  # carries another file is refused before it is sent
+  # (deepseek_unread_attachment?).
   DEEPSEEK_IMAGE_TYPES = %w[image/jpeg image/png image/gif image/webp].freeze
+
+  # Whether an attachment is one the vision model does not read.
+  def deepseek_unread_attachment?(images)
+    return false unless images.is_a?(Array)
+
+    images.any? { |img| img.is_a?(Hash) && deepseek_supported_images([img]).empty? }
+  end
 
   def deepseek_supported_images(images)
     return [] unless images.is_a?(Array)

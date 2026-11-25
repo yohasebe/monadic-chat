@@ -963,8 +963,11 @@ module ClaudeHelper
     end
   end
 
+  # The image types the Messages API takes.
+  CLAUDE_IMAGE_TYPES = %w[image/jpeg image/png image/gif image/webp].freeze
+
   # Build body["messages"] from context, handle images, PDFs, and initiate_from_assistant.
-  # Returns true on success, or an Array (early return) on vision/PDF error.
+  # Returns nil on success, or an Array (early return) on an attachment it cannot send.
   private def build_claude_messages(body, context, obj, model, role, session, &block)
     # The greeting: the chat has no user message yet.
     greeting = context.compact.none? { |msg| msg["role"] == "user" }
@@ -1018,6 +1021,14 @@ module ClaudeHelper
               "source" => { "type" => "base64", "media_type" => "application/pdf", "data" => file["data"].split(",")[1] }
             }
             content.unshift(doc)
+          elsif !CLAUDE_IMAGE_TYPES.include?(file["type"].to_s.downcase)
+            # A document or another file is no image: the API would refuse it.
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Claude", message: "Claude reads images (JPEG, PNG, GIF, WebP) and PDFs only. Remove the other attached file and send again.", code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
           else
             unless supports_vision
               formatted_error = Monadic::Utils::ErrorFormatter.api_error(

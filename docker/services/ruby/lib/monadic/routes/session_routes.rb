@@ -6,6 +6,9 @@ require_relative "../workbench/record"
 require_relative "../workbench/look/record"
 require_relative "../workbench/shown"
 require_relative "../workbench/made"
+require_relative "../workbench/picture"
+require_relative "../workbench/edit_inputs"
+require_relative "../workbench/sent"
 require_relative "../turn_state/form"
 
 # Session state management routes
@@ -58,8 +61,10 @@ def privacy_synthesize_session(header, body, mode)
   }
   result["monadic_state"] = body["monadic_state"] if body["monadic_state"].is_a?(Hash)
   result["progressive_tools"] = body["progressive_tools"] if body["progressive_tools"].is_a?(Hash)
+  result["sent_images"] = body["sent_images"] if body["sent_images"].is_a?(Hash)
   result
 end
+
 
 # The chat of the tab a request comes from (tab_id): as its open connection
 # holds it, or, while the tab reconnects, as the tab last saved it. A tab
@@ -295,6 +300,12 @@ post "/load" do
           message_obj["workbench_made"] = made if made
           revisions = Monadic::Workbench::Made.clean_revisions(msg["workbench_revisions"])
           message_obj["workbench_revisions"] = revisions if revisions
+          # The images of the work screen it went with or sent (their
+          # sha256; the file's sent_images holds them).
+          picture = Monadic::Workbench::Picture.clean(msg["workbench_picture"])
+          message_obj["workbench_picture"] = picture if picture && message_obj["role"] == "user"
+          edits = Monadic::Workbench::EditInputs.clean(msg[Monadic::Workbench::EditInputs::KEY])
+          message_obj[Monadic::Workbench::EditInputs::KEY] = edits if edits
           # What the reply changed in its app's state, taken as the file's
           # data; changes that do not fit are left out, and counted.
           if msg.key?("state_changes")
@@ -307,6 +318,13 @@ post "/load" do
           end
           message_obj
         end.compact # Remove nil values from invalid messages
+
+        begin
+          sent_images = Monadic::Workbench::Sent.import_table(json_data["sent_images"], imported[:messages])
+        rescue Monadic::Workbench::Sent::BadFile => e
+          return error_json("Import error: #{e.message}")
+        end
+        imported[:sent_images] = sent_images unless sent_images.empty?
 
         # The words of a file of an earlier version go on being hidden, in the
         # chat's table (a masked file holds none).

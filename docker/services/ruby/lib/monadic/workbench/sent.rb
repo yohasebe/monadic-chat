@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
+require 'base64'
 require 'digest'
 require_relative 'image_check'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
+require_relative '../utils/tool_image_utils'
 require_relative '../workspace/folders'
 require_relative '../workspace/ids'
 
@@ -28,6 +30,15 @@ module Monadic
       class Refused < StandardError; end
       class Full < Refused; end
       class Unavailable < Refused; end
+      # An export would hold more than EXPORT_LIMIT (the message: how much).
+      class ExportTooLarge < StandardError; end
+      # A file holds an image that is not what it says.
+      class BadFile < StandardError; end
+
+      # What an export holds of the images, at most (base64).
+      EXPORT_LIMIT = 200 * 1024 * 1024
+      # How many images a file may hold.
+      IMPORT_COUNT_LIMIT = 2000
 
       # The images sent by replies still running, by chat: kept but not yet
       # named by a message.
@@ -133,6 +144,63 @@ module Monadic
         end
       rescue SystemCallError
         0
+      end
+
+      # The images the messages name as sent, as an export holds them:
+      # [{ sha256 => { content_type, data (base64) } }, the sha256 of those
+      # gone or changed]. ExportTooLarge when they are more than EXPORT_LIMIT.
+      def export_table(chat_id, messages)
+        table = {}
+        missing = []
+        size = 0
+        named_by(messages).each do |sha256|
+          bytes = chat_id && read(chat_id, sha256)
+          next missing << sha256 unless bytes
+
+          data = Base64.strict_encode64(bytes)
+          size += data.bytesize
+          raise ExportTooLarge, size.to_s if size > EXPORT_LIMIT
+
+          table[sha256] = { 'content_type' => Monadic::Utils::ToolImageUtils.image_media_type(bytes), 'data' => data }
+        end
+        [table, missing]
+      end
+
+      # The images a file holds (table: as export_table made it) for what
+      # its messages name as sent: only those, each the image its sha256
+      # says, of the type it says, within ImageCheck's limits. { sha256 =>
+      # { bytes:, content_type: } }. An image that is not what it says
+      # refuses the file (BadFile); one the file does not hold is left out.
+      def import_table(table, messages)
+        return {} unless table.is_a?(Hash)
+        raise BadFile, 'the file holds too many images' if table.size > IMPORT_COUNT_LIMIT
+
+        limit = (ImageCheck::MAX_BYTES * 4 / 3) + 4
+        named_by(messages).each_with_object({}) do |sha256, out|
+          entry = table[sha256] or next
+          data = entry.is_a?(Hash) ? entry['data'] : nil
+          raise BadFile, 'an image of the file is not one' unless data.is_a?(String) && data.bytesize <= limit
+
+          bytes = decoded(data)
+          raise BadFile, 'an image of the file is not the one it names' unless Digest::SHA256.hexdigest(bytes) == sha256
+
+          type = checked_type(bytes)
+          raise BadFile, 'an image of the file is not of its type' unless type == entry['content_type']
+
+          out[sha256] = { bytes: bytes, content_type: type }
+        end
+      end
+
+      def decoded(data)
+        Base64.strict_decode64(data)
+      rescue ArgumentError
+        raise BadFile, 'an image of the file is not one'
+      end
+
+      def checked_type(bytes)
+        ImageCheck.check!(bytes)[:content_type]
+      rescue ImageCheck::Refused
+        raise BadFile, 'an image of the file is not one'
       end
 
       # The size of what the chat keeps.

@@ -19,6 +19,9 @@ require_relative '../../workbench/record'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/made'
 require_relative '../../workbench/look/record'
+require_relative '../../workbench/picture'
+require_relative '../../workbench/edit_inputs'
+require_relative '../../workbench/sent'
 require_relative '../../turn_state/form'
 require_relative '../progressive_tool_manager'
 
@@ -115,6 +118,12 @@ module WebSocketHelper
       raise ArgumentError, "a masked value is still in the file" if leaked
     end
 
+    # The images of the work screen the messages name as sent: in both
+    # kinds of file (anonymizing is of what is written; what an image shows
+    # is the user's to choose), never masked or checked as text.
+    sent_images, sent_missing = Monadic::Workbench::Sent.export_table(session[Monadic::Workspace::Chats::SESSION_KEY],
+                                                                      messages)
+
     if encrypt
       passphrase = obj["passphrase"].to_s
       if passphrase.empty?
@@ -133,6 +142,8 @@ module WebSocketHelper
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
       payload["progressive_tools"] = progressive_tools if progressive_tools
+      payload["sent_images"] = sent_images unless sent_images.empty?
+      payload["sent_images_missing"] = sent_missing unless sent_missing.empty?
       envelope = Monadic::Utils::Privacy::ExportCipher.encrypt(
         header: header, plaintext: payload, passphrase: passphrase
       )
@@ -143,6 +154,8 @@ module WebSocketHelper
       payload["marks_parsed"] = true
       payload["monadic_state"] = monadic_state if monadic_state
       payload["progressive_tools"] = progressive_tools if progressive_tools
+      payload["sent_images"] = sent_images unless sent_images.empty?
+      payload["sent_images_missing"] = sent_missing unless sent_missing.empty?
       content = JSON.pretty_generate(payload)
     end
 
@@ -154,7 +167,15 @@ module WebSocketHelper
       "content" => content_kind,
       "filename" => filename,
       "content_base64" => Base64.strict_encode64(content),
-      "mime" => "application/json"
+      "mime" => "application/json",
+      "sent_images_missing" => sent_missing.size
+    })
+  rescue Monadic::Workbench::Sent::ExportTooLarge => e
+    send_to_client(connection, {
+      "type" => "privacy_export_error",
+      "request_id" => export_request_id(obj),
+      "error" => "too_large",
+      "image_bytes" => e.message.to_i
     })
   rescue Monadic::Utils::Privacy::ExportCipher::IntegrityError, Monadic::Utils::Privacy::ExportCipher::DecryptionError, ArgumentError,
          Monadic::Utils::Privacy::Outbound::Refused
@@ -253,7 +274,7 @@ module WebSocketHelper
     mid role text app_name type lang html active
     thinking tokens images image
     interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
-    state_changes
+    workbench_picture workbench_edit_inputs state_changes
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -277,6 +298,12 @@ module WebSocketHelper
       kept = kept.merge('workbench_made' => made) if made
       revisions = Monadic::Workbench::Made.clean_revisions(kept.delete('workbench_revisions') || kept.delete(:workbench_revisions))
       kept = kept.merge('workbench_revisions' => revisions) if revisions
+      # The images of the work screen it was sent with or sent (their
+      # sha256: the file's sent_images holds them).
+      picture = Monadic::Workbench::Picture.clean(kept.delete('workbench_picture') || kept.delete(:workbench_picture))
+      kept = kept.merge('workbench_picture' => picture) if picture && m['role'] == 'user'
+      edits = Monadic::Workbench::EditInputs.clean(kept.delete(Monadic::Workbench::EditInputs::KEY))
+      kept = kept.merge(Monadic::Workbench::EditInputs::KEY => edits) if edits
       changes = Monadic::TurnState::Form.clean_changes(kept.delete('state_changes') || kept.delete(:state_changes))
       changes ? kept.merge('state_changes' => changes) : kept
     end
@@ -318,7 +345,7 @@ module WebSocketHelper
         masked_key = keys && k.is_a?(String) ? privacy_replace_union(k, registry) : k
         raise ArgumentError, "two names would be the same once masked" if out.key?(masked_key)
 
-        out[masked_key] = privacy_mask_everywhere(v, registry, depth, keys: keys)
+        out[masked_key] = privacy_image_hash?(k, v) ? v : privacy_mask_everywhere(v, registry, depth, keys: keys)
       end
     else value
     end
@@ -378,6 +405,13 @@ module WebSocketHelper
     end
   end
 
+  # Whether v is the sha256 of an image a record names (k says so): no
+  # one's words, kept as it is so that the record still names its image.
+  PRIVACY_IMAGE_HASH_KEYS = %w[sha256 image_sha256].freeze
+  private def privacy_image_hash?(key, value)
+    PRIVACY_IMAGE_HASH_KEYS.include?(key.to_s) && value.is_a?(String) && value.match?(/\A\h{64}\z/)
+  end
+
   # The strings a masked file says (message protocol fields aside), for the
   # last check that no original is left.
   private def privacy_file_strings(contents)
@@ -389,7 +423,7 @@ module WebSocketHelper
         inner = Monadic::Utils::Privacy::Outbound.json_value(value)
         collect.call(inner) unless inner.nil?
       when Array then value.each { |v| collect.call(v) }
-      when Hash then value.each { |k, v| strings << k.to_s; collect.call(v) }
+      when Hash then value.each { |k, v| strings << k.to_s; collect.call(v) unless privacy_image_hash?(k, v) }
       end
     end
     contents.each do |key, value|

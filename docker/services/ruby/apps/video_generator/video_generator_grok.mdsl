@@ -70,6 +70,11 @@ app "VideoGeneratorGrok" do
          to get the filename, then pass it as image_path.
        - Uses Grok Imagine Video 1.5. Duration must be 6-15 seconds.
 
+    3. **Image-to-Video (an image on the work screen):**
+       - The user asks for a video from an image on the work screen ("this image", the one in view, one they name)
+       - Call generate_video_with_grok_imagine(prompt: "...", item: id) with the image item's id from the work screen observation
+       - Pass item only when the user asks for that image to start the video. Duration must be 6-15 seconds.
+
     PARAMETER DETECTION:
     - Duration: text-to-video 1-15 seconds; image-to-video 6-15 seconds (default: 6)
     - Aspect ratio: 16:9 (default), 9:16 (vertical/portrait), 1:1 (square)
@@ -145,6 +150,7 @@ app "VideoGeneratorGrok" do
       parameter :aspect_ratio, "string", "Aspect ratio: '16:9' (default), '9:16' (vertical), '1:1' (square).", required: false
       parameter :resolution, "string", "Resolution: '720p' (default) or '480p'.", required: false
       parameter :image_path, "string", "Optional: only to REUSE a previously uploaded image (filename from monadic_load_state). For a freshly uploaded image, omit this — the system retrieves it automatically.", required: false
+      parameter :item, "string", "Optional: an image item of the work screen (its id from the work screen observation) to start the video from (image-to-video, 6-15s), when the user asks for that image to be the first frame. Pass it only then.", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

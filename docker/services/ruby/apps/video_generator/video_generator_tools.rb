@@ -13,7 +13,8 @@ class VideoGeneratorGemini < MonadicApp
     @orchestration_keep_rounds = 3
   end
 
-  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil, workbench: nil)
+  def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil, workbench: nil,
+                                 item: nil)
     validate_video_prompt(prompt)
 
     super
@@ -37,8 +38,10 @@ class VideoGeneratorGrok < MonadicApp
     @orchestration_keep_rounds = 3
   end
 
-  def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil, session: nil, workbench: nil)
-    validate_grok_video_params(prompt: prompt, duration: duration, aspect_ratio: aspect_ratio, resolution: resolution, image_path: image_path)
+  def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil, session: nil, workbench: nil,
+                                       item: nil)
+    validate_grok_video_params(prompt: prompt, duration: duration, aspect_ratio: aspect_ratio, resolution: resolution,
+                               image_path: image_path || item)
 
     super
   end

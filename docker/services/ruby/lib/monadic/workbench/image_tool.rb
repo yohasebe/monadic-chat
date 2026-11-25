@@ -122,6 +122,22 @@ module Monadic
         raise NoSource, "❌ That item cannot be edited (#{e.message}): no other image is used in its place."
       end
 
+      # The image of the work screen's item item_id, for a tool that starts
+      # from one (a video's first frame, music made from it): read at the
+      # version it has now, { content_type:, bytes: }. An item that is no
+      # image is refused, with no other image in its place.
+      def item_image(workbench, item_id)
+        board = workbench && Board.existing(workbench.chat_id)
+        item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is made from it.'
+        unless item['artifact'] || item.dig('file', 'preview') == 'image'
+          raise NoSource, '❌ That item is not an image: nothing is made from it.'
+        end
+
+        input_of(board, item)
+      rescue Board::Refused, Artifact::Missing, Artifact::Changed, Artifact::NotAllowed, FileItem::Busy => e
+        raise NoSource, "❌ That image cannot be read (#{e.message}): no other image is used in its place."
+      end
+
       # The picture and the drawn reference of the whiteboard (item_id, or
       # the one the tab shows).
       def drawn_source(workbench, item_id = nil)

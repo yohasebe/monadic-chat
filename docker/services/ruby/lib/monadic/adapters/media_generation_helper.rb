@@ -113,7 +113,7 @@ module MonadicHelper
   # In a chat, the video is saved in a run folder of the chat's folder and
   # shown on the work screen; without one, none is made.
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil,
-                                       image_path: nil, max_wait: 420, session: nil, workbench: nil)
+                                       image_path: nil, max_wait: 420, session: nil, workbench: nil, item: nil)
     # Resolve the source image for image-to-video. Uploaded images live in the
     # session as a data URL and must be materialized to a file on the shared
     # volume for the CLI generator. Shared with the Veo path via ToolImageUtils.
@@ -124,7 +124,8 @@ module MonadicHelper
     return JSON.generate({ success: false, message: "There is no chat folder to keep the video in." }) unless job
 
     begin
-      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job)
+      image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job,
+                                                                            item: item, workbench: workbench)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
       Monadic::Workbench::ChatOutput.drop_if_empty(job)
       return JSON.generate({ success: false, message: e.message })

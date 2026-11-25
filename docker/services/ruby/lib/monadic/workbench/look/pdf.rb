@@ -27,7 +27,7 @@ module Monadic
         # The image cut from the page, at most.
         IMAGE_SIDE = 2048
         IMAGE_PIXELS = 4_194_304
-        IMAGE_NOTES = %w[not_in_view drawing redrawn failed too_large].freeze
+        IMAGE_NOTES = %w[not_in_view drawing redrawn saving failed too_large].freeze
 
         module_function
 

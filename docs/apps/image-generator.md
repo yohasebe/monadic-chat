@@ -11,7 +11,7 @@ A generated image is saved in the chat's folder (`conversations/` in the shared 
 
 ## Image Editing
 
-To edit an image, describe the changes you want in natural language. If you do not say which image to edit, the last image in the work screen is edited. An image you upload with the request, or a file of the shared folder you name in it (by its name, or by its path such as `conversations/…/artifacts/…png`), is edited instead. Image editing is supported by OpenAI, Google Gemini, and xAI (Grok).
+To edit an image, describe the changes you want in natural language. If you do not say which image to edit, the image your tab shows in the work screen is edited, or else the last image in the work screen. An image you upload with the request, or a file of the shared folder you name in it (by its name, or by its path such as `conversations/…/artifacts/…png`), is edited instead. Image editing is supported by OpenAI, Google Gemini, and xAI (Grok).
 
 For example, after generating an image, you can say:
 - "Make the sky a sunset orange"
@@ -19,6 +19,8 @@ For example, after generating an image, you can say:
 - "Change the sign to read 'Hello World'"
 
 You can also upload an image and give editing instructions for it. Up to 5 images can be attached to a message.
+
+To show where and what to change, draw on the image: under the image in the work screen, **Draw on it** makes a whiteboard with the image laid under it (see [Work Screen](../basic-usage/web-interface.md#work-screen)). Mark the place with arrows, circles or words, and ask for the change while the whiteboard is shown: the image and the whiteboard with your drawing are sent together, the drawing as a guide to the change, and the marks are left out of the new image. An earlier image or whiteboard of the work screen is edited when you refer to it; a whiteboard must be shown in your tab.
 
 ## Options by Provider
 

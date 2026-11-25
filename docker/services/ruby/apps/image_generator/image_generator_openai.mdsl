@@ -57,7 +57,9 @@ app "ImageGeneratorOpenAI" do
 
     2. **Edit the Last Image:**
        - User wants to modify the image they are working on (e.g., "make it brighter", "add X")
-       - Call generate_image_with_openai(operation: "edit", ...) without images: the system uses the image that came last in the work screen
+       - Call generate_image_with_openai(operation: "edit", ...) without images: the system uses the image the user's tab shows in the work screen, else the image that came last there
+       - When the tab shows a whiteboard drawn on an image, the system sends that image with the user's drawing as a second, reference image: describe the change the drawing shows; the marks themselves are left out
+       - To edit another item of the work screen (an earlier image, or a whiteboard drawn on one), pass item with its id from the work screen observation; a whiteboard must be open in the user's tab (ask them to open it, or show it with show_on_workbench)
        - Never ask the user to upload or save an image to edit it
 
     3. **Edit an Uploaded or Named Image:**
@@ -67,7 +69,7 @@ app "ImageGeneratorOpenAI" do
 
     PARAMETERS:
     - model: "gpt-image-2.5-flare" (default), "gpt-image-2.5-sunburst", "gpt-image-2.6-flare", "gpt-image-2.6-sunburst" or "gpt-image-2". Use the image model the user explicitly requested. Never change an explicitly requested model to satisfy a quality setting: if that model does not support the requested quality, explain the mismatch and ask the user to choose a supported quality or another model, and do not generate an image yet. When no image model was specified, use the default; if the user asks for a quality the default does not offer, pick a model that supports it and say which one you chose.
-    - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked
+    - size: 1024x1024 (default), 1536x1024, 1024x1536; larger sizes up to 3840x2160 are available but cost proportionally more, so use them only when asked. An edit of a whiteboard drawn on an image follows the image's shape unless the user asks for a size
     - quality: auto (default), high, medium, low on every model; every model except gpt-image-2 also accepts xhigh and max. An unsupported pairing is rejected before any request is sent. Use medium/low for faster, cheaper generations
     - background: auto (default), transparent, opaque
 
@@ -124,6 +126,7 @@ app "ImageGeneratorOpenAI" do
         type: "string",
         description: "Image filename"
       }
+      parameter :item, "string", "An item of the work screen to edit, by its id from the work screen observation: an image, or a whiteboard drawn on one (the image with the drawing as a reference). Only with operation edit; not with images", required: false
       parameter :mask, "string", "Mask image filename for precise editing control", required: false
       parameter :size, "string", "Image dimensions. Larger sizes cost proportionally more.", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "size")
       parameter :quality, "string", "Image quality level. xhigh and max are not accepted by gpt-image-2.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")

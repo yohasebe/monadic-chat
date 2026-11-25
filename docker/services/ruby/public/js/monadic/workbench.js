@@ -562,6 +562,8 @@
       }
       drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next),
         name: item.name, save: saveBlob, loadPicture: () => whiteboardPicture(drawn, item.id) });
+      // The version what is drawn is (the board read at it).
+      drawn.loadedVersion = drawn.whiteboardVersion;
       drawn.loaded = true;
     });
     return box;
@@ -615,6 +617,8 @@
     drawn.whiteboardSaving = false;
     if (data.status === 'saved' && typeof data.version === 'string') {
       drawn.whiteboardVersion = data.version;
+      // What is drawn is that version (and what was drawn since, waiting).
+      drawn.loadedVersion = data.version;
       if (drawn.whiteboardPending && !drawn.gone) saveWhiteboardNow(drawn);
       return;
     }
@@ -659,17 +663,29 @@
     if (!url || typeof fetch !== 'function') return;
     fetch(url, { credentials: 'same-origin', cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data) => { if (data && !drawn.gone && drawn.whiteboardVersion === version) drawn.whiteboard.load(data); })
+      .then((data) => {
+        if (!data || drawn.gone || drawn.whiteboardVersion !== version) return;
+        drawn.whiteboard.load(data);
+        drawn.loadedVersion = version;
+      })
       .catch(() => {});
   }
 
   // A capture of a whiteboard: the whole board painted at its sheet's
-  // size, when an image is asked for (a board drawn on a picture, once the
-  // picture is had: never on a blank sheet).
-  function whiteboardAnswer(data, handle) {
+  // size, when an image is asked for, only as the version asked for with
+  // nothing left unsaved (lines waiting are saved now and the answer says
+  // so: the server asks again for the new version), and for a board drawn
+  // on a picture, once the picture is had (never on a blank sheet).
+  function whiteboardAnswer(data, drawn) {
+    const handle = drawn.whiteboard;
     const out = { range: {}, note: null };
     const wants = Array.isArray(data.wants) ? data.wants : [];
     if (!wants.includes('image')) return out;
+    if (drawn.whiteboardPending || drawn.whiteboardSaving) {
+      saveWhiteboardNow(drawn);
+      return Object.assign(out, { image_note: 'saving' });
+    }
+    if (drawn.loadedVersion !== data.version) return Object.assign(out, { image_note: 'drawing' });
     if (!handle.pictureReady()) return Object.assign(out, { image_note: 'failed' });
     const { width, height } = handle.size();
     const board = document.createElement('canvas');
@@ -2044,7 +2060,7 @@
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     if (drawn && drawn.pdf && now.range && Number.isInteger(now.range.page)) return pdfAnswer(data, drawn);
     if (drawn && drawn.image) return imageAnswer(data, drawn.image);
-    if (drawn && drawn.whiteboard) return whiteboardAnswer(data, drawn.whiteboard);
+    if (drawn && drawn.whiteboard) return whiteboardAnswer(data, drawn);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {
       const out = { range: { first_line: now.range.first_line, last_line: now.range.last_line }, note: null };

@@ -6008,6 +6008,42 @@ body.side-pane-resizing {
 .workbench-jump[hidden] {
   display: none;
 }
+/* The work screen's items, one under another in the order they came
+   (workbench.js): the one chosen marked by a band at its left, with its
+   buttons and its pointer; the others as they are, their pointer's
+   buttons hidden (one mark at a time, on the one chosen). */
+.workbench-section {
+  padding-left: var(--spacing-sm);
+  border-left: 3px solid transparent;
+}
+.workbench-section + .workbench-section {
+  margin-top: var(--spacing-md);
+}
+.workbench-section.is-focus {
+  border-left-color: var(--pal-accent-mid);
+}
+.workbench-section-head {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--spacing-xs);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.workbench-section.is-focus > .workbench-section-head {
+  color: var(--text-primary);
+}
+.workbench-section:not(.is-focus) .workbench-pointer-controls {
+  display: none;
+}
+/* Room kept for an item drawn once it comes near the view. */
+.workbench-later {
+  min-height: 160px;
+}
 @media (min-width: 768px) {
   .workbench-head {
     position: sticky;

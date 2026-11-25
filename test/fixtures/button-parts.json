@@ -11,6 +11,7 @@
   "word-table-putback": "a word set aside, put back by pressing it",
   "workbench-item": "an item's tab in the work screen",
   "workbench-item-remove": "removing an item, in its tab (×)",
+  "workbench-section-head": "an item's name over its part of the work screen, choosing it",
   "workbench-draft": "a draft's badge, opening it",
   "list-group-item": "a row of a list",
   "workbench-whiteboard-color": "a color's swatch in the whiteboard's picker",

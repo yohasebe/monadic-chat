@@ -26,7 +26,8 @@
  * part the user marked ({ page, by, shape, color, x, y, w, h }, the four as
  * fractions of the page's width and height) or null; pointerSeq() counts
  * its changes; setPointable(flag) shows or hides its buttons (they are
- * shown only where the chat's model takes images).
+ * shown only where the chat's model takes images); clearPointer() takes its
+ * mark away.
  *
  * The document is let go through the task that loads it (getDocument's
  * return): pdf.js's document has no destroy of its own. Disposed before
@@ -307,6 +308,7 @@
       },
       pointerSeq: () => pointing.pointerSeq(),
       setPointable: (flag) => pointing.setPointable(flag),
+      clearPointer: () => pointing.clear(),
       // Shows page n (within the document), drawing it.
       goTo: (n) => {
         const page = Math.min(Math.max(Math.round(n), 1), state.pages || 1);

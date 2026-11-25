@@ -592,7 +592,7 @@ describe('a PDF item in the workbench', () => {
     delete window.WorkbenchPdf;
   });
 
-  test('takes the bytes from its address, and lets the document go when another item is shown', async () => {
+  test('takes the bytes from its address, keeps the document while another item is chosen, and lets it go once taken off', async () => {
     const shown = [];
     const disposed = [];
     window.WorkbenchPdf = {
@@ -610,6 +610,9 @@ describe('a PDF item in the workbench', () => {
     expect(shown).toEqual([12]);
     window.Workbench.select('i_t');
     await flush();
+    expect(disposed).toHaveLength(0);
+    window.Workbench.onView({ board: Object.assign(board(2), { items: [notes] }), approvals: {}, assets: { i_t: '/workbench/asset/t' },
+      selected: 'i_t' });
     expect(disposed).toHaveLength(1);
   });
 });

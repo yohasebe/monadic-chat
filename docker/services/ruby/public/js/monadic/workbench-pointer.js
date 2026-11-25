@@ -18,6 +18,7 @@
  *   where the chat's model takes images)
  * - escape(): stops drawing and closes the look's menu; true when there was
  *   either to stop
+ * - clear(): stops drawing and takes the mark away
  * - dispose()
  *
  * WorkbenchPointer.control(...) and group(...) make the buttons and groups
@@ -144,6 +145,7 @@
     lookMenu.append(lookRow(t('ui.workbench.pointShape', 'Shape'), shapeChoices),
       lookRow(t('ui.workbench.pointColor', 'Color'), colorChoices));
     const controls = group(t('ui.workbench.pointAt', 'Point at a part of it'), point, lookButton, unpoint, lookMenu);
+    controls.classList.add('workbench-pointer-controls');
     controls.classList.add('workbench-pointer-controls');
     controls.hidden = true;
 
@@ -360,6 +362,11 @@
         pointable = !!flag;
         controls.hidden = !pointable;
         if (!pointable) drawMode(false);
+      },
+      clear: () => {
+        drawMode(false);
+        openLook(false);
+        if (pointer) setPointer(null);
       },
       escape: () => {
         if (!drawing && lookMenu.hidden) return false;

@@ -1953,6 +1953,93 @@ describe('Workbench', () => {
     });
   });
 
+  describe('a whiteboard drawn on a picture', () => {
+    const wb = { id: 'i_p', kind: 'file', actor: 'user', name: 'whiteboard-2.wb.json', path: 'c/whiteboards/whiteboard-2.wb.json',
+      preview: 'text', render: 'whiteboard', sha256: 'c'.repeat(64), version: 'c'.repeat(64), status: 'ok' };
+    const board = { version: 2, width: 1200, height: 1600, shapes: [],
+      background: { sha256: 'd'.repeat(64), content_type: 'image/png', pixel_width: 300, pixel_height: 400, orientation: 1 } };
+    const flushAll = async () => { for (let i = 0; i < 8; i += 1) await new Promise((r) => setTimeout(r, 0)); };
+    let fetched;
+    let picture;
+
+    beforeEach(() => {
+      layout.pane = 'work';
+      jest.isolateModules(() => {
+        require(js('monadic/workbench-pointer.js'));
+        require(js('monadic/workbench-whiteboard.js'));
+      });
+      fetched = [];
+      picture = { ok: true, status: 200 };
+      global.fetch = jest.fn((url) => {
+        fetched.push(url);
+        if (url.startsWith('/workbench/asset/background')) {
+          return Promise.resolve({ ok: picture.ok, status: picture.status, blob: async () => new Blob(['p'], { type: 'image/png' }) });
+        }
+        return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(board), headers: { get: () => null } });
+      });
+      global.createImageBitmap = jest.fn(async () => ({ width: 300, height: 400, close: () => {} }));
+      global.URL.createObjectURL = jest.fn(() => 'blob:picture');
+      global.URL.revokeObjectURL = jest.fn();
+      HTMLCanvasElement.prototype.toBlob = function toBlob(done, type) { done(new Blob(['x'], { type: type })); };
+    });
+
+    afterEach(() => {
+      delete window.WorkbenchWhiteboard;
+      delete global.fetch;
+      delete global.createImageBitmap;
+      delete HTMLCanvasElement.prototype.toBlob;
+      jest.restoreAllMocks();
+    });
+
+    async function showIt(backgrounds) {
+      jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => new Proxy({}, {
+        get: () => () => {}, set: () => true
+      }));
+      jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,V0I=');
+      view([wb], { renders: { i_p: '/workbench/asset/render-i_p' }, backgrounds: backgrounds, selected: 'i_p',
+        selection_serial: 2 });
+      await flushAll();
+      document.querySelector('#workbench-view .workbench-whiteboard').getBoundingClientRect =
+        () => ({ top: 0, bottom: 800, left: 0, right: 600, height: 800 });
+    }
+
+    async function look() {
+      const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+      global.fetch = posted;
+      window.Workbench.onCapture({ type: 'workbench_capture', id: 'cap-p', item_id: 'i_p', version: 'c'.repeat(64), serial: 2,
+        wants: ['image'] });
+      await flushAll();
+      return JSON.parse(posted.mock.calls[0][1].body);
+    }
+
+    test('gets the picture from its own address and paints the board at its sheet\'s size for a look', async () => {
+      await showIt({ i_p: '/workbench/asset/background-i_p' });
+      expect(fetched).toEqual(['/workbench/asset/render-i_p', '/workbench/asset/background-i_p']);
+      expect(document.querySelector('#workbench-view .workbench-whiteboard-picture image')).not.toBeNull();
+      const body = await look();
+      expect(body).toMatchObject({ image: 'V0I=', crop: { width: 1200, height: 1600, sent_width: 1200, sent_height: 1600 } });
+    });
+
+    test('gives a look no picture of the board while the picture under it is not had', async () => {
+      picture = { ok: false, status: 410 };
+      await showIt({ i_p: '/workbench/asset/background-i_p' });
+      const body = await look();
+      expect(body.image).toBeUndefined();
+      expect(body.image_note).toBe('failed');
+    });
+
+    test('asks for the picture again when a view brings a new address for it', async () => {
+      picture = { ok: false, status: 404 };
+      await showIt({ i_p: '/workbench/asset/background-i_p' });
+      picture = { ok: true, status: 200 };
+      view([wb], { renders: { i_p: '/workbench/asset/render-i_p' }, backgrounds: { i_p: '/workbench/asset/background-i_p-2' },
+        selected: 'i_p', selection_serial: 2 });
+      await flushAll();
+      expect(fetched).toContain('/workbench/asset/background-i_p-2');
+      expect(document.querySelector('#workbench-view .workbench-whiteboard-picture image')).not.toBeNull();
+    });
+  });
+
   describe('the preference to show new items', () => {
     let jar;
 

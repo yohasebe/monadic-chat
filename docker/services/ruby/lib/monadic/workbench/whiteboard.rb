@@ -297,6 +297,13 @@ module Monadic
         nil
       end
 
+      # Whether path (relative to the shared folder) is named as a whiteboard
+      # is kept: whiteboards/whiteboard-<n>.wb.json.
+      def kept_as?(path)
+        name = File.basename(path.to_s).delete_suffix(EXTENSION)
+        path.to_s.end_with?(EXTENSION) && name.match?(NAME) && File.basename(File.dirname(path.to_s)) == DIRNAME
+      end
+
       # Whether path (relative to the shared folder) is a whiteboard of the
       # chat's folder folder.
       def own?(folder, path)

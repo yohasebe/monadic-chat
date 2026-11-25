@@ -347,6 +347,12 @@ module Monadic
       # draws only the selected one).
       def whiteboard_seen(board, selection, caller, deadline, bytes, picture: true)
         data = JSON.parse(bytes.to_s)
+        background = begin
+          Whiteboard.background_of(data)
+        rescue Whiteboard::Refused
+          nil
+        end
+        frame = Whiteboard.frame_of(background)
         shapes = data.is_a?(Hash) && data['shapes'].is_a?(Array) ? data['shapes'].select { |s| s.is_a?(Hash) } : []
         texts = shapes.filter_map { |s| s['text'] if s['text'].is_a?(String) }
         image = picture ? begin
@@ -356,12 +362,13 @@ module Monadic
                                    version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['image'],
                                    deadline: deadline, valid: still(board, selection, caller))
           drawn, = Pdf.image_of(answer)
-          drawn if drawn && (drawn.width * 1000 - drawn.height * 1600).abs <= 16 * drawn.height
+          # Only a picture of the board's proportions (within 1%).
+          drawn if drawn && (drawn.width * frame.height - drawn.height * frame.width).abs <= 0.01 * frame.width * drawn.height
         rescue Capture::Failed
           nil
         end : nil
         { image: image, texts: texts.first(200), shapes: shapes.group_by { |s| s['type'].to_s }.transform_values(&:size),
-          list: shapes.first(WHITEBOARD_LISTED).map { |s| listed_shape(s) } }
+          list: shapes.first(WHITEBOARD_LISTED).map { |s| listed_shape(s) }, frame: frame, on_picture: !background.nil? }
       rescue JSON::ParserError
         raise Refused.new('unsupported_kind', 'the whiteboard could not be read')
       end
@@ -533,7 +540,11 @@ module Monadic
                            else 'No picture of the whiteboard could be had now; only its texts are given.'
                            end,
                 'shapes' => seen[:shapes], 'texts' => seen[:texts],
-                'board' => { 'width' => Whiteboard::WIDTH, 'height' => Whiteboard::HEIGHT }, 'list' => seen[:list] }
+                'board' => { 'width' => seen[:frame].width, 'height' => seen[:frame].height }, 'list' => seen[:list] }
+        if seen[:on_picture]
+          out['drawn_on_picture'] = 'The shapes are drawn on a picture laid under the whole board; ' \
+                                    'only the attached image shows it.'
+        end
         out['empty'] = true if seen[:shapes].empty?
         out
       end

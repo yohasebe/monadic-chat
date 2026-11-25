@@ -1,7 +1,11 @@
 /**
- * A whiteboard on the work screen: shapes on a board of WIDTH × HEIGHT (a
- * pen's and a marker's strokes, lines, arrows, rectangles, ellipses and
- * texts), drawn as SVG and edited with the tools in its bar. A shape
+ * A whiteboard on the work screen: shapes on a sheet (a pen's and a
+ * marker's strokes, lines, arrows, rectangles, ellipses and texts), drawn
+ * as SVG and edited with the tools in its bar. The sheet is WIDTH ×
+ * HEIGHT, or, for a board drawn on a picture (version 2), the width and
+ * height the server gave it from the picture (its longer side
+ * LONG_SIDE); the picture lies under the shapes and is never chosen,
+ * moved or erased. A shape
  * chosen with the select tool can be moved, resized (but a text), restyled
  * and deleted. A grid can be shown on it; the ends of lines and shapes, the
  * place of a text and the edges of a shape moved or resized are then drawn
@@ -9,13 +13,19 @@
  * the file keeps ({ version, width, height, shapes }); the server checks it
  * when it is saved (Workbench::Whiteboard).
  *
- * WorkbenchWhiteboard.show(box, data, { onChange }) draws data in box and
- * returns a handle:
+ * WorkbenchWhiteboard.show(box, data, { onChange, loadPicture }) draws
+ * data in box and returns a handle (loadPicture() gives the picture under
+ * a board drawn on one, as a Blob):
  * - data(): the board as it is now
  * - load(data): the board drawn again as data has it (the undo history is
  *   let go)
+ * - size(): its sheet's { width, height }
+ * - pictureReady(): whether it is ready to paint (a board drawn on a
+ *   picture: once the picture is had)
+ * - retryPicture(): the picture asked for again after it could not be had
  * - paint(context, width, height): the board painted on a canvas context of
- *   that size (as it is shown, without the tools)
+ *   that size (as it is shown, without the tools); false, painting
+ *   nothing, until it is ready
  * - exportAs(kind): the board written out as an SVG, a PNG or a PDF, handed
  *   to save(blob, name)
  * - dispose()
@@ -26,6 +36,8 @@
 
   const WIDTH = 1600;
   const HEIGHT = 1000;
+  // The longer side of a sheet drawn on a picture.
+  const LONG_SIDE = 1600;
   const SVG = 'http://www.w3.org/2000/svg';
   // The colors and sizes a shape can take (by name / by number), the same
   // as the server takes.
@@ -103,14 +115,23 @@
   const fillAlpha = (shape) => (fillOf(shape) === 'solid' ? 1 : LIGHT);
   const textLines = (shape) => String(shape.text || '').split('\n');
 
-  function emptyBoard() {
-    return { version: 1, width: WIDTH, height: HEIGHT, shapes: [] };
+  // The sheet of data: a board drawn on a picture (version 2) takes the
+  // width and height the server gave it, and the picture's sha256 tells
+  // which picture it is; any other board is the plain sheet.
+  function sheetOf(data) {
+    const side = (v) => Number.isInteger(v) && v >= 1 && v <= LONG_SIDE;
+    const picture = data && data.background && typeof data.background === 'object' ? data.background : null;
+    if (data && data.version === 2 && picture && typeof picture.sha256 === 'string' && side(data.width) &&
+        side(data.height)) {
+      return { version: 2, width: data.width, height: data.height, picture: picture.sha256 };
+    }
+    return { version: 1, width: WIDTH, height: HEIGHT, picture: null };
   }
 
   // The board taken from data as far as it is one (the server keeps it so).
   function boardOf(data) {
     const shapes = data && Array.isArray(data.shapes) ? data.shapes.filter((s) => s && typeof s === 'object' && s.id) : [];
-    return { version: 1, width: WIDTH, height: HEIGHT, shapes: shapes.map((s) => Object.assign({}, s)) };
+    return Object.assign(sheetOf(data), { shapes: shapes.map((s) => Object.assign({}, s)) });
   }
 
   // ---- where a shape is -----------------------------------------------
@@ -254,7 +275,7 @@
   // through none of obstacles: out of the side facing b and into the side
   // facing a (sideways first, then up or down), else round below them,
   // else round above them; the first when every one goes through one.
-  function route(a, b, obstacles) {
+  function route(a, b, obstacles, height = HEIGHT) {
     const ac = [a[0] + a[2] / 2, a[1] + a[3] / 2];
     const bc = [b[0] + b[2] / 2, b[1] + b[3] / 2];
     const candidates = [];
@@ -268,7 +289,7 @@
     const span = [a, b].concat(obstacles.filter((o) => o[0] <= high && o[0] + o[2] >= low));
     const below = Math.max(...span.map((o) => o[1] + o[3])) + LANE;
     const above = Math.min(...span.map((o) => o[1])) - LANE;
-    if (below <= HEIGHT) candidates.push([[ac[0], a[1] + a[3]], [ac[0], below], [bc[0], below], [bc[0], b[1] + b[3]]]);
+    if (below <= height) candidates.push([[ac[0], a[1] + a[3]], [ac[0], below], [bc[0], below], [bc[0], b[1] + b[3]]]);
     if (above >= 0) candidates.push([[ac[0], a[1]], [ac[0], above], [bc[0], above], [bc[0], b[1]]]);
     const clear = candidates.find((points) => points.slice(1).every((q, i) =>
       obstacles.every((o) => !through(points[i], q, [o[0] + 4, o[1] + 4, o[2] - 8, o[3] - 8]))));
@@ -279,8 +300,8 @@
   // has its ends at their edges, facing each other, or (route 'elbow') goes
   // with right angles between them, round the boxes in its way; its points
   // are in path. Ends whose shape is gone stay where they were kept.
-  // shapes: the board's, by id.
-  function placed(shape, shapes) {
+  // shapes: the board's, by id; height: its sheet's.
+  function placed(shape, shapes, height = HEIGHT) {
     if (!(shape.type === 'line' || shape.type === 'arrow')) return shape;
     const from = shape.from && shapes.get(shape.from);
     const to = shape.to && shapes.get(shape.to);
@@ -290,7 +311,7 @@
       const obstacles = Array.from(shapes.values())
         .filter((s) => s.id !== from.id && s.id !== to.id && s.id !== shape.id && s.type !== 'line' && s.type !== 'arrow')
         .map((s) => asBox(bounds(s)));
-      return ends(route(asBox(bounds(from)), asBox(bounds(to)), obstacles));
+      return ends(route(asBox(bounds(from)), asBox(bounds(to)), obstacles, height));
     }
     if (!from && !to) return ends(shape.route === 'elbow' ? elbow([shape.x1, shape.y1], [shape.x2, shape.y2])
       : [[shape.x1, shape.y1], [shape.x2, shape.y2]]);
@@ -350,8 +371,8 @@
   }
 
   // The SVG element of a shape (its id in data-id), among shapes (by id).
-  function shapeElement(given, shapes) {
-    const shape = placed(given, shapes || new Map());
+  function shapeElement(given, shapes, height = HEIGHT) {
+    const shape = placed(given, shapes || new Map(), height);
     const stroke = color(shape);
     const width = widthOf(shape);
     let el;
@@ -474,18 +495,19 @@
   }
 
   // Paints the board on a canvas context of width × height (white, as it is
-  // shown).
-  function paint(board, context, width, height) {
-    const scale = Math.min(width / WIDTH, height / HEIGHT);
+  // shown), on picture (an image of the sheet's proportions) when given.
+  function paint(board, context, width, height, picture) {
+    const scale = Math.min(width / board.width, height / board.height);
     context.save();
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, width, height);
     context.scale(scale, scale);
+    if (picture) context.drawImage(picture, 0, 0, board.width, board.height);
     context.lineCap = 'round';
     context.lineJoin = 'round';
     const shapes = byId(board.shapes);
     board.shapes.forEach((given) => {
-      const shape = placed(given, shapes);
+      const shape = placed(given, shapes, board.height);
       const stroke = color(shape);
       const lineWidth = widthOf(shape);
       context.strokeStyle = stroke;
@@ -576,14 +598,21 @@
     context.restore();
   }
 
-  // The board as the text of an SVG (white, its shapes as the editor draws
-  // them), for a view that only shows it.
-  function svgText(data) {
+  // The board as the text of an SVG (its shapes as the editor draws them),
+  // for a view that only shows it or a file written out: white, or, for a
+  // board drawn on a picture, on picture (a data: URL of it) when given,
+  // else on gray (the picture not had).
+  function svgText(data, picture) {
     const board = boardOf(data);
-    const root = svg('svg', { viewBox: `0 0 ${WIDTH} ${HEIGHT}`, width: WIDTH, height: HEIGHT });
-    root.appendChild(svg('rect', { x: 0, y: 0, width: WIDTH, height: HEIGHT, fill: '#ffffff' }));
+    const root = svg('svg', { viewBox: `0 0 ${board.width} ${board.height}`, width: board.width, height: board.height });
+    const under = board.version === 2 && !picture ? '#e9edf1' : '#ffffff';
+    root.appendChild(svg('rect', { x: 0, y: 0, width: board.width, height: board.height, fill: under }));
+    if (board.version === 2 && picture) {
+      root.appendChild(svg('image', { href: picture, x: 0, y: 0, width: board.width, height: board.height,
+        preserveAspectRatio: 'none' }));
+    }
     const shapes = byId(board.shapes);
-    board.shapes.map((s) => shapeElement(s, shapes)).filter(Boolean).forEach((el) => root.appendChild(el));
+    board.shapes.map((s) => shapeElement(s, shapes, board.height)).filter(Boolean).forEach((el) => root.appendChild(el));
     return new XMLSerializer().serializeToString(root);
   }
 
@@ -637,8 +666,8 @@
     try { return window.localStorage.getItem(GRID_KEY) === '1'; } catch (_) { return false; }
   }
 
-  function show(box, data, { onChange, name, save } = {}) {
-    let board = data ? boardOf(data) : emptyBoard();
+  function show(box, data, { onChange, name, save, loadPicture } = {}) {
+    let board = boardOf(data);
     const past = [];
     const future = [];
     const state = { zoom: 1, tool: 'pen', color: 'black', stroke: STROKES[1], size: SIZES[1], fill: 'none', grid: gridKept(),
@@ -779,21 +808,110 @@
       group(t('ui.workbench.wb_history', 'Undo and redo'), undo, redo, clear));
 
     const sheet = element('div', 'workbench-whiteboard-sheet');
-    const canvas = svg('svg', { viewBox: `0 0 ${WIDTH} ${HEIGHT}`, class: 'workbench-whiteboard-canvas', role: 'img' });
+    const canvas = svg('svg', { class: 'workbench-whiteboard-canvas', role: 'img' });
     canvas.setAttribute('aria-label', t('ui.workbench.wb_board', 'Whiteboard'));
-    // The grid: its lines over the whole board, each on the very place a
-    // point is drawn to, shown when on.
-    const lines = [];
-    for (let x = GRID; x < WIDTH; x += GRID) lines.push(`M${x} 0V${HEIGHT}`);
-    for (let y = GRID; y < HEIGHT; y += GRID) lines.push(`M0 ${y}H${WIDTH}`);
-    const gridLayer = svg('path', { d: lines.join(''), fill: 'none', stroke: '#d6dce3', 'stroke-width': 1,
+    // The picture under a board drawn on one, below everything.
+    const pictureLayer = svg('g', { class: 'workbench-whiteboard-picture', 'pointer-events': 'none' });
+    const gridLayer = svg('path', { fill: 'none', stroke: '#d6dce3', 'stroke-width': 1,
       'vector-effect': 'non-scaling-stroke', class: 'workbench-whiteboard-gridlines', 'pointer-events': 'none' });
     const layer = svg('g');
     const preview = svg('g', { class: 'workbench-whiteboard-preview' });
     const chrome = svg('g', { class: 'workbench-whiteboard-chrome' });
     canvas.setAttribute('tabindex', '0');
-    canvas.append(gridLayer, layer, preview, chrome);
-    sheet.appendChild(canvas);
+    canvas.append(pictureLayer, gridLayer, layer, preview, chrome);
+    // Says while the picture under the board is being had, or that it
+    // could not be.
+    const pictureNote = element('div', 'workbench-whiteboard-picture-note');
+    pictureNote.setAttribute('role', 'status');
+    pictureNote.hidden = true;
+    sheet.append(canvas, pictureNote);
+
+    // The sheet drawn at the board's size: its view, its grid (lines over
+    // the whole sheet, each on the very place a point is drawn to, shown
+    // when on) and its proportions.
+    function fitSheet() {
+      canvas.setAttribute('viewBox', `0 0 ${board.width} ${board.height}`);
+      const lines = [];
+      for (let x = GRID; x < board.width; x += GRID) lines.push(`M${x} 0V${board.height}`);
+      for (let y = GRID; y < board.height; y += GRID) lines.push(`M0 ${y}H${board.width}`);
+      gridLayer.setAttribute('d', lines.join(''));
+      sheet.style.setProperty('--wb-aspect', `${board.width} / ${board.height}`);
+    }
+    fitSheet();
+
+    // The picture under a board drawn on one: had with loadPicture, decoded
+    // once and turned as the image says, taken only when it has the
+    // sheet's proportions (the server's, from the same picture turned the
+    // same way). Kept at most twice the sheet's size, it is drawn under the
+    // shapes and painted and written out with them; until then, or when it
+    // cannot be had, the board is not painted or written out.
+    const picture = { state: 'none', canvas: null, url: null, type: 'image/png' };
+    let pictureRun = 0;
+
+    function letPictureGo() {
+      if (picture.url && typeof URL !== 'undefined' && URL.revokeObjectURL) URL.revokeObjectURL(picture.url);
+      Object.assign(picture, { canvas: null, url: null });
+      pictureLayer.replaceChildren();
+    }
+
+    function showPictureState() {
+      const text = picture.state === 'loading'
+        ? t('ui.workbench.wb_pictureLoading', 'Getting the picture under the whiteboard…')
+        : picture.state === 'failed'
+          ? t('ui.workbench.wb_pictureMissing', 'The picture under this whiteboard could not be shown.') : '';
+      pictureNote.textContent = text;
+      pictureNote.hidden = !text;
+      sheet.dataset.picture = picture.state;
+    }
+
+    // Whether a picture of w × h pixels has the sheet's proportions.
+    function sameSheet(w, h) {
+      const long = Math.max(w, h);
+      const sw = Math.max(1, Math.round(w * LONG_SIDE / long));
+      const sh = Math.max(1, Math.round(h * LONG_SIDE / long));
+      return Math.abs(sw - board.width) <= 1 && Math.abs(sh - board.height) <= 1;
+    }
+
+    async function takePicture() {
+      pictureRun += 1;
+      const run = pictureRun;
+      const current = () => run === pictureRun && !state.disposed;
+      letPictureGo();
+      picture.state = board.version === 2 ? 'loading' : 'none';
+      showPictureState();
+      if (board.version !== 2) return;
+      try {
+        if (typeof loadPicture !== 'function' || typeof createImageBitmap !== 'function') throw new Error('no picture');
+        const blob = await loadPicture();
+        const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+        try {
+          if (!current()) return;
+          if (!sameSheet(bitmap.width, bitmap.height)) throw new Error('not the sheet\'s proportions');
+          const scale = Math.min(1, (board.width * 2) / bitmap.width);
+          const turned = document.createElement('canvas');
+          turned.width = Math.max(1, Math.round(bitmap.width * scale));
+          turned.height = Math.max(1, Math.round(bitmap.height * scale));
+          turned.getContext('2d').drawImage(bitmap, 0, 0, turned.width, turned.height);
+          // A photograph stays a JPEG; anything else (it may be clear in
+          // parts) a PNG.
+          const type = blob.type === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+          const shown = await new Promise((resolve) => turned.toBlob(resolve, type, 0.92));
+          if (!shown) throw new Error('not drawn');
+          if (!current()) return;
+          Object.assign(picture, { canvas: turned, url: URL.createObjectURL(shown), type: type, state: 'ready' });
+          pictureLayer.replaceChildren(svg('image', { href: picture.url, x: 0, y: 0, width: board.width,
+            height: board.height, preserveAspectRatio: 'none' }));
+        } finally {
+          if (typeof bitmap.close === 'function') bitmap.close();
+        }
+      } catch (_) {
+        if (!current()) return;
+        picture.state = 'failed';
+      }
+      showPictureState();
+    }
+
+    const pictureReady = () => board.version !== 2 || picture.state === 'ready';
 
     // The board shown at level (its size on the board unchanged), the
     // place under around (a pointer's [x, y] on screen; else the middle of
@@ -858,7 +976,7 @@
     const chosen = () => board.shapes.find((s) => s.id === selected) || null;
     // A shape as it is drawn now (a joined line's ends at its shapes), and
     // the same let go of what it joins: moved, it stays where it is put.
-    const drawnAs = (shape) => placed(shape, byId(board.shapes));
+    const drawnAs = (shape) => placed(shape, byId(board.shapes), board.height);
     const loose = (shape) => {
       const out = Object.assign({}, drawnAs(shape));
       delete out.from;
@@ -903,7 +1021,7 @@
 
     function redraw() {
       const shapes = byId(board.shapes);
-      layer.replaceChildren(...board.shapes.map((s) => shapeElement(s, shapes)).filter(Boolean));
+      layer.replaceChildren(...board.shapes.map((s) => shapeElement(s, shapes, board.height)).filter(Boolean));
       drawChrome();
       undo.disabled = past.length === 0;
       redo.disabled = future.length === 0;
@@ -943,7 +1061,8 @@
     function at(e) {
       const rect = canvas.getBoundingClientRect();
       if (!(rect.width > 0 && rect.height > 0)) return [0, 0];
-      return [round((e.clientX - rect.left) * WIDTH / rect.width), round((e.clientY - rect.top) * HEIGHT / rect.height)];
+      return [round((e.clientX - rect.left) * board.width / rect.width),
+        round((e.clientY - rect.top) * board.height / rect.height)];
     }
 
     // A place drawn to the nearest grid line when the grid is shown and it
@@ -951,7 +1070,7 @@
     const near = (v, e) => {
       if (!state.grid || (e && e.altKey)) return v;
       const rect = canvas.getBoundingClientRect();
-      const reach = SNAP_PX * (rect.width > 0 ? WIDTH / rect.width : 1);
+      const reach = SNAP_PX * (rect.width > 0 ? board.width / rect.width : 1);
       const line = Math.round(v / GRID) * GRID;
       return Math.abs(line - v) <= reach ? line : v;
     };
@@ -1096,18 +1215,18 @@
       const b = d.from;
       let to;
       if (d.mode === 'move') {
-        to = { x: within(align(b.x + dx, b.w, e), 0, Math.max(0, WIDTH - b.w)),
-          y: within(align(b.y + dy, b.h, e), 0, Math.max(0, HEIGHT - b.h)), w: b.w, h: b.h };
+        to = { x: within(align(b.x + dx, b.w, e), 0, Math.max(0, board.width - b.w)),
+          y: within(align(b.y + dy, b.h, e), 0, Math.max(0, board.height - b.h)), w: b.w, h: b.h };
       } else {
         const m = d.mode;
         let left = b.x;
         let right = b.x + b.w;
         let top = b.y;
         let bottom = b.y + b.h;
-        if (m.includes('w') && b.w > 0) left = within(near(b.x + dx, e), 0, WIDTH);
-        if (m.includes('e') && b.w > 0) right = within(near(b.x + b.w + dx, e), 0, WIDTH);
-        if (m.includes('n') && b.h > 0) top = within(near(b.y + dy, e), 0, HEIGHT);
-        if (m.includes('s') && b.h > 0) bottom = within(near(b.y + b.h + dy, e), 0, HEIGHT);
+        if (m.includes('w') && b.w > 0) left = within(near(b.x + dx, e), 0, board.width);
+        if (m.includes('e') && b.w > 0) right = within(near(b.x + b.w + dx, e), 0, board.width);
+        if (m.includes('n') && b.h > 0) top = within(near(b.y + dy, e), 0, board.height);
+        if (m.includes('s') && b.h > 0) bottom = within(near(b.y + b.h + dy, e), 0, board.height);
         to = { x: Math.min(left, right), y: Math.min(top, bottom), w: Math.abs(right - left), h: Math.abs(bottom - top) };
         if ((b.w > 0 && to.w < 4) || (b.h > 0 && to.h < 4)) return;
       }
@@ -1136,8 +1255,8 @@
         const by = e.shiftKey ? 10 : 1;
         const base = shape.from || shape.to ? loose(shape) : shape;
         const b = bounds(base);
-        const to = { x: within(b.x + arrows[e.key][0] * by, 0, Math.max(0, WIDTH - b.w)),
-          y: within(b.y + arrows[e.key][1] * by, 0, Math.max(0, HEIGHT - b.h)), w: b.w, h: b.h };
+        const to = { x: within(b.x + arrows[e.key][0] * by, 0, Math.max(0, board.width - b.w)),
+          y: within(b.y + arrows[e.key][1] * by, 0, Math.max(0, board.height - b.h)), w: b.w, h: b.h };
         change(() => {
           const index = board.shapes.findIndex((s) => s.id === shape.id);
           board.shapes[index] = fitted(base, b, to);
@@ -1156,10 +1275,10 @@
       const input = element('textarea', 'form-control workbench-whiteboard-input');
       input.rows = Math.max(1, initial.split('\n').length);
       input.value = initial;
-      input.style.left = `${(point[0] / WIDTH) * rect.width}px`;
-      input.style.top = `${(point[1] / HEIGHT) * rect.height}px`;
+      input.style.left = `${(point[0] / board.width) * rect.width}px`;
+      input.style.top = `${(point[1] / board.height) * rect.height}px`;
       input.style.color = COLORS[colorName] || COLORS.black;
-      input.style.fontSize = `${(size / HEIGHT) * rect.height}px`;
+      input.style.fontSize = `${(size / board.height) * rect.height}px`;
       input.setAttribute('aria-label', t('ui.workbench.wb_text', 'Text'));
       sheet.appendChild(input);
       let done = false;
@@ -1229,41 +1348,70 @@
     // The board written out as a file of kind (svg, png or pdf) to keep or
     // pass on, handed to save with the board's name (the file itself stays
     // the board's shapes).
+    // A board drawn on a picture is written out only with it (the SVG
+    // holds it), never on a blank sheet.
     function exportAs(kind) {
       if (typeof save !== 'function') return;
+      if (!pictureReady()) {
+        if (typeof window.setAlert === 'function') {
+          window.setAlert(t('ui.workbench.wb_pictureMissing', 'The picture under this whiteboard could not be shown.'),
+            'warning');
+        }
+        return;
+      }
       const base = String(name || 'whiteboard').replace(/\.wb\.json$/i, '') || 'whiteboard';
       if (kind === 'svg') {
-        save(new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${svgText(handle.data())}`], { type: 'image/svg+xml' }),
-          `${base}.svg`);
+        const under = picture.canvas ? picture.canvas.toDataURL(picture.type, 0.92) : null;
+        save(new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${svgText(sheetData(), under)}`],
+          { type: 'image/svg+xml' }), `${base}.svg`);
         return;
       }
-      const picture = document.createElement('canvas');
-      picture.width = WIDTH * 2;
-      picture.height = HEIGHT * 2;
-      paint(board, picture.getContext('2d'), picture.width, picture.height);
+      const out = document.createElement('canvas');
+      out.width = board.width * 2;
+      out.height = board.height * 2;
+      paint(board, out.getContext('2d'), out.width, out.height, picture.canvas);
       if (kind === 'png') {
-        picture.toBlob((png) => { if (png) save(png, `${base}.png`); }, 'image/png');
+        out.toBlob((png) => { if (png) save(png, `${base}.png`); }, 'image/png');
         return;
       }
-      picture.toBlob(async (jpeg) => {
+      out.toBlob(async (jpeg) => {
         if (!jpeg) return;
-        save(pdfOf(new Uint8Array(await jpeg.arrayBuffer()), picture.width, picture.height), `${base}.pdf`);
+        save(pdfOf(new Uint8Array(await jpeg.arrayBuffer()), out.width, out.height), `${base}.pdf`);
       }, 'image/jpeg', 0.92);
     }
 
+    // The board with what svgText needs to know of its picture (which one).
+    const sheetData = () => Object.assign(handle.data(),
+      board.version === 2 ? { background: { sha256: board.picture } } : {});
+
     const handle = {
-      data: () => ({ version: 1, width: WIDTH, height: HEIGHT, shapes: board.shapes.map((s) => Object.assign({}, s)) }),
+      // The server keeps the sheet and the picture as they are; the
+      // version says which kind of board this page saves.
+      data: () => ({ version: board.version, width: board.width, height: board.height,
+        shapes: board.shapes.map((s) => Object.assign({}, s)) }),
       load: (next) => {
+        const was = `${board.version}|${board.picture}`;
         board = boardOf(next);
         selected = null;
         past.length = 0;
         future.length = 0;
+        fitSheet();
         redraw();
+        if (`${board.version}|${board.picture}` !== was) takePicture();
       },
-      paint: (context, width, height) => paint(board, context, width, height),
+      size: () => ({ width: board.width, height: board.height }),
+      pictureReady: pictureReady,
+      retryPicture: () => { if (picture.state === 'failed') takePicture(); },
+      paint: (context, width, height) => {
+        if (!pictureReady()) return false;
+        paint(board, context, width, height, picture.canvas);
+        return true;
+      },
       exportAs: exportAs,
       dispose: () => {
         state.disposed = true;
+        pictureRun += 1;
+        letPictureGo();
         pickers.forEach((p) => p.close());
         tips.forEach((tip) => { try { tip.dispose(); } catch (_) { /* gone with the board */ } });
       }
@@ -1271,6 +1419,7 @@
     choose({});
     showZoom();
     redraw();
+    takePicture();
     return handle;
   }
 

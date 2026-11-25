@@ -541,3 +541,148 @@ describe('WorkbenchWhiteboard', () => {
     expect(box.querySelector('.workbench-whiteboard-undo').disabled).toBe(true);
   });
 });
+
+// A board drawn on a picture: the sheet the server gave it, the picture
+// under its shapes once it is had, and nothing painted or written out
+// without it.
+describe('WorkbenchWhiteboard on a picture', () => {
+  const tall = { version: 2, width: 1200, height: 1600, shapes: [],
+    background: { sha256: 'a'.repeat(64), content_type: 'image/png', pixel_width: 300, pixel_height: 400, orientation: 1 } };
+  const flush = async () => { for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0)); };
+  let box;
+  let drawn;
+  let closed;
+
+  beforeEach(() => {
+    drawn = [];
+    closed = 0;
+    jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
+      drawImage: (...args) => drawn.push(args)
+    }));
+    HTMLCanvasElement.prototype.toBlob = function toBlob(done, type) { done(new Blob(['x'], { type: type })); };
+    jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,UElD');
+    global.URL.createObjectURL = jest.fn(() => 'blob:picture');
+    global.URL.revokeObjectURL = jest.fn();
+  });
+
+  afterEach(() => {
+    if (box) box.remove();
+    box = null;
+    jest.restoreAllMocks();
+    delete HTMLCanvasElement.prototype.toBlob;
+    delete global.createImageBitmap;
+  });
+
+  // Decodes a picture of width × height pixels.
+  function decodes(width, height) {
+    global.createImageBitmap = jest.fn(async () => ({ width: width, height: height, close: () => { closed += 1; } }));
+  }
+
+  function show(data, loadPicture) {
+    box = document.createElement('div');
+    document.body.appendChild(box);
+    const board = window.WorkbenchWhiteboard.show(box, data, { loadPicture: loadPicture, name: 'whiteboard-1.wb.json',
+      save: (blob, name) => box.saved.push([blob, name]) });
+    box.saved = [];
+    box.querySelector('svg').getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 800 });
+    return board;
+  }
+
+  const note = () => box.querySelector('.workbench-whiteboard-picture-note');
+
+  test('takes the sheet the server gave it, and saves as a board on a picture', () => {
+    decodes(300, 400);
+    const board = show(tall, () => Promise.resolve(new Blob(['p'], { type: 'image/png' })));
+    expect(box.querySelector('svg').getAttribute('viewBox')).toBe('0 0 1200 1600');
+    expect(box.querySelector('.workbench-whiteboard-sheet').style.getPropertyValue('--wb-aspect')).toBe('1200 / 1600');
+    expect(board.size()).toEqual({ width: 1200, height: 1600 });
+    box.querySelector('[data-tool="rect"]').click();
+    const svgEl = box.querySelector('svg');
+    [['pointerdown', 0, 0], ['pointermove', 300, 400], ['pointerup', 300, 400]].forEach(([type, x, y]) => {
+      svgEl.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true }));
+    });
+    const data = board.data();
+    expect(data).toMatchObject({ version: 2, width: 1200, height: 1600 });
+    expect(data.background).toBeUndefined();
+    expect(data.shapes[0]).toMatchObject({ type: 'rect', x: 0, y: 0, w: 600, h: 800 });
+  });
+
+  test('draws the picture under the shapes once it is had, turned as it says, and paints it with them', async () => {
+    decodes(300, 400);
+    const board = show(tall, () => Promise.resolve(new Blob(['p'], { type: 'image/png' })));
+    expect(board.pictureReady()).toBe(false);
+    expect(note().hidden).toBe(false);
+    await flush();
+    expect(global.createImageBitmap).toHaveBeenCalledWith(expect.anything(), { imageOrientation: 'from-image' });
+    expect(closed).toBe(1);
+    expect(board.pictureReady()).toBe(true);
+    expect(note().hidden).toBe(true);
+    const image = box.querySelector('.workbench-whiteboard-picture image');
+    expect(image.getAttribute('href')).toBe('blob:picture');
+    expect([image.getAttribute('width'), image.getAttribute('height')]).toEqual(['1200', '1600']);
+    const svgEl = box.querySelector('svg');
+    expect(svgEl.firstChild.getAttribute('class')).toBe('workbench-whiteboard-picture');
+    const calls = [];
+    const context = new Proxy({}, {
+      get: (_, name) => (typeof name === 'string' && !['fillStyle', 'strokeStyle', 'lineWidth', 'font', 'textBaseline',
+        'lineCap', 'lineJoin', 'globalAlpha'].includes(name) ? (...args) => calls.push([name, ...args]) : undefined),
+      set: () => true
+    });
+    expect(board.paint(context, 600, 800)).toBe(true);
+    expect(calls).toContainEqual(['scale', 0.5, 0.5]);
+    expect(calls.find((c) => c[0] === 'drawImage').slice(2)).toEqual([0, 0, 1200, 1600]);
+  });
+
+  test('paints and writes out nothing when the picture cannot be had, or has other proportions', async () => {
+    for (const [width, height, load] of [[300, 400, () => Promise.reject(new Error('410'))],
+      [400, 300, () => Promise.resolve(new Blob(['p'], { type: 'image/png' }))]]) {
+      decodes(width, height);
+      const board = show(tall, load);
+      await flush();
+      expect(board.pictureReady()).toBe(false);
+      expect(note().hidden).toBe(false);
+      expect(note().textContent).toContain('could not be shown');
+      expect(board.paint({ save: () => { throw new Error('painted'); } }, 600, 800)).toBe(false);
+      board.exportAs('png');
+      expect(box.saved).toHaveLength(0);
+      box.remove();
+    }
+  });
+
+  test('asks for the picture again after it could not be had', async () => {
+    decodes(300, 400);
+    let tries = 0;
+    const board = show(tall, () => { tries += 1; return tries === 1 ? Promise.reject(new Error('expired'))
+      : Promise.resolve(new Blob(['p'], { type: 'image/png' })); });
+    await flush();
+    expect(board.pictureReady()).toBe(false);
+    board.retryPicture();
+    await flush();
+    expect(board.pictureReady()).toBe(true);
+    expect(tries).toBe(2);
+  });
+
+  test('needs no picture for a plain board', () => {
+    const load = jest.fn();
+    const board = show({ shapes: [] }, load);
+    expect(board.pictureReady()).toBe(true);
+    expect(load).not.toHaveBeenCalled();
+    expect(note().hidden).toBe(true);
+  });
+
+  test('writes the SVG out with the picture in it, and shows one without the picture on gray', async () => {
+    const stand = global.XMLSerializer;
+    global.XMLSerializer = function Serializer() { this.serializeToString = (node) => node.outerHTML; };
+    try {
+      const shown = new DOMParser().parseFromString(window.WorkbenchWhiteboard.svgText(tall), 'image/svg+xml');
+      expect(shown.documentElement.getAttribute('viewBox')).toBe('0 0 1200 1600');
+      expect(shown.querySelector('image')).toBeNull();
+      expect(shown.querySelector('rect').getAttribute('fill')).toBe('#e9edf1');
+      const kept = new DOMParser().parseFromString(window.WorkbenchWhiteboard.svgText(tall, 'data:image/png;base64,UElD'),
+        'image/svg+xml');
+      expect(kept.querySelector('image').getAttribute('href')).toBe('data:image/png;base64,UElD');
+    } finally {
+      global.XMLSerializer = stand;
+    }
+  });
+});

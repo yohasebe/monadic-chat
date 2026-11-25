@@ -20,6 +20,9 @@ module Monadic
       SHA256 = /\A[0-9a-f]{64}\z/
 
       class Refused < StandardError; end
+      # The copy is not there, or is not the picture recorded.
+      class Missing < StandardError; end
+      class Changed < StandardError; end
 
       module_function
 
@@ -90,6 +93,19 @@ module Monadic
         Monadic::Utils::SharedPathGuard.mkdir_p!(assets, strict: true)
         Monadic::Utils::SharedPathGuard.write_file!(File.join(assets, name_of(record)), bytes, mode: 'wb', replace: true,
                                                                                                 strict: true)
+      end
+
+      # The copy record names beside the whiteboard at board_path (relative
+      # to the shared folder), checked to be the picture recorded.
+      def read(board_path, record)
+        root = File.realpath(Monadic::Utils::Environment.data_path)
+        path = File.join(root, File.dirname(board_path.to_s), DIRNAME, name_of(record))
+        bytes = Monadic::Utils::SharedPathGuard.read_bytes!(path, limit: ImageCheck::MAX_BYTES, strict: true)
+        raise Changed, 'not the picture recorded' unless bytes && Digest::SHA256.hexdigest(bytes) == record['sha256']
+
+        bytes
+      rescue Errno::ENOENT, Errno::ENOTDIR, Monadic::Utils::SharedPathGuard::InvalidPath
+        raise Missing, 'the picture is no longer there'
       end
 
       def name_of(record) = "#{record['sha256']}.#{EXTENSIONS.fetch(record['content_type'])}"

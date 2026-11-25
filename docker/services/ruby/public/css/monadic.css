@@ -6667,12 +6667,26 @@ body.side-pane-resizing {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: var(--wb-aspect, 16 / 10);
 }
 /* Zoomed in, the board keeps its place and its picture scrolls in it. */
 .workbench-whiteboard-sheet[data-zoomed="true"] {
-  aspect-ratio: 16 / 10;
+  aspect-ratio: var(--wb-aspect, 16 / 10);
   overflow: auto;
+}
+/* Over a board drawn on a picture: while the picture is had, or that it
+   could not be. */
+.workbench-whiteboard-picture-note {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 6px 10px;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  pointer-events: none;
 }
 /* Under a whiteboard: its export buttons beside the save button, on one
    panel with their label. */

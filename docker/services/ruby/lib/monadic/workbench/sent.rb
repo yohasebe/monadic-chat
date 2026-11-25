@@ -22,8 +22,10 @@ module Monadic
       DIRNAME = 'sent'
       EXTENSIONS = { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif' }.freeze
       NAME = /\A(\h{64})\.(png|jpg|webp|gif)\z/
-      # What a chat keeps, at most (its export holds it all).
+      # What a chat keeps, at most (its export holds it all), and from how
+      # much on the user is told it is nearing that (once, as it passes).
       LIMIT_BYTES = 150 * 1024 * 1024
+      WARN_BYTES = LIMIT_BYTES * 3 / 4
 
       # The image is not kept: the chat keeps too much (Full: what holds it
       # should not go), or it has no folder that can take it (Unavailable).
@@ -46,6 +48,9 @@ module Monadic
       PENDING_LOCK = Mutex.new
       # One keeping or release of a chat's images at a time.
       LOCK = Mutex.new
+      # The chats whose images just passed WARN_BYTES (what they keep), not
+      # yet told.
+      CROSSED = {}
 
       module_function
 
@@ -62,15 +67,37 @@ module Monadic
           unless held?(path, sha256)
             # Something else at its name (the user changed the file) stays.
             raise Unavailable, 'another file is at its name' if File.exist?(path) || File.symlink?(path)
-            raise Full, 'the images this chat sent are too large to keep' if total(dir) + bytes.bytesize > LIMIT_BYTES
+            before = total(dir)
+            raise Full, 'the images this chat sent are too large to keep' if before + bytes.bytesize > LIMIT_BYTES
 
             Monadic::Utils::SharedPathGuard.write_file!(path, bytes, mode: 'wb', replace: false, strict: true)
+            after = before + bytes.bytesize
+            CROSSED[chat_id.to_s] = after if before < WARN_BYTES && after >= WARN_BYTES
           end
         end
         PENDING_LOCK.synchronize { PENDING[chat_id.to_s][sha256] += 1 }
         sha256
       rescue Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError
         raise Unavailable, 'the image could not be kept'
+      end
+
+      # What the chat keeps, once it has passed WARN_BYTES, to be told once
+      # (nil when there is nothing to tell).
+      def take_crossing(chat_id)
+        LOCK.synchronize { CROSSED.delete(chat_id.to_s) }
+      end
+
+      # How much the images the messages name take as kept, and whether an
+      # export of them is near what it may hold (three quarters of it).
+      def estimate(chat_id, messages)
+        dir = chat_id && dir_for(chat_id)
+        bytes = dir ? named_by(messages).sum { |sha256| size_of(dir, sha256) } : 0
+        { bytes: bytes, near: bytes * 4 / 3 >= EXPORT_LIMIT * 3 / 4 }
+      end
+
+      def size_of(dir, sha256)
+        name = Dir.children(dir).find { |n| n.match(NAME)&.[](1) == sha256 }
+        name ? File.size(File.join(dir, name)) : 0
       end
 
       # Full when the chat could not keep bytes more (checked before what

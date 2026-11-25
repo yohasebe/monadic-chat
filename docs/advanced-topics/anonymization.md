@@ -56,7 +56,7 @@ The **Export** button opens a dialog with two independent choices:
 
 For a chat that hides words the dialog starts with **Masked**. Choosing **Restored** without encryption shows a warning, and the file name ends in `-PRIVATE`.
 
-The file also holds the images of the work screen the chat sent to the AI (the images it looked at, the pictures sent with messages, and the images sent for an image edit), as they were sent, in either kind of file: **Masked** replaces words in the text only, not in images. An image that was removed or changed in the chat's folder (`sent/`) is left out, and the dialog says how many. When the images are too large to save, the dialog says so and no file is written. Importing the file puts its images in the new chat's folder.
+The file also holds the images of the work screen the chat sent to the AI (the images it looked at, the pictures sent with messages, and the images sent for an image edit), as they were sent, in either kind of file: **Masked** replaces words in the text only, not in images. An image that was removed or changed in the chat's folder (`sent/`) is left out, and the dialog says how many. The dialog says how much the images take in the file, and warns when that nears what a file may hold; a chat also warns once when the images it sent pass that mark. When the images are too large to save, the dialog says so and no file is written. Importing the file puts its images in the new chat's folder.
 
 To open an export, use **Import** (and the passphrase for an encrypted file). If the import reports hidden words, open **Anonymize** and check the list.
 

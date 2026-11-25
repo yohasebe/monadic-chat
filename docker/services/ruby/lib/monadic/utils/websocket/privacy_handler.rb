@@ -186,6 +186,15 @@ module WebSocketHelper
     })
   end
 
+  # How much the images an export of this chat would hold take, for the
+  # dialog to say (and whether that nears what a file may hold).
+  private def handle_ws_privacy_export_estimate(connection, session)
+    estimate = Monadic::Workbench::Sent.estimate(session[Monadic::Workspace::Chats::SESSION_KEY],
+                                                 privacy_clean_messages(session[:messages] || []))
+    send_to_client(connection, { "type" => "privacy_export_estimate", "image_bytes" => estimate[:bytes],
+                                 "near" => estimate[:near] })
+  end
+
   # The page's id for the export it asked for, given back with the answer
   # so the page takes only the answer to the request it is waiting for.
   private def export_request_id(obj)

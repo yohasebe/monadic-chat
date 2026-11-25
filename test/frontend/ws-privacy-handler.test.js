@@ -189,6 +189,16 @@ describe('WsPrivacyHandler — the export request and its answer', () => {
     expect(button().disabled).toBe(false);
   });
 
+  it('says how much the images sent take in the file, warning when it is near the limit', () => {
+    window.WsPrivacyHandler.handleExportEstimate({ image_bytes: 5 * 1024 * 1024, near: false });
+    expect(status()).toContain('5 MB');
+    window.WsPrivacyHandler.handleExportEstimate({ image_bytes: 120 * 1024 * 1024, near: true });
+    expect(status()).toContain('120 MB');
+    expect(status()).toContain('close to');
+    window.WsPrivacyHandler.handleExportEstimate({ image_bytes: 0, near: false });
+    expect(status()).toContain('120 MB');
+  });
+
   it('ignores an answer that arrives after the dialog was opened again', () => {
     button().click();
     const id = sent[0].request_id;

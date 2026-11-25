@@ -203,6 +203,10 @@ function _handleAssistantRole(data, html, moreComing) {
   if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(data["content"]["workbench_shown"])) {
     window.Workbench.drawShown(data["content"]["mid"], data["content"]["workbench_shown"]);
   }
+  // The images of the work screen its image edits sent.
+  if (window.Workbench && typeof window.Workbench.drawEdits === 'function' && Array.isArray(data["content"]["workbench_edit_inputs"])) {
+    window.Workbench.drawEdits(data["content"]["mid"], data["content"]["workbench_edit_inputs"]);
+  }
 
   if (moreComing) {
     // Keep input disabled and streaming state active

@@ -1704,6 +1704,36 @@ describe('Workbench', () => {
       window.Workbench.drawPicture('m-u', null);
       expect(el.querySelector('.workbench-picture-note')).toBeNull();
     });
+
+    test('offers the image a look sent, and the images an edit sent, which ask for them and show them', () => {
+      const el = card('m-r');
+      const sha = 'a'.repeat(64);
+      window.Workbench.drawLooks('m-r', [
+        { id: 'look_' + 'a'.repeat(16), name: 'cat.png', kind: 'image', state: 'sent', image_sha256: sha },
+        { id: 'look_' + 'b'.repeat(16), name: 'notes.txt', kind: 'text', state: 'sent' },
+        { id: 'look_' + 'c'.repeat(16), name: 'dog.png', kind: 'image', state: 'unsent', image_sha256: 'c'.repeat(64) }
+      ]);
+      const buttons = [...el.querySelectorAll('.workbench-look-note .workbench-sent-open')];
+      expect(buttons.map((b) => b.dataset.sha256)).toEqual([sha]);
+      buttons[0].click();
+      expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_SENT_IMAGE', mid: 'm-r', sha256: sha });
+      window.Workbench.drawEdits('m-r', [
+        { call: 'e_' + 'd'.repeat(16), role: 'original', sha256: 'd'.repeat(64), content_type: 'image/png', state: 'sent' },
+        { call: 'e_' + 'd'.repeat(16), role: 'reference', sha256: 'e'.repeat(64), content_type: 'image/png', state: 'sent' }
+      ]);
+      const edits = [...el.querySelectorAll('.workbench-edit-note .workbench-sent-open')];
+      expect(edits.map((b) => b.textContent)).toEqual(['the image', 'the drawing on it']);
+      edits[1].click();
+      expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_SENT_IMAGE', mid: 'm-r', sha256: 'e'.repeat(64) });
+      layout.pane = 'work';
+      window.Workbench.onSentImage({ mid: 'm-r', sha256: sha, found: true, data: 'data:image/png;base64,U0VOVA==' });
+      expect(document.querySelector('#workbench-view img').getAttribute('src')).toBe('data:image/png;base64,U0VOVA==');
+      window.setAlert.mockClear();
+      window.Workbench.onSentImage({ mid: 'm-r', sha256: sha, found: false });
+      expect(window.setAlert).toHaveBeenCalled();
+      window.Workbench.drawEdits('m-r', []);
+      expect(el.querySelector('.workbench-edit-note')).toBeNull();
+    });
   });
 
   describe('a file put from the computer', () => {

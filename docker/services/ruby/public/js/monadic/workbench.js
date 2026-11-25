@@ -94,6 +94,9 @@
   // whether getting it failed (then a view with a new address draws it
   // again).
   let drawnBody = null;
+  // What is drawn of the other items of the row, shown under and above the
+  // one chosen, by item id (each as drawnBody is).
+  const others = new Map();
   // The number of this tab's latest selection told to the server: an
   // answer to an older one is not taken.
   let selectSeq = 0;
@@ -343,7 +346,7 @@
     return !!item && item.kind === 'browser' && item.status === 'open';
   }
 
-  // The pane's two parts: what the item holds (left in place while it is
+  // An item's two parts: what it holds (left in place while it is
   // the same, so media stay connected) and what is said about it.
   function viewParts(view) {
     let held = view.querySelector(':scope > .workbench-body');
@@ -406,7 +409,157 @@
       return;
     }
     view.dataset.item = item.id;
-    const { held, info } = viewParts(view);
+    drawSections(view, item);
+  }
+
+  // Every item of the row, in the order it came, one under another: the
+  // one chosen (the tab's focus) with its buttons and its pointer, the
+  // others as they are, drawn once they come near the view.
+  function drawSections(view, focus) {
+    const row = rowItems();
+    const onRow = (id) => row.some((i) => i.id === id);
+    const kept = new Map();
+    Array.from(view.children).forEach((node) => {
+      if (node.classList.contains('workbench-section') && onRow(node.dataset.item)) kept.set(node.dataset.item, node);
+      else node.remove();
+    });
+    others.forEach((drawn, id) => {
+      if (onRow(id)) return;
+      letGo(drawn);
+      others.delete(id);
+    });
+    const nodes = row.map((item) => kept.get(item.id) || section(item));
+    nodes.forEach((node, index) => {
+      if (view.children[index] !== node) view.insertBefore(node, view.children[index] || null);
+    });
+    // The one chosen first: what was drawn for the one before is kept for
+    // it among the others.
+    drawFocus(focus, nodes[row.findIndex((i) => i.id === focus.id)]);
+    row.forEach((item, index) => { if (item.id !== focus.id) drawOther(item, nodes[index]); });
+  }
+
+  // An item's part of the view: its name (choosing it), what it holds,
+  // and what is said about it.
+  function section(item) {
+    const node = element('section', 'workbench-section');
+    node.dataset.item = item.id;
+    const head = element('button', 'workbench-section-head');
+    head.type = 'button';
+    head.addEventListener('click', () => choose(node));
+    node.append(head, element('div', 'workbench-body'), element('div', 'workbench-info'));
+    // Touching another item, or moving to it with the keyboard, makes it
+    // the one chosen (where the pointer and the buttons are).
+    node.addEventListener('pointerdown', () => choose(node), true);
+    node.addEventListener('focusin', () => choose(node));
+    nearby(node);
+    return node;
+  }
+
+  function choose(node) {
+    const id = node.dataset.item;
+    if (id !== selected && itemById(id)) select(id, false);
+  }
+
+  function headOf(node, item, focused) {
+    const head = node.querySelector(':scope > .workbench-section-head');
+    if (!head) return;
+    head.textContent = label(item);
+    if (focused) head.setAttribute('aria-current', 'true');
+    else head.removeAttribute('aria-current');
+  }
+
+  // The others are drawn once near the view (an image, a PDF, a text read
+  // only when it may be seen).
+  let nearObserver = null;
+  function nearby(node) {
+    if (typeof IntersectionObserver !== 'function') return;
+    if (!nearObserver) {
+      nearObserver = new IntersectionObserver((entries) => {
+        let came = false;
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.dataset.near = 'true';
+          nearObserver.unobserve(entry.target);
+          came = true;
+        });
+        if (came) drawView();
+      }, { root: column(), rootMargin: '400px 0px' });
+    }
+    nearObserver.observe(node);
+  }
+
+  function drawOther(item, node) {
+    node.classList.remove('is-focus');
+    headOf(node, item, false);
+    const { held, info } = viewParts(node);
+    info.replaceChildren();
+    show(held, otherBody(item, node));
+  }
+
+  function otherBody(item, node) {
+    if (item.kind === 'browser') {
+      return element('div', 'alert alert-secondary small mb-2', item.status === 'open'
+        ? t('ui.workbench.browserChoose', 'Choose it to show the browser.')
+        : t('ui.workbench.browserClosed', 'This browser was closed.'));
+    }
+    if (item.status !== 'ok') return element('div', 'alert alert-warning small mb-2', statusText(item.status, item));
+    if (item.preview === 'file') return heldFileBody(item);
+    // One whiteboard is shown at a time: the one chosen.
+    if (isWhiteboard(item)) {
+      return element('div', 'alert alert-secondary small mb-2',
+        t('ui.workbench.wbChoose', 'Choose it to show the whiteboard. One whiteboard is shown at a time.'));
+    }
+    if (!assets[item.id]) return null;
+    if (node.dataset.near !== 'true' && !others.has(item.id)) return element('div', 'workbench-later');
+    return otherFor(item).node;
+  }
+
+  // What is drawn for another item, kept as drawnFor keeps the chosen one's.
+  function otherFor(item) {
+    const key = drawKey(item);
+    const url = assets[item.id];
+    const had = others.get(item.id);
+    const same = had && had.key === key;
+    if (same && !(had.failed && had.url !== url)) return had;
+    const drawn = { key: key, url: url, failed: false, node: null, retried: !!(same && had.retried), itemId: item.id };
+    drawn.node = body(item, drawn, 0);
+    letGo(had);
+    others.set(item.id, drawn);
+    return drawn;
+  }
+
+  // What was drawn for the one chosen before goes among the others (its
+  // mark taken away: one mark at a time), a whiteboard let go (one is shown
+  // at a time).
+  function park(drawn) {
+    if (!drawn) return;
+    if (drawn.whiteboard || !drawn.itemId || !itemById(drawn.itemId)) {
+      letGo(drawn);
+      return;
+    }
+    if (drawn.image && typeof drawn.image.clear === 'function') drawn.image.clear();
+    if (drawn.pdf && typeof drawn.pdf.clearPointer === 'function') drawn.pdf.clearPointer();
+    if (others.get(drawn.itemId) !== drawn) letGo(others.get(drawn.itemId));
+    others.set(drawn.itemId, drawn);
+  }
+
+  // The chosen item shows no drawing (a file only held, a file changed or
+  // gone): its own is let go, another's kept.
+  function dropFocusBody(item) {
+    if (drawnBody && drawnBody.itemId === item.id) letGo(drawnBody);
+    else park(drawnBody);
+    drawnBody = null;
+  }
+
+  function letGoOthers() {
+    others.forEach((drawn) => letGo(drawn));
+    others.clear();
+  }
+
+  function drawFocus(item, node) {
+    const { held, info } = viewParts(node);
+    node.classList.add('is-focus');
+    headOf(node, item, true);
     info.replaceChildren();
     if (item.kind === 'browser') {
       show(held, element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
@@ -414,14 +567,12 @@
     }
     if (item.status === 'ok' && item.preview === 'file') {
       // A file the work screen only holds: what it is, not what it shows.
-      letGo(drawnBody);
-      drawnBody = null;
+      dropFocusBody(item);
       show(held, heldFileBody(item));
     } else if (item.status === 'ok' && assets[item.id]) {
       show(held, drawnFor(item).node);
     } else if (item.status !== 'ok') {
-      letGo(drawnBody);
-      drawnBody = null;
+      dropFocusBody(item);
       show(held, element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
     } else {
       show(held, null);
@@ -525,6 +676,14 @@
   // address that expired, a busy server, a reconnect). Media go on from
   // where they were.
   function drawnFor(item) {
+    if (drawnBody && drawnBody.itemId !== item.id) {
+      park(drawnBody);
+      drawnBody = null;
+    }
+    if (!drawnBody && others.has(item.id)) {
+      drawnBody = others.get(item.id);
+      others.delete(item.id);
+    }
     const key = drawKey(item);
     const url = assets[item.id];
     const same = drawnBody && drawnBody.key === key;
@@ -532,7 +691,7 @@
     if (same && !(drawnBody.failed && drawnBody.url !== url)) return drawnBody;
     const resumeAt = same && drawnBody.node && typeof drawnBody.node.currentTime === 'number' ? drawnBody.node.currentTime : 0;
     // A medium that failed again with a fresh address is not asked for again.
-    const drawn = { key: key, url: url, failed: false, node: null, retried: !!(same && drawnBody.retried) };
+    const drawn = { key: key, url: url, failed: false, node: null, retried: !!(same && drawnBody.retried), itemId: item.id };
     drawn.node = body(item, drawn, resumeAt);
     letGo(drawnBody);
     drawnBody = drawn;
@@ -905,6 +1064,7 @@
       img: img,
       pointer: () => pointing.pointer(),
       pointerSeq: () => pointing.pointerSeq(),
+      clear: () => pointing.clear(),
       dispose: () => pointing.dispose()
     };
     return box;
@@ -1343,12 +1503,29 @@
     if (window.WorkScreen && typeof window.WorkScreen.refresh === 'function') window.WorkScreen.refresh();
   }
 
-  function select(id) {
+  // into: brings the item's part to the top of the view (not when the
+  // user chose it where it is).
+  function select(id, into) {
     if (id) clearLocal();
     selected = id && itemById(id) ? id : null;
     tellSelected();
     draw();
     refreshRelay();
+    if (selected && into !== false) bringIntoView(selected);
+  }
+
+  // The item's part at the top of what the column shows, under the work
+  // screen's head.
+  function bringIntoView(id) {
+    const view = $id('workbench-view');
+    const node = view && !view.hidden
+      ? Array.from(view.children).find((n) => n.classList.contains('workbench-section') && n.dataset.item === id) : null;
+    const scroller = column();
+    if (!node || !scroller || typeof scroller.scrollBy !== 'function') return;
+    const head = document.querySelector('#work-screen-pane .workbench-head');
+    const under = head ? head.getBoundingClientRect().bottom : scroller.getBoundingClientRect().top;
+    const by = node.getBoundingClientRect().top - under - 8;
+    if (Math.abs(by) > 1) scroller.scrollBy({ top: by, behavior: 'smooth' });
   }
 
   // The server keeps what this tab shows (it keeps that item on the board).
@@ -1405,6 +1582,7 @@
     clearLocal();
     selected = item.id;
     showWorkPane();
+    setTimeout(() => bringIntoView(item.id), 0);
   }
 
   // Whether the work screen is the pane shown (with no side column to
@@ -1458,6 +1636,7 @@
     pendingSection = null;
     letGo(drawnBody);
     drawnBody = null;
+    letGoOthers();
     seen.clear();
     firsts.clear();
     removed.clear();
@@ -2457,6 +2636,7 @@
     dropLocalPdf();
     letGo(drawnBody);
     drawnBody = null;
+    letGoOthers();
     view.dataset.local = key;
     const body = element('div', 'workbench-body');
     const info = element('div', 'workbench-info');

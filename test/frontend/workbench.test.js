@@ -2033,6 +2033,108 @@ describe('Workbench', () => {
     });
   });
 
+  describe('the items one under another', () => {
+    let observed;
+    beforeEach(() => {
+      observed = [];
+      // Each item's part comes near the view when the test says so.
+      global.IntersectionObserver = class {
+        constructor(callback) { this.callback = callback; observed.push(this); this.nodes = []; }
+        observe(node) { this.nodes.push(node); }
+        unobserve(node) { this.nodes = this.nodes.filter((n) => n !== node); }
+        near(node) { this.callback([{ target: node, isIntersecting: true }]); }
+      };
+      jest.resetModules();
+      require(js('monadic/workbench.js'));
+    });
+    afterEach(() => { delete global.IntersectionObserver; });
+
+    const parts = () => Array.from(document.querySelectorAll('#workbench-view > .workbench-section'));
+    const partOf = (id) => parts().find((n) => n.dataset.item === id);
+
+    test('shows every item in order, draws another once near, and moves the buttons to the one chosen without drawing again', () => {
+      const a = item({ id: 'i_a', artifact_id: 'r_a', name: 'a.png' });
+      const b = item({ id: 'i_b', artifact_id: 'r_b', name: 'b.png', sha256: 'b'.repeat(64) });
+      view([a, b], { selected: 'i_b' });
+      expect(parts().map((n) => n.dataset.item)).toEqual(['i_a', 'i_b']);
+      expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
+      expect(partOf('i_b').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('true');
+      expect(partOf('i_b').querySelector('.workbench-info .btn-primary')).not.toBeNull();
+      // Not drawn until it comes near the view.
+      expect(partOf('i_a').querySelector('img')).toBeNull();
+      expect(partOf('i_a').querySelector('.workbench-later')).not.toBeNull();
+      observed[0].near(partOf('i_a'));
+      const imgA = partOf('i_a').querySelector('img');
+      const imgB = partOf('i_b').querySelector('img');
+      expect(imgA.getAttribute('src')).toBe('/workbench/asset/i_a');
+      expect(partOf('i_a').querySelector('.workbench-info').children.length).toBe(0);
+      sent.length = 0;
+      partOf('i_a').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_a' }]);
+      expect(partOf('i_a').classList.contains('is-focus')).toBe(true);
+      expect(partOf('i_b').classList.contains('is-focus')).toBe(false);
+      expect(partOf('i_a').querySelector('.workbench-info .btn-primary')).not.toBeNull();
+      // Both stay as they were drawn.
+      expect(partOf('i_a').querySelector('img')).toBe(imgA);
+      expect(partOf('i_b').querySelector('img')).toBe(imgB);
+    });
+
+    test('keeps one mark: choosing another item takes the mark on the one before away', () => {
+      jest.isolateModules(() => { require(js('monadic/workbench-pointer.js')); });
+      jest.resetModules();
+      require(js('monadic/workbench.js'));
+      const a = item({ id: 'i_a', artifact_id: 'r_a', name: 'a.png' });
+      const b = item({ id: 'i_b', artifact_id: 'r_b', name: 'b.png', sha256: 'b'.repeat(64) });
+      view([a, b], { selected: 'i_a' });
+      const layer = partOf('i_a').querySelector('.workbench-pointer-layer');
+      layer.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100 });
+      layer.setPointerCapture = () => {};
+      partOf('i_a').querySelector('.workbench-pointer-point').click();
+      [['pointerdown', 10, 10], ['pointermove', 80, 60], ['pointerup', 80, 60]].forEach(([type, x, y]) => {
+        layer.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true }));
+      });
+      const mark = partOf('i_a').querySelector('.workbench-pointer');
+      expect(mark.hidden).toBe(false);
+      partOf('i_b').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
+      expect(mark.hidden).toBe(true);
+      delete window.WorkbenchPointer;
+    });
+
+    test('shows one whiteboard at a time, and lets go of what was drawn for an item taken off', () => {
+      const pic = item({ id: 'i_p', artifact_id: 'r_p', name: 'p.png' });
+      const board = item({ id: 'i_w', kind: 'file', artifact_id: undefined, preview: 'text', name: 'b.whiteboard.json',
+        path: 'c/whiteboards/b.whiteboard.json', sha256: 'c'.repeat(64), render: 'whiteboard' });
+      view([board, pic], { selected: 'i_p' });
+      expect(partOf('i_w').textContent).toContain('One whiteboard is shown at a time');
+      observed[0].near(partOf('i_w'));
+      expect(partOf('i_w').querySelector('canvas, .workbench-whiteboard')).toBeNull();
+      view([pic], { selected: 'i_p' });
+      expect(parts().map((n) => n.dataset.item)).toEqual(['i_p']);
+    });
+
+    test('lets go of a PDF drawn among the others once it is taken off', async () => {
+      const dispose = jest.fn();
+      window.WorkbenchPdf = { show: jest.fn(() => ({ dispose, setPointable: () => {}, clearPointer: () => {} })) };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4),
+        headers: { get: () => null } }));
+      try {
+        const pic = item({ id: 'i_p', artifact_id: 'r_p', name: 'p.png' });
+        const pdf = item({ id: 'i_d', kind: 'file', artifact_id: undefined, preview: 'pdf', name: 'd.pdf', path: 'c/d.pdf',
+          sha256: 'd'.repeat(64) });
+        view([pdf, pic], { selected: 'i_p' });
+        observed[0].near(partOf('i_d'));
+        for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+        expect(window.WorkbenchPdf.show).toHaveBeenCalledTimes(1);
+        view([pic], { selected: 'i_p' });
+        expect(dispose).toHaveBeenCalledTimes(1);
+      } finally {
+        delete window.WorkbenchPdf;
+        delete global.fetch;
+      }
+    });
+  });
+
   describe('to the top and the end of the work screen', () => {
     test('shows the two while the column is longer than it shows, each kept from where it would not move', () => {
       document.body.insertAdjacentHTML('beforeend', `<div id="menu"><div id="work-screen-pane"><div class="workbench-put">

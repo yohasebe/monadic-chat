@@ -1294,6 +1294,47 @@
     drawList();
     drawView();
     drawNotes();
+    placeJump();
+  }
+
+  // ---- to the top and the end ----------------------------------------
+
+  // The side column, which scrolls the work screen.
+  function column() {
+    return $id('menu');
+  }
+
+  // The two buttons, while the work screen is longer than the column:
+  // each kept from where it would not move.
+  const AT_END = 4;
+  function placeJump() {
+    const group = document.querySelector('#work-screen-pane .workbench-jump');
+    const scroller = column();
+    if (!group || !scroller) return;
+    const room = scroller.scrollHeight - scroller.clientHeight;
+    group.hidden = !(room > AT_END);
+    if (group.hidden) return;
+    const top = $id('workbench-top');
+    const bottom = $id('workbench-bottom');
+    if (top) top.disabled = scroller.scrollTop <= AT_END;
+    if (bottom) bottom.disabled = room - scroller.scrollTop <= AT_END;
+  }
+
+  function jump(toEnd) {
+    const scroller = column();
+    if (!scroller) return;
+    scroller.scrollTo({ top: toEnd ? scroller.scrollHeight : 0, behavior: 'smooth' });
+  }
+
+  function wireJump() {
+    $on($id('workbench-top'), 'click', () => jump(false));
+    $on($id('workbench-bottom'), 'click', () => jump(true));
+    $on(column(), 'scroll', placeJump, { passive: true });
+    window.addEventListener('resize', placeJump);
+    // What is drawn grows after it is placed (an image, a PDF's pages).
+    const pane = $id('work-screen-pane');
+    if (pane && typeof ResizeObserver === 'function') new ResizeObserver(placeJump).observe(pane);
+    placeJump();
   }
 
   // ---- selection -----------------------------------------------------
@@ -2593,8 +2634,13 @@
     window.addEventListener('dragover', (e) => { if (carriesFiles(e)) e.preventDefault(); });
     window.addEventListener('drop', (e) => { if (carriesFiles(e)) e.preventDefault(); });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wirePut);
-  else wirePut();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wirePut);
+    document.addEventListener('DOMContentLoaded', wireJump);
+  } else {
+    wirePut();
+    wireJump();
+  }
 
   // ---- JupyterLab ------------------------------------------------------
 

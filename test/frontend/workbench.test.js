@@ -2033,6 +2033,39 @@ describe('Workbench', () => {
     });
   });
 
+  describe('to the top and the end of the work screen', () => {
+    test('shows the two while the column is longer than it shows, each kept from where it would not move', () => {
+      document.body.insertAdjacentHTML('beforeend', `<div id="menu"><div id="work-screen-pane"><div class="workbench-put">
+        <span class="workbench-jump" hidden><button id="workbench-top"></button><button id="workbench-bottom"></button></span>
+        </div></div></div>`);
+      const column = document.getElementById('menu');
+      const size = { scrollHeight: 300, clientHeight: 300 };
+      Object.defineProperty(column, 'scrollHeight', { get: () => size.scrollHeight });
+      Object.defineProperty(column, 'clientHeight', { get: () => size.clientHeight });
+      column.scrollTo = jest.fn(({ top }) => { column.scrollTop = top; column.dispatchEvent(new Event('scroll')); });
+      jest.resetModules();
+      require(js('monadic/workbench.js'));
+      const group = document.querySelector('#menu .workbench-jump');
+      const top = document.getElementById('workbench-top');
+      const bottom = document.getElementById('workbench-bottom');
+      expect(group.hidden).toBe(true);
+      size.scrollHeight = 1000;
+      window.dispatchEvent(new Event('resize'));
+      expect(group.hidden).toBe(false);
+      expect(top.disabled).toBe(true);
+      expect(bottom.disabled).toBe(false);
+      bottom.click();
+      expect(column.scrollTo).toHaveBeenLastCalledWith({ top: 1000, behavior: 'smooth' });
+      column.scrollTop = 700;
+      column.dispatchEvent(new Event('scroll'));
+      expect(top.disabled).toBe(false);
+      expect(bottom.disabled).toBe(true);
+      top.click();
+      expect(column.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'smooth' });
+      expect(top.disabled).toBe(true);
+    });
+  });
+
   describe('the text of a document for the message', () => {
     test('offers it under a document, asks for this version, and puts the answer after the message', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));

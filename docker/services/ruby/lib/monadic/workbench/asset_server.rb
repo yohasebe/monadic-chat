@@ -109,6 +109,8 @@ module Monadic
         plain(410, 'Gone')
       rescue FileItem::Busy
         plain(503, 'Busy')
+      rescue FileItem::TooLarge
+        plain(413, 'Too large')
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         # The same version cannot be shown as text: not a change of the file.
         plain(415, 'Not text')

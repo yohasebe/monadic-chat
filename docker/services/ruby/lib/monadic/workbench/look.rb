@@ -271,6 +271,9 @@ module Monadic
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
           content = lines ? visible_text(bytes, **lines) : whole_text(bytes)
           seen(item, 'text', file['name'], file['path'], file['sha256'], **content)
+        when 'file'
+          raise Refused.new('unsupported_kind', "this file is kept on the work screen but cannot be looked at " \
+                                                "(#{file['content_type']})")
         else
           raise Refused.new('unsupported_kind', "a #{file['preview']} file cannot be looked at yet")
         end

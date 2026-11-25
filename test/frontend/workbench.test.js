@@ -2010,6 +2010,29 @@ describe('Workbench', () => {
     });
   });
 
+  describe('a file the work screen only holds', () => {
+    test('shows its name, type and size, asks for nothing to show, and offers saving only when small enough', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      try {
+        const doc = item({ id: 'i_d', kind: 'file', artifact_id: undefined, preview: 'file', name: 'report.docx',
+          path: 'c/inputs/report.docx', size: 2 * 1024 * 1024, sha256: 'd'.repeat(64),
+          content_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        view([doc], { selected: 'i_d' });
+        const card = document.querySelector('#workbench-view .workbench-held-file');
+        expect(card.textContent).toContain('report.docx');
+        expect(card.textContent).toContain('2.0 MB');
+        expect(card.querySelector('.fa-file-word')).not.toBeNull();
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(document.querySelector('#workbench-view .workbench-actions .btn-primary')).not.toBeNull();
+        const big = Object.assign({}, doc, { size: 100 * 1024 * 1024 });
+        view([big], { selected: 'i_d' });
+        expect(document.querySelector('#workbench-view .workbench-actions .btn-primary')).toBeNull();
+      } finally {
+        delete global.fetch;
+      }
+    });
+  });
+
   describe('drawing on an image', () => {
     test('offers to draw on an image made or opened, as the version shown, and on nothing else', () => {
       view([item(), item({ id: 'i_2', kind: 'file', artifact_id: undefined, preview: 'image', path: 'photos/a.png', sha256: 'b'.repeat(64) }),

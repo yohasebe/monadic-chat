@@ -234,9 +234,12 @@ module Monadic
       # version, as read now, is refused ('changed') and not added.
       # event: what the change was, for an item already there (a
       # whiteboard's edit: its counts); a new item is told as placed.
-      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil, event: nil)
+      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil, event: nil, attachment_id: nil)
         entry = FileItem.entry_for(path, wait: wait)
         raise Refused, 'changed' if sha256 && entry['sha256'] != sha256
+
+        # The upload it came from (the ledger's), for the tools that use it.
+        entry['attachment_id'] = attachment_id if attachment_id
 
         change do |data|
           check_epoch!(epoch)
@@ -246,6 +249,9 @@ module Monadic
           if found
             # What is seen of the file now is taken (the same bytes saved
             # again, or new ones), and what a use found before is dropped.
+            # The upload it came from stays while the version is the same.
+            kept = found.dig('file', 'attachment_id')
+            entry['attachment_id'] ||= kept if kept && found.dig('file', 'sha256') == entry['sha256']
             found['file'] = entry
             @verdicts.delete(found['id'])
             @texts.delete(found['id'])

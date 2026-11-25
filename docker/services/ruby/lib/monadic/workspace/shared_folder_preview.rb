@@ -57,6 +57,28 @@ module Monadic
         kind_for(name) == 'text' ? Monadic::RenderFormats.for_name(name) : nil
       end
 
+      # Files the work screen holds but does not show (an Office document, a
+      # MIDI file, audio or video the page does not play): an item of kind
+      # 'file', for the tools that use it.
+      FILES = {
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'mkv' => 'video/x-matroska', 'avi' => 'video/x-msvideo', 'opus' => 'audio/ogg', 'aac' => 'audio/aac',
+        'mid' => 'audio/midi', 'midi' => 'audio/midi'
+      }.freeze
+
+      # The kind the work screen holds a file as: a preview kind (kind_for),
+      # 'file', or nil.
+      def held_kind_for(name)
+        kind_for(name) || (FILES.key?(extension(name)) ? 'file' : nil)
+      end
+
+      # The type a file the work screen only holds is of (FILES), or nil.
+      def held_type_for(name)
+        FILES[extension(name)]
+      end
+
       # "image", "audio", "video", "pdf", "text" or nil.
       def kind_for(name)
         ext = extension(name)
@@ -78,7 +100,8 @@ module Monadic
         parts = SharedFolder.parts_of(relative)
         raise Invalid, 'the shared folder itself is not a file' if parts.empty?
 
-        kind = kind_for(parts.last)
+        # A file the work screen only holds opens for a caller that takes it.
+        kind = kinds&.include?('file') ? held_kind_for(parts.last) : kind_for(parts.last)
         raise Invalid, 'the file cannot be previewed' unless kind && (kinds.nil? || kinds.include?(kind))
 
         # Each part as the folder spells it (a file system that ignores case

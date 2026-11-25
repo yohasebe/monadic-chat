@@ -154,8 +154,11 @@ module Monadic
           PENDING_LOCK.synchronize { PENDING.delete(request_id) }
         end
 
+        # An item as the model is told of it: a file the work screen only
+        # holds (kind 'file') with its type, which says what it is.
         def shown_item(item)
-          { 'id' => item[:id], 'kind' => kind_of(item), 'name' => clean(item[:name] || item[:kind]),
+          type = item[:preview] == 'file' ? clean(item[:content_type]) : nil
+          { 'id' => item[:id], 'kind' => kind_of(item), 'type' => type, 'name' => clean(item[:name] || item[:kind]),
             'path' => item[:path] && clean(item[:path]), 'status' => item[:status] }.compact
         end
 

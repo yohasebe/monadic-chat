@@ -26,9 +26,16 @@ module Monadic
       # The kinds the work screen shows (SharedFolderPreview.kind_for). A PDF
       # is served whole to the page, which draws it with pdf.js.
       KINDS = %w[image text audio video pdf].freeze
+      # The kinds an item may be: those, and 'file', a file the work screen
+      # only holds (SharedFolderPreview::FILES), for the tools that use it.
+      HELD_KINDS = (KINDS + ['file']).freeze
       # A file larger than this is not opened on the workbench (each use
       # reads it whole to check its version).
       LIMIT = 64 * 1024 * 1024
+      # A file it only holds may be larger: its version is read in pieces
+      # (CHUNK), never whole.
+      FILE_LIMIT = 200 * 1024 * 1024
+      CHUNK = 1024 * 1024
       # Files read and hashed at once, how long a read waits for its turn
       # (by default), and how many may wait.
       READS = 2
@@ -84,6 +91,8 @@ module Monadic
       # show; Busy when no turn to read it came within wait seconds.
       def entry_for(path, wait: READ_WAIT)
         relative = normalize(path)
+        return held_entry_for(relative, wait: wait) if Monadic::Workspace::SharedFolderPreview.held_kind_for(relative) == 'file'
+
         read = read_whole(relative, wait: wait)
         # A text item must be text where it is shown.
         Monadic::Workspace::SharedFolderPreview.text_view(read[:bytes]) if read[:kind] == 'text'
@@ -97,6 +106,42 @@ module Monadic
              Monadic::Workspace::SharedFolderPreview::Unavailable,
              Monadic::Workspace::SharedFolderPreview::NotText => e
         raise Refused, e.message
+      end
+
+      # The entry of a file the work screen only holds (kind 'file'): its
+      # version read in pieces.
+      def held_entry_for(relative, wait:)
+        read = turn(wait: wait) { hashed(relative) }
+        {
+          'path' => relative, 'name' => Monadic::Workspace::Attachments.shown_name(File.basename(relative)),
+          'preview' => 'file', 'content_type' => Monadic::Workspace::SharedFolderPreview.held_type_for(relative),
+          'sha256' => read[:sha256], 'size' => read[:size], 'mtime_ns' => nanoseconds(read[:stat].mtime),
+          'ino' => read[:stat].ino
+        }
+      rescue Monadic::Workspace::SharedFolderPreview::Invalid,
+             Monadic::Workspace::SharedFolderPreview::Unavailable => e
+        raise Refused, e.message
+      end
+
+      # The sha256 and size of a file the work screen only holds, read in
+      # pieces of CHUNK; Refused past FILE_LIMIT.
+      def hashed(relative)
+        io, stat, = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: ['file'])
+        digest = Digest::SHA256.new
+        size = 0
+        begin
+          raise Refused, 'the file is too large for the work screen' if stat.size > FILE_LIMIT
+
+          while (chunk = io.read(CHUNK))
+            size += chunk.bytesize
+            raise Refused, 'the file is too large for the work screen' if size > FILE_LIMIT
+
+            digest.update(chunk)
+          end
+        ensure
+          io.close
+        end
+        { sha256: digest.hexdigest, size: size, stat: stat }
       end
 
       # The bytes of the item's file, read now and checked against entry's
@@ -164,13 +209,16 @@ module Monadic
       end
 
       def read_now(relative, limit: LIMIT)
-        io, stat, kind = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: KINDS)
+        io, stat, kind = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: HELD_KINDS)
+        # A file the work screen only holds is read whole only for a use
+        # that takes it (limit); one it shows, not past LIMIT at all.
+        most = kind == 'file' ? FILE_LIMIT : LIMIT
         begin
-          raise Refused, 'the file is too large for the work screen' if stat.size > LIMIT
+          raise Refused, 'the file is too large for the work screen' if stat.size > most
           raise TooLarge, 'the file is too large for this use' if stat.size > limit
 
           bytes = io.read(limit + 1) || +''
-          raise Refused, 'the file is too large for the work screen' if bytes.bytesize > LIMIT
+          raise Refused, 'the file is too large for the work screen' if bytes.bytesize > most
           raise TooLarge, 'the file is too large for this use' if bytes.bytesize > limit
         ensure
           io.close

@@ -6671,6 +6671,24 @@ body.side-pane-resizing {
   aspect-ratio: var(--wb-aspect, 16 / 10);
   overflow: auto;
 }
+/* A file the work screen only holds: its icon, name, type and size. */
+.workbench-held-file {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: var(--border-width) solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+.workbench-held-file-icon {
+  font-size: 2rem;
+  color: var(--text-secondary);
+}
+.workbench-held-file-name {
+  font-weight: 600;
+  word-break: break-all;
+}
 /* Over a board drawn on a picture: while the picture is had, or that it
    could not be. */
 .workbench-whiteboard-picture-note {

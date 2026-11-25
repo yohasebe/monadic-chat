@@ -248,7 +248,14 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
       // The browser was handed the file; whether it was saved (or the
       // save was cancelled) is not known here.
-      setExportStatus(t('ui.exportStarted', 'Download started: {name}').replace('{name}', a.download), 'text-success');
+      let status = t('ui.exportStarted', 'Download started: {name}').replace('{name}', a.download);
+      // Images the chat sent that its folder no longer holds as they were.
+      const missing = Number(data.sent_images_missing) || 0;
+      if (missing > 0) {
+        status += ' ' + t('ui.exportImagesMissing', '{count} images sent in this chat are not in it: they were removed or changed in the chat\'s folder.')
+          .replace('{count}', String(missing));
+      }
+      setExportStatus(status, missing > 0 ? 'text-warning' : 'text-success');
     } catch (_e) {
       setExportStatus(t('ui.exportFailed', 'The export failed. Try again.'), 'text-danger');
     }
@@ -256,9 +263,16 @@
 
   function handleExportError(data) {
     if (!answersPending(data)) return;
-    const message = data.error === 'passphrase_required'
-      ? t('ui.exportPassphraseRequired', 'A passphrase is needed.')
-      : t('ui.exportFailed', 'The export failed. Try again.');
+    let message;
+    if (data.error === 'passphrase_required') {
+      message = t('ui.exportPassphraseRequired', 'A passphrase is needed.');
+    } else if (data.error === 'too_large') {
+      const mb = Math.ceil((Number(data.image_bytes) || 0) / (1024 * 1024));
+      message = t('ui.exportTooLarge', 'The images sent in this chat are too large to export (about {size} MB).')
+        .replace('{size}', String(mb));
+    } else {
+      message = t('ui.exportFailed', 'The export failed. Try again.');
+    }
     setExportStatus(message, 'text-danger');
   }
 

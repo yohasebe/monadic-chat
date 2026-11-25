@@ -5,6 +5,7 @@
 # SAMPLE, UPDATE_LANGUAGE, and RESET messages.
 
 require_relative '../../turn_state/notes'
+require_relative '../../workbench/sent'
 
 module WebSocketHelper
   private def handle_ws_check_token(connection, obj, session)
@@ -162,7 +163,9 @@ module WebSocketHelper
     session[:parameters].clear
     Monadic::Workspace::Chats.begin_new!(session)
     Monadic::Utils::Privacy::Words.restore!(session, imported.delete(:word_table))
+    sent_images = imported.delete(:sent_images)
     imported.each { |key, value| session[key] = value }
+    keep_imported_sent_images(session, sent_images)
     # The app state is made from the file's messages and base.
     Monadic::TurnState.changed!(session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
     session[:parameters]["ui_language"] ||= ui_language if ui_language
@@ -177,6 +180,25 @@ module WebSocketHelper
     send_to_client(connection, { "type" => "import_result", "token" => token, "success" => false,
                                  "error" => "The import could not be finished: #{e.message}" })
     Monadic::Utils::ExtraLogger.log { "[Import] Failed: #{e.class}: #{e.message}" }
+  end
+
+  # The images of the work screen the file held for what its messages name
+  # as sent, put in the new chat's folder (Workbench::Sent), checked when
+  # the file was read. One that cannot be kept is left out; its record
+  # stays.
+  private def keep_imported_sent_images(session, images)
+    return if images.nil? || images.empty?
+
+    sent = Monadic::Workbench::Sent
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    app_name = session[:parameters] && session[:parameters]["app_name"]
+    images.each do |sha256, image|
+      kept = sent.keep!(chat_id, image[:bytes], image[:content_type], app_name: app_name)
+      sent.done(chat_id, [kept])
+    rescue Monadic::Workbench::Sent::Refused => e
+      Monadic::Utils::ExtraLogger.log { "[Import] An image was not kept: #{e.class}" }
+      next sha256
+    end
   end
 
   # Speech of the chat being replaced (Live Conversation, reading aloud,

@@ -173,6 +173,22 @@ describe('WsPrivacyHandler — the export request and its answer', () => {
     expect(button().disabled).toBe(false);
   });
 
+  it('says how many images sent in the chat the file could not hold', () => {
+    button().click();
+    window.WsPrivacyHandler.handleExportData({ request_id: sent[0].request_id, content_base64: btoa('{}'), filename: 'chat.json',
+      sent_images_missing: 2 });
+    expect(status()).toContain('chat.json');
+    expect(status()).toContain('2 images');
+  });
+
+  it('says the images were too large to export, and about how large', () => {
+    button().click();
+    window.WsPrivacyHandler.handleExportError({ request_id: sent[0].request_id, error: 'too_large', image_bytes: 3 * 1024 * 1024 });
+    expect(status()).toContain('too large');
+    expect(status()).toContain('3 MB');
+    expect(button().disabled).toBe(false);
+  });
+
   it('ignores an answer that arrives after the dialog was opened again', () => {
     button().click();
     const id = sent[0].request_id;

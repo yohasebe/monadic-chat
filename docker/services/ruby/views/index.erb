@@ -691,6 +691,8 @@
           </div>
           <div id="work-screen-pane" role="tabpanel" aria-labelledby="side-tab-work" hidden>
             <%# A file from the computer, put on the work screen: chosen here or dropped on the pane (workbench.js). %>
+            <%# Stays under the side column's bar while the work screen scrolls. %>
+            <div class="workbench-head">
             <div class="workbench-put mb-2">
               <button type="button" class="btn btn-sm btn-secondary" id="workbench-put" title="Save a file from your computer in the chat's folder and show it here, for you and the AI to look at and point at. You can also drop files on the work screen." data-i18n-title="ui.workbench.putHelp">
                 <i class="fa-solid fa-file-arrow-up me-1" aria-hidden="true"></i><span data-i18n="ui.workbench.putFile">Put a file</span>
@@ -702,11 +704,17 @@
               <button type="button" class="btn btn-sm btn-secondary ms-1" id="workbench-open-url" title="Open a page in the work screen, or take in its text" data-i18n-title="ui.importFromWeb">
                 <i class="fa-solid fa-globe me-1" aria-hidden="true"></i><span data-i18n="ui.fromURL">Open URL</span>
               </button>
+              <%# To the top and the end of the work screen, while it is longer than the column (workbench.js). %>
+              <span class="workbench-jump" hidden>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon" id="workbench-top" title="To the top of the work screen" aria-label="To the top of the work screen" data-i18n-title="ui.workbench.toTop" data-i18n-aria-label="ui.workbench.toTop"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+                <button type="button" class="btn btn-sm btn-secondary btn-icon" id="workbench-bottom" title="To the end of the work screen" aria-label="To the end of the work screen" data-i18n-title="ui.workbench.toBottom" data-i18n-aria-label="ui.workbench.toBottom"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+              </span>
             </div>
             <div class="workbench-drop-hint" aria-hidden="true" data-i18n="ui.workbench.dropHere">Drop to put it on the work screen</div>
             <%# The workbench's items: the browser and the images offered (workbench.js). %>
             <div id="workbench-drafts" class="workbench-drafts mb-2" aria-label="To send" data-i18n-aria-label="ui.workbench.toSend" hidden></div>
             <div id="workbench-items" class="workbench-items mb-2" role="tablist" aria-label="Work screen items" data-i18n-aria-label="ui.workbench.items" hidden></div>
+            </div>
             <%# The notes the app keeps after a reply: being updated, or waiting (workbench.js). %>
             <div id="workbench-notes-status" class="workbench-notes-status mb-2" hidden></div>
             <div id="work-screen-browser">
@@ -1633,12 +1641,8 @@
     <!-- No inline styles - all styles moved to monadic.css -->
     
     <!-- Scroll buttons - outside main container for proper floating -->
-    <div id="back_to_bottom" role="button" aria-label="Scroll to bottom" tabindex="0" style="display: none;">
-      <a href="#" aria-hidden="true"><i class="fas fa-arrow-down"></i></a>
-    </div>
-    <div id="back_to_top" role="button" aria-label="Scroll to top" tabindex="0" style="display: none;">
-      <a href="#" aria-hidden="true"><i class="fas fa-arrow-up"></i></a>
-    </div>
+    <button type="button" id="back_to_bottom" class="btn btn-secondary btn-sm btn-icon btn-fab" title="To the end of the chat" aria-label="To the end of the chat" data-i18n-title="ui.chatBottom" data-i18n-aria-label="ui.chatBottom" style="display: none;"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i></button>
+    <button type="button" id="back_to_top" class="btn btn-secondary btn-sm btn-icon btn-fab" title="To the top of the chat" aria-label="To the top of the chat" data-i18n-title="ui.chatTop" data-i18n-aria-label="ui.chatTop" style="display: none;"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
 
     <!-- TTS Notice Toast -->
     <div id="tts-toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">

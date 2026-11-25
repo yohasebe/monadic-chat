@@ -639,57 +639,20 @@ div.card-body.role-system {
   color: var(--text-primary);
 }
 
+/* To the top and the end of the chat: floating over it at the right of the
+   chat column (placed by ui-utilities.js). */
 #back_to_top,
 #back_to_bottom {
   position: fixed;
   z-index: 1050; /* Above menu overlay (1040) but below modals (9999) */
-  transition: opacity var(--transition-normal) ease;
-  opacity: var(--opacity-hover);
-  /* Will be positioned dynamically via JavaScript based on #main element */
 }
 
 #back_to_top {
-  bottom: 110px; /* Above bottom button */
+  bottom: calc(60px + var(--btn-h-sm) + var(--spacing-xs));
 }
 
 #back_to_bottom {
-  bottom: 60px; /* Bottom position */
-}
-
-#back_to_top:hover,
-#back_to_bottom:hover {
-  opacity: 1;
-}
-
-#back_to_top a,
-#back_to_bottom a {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  width: 44px;
-  height: 44px;
-  color: #fff;
-  background-color: rgba(52, 58, 64, 0.8); /* Dark background for visibility */
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  text-decoration: none;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  transition: all var(--transition-fast) ease;
-}
-
-#back_to_top a:hover,
-#back_to_bottom a:hover {
-  color: #fff;
-  background-color: #007bff; /* Blue on hover */
-  border-color: #007bff;
-  box-shadow: 0 3px 10px rgba(0,123,255,0.4);
-}
-
-#back_to_top a i,
-#back_to_bottom a i {
-  font-size: 14px;
+  bottom: 60px;
 }
 
 /* Simplified alert styles - remove ALL backgrounds and borders, keep only icon and text color */
@@ -4212,11 +4175,11 @@ i.fas.fa-bolt,
 
 @media (max-width: 768px) {
   #back_to_top {
-    bottom: 100px; /* Adjust for mobile UI */
+    bottom: calc(50px + var(--btn-h-sm) + var(--spacing-xs));
   }
-  
+
   #back_to_bottom {
-    bottom: 50px; /* Adjust for mobile UI */
+    bottom: 50px;
   }
 }
 
@@ -6024,6 +5987,35 @@ body.side-pane-resizing {
    dragged over it. */
 #work-screen-pane {
   position: relative;
+}
+/* The work screen's buttons and its items' row, staying under the side
+   column's bar while the work screen scrolls (wide screens), as the files
+   pane's head does. */
+.workbench-put {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+.workbench-put > .btn.ms-1 {
+  margin-left: 0 !important;
+}
+.workbench-jump {
+  display: inline-flex;
+  gap: var(--spacing-xs);
+  margin-left: auto;
+}
+.workbench-jump[hidden] {
+  display: none;
+}
+@media (min-width: 768px) {
+  .workbench-head {
+    position: sticky;
+    top: calc(var(--side-pane-tabs-height) + var(--spacing-sm));
+    z-index: 5;
+    display: flow-root;
+    background-color: var(--bg-body);
+  }
 }
 .workbench-drop-hint {
   display: none;

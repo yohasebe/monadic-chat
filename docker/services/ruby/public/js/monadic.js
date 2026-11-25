@@ -3348,21 +3348,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Click handlers
   $on($id("back_to_top"), "click", scrollToTop);
   $on($id("back_to_bottom"), "click", scrollToBottom);
-  
-  // Keyboard handlers (Enter and Space)
-  $on($id("back_to_top"), "keydown", function(e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      scrollToTop();
-    }
-  });
-  
-  $on($id("back_to_bottom"), "keydown", function(e) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      scrollToBottom();
-    }
-  });
+
 
   // Define originalParams globally to avoid reference errors
   window.originalParams = {};

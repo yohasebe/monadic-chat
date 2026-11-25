@@ -12,6 +12,7 @@ require_relative 'capture'
 require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
+require_relative 'item_text'
 require_relative '../workspace/chats'
 require_relative '../workspace/request_context'
 require_relative '../workspace/shared_folder_preview'
@@ -272,8 +273,12 @@ module Monadic
           content = lines ? visible_text(bytes, **lines) : whole_text(bytes)
           seen(item, 'text', file['name'], file['path'], file['sha256'], **content)
         when 'file'
-          raise Refused.new('unsupported_kind', "this file is kept on the work screen but cannot be looked at " \
-                                                "(#{file['content_type']})")
+          unless ItemText.document?(file['path'])
+            raise Refused.new('unsupported_kind', "this file is kept on the work screen but cannot be looked at " \
+                                                  "(#{file['content_type']})")
+          end
+
+          seen(item, 'text', file['name'], file['path'], file['sha256'], **document_text(board, item, file))
         else
           raise Refused.new('unsupported_kind', "a #{file['preview']} file cannot be looked at yet")
         end
@@ -286,6 +291,28 @@ module Monadic
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         raise Refused.new('unsupported_kind', 'the file is not text')
       end
+
+      # An Office document's text, converted as for a message (ItemText), as
+      # a text is given whole. The converter runs in the Python container:
+      # when it is not running, it is started and the look is refused for
+      # now.
+      def document_text(board, item, file)
+        unless Monadic::Utils::ContainerDependencies.container_running?(:python)
+          Monadic::Utils::ContainerDependencies.start_service_async(:python, reason: 'reading a document on the work screen')
+          raise Refused.new('busy', 'the document converter is starting; try again in a moment')
+        end
+
+        text = ItemText.text_of(board, item['id'], file['sha256'], converter: DOCUMENT_CONVERTER)
+        whole_text(text)
+      rescue ItemText::Failed => e
+        raise Refused.new('changed', 'the file changed since it was opened; open it again to look at it') if e.message == 'changed'
+        raise Refused.new('unsupported_kind', 'no text could be read from the document') if e.message == 'empty'
+
+        raise Refused.new('unsupported_kind', 'the document could not be read')
+      end
+
+      # How a document's text is had (the import of a document for a message).
+      DOCUMENT_CONVERTER = ->(path) { MonadicApp.doc2markdown(path) }
 
       def seen(item, kind, name, path, version, **content)
         { item_id: item['id'], kind: kind, name: name.to_s, path: path.to_s, version: version, **content }

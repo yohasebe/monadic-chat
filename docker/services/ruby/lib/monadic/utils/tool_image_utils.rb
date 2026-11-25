@@ -149,6 +149,8 @@ module Monadic
       # "video_gen_temp_<timestamp>_<hex>.<ext>" and returns the filename.
       #
       # Resolution order:
+      #   0. An item of the work screen the model named (item: its id), an
+      #      image read at the version it has now; nothing else in its place.
       #   1. The most recent uploaded image in the session (data URL → file).
       #   2. An explicit image_path argument (a real filename), ignoring the
       #      literal placeholder "image_path" that models sometimes emit.
@@ -159,9 +161,15 @@ module Monadic
       # @param image_path [String, nil] filename passed by the tool call, if any
       # @param into [Hash, nil] the run folder (Workspace::Jobs) an upload is
       #   written in; without one an upload is not written
+      # @param item [String, nil] an item of the work screen, by its id
+      # @param workbench [Monadic::Workbench::Caller, nil] who called (the chat
+      #   whose work screen item names an item of)
       # @return [String, nil] the image's path in the shared folder, or nil
-      # @raise [ImageMaterializationError] if an upload exists but cannot be written
-      def self.materialize_session_image(session, image_path: nil, into: nil)
+      # @raise [ImageMaterializationError] if an upload exists but cannot be
+      #   written, or the item named is no image that can be read now
+      def self.materialize_session_image(session, image_path: nil, into: nil, item: nil, workbench: nil)
+        return write_item_image(workbench, item.to_s, into: into) unless item.to_s.strip.empty?
+
         materialized = nil
 
         # A freshly uploaded image always wins. Resolve it first regardless of
@@ -229,30 +237,42 @@ module Monadic
       # folder into (Workspace::Jobs). Returns its path in the shared folder.
       # @raise [ImageMaterializationError] on oversize payload, no run folder
       #   or write failure
+      # The image of the work screen's item item_id, written in the run
+      # folder: its path in the shared folder.
+      def self.write_item_image(workbench, item_id, into:)
+        require_relative "../workbench/image_tool"
+        input = Monadic::Workbench::ImageTool.item_image(workbench, item_id)
+        write_image_bytes(input[:bytes], input[:content_type], into: into)
+      rescue Monadic::Workbench::ImageTool::NoSource => e
+        raise ImageMaterializationError, e.message
+      end
+
       def self.write_data_url_to_shared(data_url, declared_mime = nil, into: nil)
         raise ImageMaterializationError, "There is no chat folder to keep the uploaded image in." unless into
 
-        require "securerandom"
         base64_data = data_url.split(",", 2).last
-        binary = Base64.decode64(base64_data)
-        if binary.bytesize > MAX_IMAGE_DECODE_BYTES
-          raise ImageMaterializationError,
-                "Uploaded image is too large to process (#{binary.bytesize / (1024 * 1024)} MB)."
-        end
-
         mime = declared_mime
         mime ||= data_url.split(";").first.split(":").last if data_url.include?("image/")
+        mime ||= %w[image/png image/gif image/webp].find { |type| data_url.include?(type) }
+        write_image_bytes(Base64.decode64(base64_data), mime, into: into)
+      end
+
+      # An image's bytes, written in the run folder under a name of its
+      # own: its path in the shared folder.
+      def self.write_image_bytes(binary, mime, into:)
+        raise ImageMaterializationError, "There is no chat folder to keep the image in." unless into
+
+        require "securerandom"
+        if binary.bytesize > MAX_IMAGE_DECODE_BYTES
+          raise ImageMaterializationError,
+                "The image is too large to process (#{binary.bytesize / (1024 * 1024)} MB)."
+        end
+
         ext = case mime
-              when "image/jpeg", "image/jpg" then ".jpg"
               when "image/png" then ".png"
               when "image/gif" then ".gif"
               when "image/webp" then ".webp"
-              else
-                if data_url.include?("image/png") then ".png"
-                elsif data_url.include?("image/gif") then ".gif"
-                elsif data_url.include?("image/webp") then ".webp"
-                else ".jpg"
-                end
+              else ".jpg"
               end
 
         filename = "video_gen_temp_#{Time.now.to_i}_#{SecureRandom.hex(4)}#{ext}"
@@ -263,7 +283,7 @@ module Monadic
       rescue ImageMaterializationError
         raise
       rescue StandardError => e
-        raise ImageMaterializationError, "Failed to process uploaded image: #{e.message}"
+        raise ImageMaterializationError, "Failed to process the image: #{e.message}"
       end
     end
   end

@@ -8,7 +8,7 @@ Generate music from text descriptions using Google's Lyria. Describe the genre, 
 -   **Full songs**: The default model creates tracks of a couple of minutes, with vocals and lyrics when you request them. Tracks are MP3; ask for WAV to get lossless audio from this model.
 -   **Fast instrumental clips**: A 30-second clip model is available for quick instrumental sketches, loops, and background ideas.
 -   **Lyrics display**: When a track includes vocals, the generated lyrics are kept beside it as a Markdown file and shown on the work screen.
--   **Image-to-music (optional)**: Attach an image (up to 5) to your request and its mood, colors, and subject influence the composition — no extra step needed.
+-   **Image-to-music (optional)**: Attach an image (up to 5) to your request and its mood, colors, and subject influence the composition — no extra step needed. You can also ask for music from images on the [work screen](../basic-usage/web-interface.md#work-screen) (up to 10).
 -   **ElevenLabs Music (optional)**: When `ELEVENLABS_API_KEY` is set, you can ask for a track to be made with ElevenLabs instead of Lyria, for example "make it with ElevenLabs". It is used only when you name ElevenLabs, never in place of Lyria when Lyria fails, and every result names the service that made it. ElevenLabs tracks accept a length (3 seconds to 10 minutes) and an instrumental-only request, and come without a lyrics display.
 
 **Usage:**

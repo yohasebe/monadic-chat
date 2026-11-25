@@ -82,6 +82,8 @@ app "MusicGeneratorGemini" do
     - For a quick instrumental sketch, use lyria_model: "clip".
     - If the user uploaded an image, it automatically influences the composition
       (image-to-music) — no extra step needed; just describe what they want.
+    - If the user asks for music from images on the work screen ("this picture",
+      the ones in view, ones they name), pass their item ids as items.
     - If the user asks for high quality / lossless / WAV, pass output_format: "wav"
       (WAV is Pro-only; it is ignored for the clip model). The API may still return
       MP3: report the format from the result's mime_type, never assume WAV.
@@ -199,6 +201,7 @@ app "MusicGeneratorGemini" do
       parameter :prompt, "string", "The music description to generate from (English works best). Include genre, mood, instrumentation, tempo, and any lyrics for vocal tracks.", required: true
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
       parameter :output_format, "string", "Optional: 'wav' for lossless audio (Pro model only; larger file) or 'mp3' (default).", required: false
+      parameter :items, "array", "Optional: image items of the work screen (their ids from the work screen observation, up to 10) whose mood and colors shape the music, when the user asks for music from those images. Pass them only then.", required: false, items: { type: "string" }
       parameter :session, "object", "Session object (automatically provided). Carries any uploaded images for image-to-music.", required: false
     end
 

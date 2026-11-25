@@ -275,7 +275,7 @@ module GeminiHelper
   # lyrics (a Markdown file) are kept in a run folder of the chat's folder
   # (or of the MCP server) and shown on the work screen; without one, the
   # track is not kept.
-  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil, workbench: nil)
+  def generate_music_with_lyria(prompt:, lyria_model: nil, output_format: nil, session: nil, workbench: nil, items: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -293,9 +293,15 @@ module GeminiHelper
     clip_model = music_models&.[](1) || "lyria-3-clip-preview"
     model_id = lyria_model.to_s.downcase == "clip" ? clip_model : pro_model
 
-    # Text prompt + any user-uploaded images for image-to-music (max 10).
+    # Text prompt + the images for image-to-music (max 10): the work screen's
+    # image items the model named, else any user-uploaded images.
     parts = [{ text: prompt }]
-    lyria_image_parts(session).first(10).each { |img_part| parts << img_part }
+    begin
+      images = items.nil? || Array(items).empty? ? lyria_image_parts(session) : lyria_item_parts(workbench, items)
+    rescue Monadic::Workbench::ImageTool::NoSource => e
+      return { success: false, error: e.message }.to_json
+    end
+    images.first(LYRIA_IMAGE_LIMIT).each { |img_part| parts << img_part }
 
     generation_config = { responseModalities: ["AUDIO"] }
     # WAV is Pro-only; the Clip model is MP3-only, so ignore a WAV request there.
@@ -460,6 +466,24 @@ module GeminiHelper
     end
 
     out.join("\n").gsub(/\n{3,}/, "\n\n").strip
+  end
+
+  # Images Lyria takes with a prompt.
+  LYRIA_IMAGE_LIMIT = 10
+
+  # The work screen's image items named (by id), read now, as Gemini
+  # inline_data parts; an item that is no image stops the request.
+  def lyria_item_parts(workbench, items)
+    require_relative '../../workbench/image_tool'
+    ids = Array(items).map(&:to_s).reject(&:empty?).uniq
+    if ids.size > LYRIA_IMAGE_LIMIT
+      raise Monadic::Workbench::ImageTool::NoSource, "❌ Up to #{LYRIA_IMAGE_LIMIT} images are taken: nothing is made."
+    end
+
+    ids.map do |id|
+      input = Monadic::Workbench::ImageTool.item_image(workbench, id)
+      { inline_data: { mime_type: input[:content_type], data: Base64.strict_encode64(input[:bytes]) } }
+    end
   end
 
   # Extract user-uploaded images from the current turn as Gemini inline_data
@@ -3754,7 +3778,7 @@ module GeminiHelper
   # the video is saved in a run folder of the chat's folder and shown on the
   # work screen; without one, none is made.
   def generate_video_with_gemini(prompt:, image_path: nil, aspect_ratio: nil, duration: nil, negative_prompt: nil, session: nil,
-                                 workbench: nil)
+                                 workbench: nil, item: nil)
     # An uploaded image lives in the session as a data URL and is written to
     # the shared folder for the generator; a failure is reported instead of
     # silently making a text-to-video.
@@ -3765,7 +3789,8 @@ module GeminiHelper
     end
 
     begin
-      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job)
+      final_image_path = Monadic::Utils::ToolImageUtils.materialize_session_image(session, image_path: image_path, into: job,
+                                                                                  item: item, workbench: workbench)
     rescue Monadic::Utils::ToolImageUtils::ImageMaterializationError => e
       Monadic::Workbench::ChatOutput.drop_if_empty(job)
       return { "success" => false, "message" => e.message, "original_prompt" => prompt }.to_json

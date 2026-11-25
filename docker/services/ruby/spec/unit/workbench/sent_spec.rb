@@ -124,6 +124,26 @@ RSpec.describe Monadic::Workbench::Sent do
     end
   end
 
+  describe "a PDF a look gave as it is" do
+    let(:pdf) { "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n".b }
+
+    it "is kept, named by the look, exported and imported as a PDF, and released as an image is" do
+      sha = described_class.keep!(chat, pdf, "application/pdf", app_name: "ChatClaude")
+      expect(File.exist?(File.join(dir, "#{sha}.pdf"))).to be(true)
+      described_class.done(chat, [sha])
+      messages = [{ "role" => "assistant", "workbench_looks" => [{ "file_sha256" => sha, "state" => "sent" }] }]
+      expect(described_class.named_by(messages)).to eq([sha])
+      expect(described_class.release(chat, messages)).to eq(0)
+      table, missing = described_class.export_table(chat, messages)
+      expect(missing).to be_empty
+      expect(table[sha]["content_type"]).to eq("application/pdf")
+      expect(described_class.import_table(table, messages)).to eq(sha => { bytes: pdf, content_type: "application/pdf" })
+      expect(described_class.release(chat, [])).to eq(1)
+      expect { described_class.import_table({ sha => table[sha].merge("content_type" => "image/png") }, messages) }
+        .to raise_error(described_class::BadFile)
+    end
+  end
+
   describe "a post of the picture of the work screen a message went with" do
     let(:helper) { Class.new { include BaseVendorHelper }.new }
     let(:request_id) { Monadic::Workspace::Ids.generate(:request) }

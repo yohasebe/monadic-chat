@@ -11,7 +11,7 @@ module Monadic
         LIMIT = 8
         STATES = %w[acquired embedded sent unsent refused unknown].freeze
         KINDS = %w[image text pdf browser whiteboard].freeze
-        PARTS = %w[image page_text selection].freeze
+        PARTS = %w[image page_text selection file].freeze
         CROP = %w[x y width height sent_width sent_height].freeze
         # Why a part of a look could not be had (Look::Pdf).
         PART_NOTES = %w[none not_in_view drawing redrawn failed too_large busy pdf_text_unavailable].freeze
@@ -46,7 +46,7 @@ module Monadic
 
           out['kind'] = entry['kind']
           out['state'] = entry['state']
-          %w[version image_sha256].each { |key| out[key] = entry[key] if entry[key].is_a?(String) && entry[key].match?(HASH) }
+          %w[version image_sha256 file_sha256].each { |key| out[key] = entry[key] if entry[key].is_a?(String) && entry[key].match?(HASH) }
           out['source'] = entry['source'] if SOURCES.include?(entry['source'])
           out['scope'] = entry['scope'] if SCOPES.include?(entry['scope'])
           %w[image truncated empty].each { |key| out[key] = entry[key] if [true, false].include?(entry[key]) }

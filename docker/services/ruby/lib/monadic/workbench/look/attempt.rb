@@ -60,19 +60,31 @@ module Monadic
           return 'the chat of this reply is no longer the one in this tab' unless chat == @ledger.chat_id
           return 'the chat was reset' unless Monadic::Workspace::Chats.epoch(chat) == @ledger.epoch
 
-          images = @ledger.observations(@ids).any?(&:image)
-          return 'the model does not take images' if images && !Availability.vision?(provider.to_s, model)
+          held = @ledger.observations(@ids)
+          return 'the model does not take images' if held.any?(&:image) && !Availability.vision?(provider.to_s, model)
+
+          files = held.filter_map(&:file)
+          unless files.all? { |f| native?(session, provider, model, f) }
+            return 'the model or the chat does not take the PDF as it is'
+          end
 
           nil
         end
 
         private
 
-        # The images the post holds, kept as sent before it goes. When the
+        def native?(session, provider, model, file)
+          pages = @ledger.observations(@ids).find { |o| o.file.equal?(file) }&.pages
+          Availability.native_file?(session: session, provider: provider, model: model, type: file.content_type,
+                                    bytes: file.bytes.bytesize, pages: pages && pages[:total])
+        end
+
+        # The images and the files the post holds, kept as sent before it
+        # goes. When the
         # chat keeps too much, the post is kept back (Withheld), as nothing
         # went; an image the chat has no folder for goes without being kept.
         def keep_images(session)
-          images = @ledger.observations(@ids).filter_map(&:image)
+          images = @ledger.observations(@ids).flat_map { |o| [o.image, o.file] }.compact
           return if images.empty?
 
           app_name = session.respond_to?(:[]) ? session[:parameters]&.dig('app_name') : nil

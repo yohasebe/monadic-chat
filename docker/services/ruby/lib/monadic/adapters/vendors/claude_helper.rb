@@ -1979,10 +1979,19 @@ module ClaudeHelper
       content = message[:content] || message["content"]
       next message unless content.is_a?(Array)
 
+      # A PDF a look gives as it is follows the message's tool results.
+      documents = []
       blocks = content.map do |block|
         type = block[:type] || block["type"]
         id = block[:tool_use_id] || block["tool_use_id"]
         ids << id.to_s if type.to_s == "tool_result" && id
+        if type.to_s == "tool_result" && id
+          workbench_files_to_place(session, [id.to_s]).each do |look|
+            documents << { type: "text", text: look.caption.to_s }
+            documents << { type: "document",
+                           source: { type: "base64", media_type: look.file.content_type, data: look.file.base64 } }
+          end
+        end
         looks = type.to_s == "tool_result" && id ? workbench_looks_to_place(session, [id.to_s]) : []
         next block if looks.empty?
 
@@ -1995,7 +2004,7 @@ module ClaudeHelper
         end
         block.merge((block.key?(:content) ? :content : "content") => parts)
       end
-      message.merge((message.key?(:content) ? :content : "content") => blocks)
+      message.merge((message.key?(:content) ? :content : "content") => blocks + documents)
     end
     ledger = workbench_look_ledger
     workbench_looks_prepared(ledger.answering(ids)) if ledger

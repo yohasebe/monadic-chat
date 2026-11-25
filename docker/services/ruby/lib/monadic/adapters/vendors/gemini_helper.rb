@@ -486,6 +486,17 @@ module GeminiHelper
     end
   end
 
+  # The user turn that gives the looks answering look_calls after their
+  # results: each image, and each PDF a look gives as it is, after its
+  # caption; nil when there is none.
+  def gemini_look_turn(session, look_calls)
+    parts = (workbench_looks_to_place(session, look_calls).map { |look| [look, look.image] } +
+             workbench_files_to_place(session, look_calls).map { |look| [look, look.file] }).flat_map do |look, value|
+      [{ "text" => look.caption.to_s }, { "inlineData" => { "mimeType" => value.content_type, "data" => value.base64 } }]
+    end
+    parts.empty? ? nil : { "role" => "user", "parts" => parts }
+  end
+
   # Extract user-uploaded images from the current turn as Gemini inline_data
   # parts, for image-to-music. Reads the latest user message that carries images
   # (data URL or raw base64). Returns [] when there are none. Mirrors the image
@@ -1374,16 +1385,8 @@ module GeminiHelper
       # Each look's image follows the results, in a user turn of its own
       # that names the observation (Gemini's calls carry no id).
       look_calls = obj["tool_results"].filter_map { |r| r["_look_call"] }
-      looks = workbench_looks_to_place(session, look_calls)
-      if looks.any?
-        body["contents"] << {
-          "role" => "user",
-          "parts" => looks.flat_map do |look|
-            [{ "text" => look.caption.to_s },
-             { "inlineData" => { "mimeType" => look.image.content_type, "data" => look.image.base64 } }]
-          end
-        }
-      end
+      look_turn = gemini_look_turn(session, look_calls)
+      body["contents"] << look_turn if look_turn
       ledger = workbench_look_ledger
       workbench_looks_prepared(ledger.answering(look_calls)) if ledger
 

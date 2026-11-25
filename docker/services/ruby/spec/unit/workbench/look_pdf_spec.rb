@@ -376,4 +376,67 @@ RSpec.describe "looking at a PDF on the work screen" do
       end
     end
   end
+
+  describe "scope whole, as the PDF itself" do
+    let(:availability) { Monadic::Workbench::Look::Availability }
+
+    before do
+      allow(availability).to receive(:request_of).and_return(["claude", "pdf-model"])
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_call_original
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("pdf-model", "supports_pdf").and_return(true)
+      allow(pdf_text).to receive(:extract).and_return(texts([1, "one"], total: 3))
+    end
+
+    it "gives the PDF as it is where the provider and model take it, kept with its own sha256 and no bytes in its text" do
+      item = open_pdf
+      out = result(look.run(caller_for, scope: "whole"))
+      expect(out).to include("pages" => { "first" => 1, "last" => 3, "total" => 3 }, "parts" => { "file" => true })
+      expect(out["file"]).to include("attached after this result")
+      expect(out).not_to have_key("page_text")
+      observation = ledger.observations_with_content.first
+      expect(observation.file.bytes).to eq(pdf.b)
+      expect(observation.file.sha256).to eq(Digest::SHA256.hexdigest(pdf))
+      expect([observation.file.to_s, observation.file.inspect, JSON.generate([observation.file])].join).not_to include("%PDF")
+      expect(observation.caption).to start_with("The PDF below is what")
+      expect(observation.image).to be_nil
+      record = Monadic::Workbench::Look::Record.clean(ledger.records).first
+      expect(record).to include("kind" => "pdf", "file_sha256" => Digest::SHA256.hexdigest(pdf), "parts" => { "file" => true },
+                                "version" => item.dig("file", "sha256"))
+    end
+
+    it "gives its text instead for another provider, a model not known to take PDFs, too many pages, or a chat that hides words" do
+      open_pdf
+      [
+        -> { allow(availability).to receive(:request_of).and_return(["openai", "pdf-model"]) },
+        -> { allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("pdf-model", "supports_pdf").and_return(nil) },
+        -> { allow(pdf_text).to receive(:extract).and_return(texts([1, "one"], total: 101)) },
+        -> { allow(Monadic::Utils::Privacy::Outbound).to receive(:terms_of).and_return(["Secret"]) }
+      ].each_with_index do |change, n|
+        Monadic::Workbench::Look::Ledger.reset!
+        allow(availability).to receive(:request_of).and_return(["claude", "pdf-model"])
+        allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("pdf-model", "supports_pdf").and_return(true)
+        allow(pdf_text).to receive(:extract).and_return(texts([1, "one"], total: 3))
+        allow(Monadic::Utils::Privacy::Outbound).to receive(:terms_of).and_return([])
+        change.call
+        out = result(look.run(caller_for, scope: "whole"))
+        expect(out).not_to have_key("file"), "case #{n}"
+        expect(ledger.observations_with_content.first.file).to be_nil, "case #{n}"
+      end
+    end
+
+    it "gives no file to a look that takes no images (a voice conversation)" do
+      open_pdf
+      out = result(look.run(caller_for, scope: "whole", images: false))
+      expect(out).not_to have_key("file")
+    end
+
+    it "is checked again right before it goes: not sent to a provider that does not take it" do
+      open_pdf
+      look.run(caller_for, scope: "whole")
+      id = ledger.observations_with_content.first.id
+      attempt = Monadic::Workbench::Look::Attempt.new(ledger, [id])
+      expect { attempt.send!(session, provider: "openai", model: "pdf-model") { raise "posted" } }
+        .to raise_error(Monadic::Workbench::Look::Withheld, /PDF as it is/)
+    end
+  end
 end

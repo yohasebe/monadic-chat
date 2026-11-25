@@ -23,6 +23,8 @@ module Monadic
       class Ledger
         OBSERVATIONS = 8
         IMAGE_BYTES = 24 * 1024 * 1024
+        # The files a request's looks give as they are, at most.
+        FILE_BYTES = 24 * 1024 * 1024
         TEXT_CHARS = 256_000
         # Ledgers held at once, and the images all of them hold, at most:
         # past either a new look is refused (busy); a ledger in use is never
@@ -45,7 +47,7 @@ module Monadic
 
         Observation = Struct.new(:id, :tool_call_id, :item_id, :kind, :name, :path, :version, :scope, :at, :image,
                                  :result, :caption, :text_chars, :lines, :truncated, :empty, :state, :image_sha256,
-                                 :source, :pages, :parts, :cuts, :stopped, :crop, keyword_init: true)
+                                 :source, :pages, :parts, :cuts, :stopped, :crop, :file, :file_sha256, keyword_init: true)
 
         @ledgers = {}
         # The image bytes all ledgers hold, reserved before an image is kept
@@ -212,7 +214,7 @@ module Monadic
         # stops after, so they are given back once, by one or the other.
         def add(seen)
           image = seen[:image]
-          bytes = image ? image.bytes.bytesize : 0
+          bytes = (image ? image.bytes.bytesize : 0) + (seen[:file] ? seen[:file].bytes.bytesize : 0)
           Thread.handle_interrupt(Object => :never) do
             raise Refused.new('busy', 'the work screen holds too many images now') if bytes.positive? && !Ledger.reserve(bytes)
 
@@ -236,6 +238,10 @@ module Monadic
             if image && @observations.sum { |o| o.image ? o.image.bytes.bytesize : 0 } + image.bytes.bytesize > IMAGE_BYTES
               raise Refused.new('too_large', 'this reply has looked at too many images')
             end
+            file = seen[:file]
+            if file && @observations.sum { |o| o.file ? o.file.bytes.bytesize : 0 } + file.bytes.bytesize > FILE_BYTES
+              raise Refused.new('too_large', 'this reply has looked at too many files as they are')
+            end
 
             # The characters it gives: of its text and of the text the user
             # selected, also with an image.
@@ -256,7 +262,8 @@ module Monadic
               result: seen[:result], caption: seen[:caption], text_chars: chars, lines: lines,
               truncated: seen[:truncated], empty: seen[:empty], state: 'acquired',
               image_sha256: image&.sha256, source: image&.source || seen[:source], pages: seen[:pages], parts: seen[:parts],
-              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], stopped: seen[:stopped], crop: seen[:crop]
+              cuts: seen[:cuts].nil? || seen[:cuts].empty? ? nil : seen[:cuts], stopped: seen[:stopped], crop: seen[:crop],
+              file: file, file_sha256: file&.sha256
             )
             @reserved += bytes
             id
@@ -281,6 +288,11 @@ module Monadic
         # Those of them with an image.
         def images_for(tool_call_ids)
           answering(tool_call_ids).select(&:image)
+        end
+
+        # Those of them with a file given as it is.
+        def files_for(tool_call_ids)
+          answering(tool_call_ids).select(&:file)
         end
 
         # The observations bound to a tool call that is not among
@@ -340,6 +352,7 @@ module Monadic
                 # Put in no request that was posted, or in none at all.
                 o.state = 'unsent' if %w[embedded acquired].include?(o.state)
                 o.image = nil
+                o.file = nil
                 o.result = nil
                 o.caption = nil
               end
@@ -360,7 +373,8 @@ module Monadic
           @lock.synchronize do
             @observations.map do |o|
               { 'id' => o.id, 'item_id' => o.item_id, 'kind' => o.kind, 'name' => o.name, 'path' => o.path,
-                'version' => o.version, 'image_sha256' => o.image_sha256, 'source' => o.source,
+                'version' => o.version, 'image_sha256' => o.image_sha256, 'file_sha256' => o.file_sha256,
+                'source' => o.source,
                 'scope' => o.scope, 'at' => o.at, 'lines' => o.lines&.transform_keys(&:to_s),
                 'truncated' => o.truncated, 'empty' => o.empty, 'image' => !o.image_sha256.nil?,
                 'pages' => o.pages&.transform_keys(&:to_s)&.compact, 'parts' => o.parts, 'cuts' => o.cuts,

@@ -355,6 +355,13 @@ module BaseVendorHelper
     ledger && tool_call_ids.any? ? ledger.images_for(tool_call_ids) : []
   end
 
+  # The looks that give a file as it is (a PDF) and answer tool_call_ids,
+  # for a helper whose provider takes it (Look::Availability::NATIVE_FILES).
+  def workbench_files_to_place(session, tool_call_ids)
+    ledger = workbench_look_ledger
+    ledger && tool_call_ids.any? ? ledger.files_for(tool_call_ids) : []
+  end
+
   # The request being built holds looks (their text results, their
   # images): each post of the request from now on is checked with them and
   # settles them (post_with_workbench_looks). This thread keeps the ledger

@@ -12,7 +12,8 @@ require_relative '../workspace/ids'
 module Monadic
   module Workbench
     # The images of the work screen that left for a provider (a look's
-    # image), kept in the chat's folder as sent/<sha256>.<ext> so that the
+    # image, or a PDF a look gave as it is), kept in the chat's folder as
+    # sent/<sha256>.<ext> so that the
     # chat's export can hold them. One file for an image however often it
     # went. A file is taken only as it was kept: one that is not the image
     # its name says (the user changed it) is read as gone, never written
@@ -20,8 +21,10 @@ module Monadic
     # is removed (release), unless a reply still running sent it (pending).
     module Sent
       DIRNAME = 'sent'
-      EXTENSIONS = { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif' }.freeze
-      NAME = /\A(\h{64})\.(png|jpg|webp|gif)\z/
+      EXTENSIONS = { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif',
+                     'application/pdf' => 'pdf' }.freeze
+      NAME = /\A(\h{64})\.(png|jpg|webp|gif|pdf)\z/
+      PDF = '%PDF-'
       # What a chat keeps, at most (its export holds it all), and from how
       # much on the user is told it is nearing that (once, as it passes).
       LIMIT_BYTES = 150 * 1024 * 1024
@@ -140,8 +143,10 @@ module Monadic
         Array(messages).flat_map do |message|
           next [] unless message.is_a?(Hash)
 
-          looks = Array(message['workbench_looks']).filter_map do |look|
-            look['image_sha256'] if look.is_a?(Hash) && %w[sent refused unknown].include?(look['state'])
+          looks = Array(message['workbench_looks']).flat_map do |look|
+            next [] unless look.is_a?(Hash) && %w[sent refused unknown].include?(look['state'])
+
+            [look['image_sha256'], look['file_sha256']].compact
           end
           picture = message['workbench_picture']
           edits = Array(message['workbench_edit_inputs']).filter_map { |e| e['sha256'] if e.is_a?(Hash) }
@@ -188,7 +193,7 @@ module Monadic
           size += data.bytesize
           raise ExportTooLarge, size.to_s if size > EXPORT_LIMIT
 
-          table[sha256] = { 'content_type' => Monadic::Utils::ToolImageUtils.image_media_type(bytes), 'data' => data }
+          table[sha256] = { 'content_type' => kind_of(bytes), 'data' => data }
         end
         [table, missing]
       end
@@ -225,9 +230,16 @@ module Monadic
       end
 
       def checked_type(bytes)
+        return 'application/pdf' if bytes.start_with?(PDF) && bytes.bytesize <= ImageCheck::MAX_BYTES
+
         ImageCheck.check!(bytes)[:content_type]
       rescue ImageCheck::Refused
         raise BadFile, 'an image of the file is not one'
+      end
+
+      # What kept bytes are: a PDF, or an image of its type.
+      def kind_of(bytes)
+        bytes.start_with?(PDF) ? 'application/pdf' : Monadic::Utils::ToolImageUtils.image_media_type(bytes)
       end
 
       # The size of what the chat keeps.

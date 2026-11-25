@@ -443,6 +443,26 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(board.selected(tab: "tab-1", generation: 1)).to eq(item[:id])
     end
 
+    it "brings an item already on the work screen, an image the AI made too, before the tab of the reply" do
+      made = image
+      write("notes.txt", "a")
+      open_file("notes.txt")
+      expect(board.selected(tab: "tab-1", generation: 1)).not_to eq(made["id"])
+      expect(channel).to receive(:changed).with(chat)
+      result = JSON.parse(tool.show_on_workbench(item: made["id"], workbench: caller_of_reply))
+      expect(result).to include("status" => "shown_in_work_screen", "item" => made["id"])
+      expect(board.selected(tab: "tab-1", generation: 1)).to eq(made["id"])
+      expect(board.snapshot[:items].size).to eq(2)
+    end
+
+    it "brings none in place of an item that is not on the work screen, and asks for a path or an item" do
+      write("notes.txt", "a")
+      notes, = open_file("notes.txt")
+      expect(tool.show_on_workbench(item: "i_00000000000000000000", workbench: caller_of_reply)).to start_with("❌")
+      expect(board.selected(tab: "tab-1", generation: 1)).to eq(notes["id"])
+      expect(tool.show_on_workbench(workbench: caller_of_reply)).to start_with("❌")
+    end
+
     it "refuses without the server's caller, and for a file it does not show" do
       expect(tool.show_on_workbench(path: "a.png")).to start_with("❌")
       expect(tool.show_on_workbench(path: "../x.png", workbench: caller_of_reply)).to start_with("❌")

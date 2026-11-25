@@ -291,7 +291,7 @@ module Monadic
         outbound = Monadic::Utils::Privacy::Outbound
         unless words.empty?
           left = false
-          outbound.each_text(text) { |value| left ||= outbound.holds_word?(value, words) }
+          outbound.each_text(text) { |value| left ||= outbound.leaks_word?(value, words) }
           return nil if left
         end
         wrap(text)

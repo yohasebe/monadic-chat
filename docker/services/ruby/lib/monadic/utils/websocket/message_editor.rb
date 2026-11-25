@@ -12,6 +12,7 @@ require_relative '../../workbench/made'
 require_relative '../../workbench/draw'
 require_relative '../../workbench/turn_trash'
 require_relative '../../workbench/picture'
+require_relative '../../workbench/sent'
 require_relative '../../workbench/revision'
 require_relative '../../workbench/document'
 require_relative '../../turn_state'
@@ -41,8 +42,10 @@ module WebSocketHelper
     # Unless the user chose to keep them.
     take_off_drawn(rack_session, deleted) unless obj["keep_drawn"] == true
     rebuild_documents(rack_session) unless trash_made_files(rack_session, deleted, later).empty?
-    # The picture of the work screen the message was sent with goes with it.
+    # The picture of the work screen the message was sent with goes with it,
+    # and the images sent that no message names any more.
     remove_workbench_picture(rack_session, deleted)
+    release_sent_images(rack_session)
 
     # Invalidate any Grok compaction blob: it summarized the pre-edit history,
     # so a delete makes the cached covered_count and summary stale. Dropping it
@@ -69,6 +72,13 @@ module WebSocketHelper
     Monadic::Workbench::Picture.remove(chat_id, id) if id && chat_id
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not removed: #{e.class}" }
+  end
+
+  def release_sent_images(rack_session)
+    chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
+    Monadic::Workbench::Sent.release(chat_id, Array(rack_session[:messages])) if chat_id
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Sent images not released: #{e.class}" }
   end
 
   # What a deleted message made in the chat's folder (workbench_made) goes

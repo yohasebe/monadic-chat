@@ -3,6 +3,7 @@
 require 'securerandom'
 require 'time'
 require_relative '../../workspace/chats'
+require_relative '../sent'
 
 module Monadic
   module Workbench
@@ -171,7 +172,14 @@ module Monadic
           @observations = []
           @reserved = 0
           @held = []
+          @kept = []
           @closed_at = nil
+        end
+
+        # The images of looks kept as sent (Sent), once for each post that
+        # held them: no longer pending when the reply's ledger closes.
+        def kept(shas256)
+          @lock.synchronize { @kept.concat(shas256) }
         end
 
         # Runs a look (the block) as the only one of the request at a time:
@@ -340,6 +348,8 @@ module Monadic
               given_back
             end
             Ledger.release(released) if released.positive?
+            kept = @lock.synchronize { @kept.slice!(0..) }
+            Sent.done(@chat_id, kept) unless kept.empty?
           end
         end
 

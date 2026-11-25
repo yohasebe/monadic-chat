@@ -1,0 +1,151 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require "tmpdir"
+require "digest"
+require_relative "../../../lib/monadic/adapters/base_vendor_helper"
+require_relative "../../../lib/monadic/workspace"
+require_relative "../../../lib/monadic/workbench/look"
+require_relative "../../../lib/monadic/workbench/sent"
+require_relative "../../../lib/monadic/workbench/retention"
+
+# The images of the work screen that left for a provider, kept in the
+# chat's folder for its export: once each, taken only as kept, removed when
+# no message names them.
+RSpec.describe Monadic::Workbench::Sent do
+  def png(salt = "")
+    "\x89PNG\r\n\x1A\n".b + [13].pack("N") + "IHDR".b + [2, 2].pack("NN") + "\x08\x02\x00\x00\x00".b + "\x00".b * 4 + salt.b
+  end
+
+  around do |example|
+    Dir.mktmpdir("sent-spec") do |dir|
+      @data = File.join(dir, "data")
+      @state = File.join(dir, "state")
+      FileUtils.mkdir_p([@data, @state])
+      @data = File.realpath(@data)
+      example.run
+    end
+  end
+
+  let(:chat) { Monadic::Workspace::Ids.generate(:chat) }
+
+  before do
+    allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
+    allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
+  end
+
+  after { described_class::PENDING_LOCK.synchronize { described_class::PENDING.clear } }
+
+  def keep(bytes) = described_class.keep!(chat, bytes, "image/png", app_name: "ChatOpenAI")
+  def dir = described_class.dir_for(chat)
+  def files = Dir.children(dir).sort
+  def sent_look(sha) = { "role" => "assistant", "workbench_looks" => [{ "image_sha256" => sha, "state" => "sent" }] }
+
+  describe "keeping" do
+    it "keeps an image once in the chat's folder, named by its sha256, however often it went" do
+      sha = keep(png("a"))
+      keep(png("a"))
+      expect(sha).to eq(Digest::SHA256.hexdigest(png("a")))
+      expect(dir).to end_with("/sent")
+      expect(dir).to include("/conversations/")
+      expect(files).to eq(["#{sha}.png"])
+      expect(described_class.read(chat, sha)).to eq(png("a"))
+    end
+
+    it "reads as gone an image the user changed, and does not write over it" do
+      sha = keep(png("a"))
+      File.binwrite(File.join(dir, "#{sha}.png"), png("changed"))
+      expect(described_class.read(chat, sha)).to be_nil
+      expect { keep(png("a")) }.to raise_error(described_class::Unavailable)
+      expect(File.binread(File.join(dir, "#{sha}.png"))).to eq(png("changed"))
+    end
+
+    it "keeps no more than the chat may, and nothing for a chat without a folder" do
+      stub_const("#{described_class}::LIMIT_BYTES", png("a").bytesize + 10)
+      keep(png("a"))
+      expect { keep(png("bb")) }.to raise_error(described_class::Full)
+      other = Monadic::Workspace::Ids.generate(:chat)
+      expect { described_class.keep!(other, png, "image/png") }.to raise_error(described_class::Unavailable)
+    end
+  end
+
+  describe "releasing" do
+    it "removes the images no message names, but none a running reply sent, nor one the user changed" do
+      named = keep(png("named"))
+      unnamed = keep(png("unnamed"))
+      running = keep(png("running"))
+      changed = keep(png("changed"))
+      described_class.done(chat, [named, unnamed, changed])
+      File.binwrite(File.join(dir, "#{changed}.png"), png("other"))
+      expect(described_class.release(chat, [sent_look(named)])).to eq(1)
+      expect(files).to eq(["#{changed}.png", "#{named}.png", "#{running}.png"].sort)
+      described_class.done(chat, [running])
+      described_class.release(chat, [sent_look(named)])
+      expect(files).to eq(["#{changed}.png", "#{named}.png"].sort)
+    end
+
+    it "removes every image it kept when the chat is discarded" do
+      sha = keep(png("a"))
+      described_class.done(chat, [sha])
+      Monadic::Workbench::Retention.discard(chat)
+      expect(files).to be_empty
+    end
+
+    it "names an image a look sent, was refused or may have sent, not one that never left" do
+      looks = %w[sent refused unknown unsent embedded].map.with_index do |state, i|
+        { "image_sha256" => i.to_s * 64, "state" => state }
+      end
+      expect(described_class.named_by([{ "workbench_looks" => looks }])).to eq(%w[0 1 2].map { |d| d * 64 })
+    end
+  end
+
+  describe "a post of a look's image" do
+    let(:helper) { Class.new { include BaseVendorHelper }.new }
+    let(:request_id) { Monadic::Workspace::Ids.generate(:request) }
+    let(:session) { { chat_id: chat, parameters: { "app_name" => "ChatOpenAI" }, messages: [] } }
+    let(:ledger) do
+      Monadic::Workbench::Look::Ledger.for(chat, Monadic::Workspace::Chats.epoch(chat), request_id, session: session)
+    end
+    let(:ok) { double(status: HTTP::Response::Status.new(200)) }
+
+    around do |example|
+      Monadic::Workbench::Look::Ledger.reset!
+      context = Monadic::Workspace::RequestContext.new(chat_id: chat, request_id: request_id)
+      Monadic::Workspace::RequestContext.with(context) { example.run }
+    end
+
+    before do
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_call_original
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("m", "vision_capability").and_return(true)
+      image = Monadic::Workbench::Look::ImageValue.checked(png("look"), source: "workbench_file")
+      look = ledger.add(id: "look_#{'a' * 16}", item_id: "i_1", kind: "image", name: "a.png", path: "a.png",
+                        version: "a" * 64, scope: "visible", image: image, result: "{}", caption: "x")
+      ledger.bind(look, "c1")
+      helper.workbench_looks_prepared([ledger.observations([look]).first])
+    end
+
+    def post(&block) = helper.post_with_workbench_looks(session, provider: "openai", model: "m", &block)
+
+    it "keeps the image as it goes, pending until the reply's looks are let go" do
+      expect(post { ok }).to eq(ok)
+      sha = Digest::SHA256.hexdigest(png("look"))
+      expect(files).to eq(["#{sha}.png"])
+      expect(described_class::PENDING[chat.to_s]).to include(sha)
+      ledger.close!
+      expect(described_class::PENDING).not_to have_key(chat.to_s)
+    end
+
+    it "sends nothing when the chat keeps too much" do
+      stub_const("#{described_class}::LIMIT_BYTES", 10)
+      posted = false
+      expect { post { posted = true } }.to raise_error(Monadic::Workbench::Look::Withheld, /too large/)
+      expect(posted).to be(false)
+    end
+
+    it "sends the image without keeping it when the chat has no folder" do
+      allow(described_class).to receive(:dir_for).and_return(nil)
+      expect(post { ok }).to eq(ok)
+      expect(described_class::PENDING).not_to have_key(chat.to_s)
+    end
+  end
+end

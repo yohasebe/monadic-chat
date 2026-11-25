@@ -80,12 +80,24 @@ RSpec.describe "an attachment opened on the work screen" do
     expect(items).to be_empty
   end
 
-  it "refuses a kind it does not play and a file too large to read whole, before reading the file" do
-    odd = attach("clip.mkv", "matroska".b)
+  it "refuses a kind it does not hold and a file too large for its kind, before reading the file" do
+    odd = attach("tool.exe", "MZ".b)
     big = attach("long.mp4", "small on disk".b, size: Monadic::Workbench::FileItem::LIMIT + 1)
+    huge = attach("film.mkv", "small on disk".b, size: Monadic::Workbench::FileItem::FILE_LIMIT + 1)
     expect(Monadic::Workspace::Attachments).not_to receive(:resolve!)
     expect(open_attachment(odd)).to include("status" => "refused", "reason" => "not_playable")
     expect(open_attachment(big)).to include("status" => "refused", "reason" => "too_large")
+    expect(open_attachment(huge)).to include("status" => "refused", "reason" => "too_large")
+  end
+
+  it "puts a file it only holds (not shown), keeping the upload it came from" do
+    id = attach("report.docx", "PK\x03\x04 a document".b)
+    answer = open_attachment(id)
+    expect(answer).to include("status" => "accepted", "added" => true)
+    board = Monadic::Workbench::Board.for(chat, store: store)
+    expect(board.item(answer["item_id"])["file"]).to include("preview" => "file", "attachment_id" => id,
+                                                            "sha256" => records[id][:sha256])
+    expect(items.first).to include(preview: "file", name: "report.docx")
   end
 
   it "does not put a file that changed after it was attached" do

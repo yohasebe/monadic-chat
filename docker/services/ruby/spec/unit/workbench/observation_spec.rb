@@ -61,6 +61,13 @@ RSpec.describe Monadic::Workbench::Observation do
     expect(data["selected"]).to eq("id" => item["id"], "version" => item.dig("file", "sha256")[0, 12], "range_note" => "unknown")
   end
 
+  it "says what a file the work screen only holds is, by its type" do
+    item = open_file("report.docx", "PK\x03\x04 a document")
+    entry = observe.data["work_screen"]["items"].first
+    expect(entry).to include("id" => item["id"], "kind" => "file", "name" => "report.docx",
+                             "type" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+  end
+
   it "takes the lines the page reported only within what the server served of this version" do
     item = open_file("a.txt", "1\n2\n3\n4\n5\n")
     sha = item.dig("file", "sha256")

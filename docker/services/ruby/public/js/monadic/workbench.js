@@ -412,7 +412,12 @@
       show(held, element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
       return;
     }
-    if (item.status === 'ok' && assets[item.id]) {
+    if (item.status === 'ok' && item.preview === 'file') {
+      // A file the work screen only holds: what it is, not what it shows.
+      letGo(drawnBody);
+      drawnBody = null;
+      show(held, heldFileBody(item));
+    } else if (item.status === 'ok' && assets[item.id]) {
       show(held, drawnFor(item).node);
     } else if (item.status !== 'ok') {
       letGo(drawnBody);
@@ -430,7 +435,8 @@
     info.appendChild(actions);
     if (item.status === 'ok' && item.artifact_id) {
       actions.appendChild(saveButton(item.artifact_id, 'btn-primary'));
-    } else if (item.status === 'ok' && item.kind === 'file' && item.sha256) {
+    } else if (item.status === 'ok' && item.kind === 'file' && item.sha256 &&
+               !(item.preview === 'file' && Number(item.size) > WHOLE_LIMIT)) {
       actions.appendChild(fileSaveButton(item, 'btn-primary'));
     }
     // An image can be drawn on: a whiteboard with it laid under (as this
@@ -526,6 +532,30 @@
     letGo(drawnBody);
     drawnBody = drawn;
     return drawn;
+  }
+
+  // The most a file is read whole to be saved (FileItem::LIMIT).
+  const WHOLE_LIMIT = 64 * 1024 * 1024;
+  // The icon of a file the work screen only holds, by its type.
+  const HELD_ICONS = [[/wordprocessingml/, 'fa-file-word'], [/spreadsheetml/, 'fa-file-excel'],
+    [/presentationml/, 'fa-file-powerpoint'], [/^video\//, 'fa-file-video'], [/^audio\//, 'fa-file-audio']];
+
+  // What is shown of a file the work screen only holds (an Office
+  // document, a MIDI file, audio or video it does not play): its name,
+  // type and size, and that the tools that take it can use it.
+  function heldFileBody(item) {
+    const box = element('div', 'workbench-held-file');
+    const type = String(item.content_type || '');
+    const icon = (HELD_ICONS.find(([re]) => re.test(type)) || [null, 'fa-file'])[1];
+    box.appendChild(element('i', `fa-solid ${icon} workbench-held-file-icon`));
+    const about = element('div', 'workbench-held-file-about');
+    about.appendChild(element('div', 'workbench-held-file-name', item.name || ''));
+    const mb = (Number(item.size) || 0) / (1024 * 1024);
+    about.appendChild(element('div', 'text-secondary', `${type || '?'} · ${mb >= 1 ? mb.toFixed(1) : '<1'} MB`));
+    about.appendChild(element('div', 'text-secondary',
+      t('ui.workbench.heldFile', 'This file is not shown here. The AI can use it with the tools that take it.')));
+    box.appendChild(about);
+    return box;
   }
 
   // ---- the whiteboard -------------------------------------------------

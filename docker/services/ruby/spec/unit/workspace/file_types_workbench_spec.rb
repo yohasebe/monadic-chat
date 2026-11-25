@@ -3,14 +3,15 @@
 require "spec_helper"
 require_relative "../../../lib/monadic/workspace/file_types"
 
-# A file the user puts on the work screen: the kinds the work screen shows,
-# each checked by its leading bytes as an attachment of its kind is.
+# A file the user puts on the work screen: the kinds the work screen shows
+# and those it only holds, each checked by its leading bytes as an
+# attachment of its kind is.
 RSpec.describe "The files taken for the work screen" do
   let(:types) { Monadic::Workspace::FileTypes }
   let(:preview) { Monadic::Workspace::SharedFolderPreview }
 
-  it "are the kinds the work screen shows, and no other" do
-    shown = (preview::MEDIA.keys + preview::TEXT).map { |ext| ".#{ext}" }
+  it "are the kinds the work screen shows or only holds, and no other" do
+    shown = (preview::MEDIA.keys + preview::TEXT + preview::FILES.keys).map { |ext| ".#{ext}" }
     expect(types.extensions("workbench")).to match_array(shown)
   end
 
@@ -25,7 +26,12 @@ RSpec.describe "The files taken for the work screen" do
     expect { types.check!("workbench", "photo.png", "GIF89a....".b) }.to raise_error(types::Rejected)
     expect { types.check!("workbench", "notes.md", "a\0b".b) }.to raise_error(types::Rejected)
     expect { types.check!("workbench", "tool.exe", "MZ".b) }.to raise_error(types::Rejected)
-    expect { types.check!("workbench", "clip.mkv", "\x1A\x45\xDF\xA3".b) }.to raise_error(types::Rejected)
+    # Held only, checked as an attachment of its kind is.
+    expect { types.check!("workbench", "clip.mkv", "\x1A\x45\xDF\xA3".b) }.not_to raise_error
+    expect { types.check!("workbench", "song.mid", "MThd\x00\x00\x00\x06".b) }.not_to raise_error
+    expect { types.check!("workbench", "report.docx", "PK\x03\x04".b) }.not_to raise_error
+    expect { types.check!("workbench", "report.docx", "%PDF-1.7".b) }.to raise_error(types::Rejected)
+    expect { types.check!("workbench", "song.mid", "RIFF....".b) }.to raise_error(types::Rejected)
   end
 
   it "leave the other purposes as they were" do

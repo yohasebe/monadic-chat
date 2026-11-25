@@ -64,7 +64,8 @@ module Monadic
 
           binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: snapshot[:epoch] }
           approvals[item[:id]] = Approvals.issue(**binding, item_id: item[:id], sha256: item[:version])
-          next if item[:status] != 'ok' || !item[:sha256]
+          # A file the work screen only holds is not shown: no address.
+          next if item[:status] != 'ok' || !item[:sha256] || item[:preview] == 'file'
 
           source = item[:kind] == 'file' ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
           assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
@@ -148,13 +149,14 @@ module Monadic
         epoch = Monadic::Workspace::Chats.epoch(chat_id)
         record = Monadic::Workspace::Ids.valid?(:attachment, attachment_id) && ledger.attachment(attachment_id)
         return refuse.call('unknown') unless record && record[:chat_id] == chat_id
-        return refuse.call('not_playable') unless PLAYABLE.call(record[:relative_path])
-        return refuse.call('too_large') unless record[:size].is_a?(Integer) && record[:size] <= FileItem::LIMIT
+        kind = PLAYABLE.call(record[:relative_path]) or return refuse.call('not_playable')
+        most = kind == 'file' ? FileItem::FILE_LIMIT : FileItem::LIMIT
+        return refuse.call('too_large') unless record[:size].is_a?(Integer) && record[:size] <= most
 
         found = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id, ledger: ledger)
         origin = { actor: :user, source: :attachment, tab: tab, generation: generation }
         item, added = Board.for(chat_id).add_file(path: found[:relative_path], origin: origin, epoch: epoch, wait: 0,
-                                                  sha256: found[:sha256])
+                                                  sha256: found[:sha256], attachment_id: attachment_id)
         changed(chat_id)
         attachment_result(attachment_id, request, item_id: item['id'], added: added)
       rescue Monadic::Workspace::Attachments::Unusable => e
@@ -165,8 +167,9 @@ module Monadic
         attachment_result(attachment_id, request, reason: 'busy')
       end
 
-      # The kind the work screen shows a file as (by its name).
-      PLAYABLE = ->(name) { Monadic::Workspace::SharedFolderPreview.kind_for(name.to_s) }
+      # The kind the work screen holds a file as (by its name): one it shows,
+      # or 'file'.
+      PLAYABLE = ->(name) { Monadic::Workspace::SharedFolderPreview.held_kind_for(name.to_s) }
 
       # The item this tab's page shows now (or nil for none). The page is
       # told what was taken: an item no longer on the board is refused. The

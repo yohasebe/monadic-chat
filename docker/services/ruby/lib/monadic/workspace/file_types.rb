@@ -77,8 +77,8 @@ module Monadic
       }.freeze
 
       # A file the user puts on the work screen: the kinds the work screen
-      # shows (SharedFolderPreview), each checked as an attachment of its kind
-      # is.
+      # shows (SharedFolderPreview), and those it only holds (its FILES),
+      # each checked as an attachment of its kind is.
       WORKBENCH = begin
         media = SharedFolderPreview::MEDIA.to_h do |ext, (kind, _type)|
           check = case kind
@@ -88,7 +88,10 @@ module Monadic
                   end
           [".#{ext}", check || raise("no check for .#{ext}")]
         end
-        media.merge(SharedFolderPreview::TEXT.to_h { |ext| [".#{ext}", TEXT] }).freeze
+        held = SharedFolderPreview::FILES.keys.to_h do |ext|
+          [".#{ext}", DOCUMENT[".#{ext}"] || VIDEO[".#{ext}"] || AUDIO[".#{ext}"] || raise("no check for .#{ext}")]
+        end
+        media.merge(SharedFolderPreview::TEXT.to_h { |ext| [".#{ext}", TEXT] }).merge(held).freeze
       end
       PURPOSES = { 'video' => VIDEO, 'audio' => AUDIO, 'document' => DOCUMENT, 'workbench' => WORKBENCH }.freeze
 

@@ -29,7 +29,10 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param prompt [String] Text description of the desired image
   # @param images [Array<String>] Array of image filenames for editing/variation
   # @param mask [String] Mask image filename for precise editing
-  # @param size [String] Image dimensions
+  # @param item [String, nil] An item of the work screen to edit (its id):
+  #   an image, or a whiteboard drawn on one (its picture and the drawing)
+  # @param size [String, nil] Image dimensions (1024x1024 unless given; an
+  #   edit with a drawn reference follows the original: auto)
   # @param quality [String, nil] Image quality level. The accepted values differ
   #   per model (gpt-image-2 takes auto/low/medium/high; the 2.5 models also
   #   take xhigh/max), so they are resolved from the catalog rather than fixed
@@ -45,7 +48,7 @@ class ImageGeneratorOpenAI < MonadicApp
   # @return [Monadic::Workbench::Offered, String] The image on the
   #   workbench, or an error
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
-                                mask: nil, size: "1024x1024",
+                                mask: nil, item: nil, size: nil,
                                 quality: nil, output_format: "png",
                                 background: nil, output_compression: nil, input_fidelity: nil,
                                 session: nil, workbench: nil)
@@ -57,17 +60,23 @@ class ImageGeneratorOpenAI < MonadicApp
       return refused
     end
 
+    return "❌ An item of the work screen is named only to edit it." if item && operation != "edit"
+
     # Which image an edit starts from (Monadic::Workbench::ImageTool)
     board_input = nil
+    source = nil
     if operation == "edit"
       begin
-        source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, mask: mask)
+        source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, mask: mask,
+                                                           item: item)
       rescue Monadic::Workbench::ImageTool::NoSource => e
         return e.message
       end
       images = source.images
       mask = source.mask
       board_input = source.board_input
+      prompt = Monadic::Workbench::ImageTool.edit_prompt(source, prompt)
+      size ||= "auto" if source.drawn?
       # The mask is a file of the shared folder (an upload of an earlier
       # turn with its name is written there first).
       if mask && !Monadic::Workbench::ImageTool.shared_image?(mask) &&
@@ -95,9 +104,9 @@ class ImageGeneratorOpenAI < MonadicApp
 
     # One image, made in a job folder of the chat's workbench, then placed
     # in the chat's folder of the shared folder.
-    Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input) do |out_dir, inputs|
+    Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input, drawn: source&.inputs) do |out_dir, inputs|
       super(operation: operation, model: model, prompt: prompt, images: images,
-            mask: mask, n: 1, size: size, quality: quality, output_format: output_format,
+            mask: mask, n: 1, size: size || "1024x1024", quality: quality, output_format: output_format,
             background: background, output_compression: output_compression, input_fidelity: input_fidelity,
             out_dir: out_dir, job_inputs: inputs)
     end
@@ -119,6 +128,8 @@ class ImageGeneratorGrok < MonadicApp
   # Generate or edit images using Grok/xAI
   # @param operation [String] Type of operation: 'generate' or 'edit'
   # @param prompt [String] Text description of the desired image or editing instructions
+  # @param item [String, nil] An item of the work screen to edit (its id):
+  #   an image, or a whiteboard drawn on one (its picture and the drawing)
   # @param aspect_ratio [String] Aspect ratio from imageGenerationOptions.xai
   # @param images [Array<String>] Array of image filenames for editing (max 5)
   # @param session [Object] Session object (automatically provided)
@@ -128,7 +139,7 @@ class ImageGeneratorGrok < MonadicApp
   # @return [Monadic::Workbench::Offered, String] The image on the
   #   workbench, or an error
   def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, quality: nil, images: nil, image_model: nil,
-                              session: nil, workbench: nil)
+                              item: nil, session: nil, workbench: nil)
     # Input validation
     raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
@@ -160,11 +171,14 @@ class ImageGeneratorGrok < MonadicApp
         raise ArgumentError, "Invalid #{parameter}: #{value}. Must be one of: #{allowed.join(', ')}"
       end
     end
+    return "❌ An item of the work screen is named only to edit it." if item && operation != "edit"
+
     # Which image an edit starts from (Monadic::Workbench::ImageTool)
     board_input = nil
+    source = nil
     if operation == "edit"
       begin
-        source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images)
+        source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, item: item)
       rescue Monadic::Workbench::ImageTool::NoSource => e
         return e.message
       end
@@ -172,6 +186,7 @@ class ImageGeneratorGrok < MonadicApp
 
       images = source.images
       board_input = source.board_input
+      prompt = Monadic::Workbench::ImageTool.edit_prompt(source, prompt)
       return "❌ Maximum 5 images allowed for xAI edit API." if Array(images).size > 5
     end
 
@@ -180,7 +195,7 @@ class ImageGeneratorGrok < MonadicApp
 
     # One image, made in a job folder of the chat's workbench, then placed
     # in the chat's folder of the shared folder.
-    Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input) do |out_dir, inputs|
+    Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input, drawn: source&.inputs) do |out_dir, inputs|
       super(prompt: prompt, aspect_ratio: aspect_ratio, quality: quality, operation: operation,
             images: resolved_images.empty? ? nil : resolved_images, image_model: image_model,
             out_dir: out_dir, job_inputs: inputs)
@@ -209,11 +224,13 @@ class ImageGeneratorGemini < MonadicApp
   # @param aspect_ratio [String] Optional aspect ratio (e.g., 16:9, 1:1, 4:5)
   # @param image_size [String] Optional resolution (1K, 2K, 4K)
   # @param images [Array<String>] Shared-folder paths the user named for an edit
+  # @param item [String, nil] An item of the work screen to edit (its id):
+  #   an image, or a whiteboard drawn on one (its picture and the drawing)
   # @param session [Object] Session object (automatically provided)
   # @param workbench [Monadic::Workbench::Caller] The reply's chat (given by the server)
   # @return [Monadic::Workbench::Offered, String] The image on the workbench, or why there is none
   def generate_image_with_gemini(prompt:, operation: "generate", model: nil, aspect_ratio: nil, image_size: nil, images: nil,
-                                 session: nil, workbench: nil)
+                                 item: nil, session: nil, workbench: nil)
     raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
 
@@ -225,21 +242,25 @@ class ImageGeneratorGemini < MonadicApp
     model = models.first if model.to_s.strip.empty?
     return "❌ Unknown image model: #{model}. Use one of: #{models.join(', ')}" unless models.include?(model)
 
+    return "❌ An item of the work screen is named only to edit it." if item && operation != "edit"
+
     # Which images an edit starts from (Monadic::Workbench::ImageTool)
     inputs = []
     board_input = nil
+    source = nil
     if operation == "edit"
-      source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images)
+      source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, item: item)
       return "❌ Gemini image editing does not take a mask: describe the change in words instead." if source.mask
 
       board_input = source.board_input
+      prompt = Monadic::Workbench::ImageTool.edit_prompt(source, prompt)
       names = Array(source.images)
       return "❌ Maximum #{GEMINI_MAX_INPUTS} images allowed for Gemini image editing." if names.size > GEMINI_MAX_INPUTS
 
       inputs = names.map { |name| Monadic::Workbench::ImageTool.shared_input(name) }
     end
 
-    Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input) do |out_dir, job_inputs|
+    Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input, drawn: source&.inputs) do |out_dir, job_inputs|
       inputs += job_inputs.map { |path| Monadic::Workbench::ImageTool.job_input(path) }
       inline = inputs.map { |input| { "data" => "data:#{input[:content_type]};base64,#{Base64.strict_encode64(input[:bytes])}" } }
       generate_image_with_gemini_native(prompt: prompt, model: model, aspect_ratio: aspect_ratio, image_size: image_size,

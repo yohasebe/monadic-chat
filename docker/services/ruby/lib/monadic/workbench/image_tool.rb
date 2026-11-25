@@ -3,6 +3,7 @@
 require 'base64'
 require 'json'
 require_relative 'board'
+require_relative 'board_edit'
 require_relative 'image_check'
 require_relative 'caller'
 require_relative 'job_output'
@@ -18,9 +19,18 @@ module Monadic
     # image an edit starts from, and a run of a generator whose image goes
     # to the chat's workbench. Calls no provider API.
     module ImageTool
-      # The edit's images: paths in the shared folder (and a mask), or the
-      # bytes of a board image (board_input).
-      Source = Struct.new(:images, :mask, :board_input, keyword_init: true)
+      # The edit's images: paths in the shared folder (and a mask), the
+      # bytes of a board image (board_input), or the original and the drawn
+      # reference of a whiteboard drawn on an image (inputs, in that order:
+      # BoardEdit::Input).
+      Source = Struct.new(:images, :mask, :board_input, :inputs, keyword_init: true) do
+        def drawn? = !inputs.nil?
+      end
+
+      # Said to the image model before the user's words when an edit is
+      # given the original and the drawn reference.
+      DRAWN_NOTE = 'Edit the first image. The second image is the same picture with marks the user drew on it, ' \
+                   'showing what to change and where; leave the marks themselves out of the result. '
 
       # An edit that cannot start: the message says why.
       class NoSource < StandardError; end
@@ -47,9 +57,14 @@ module Monadic
       # and checked: one that changed or is gone stops the edit); the
       # uploads in the last user message. Every image of the chosen kind is found, or the edit stops:
       # nothing else is edited in its place. Names the model passed count
-      # only as the user's own words name them. Raises NoSource when there
-      # is nothing to edit.
-      def edit_source(session:, workbench:, images:, mask: nil)
+      # only as the user's own words name them. A whiteboard drawn on an
+      # image (named by item, or selected) gives its picture and the board
+      # as drawn (BoardEdit). item (an item of the work screen, by its id)
+      # comes before all of these. Raises NoSource when there is nothing to
+      # edit.
+      def edit_source(session:, workbench:, images:, mask: nil, item: nil)
+        return item_source(workbench, item.to_s, images, mask) unless item.nil? || item.to_s.empty?
+
         named = Array(images).filter_map do |img|
           upload = upload_name(img)
           upload ? File.basename(upload.to_s) : (img.is_a?(String) ? shared_name(img) : nil)
@@ -89,6 +104,47 @@ module Monadic
         raise NoSource, '❌ No image to edit: there is no image in the work screen, and none was uploaded or named.'
       end
 
+      # The item of the work screen item_id names: an image (read at the
+      # version it has now, selected or not), or a whiteboard drawn on an
+      # image (its picture and the board as the tab draws it: only one the
+      # tab shows). Nothing else, and no other image in its place.
+      def item_source(workbench, item_id, images, mask)
+        raise NoSource, '❌ Name an item of the work screen or images, not both.' if Array(images).any? || mask
+
+        board = workbench && Board.existing(workbench.chat_id)
+        item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is edited.'
+        return drawn_source(workbench, item_id) if BoardEdit.whiteboard?(item)
+        unless item['artifact'] || item.dig('file', 'preview') == 'image'
+          raise NoSource, '❌ That item is not an image or a whiteboard drawn on one: nothing is edited.'
+        end
+
+        Source.new(board_input: input_of(board, item))
+      rescue Board::Refused, Artifact::Missing, Artifact::Changed, Artifact::NotAllowed, FileItem::Busy => e
+        raise NoSource, "❌ That item cannot be edited (#{e.message}): no other image is used in its place."
+      end
+
+      # The picture and the drawn reference of the whiteboard (item_id, or
+      # the one the tab shows).
+      def drawn_source(workbench, item_id = nil)
+        Source.new(inputs: BoardEdit.inputs(workbench, item_id: item_id))
+      rescue BoardEdit::NoSource => e
+        raise NoSource, "❌ #{e.message.sub(/\A./, &:upcase)}: nothing is edited."
+      end
+
+      # An image item's bytes, read now and checked.
+      def input_of(board, item)
+        return board.image_input(item['id']) if item['artifact']
+
+        read = board.file_read(item['id'], sha256: item.dig('file', 'sha256'))
+        image_input(read[:bytes], item.dig('file', 'path')).merge(id: item['id'], name: item.dig('file', 'name'))
+      end
+
+      # The prompt sent with the edit: for the original and its drawn
+      # reference, what each is comes first.
+      def edit_prompt(source, prompt)
+        source&.drawn? ? DRAWN_NOTE + prompt.to_s : prompt
+      end
+
       # The image the caller's tab has selected on the work screen, as the
       # input of a run (its bytes, read now and checked): a generated image,
       # or an image of the shared folder opened there. nil when the tab
@@ -102,16 +158,16 @@ module Monadic
         return nil unless target.is_a?(Board::Target)
 
         item = target.item
+        if BoardEdit.whiteboard?(item)
+          raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
+
+          return drawn_source(workbench)
+        end
         file_image = item['kind'] == 'file' && item.dig('file', 'preview') == 'image'
         return nil unless item['artifact'] || file_image
         raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
 
-        input = if item['artifact']
-                  board.image_input(item['id'])
-                else
-                  read = board.file_read(item['id'], sha256: item.dig('file', 'sha256'))
-                  image_input(read[:bytes], item.dig('file', 'path')).merge(id: item['id'], name: item.dig('file', 'name'))
-                end
+        input = input_of(board, item)
         unless board.still_selected?(tab: workbench.tab, generation: workbench.generation, item: item, serial: target.serial)
           raise NoSource, '❌ The image selected in the work screen changed while it was read: it is not edited.'
         end
@@ -176,13 +232,18 @@ module Monadic
       # edit starts from, given through in/), and returns what the generator
       # said. Returns the Offered image, or what the generator said when it
       # made none. The job folder is removed in every case.
-      def run_job(workbench, board_input: nil)
+      def run_job(workbench, board_input: nil, drawn: nil)
         job = JobOutput.make(workbench.chat_id)
         begin
           inputs = []
           if board_input
             ext = board_input[:content_type].split('/').last.sub('jpeg', 'jpg')
             inputs << JobOutput.put_input!(job, "input.#{ext}", board_input[:bytes])
+          end
+          # The original first, then the drawn reference.
+          Array(drawn).each_with_index do |input, i|
+            ext = input.content_type.split('/').last.sub('jpeg', 'jpg')
+            inputs << JobOutput.put_input!(job, "input-#{i + 1}-#{input.role}.#{ext}", input.bytes)
           end
           said = yield JobOutput.out_dir(job), inputs
           return said if JobOutput.files(job).empty?

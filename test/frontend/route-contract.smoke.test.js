@@ -13,7 +13,6 @@
  * shape.
  *
  * Coverage:
- *   - convertDocument  → POST /document with X-Requested-With + form data
  *   - fetchWebpage     → POST /fetch_webpage with X-Requested-With + form data
  *   - importSession    → POST /load   with X-Requested-With + form data
  *
@@ -55,31 +54,6 @@ describe('route-contract smoke (frontend fetch callers)', () => {
 
   afterEach(() => {
     fetchSpy.mockRestore();
-  });
-
-  describe('convertDocument → /document', () => {
-    it('always sets X-Requested-With and uses POST', async () => {
-      const file = new File(['%PDF-1.4'], 'sample.pdf', { type: 'application/pdf' });
-      await formHandlers.convertDocument(file, '');
-
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [url, init] = fetchSpy.mock.calls[0];
-      expect(url).toBe('/document');
-      expect(init.method).toBe('POST');
-      expect(init.headers && init.headers['X-Requested-With']).toBe('XMLHttpRequest');
-      // Body must be FormData so the multipart upload reaches Sinatra
-      // intact; encoding it as JSON would lose the file.
-      expect(init.body).toBeInstanceOf(FormData);
-    });
-
-    it('rejects unsupported file types before reaching the network', async () => {
-      // application/octet-stream is what the browser sends for unknown
-      // MIME types; we pre-filter so the server is never asked to
-      // unwrap a binary blob it cannot handle.
-      const file = new File(['xx'], 'x.bin', { type: 'application/octet-stream' });
-      await expect(formHandlers.convertDocument(file, '')).rejects.toThrow(/Unsupported/);
-      expect(fetchSpy).not.toHaveBeenCalled();
-    });
   });
 
   describe('fetchWebpage → /fetch_webpage', () => {
@@ -127,8 +101,7 @@ describe('route-contract smoke (frontend fetch callers)', () => {
         json: () => Promise.reject(new SyntaxError('No number after minus sign'))
       });
 
-      const file = new File(['%PDF-1.4'], 'sample.pdf', { type: 'application/pdf' });
-      await expect(formHandlers.convertDocument(file, '')).rejects.toMatchObject({
+      await expect(formHandlers.fetchWebpage('https://example.com/article', '')).rejects.toMatchObject({
         status: 200
       });
     });

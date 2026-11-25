@@ -153,7 +153,7 @@ const everyButton = () => {
   return { buttons: Array.from(seen.values()), unseen: Array.from(document.querySelectorAll('.btn')).filter((b) => !seen.has(b)).map((b) => b.id || b.className) };
 };
 
-const TOOL_IDS = ['image-file', 'doc', 'url', 'anonymize', 'voice'];
+const TOOL_IDS = ['image-file', 'anonymize', 'voice'];
 const SETTINGS_IDS = ['save-settings-btn', 'close-settings-btn'];
 const PANELS = {
   'panel-actions': ['action-start', 'action-build', 'action-open-jupyter', 'action-import-db', 'action-export-db'],
@@ -276,20 +276,20 @@ async function main() {
     out.web = await look(page, `${base}/web`, [...TOOL_IDS, 'send']);
     out.webDark = await look(page, `${base}/web`, TOOL_IDS, { dark: true });
     // Hover, then the keyboard's focus ring.
-    await page.hover('#doc');
+    await page.hover('#image-file');
     await settled();
-    out.webHover = await page.evaluate(() => getComputedStyle(document.getElementById('doc')).backgroundColor);
+    out.webHover = await page.evaluate(() => getComputedStyle(document.getElementById('image-file')).backgroundColor);
     await page.mouse.move(0, 0);
-    await page.focus('#doc');
+    await page.focus('#image-file');
     await page.keyboard.press('Shift');
     out.webFocus = await page.evaluate(() => {
-      const el = document.getElementById('doc');
+      const el = document.getElementById('image-file');
       el.blur();
       el.focus({ focusVisible: true });
       return { outline: getComputedStyle(el).outlineStyle, matches: el.matches(':focus-visible') };
     });
     out.webDisabled = await page.evaluate(() => {
-      const el = document.getElementById('doc');
+      const el = document.getElementById('image-file');
       el.disabled = true;
       return getComputedStyle(el).opacity;
     });

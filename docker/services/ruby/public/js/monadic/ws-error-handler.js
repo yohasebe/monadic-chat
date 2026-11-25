@@ -120,7 +120,7 @@ function handleError(data) {
     handled = wsHandlers.handleErrorMessage(translatedData);
   } else {
     // Fallback to inline handling
-    ["send", "clear", "image-file", "voice", "doc", "url", "ai_user"].forEach(function(id) {
+    ["send", "clear", "image-file", "voice", "ai_user"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -265,7 +265,7 @@ function handleCancel(data) {
     }
 
     // Re-enable all the UI elements
-    ["send", "clear", "image-file", "voice", "doc", "url", "ai_user", "select-role"].forEach(function(id) {
+    ["send", "clear", "image-file", "voice", "ai_user", "select-role"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });

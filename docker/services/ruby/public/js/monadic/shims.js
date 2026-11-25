@@ -244,20 +244,6 @@ window.shims.uiUtils = {
 // loaded earlier in the bundle) so the X-Requested-With contract and
 // JSON parsing live in one place.
 window.shims.formHandlers = {
-  convertDocument: function (doc, docLabel) {
-    if (!doc) return Promise.reject(new Error("Please select a document file to convert"));
-    if (doc.type === "application/octet-stream") return Promise.reject(new Error("Unsupported file type"));
-
-    const formData = new FormData();
-    formData.append("docFile", doc);
-    formData.append("docLabel", docLabel || "");
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
-    return window.monadicFetch.postJson("/document", formData, { signal: controller.signal })
-      .finally(() => clearTimeout(timer));
-  },
-
   fetchWebpage: function (url, urlLabel) {
     if (!url) return Promise.reject(new Error("Please specify the URL of the page to fetch"));
     if (!url.match(/^(http|https):\/\/[^ "]+$/)) return Promise.reject(new Error("Please enter a valid URL"));

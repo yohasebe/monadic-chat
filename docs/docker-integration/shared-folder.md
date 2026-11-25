@@ -80,7 +80,7 @@ The section is collapsed by default; expand it to view the list of variables and
 - **DrawIO Grapher**: Diagram files (`.drawio`)
 - **Web Insight**: Web page screenshots (PNG)
 
-Files a chat's app makes for that chat (diagrams, scores, music, speech, images, videos) are kept in the chat's folder (`conversations/…/artifacts/`), and files the AI writes with the file tools in its work folder (`conversations/…/work/`). Screenshots the browser tools take are kept in the chat's folder too, documents you import with **Text from file** in its `inputs/` folder, and code starts in a run folder of the chat. Files made through the MCP server are kept under `mcp/`. None of these are saved at the top of the shared folder. Code that runs in the containers can still read and write anywhere in the shared folder. The [Files tab](../basic-usage/web-interface.md#shared-folder-panel) shows what each file is and moves the ones you no longer need to the trash.
+Files a chat's app makes for that chat (diagrams, scores, music, speech, images, videos) are kept in the chat's folder (`conversations/…/artifacts/`), and files the AI writes with the file tools in its work folder (`conversations/…/work/`). Screenshots the browser tools take are kept in the chat's folder too, files you put on the work screen in its `inputs/` folder, and code starts in a run folder of the chat. Files made through the MCP server are kept under `mcp/`. None of these are saved at the top of the shared folder. Code that runs in the containers can still read and write anywhere in the shared folder. The [Files tab](../basic-usage/web-interface.md#shared-folder-panel) shows what each file is and moves the ones you no longer need to the trash.
 
 
 ## Monadic Chat Directory Structure

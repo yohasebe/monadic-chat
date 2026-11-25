@@ -5,8 +5,7 @@ require 'rack/test'
 require 'sinatra'
 
 # Network-level smoke for the JsonRoute pattern. The H3c refactor
-# removed the `request.xhr?` branching from /document, /fetch_webpage,
-# and /load; this spec exercises each route through Rack::Test so a
+# removed the `request.xhr?` branching from /fetch_webpage and /load; this spec exercises each route through Rack::Test so a
 # regression that re-introduces the form-fallback branch is caught at
 # the response layer (where the original "No number after minus sign"
 # bug actually surfaced).
@@ -62,55 +61,8 @@ RSpec.describe 'JSON-route contract (no X-Requested-With)', :integration do
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(File.join(@tmp_data_dir, '.state'))
   end
 
-  # The chat UploadContext fixed for the upload (config.ru mounts it).
-  let(:chat_env) { { Monadic::Workspace::UploadContext::CHAT_KEY => Monadic::Workspace::Ids.generate(:chat) } }
-
   after do
     FileUtils.remove_entry(@tmp_data_dir) if @tmp_data_dir && Dir.exist?(@tmp_data_dir)
-  end
-
-  describe 'POST /document without X-Requested-With' do
-    it 'always returns JSON content-type' do
-      file = Rack::Test::UploadedFile.new(
-        StringIO.new("dummy"), 'application/octet-stream', original_filename: 'sample.txt'
-      )
-      post '/document', { 'docFile' => file, 'docLabel' => '' }, chat_env
-
-      expect(last_response.content_type).to start_with('application/json')
-    end
-
-    it 'returns parseable JSON with success+content keys on the happy path' do
-      file = Rack::Test::UploadedFile.new(
-        StringIO.new("dummy"), 'text/plain', original_filename: 'sample.txt'
-      )
-      post '/document', { 'docFile' => file, 'docLabel' => 'Note' }, chat_env
-
-      data = JSON.parse(last_response.body)
-      expect(data).to include('success' => true)
-      expect(data['content']).to be_a(String)
-      expect(data['content']).to include('Note')
-      # Kept as an attachment of the chat, nothing at the top of the shared folder
-      expect(Dir.glob(File.join(@tmp_data_dir, 'conversations', '*', 'inputs', '*__sample.txt')).size).to eq(1)
-      expect(Dir.children(@tmp_data_dir) - ['.state']).to eq(['conversations'])
-    end
-
-    it 'keeps nothing and says so when the page has no chat' do
-      file = Rack::Test::UploadedFile.new(StringIO.new("dummy"), 'text/plain', original_filename: 'sample.txt')
-      post '/document', { 'docFile' => file, 'docLabel' => '' }
-
-      data = JSON.parse(last_response.body)
-      expect(data).to include('success' => false)
-      expect(Dir.children(@tmp_data_dir) - ['.state']).to be_empty
-    end
-
-    it 'returns parseable JSON error when docFile is missing' do
-      post '/document', { 'docLabel' => 'no file' }, chat_env
-
-      expect(last_response.content_type).to start_with('application/json')
-      data = JSON.parse(last_response.body)
-      expect(data).to include('success' => false)
-      expect(data['error']).to match(/No file selected/)
-    end
   end
 
   describe 'POST /fetch_webpage without X-Requested-With' do

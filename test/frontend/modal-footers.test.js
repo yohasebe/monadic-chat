@@ -29,7 +29,7 @@ describe('modal footers', () => {
     };
   });
 
-  test.each(['loadModal', 'docModal', 'audioUploadModal', 'urlModal'])(
+  test.each(['loadModal', 'audioUploadModal', 'urlModal'])(
     '%s has a Cancel that only closes it, before the action', (id) => {
       const footer = footerOf(id);
       const buttons = buttonsOf(footer);

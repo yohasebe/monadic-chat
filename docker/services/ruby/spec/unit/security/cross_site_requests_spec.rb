@@ -33,16 +33,18 @@ RSpec.describe "Web app and requests from other sites" do
       end
     end)
     data = File.join(Dir.home, "monadic", "data")
-    # A page of a chat (its tab): a document it uploads is kept as that
-    # chat's attachment.
+    # A page of a chat (its tab): a file it uploads is kept as that chat's
+    # attachment.
     probe_chat = Monadic::Workspace::Ids.generate(:chat)
     WebSocketHelper.singleton_class.prepend(Module.new do
       define_method(:fetch_http_session_state) do |tab_id|
         tab_id == "probe-tab" ? { chat_id: probe_chat, parameters: { "app_name" => "ChatOpenAI" } } : super(tab_id)
       end
     end)
-    form = lambda do |field, name, body|
-      "--B\r\nContent-Disposition: form-data; name=\"#{field}\"; filename=\"#{name}\"\r\n" \
+    # A file part (field), with a purpose part when given (an attachment).
+    form = lambda do |field, name, body, purpose: nil|
+      head = purpose ? "--B\r\nContent-Disposition: form-data; name=\"purpose\"\r\n\r\n#{purpose}\r\n" : ""
+      "#{head}--B\r\nContent-Disposition: form-data; name=\"#{field}\"; filename=\"#{name}\"\r\n" \
         "Content-Type: application/octet-stream\r\n\r\n#{body}\r\n--B--\r\n"
     end
     # Every temporary file Rack makes for an upload, held here so garbage
@@ -51,8 +53,8 @@ RSpec.describe "Web app and requests from other sites" do
     factory = lambda do |filename, _type|
       Tempfile.new(["RackMultipart", File.extname(filename.to_s)]).tap { |file| made << file }
     end
-    upload = lambda do |name, headers, path: "/document?tab_id=probe-tab", field: "docFile"|
-      env = { input: form.call(field, name, "ID3"), "CONTENT_TYPE" => "multipart/form-data; boundary=B",
+    upload = lambda do |name, headers, path: "/attachments?tab_id=probe-tab", field: "file"|
+      env = { input: form.call(field, name, "ID3", purpose: "document"), "CONTENT_TYPE" => "multipart/form-data; boundary=B",
               "HTTP_HOST" => "localhost:4567", "rack.multipart.tempfile_factory" => factory }.merge(headers)
       status = req.post("http://localhost:4567#{path}", env).status
       kept = File.exist?(File.join(data, name)) || Dir.glob(File.join(data, "conversations", "*", "inputs", "*__#{name}")).any?
@@ -101,12 +103,12 @@ RSpec.describe "Web app and requests from other sites" do
     end
     # Each upload is capped before its body is read: a request declaring one
     # byte over the limit is refused, an ordinary one is not.
-    caps = { "/document" => [DOCUMENT_UPLOAD_MAX_BYTES, "docFile"],
+    caps = { "/attachments" => [Monadic::Workspace::UploadLimit::DEFAULT_MAX_BYTES, "file"],
              "/load" => [SESSION_LOAD_MAX_BYTES, "file"],
              "/library/import" => [LIBRARY_IMPORT_MAX_BYTES + 1_000_000, "libraryFile"] }
     out["caps"] = caps.to_h do |path, (limit, field)|
-      # A document is sent from a chat's page (its tab).
-      url = "http://localhost:4567#{path}#{'?tab_id=probe-tab' if path == '/document'}"
+      # An attachment is sent from a chat's page (its tab).
+      url = "http://localhost:4567#{path}#{'?tab_id=probe-tab' if path == '/attachments'}"
       over = req.post(url, input: form.call(field, "x.mp3", "ID3"),
                       "CONTENT_TYPE" => "multipart/form-data; boundary=B", "HTTP_HOST" => "localhost:4567",
                       "HTTP_ORIGIN" => "http://localhost:4567", "CONTENT_LENGTH" => (limit + 1).to_s)
@@ -206,7 +208,7 @@ RSpec.describe "Web app and requests from other sites" do
 
 
   it "caps every upload before reading it, and lets an ordinary one through" do
-    expect(@result["caps"].keys).to contain_exactly("/document", "/load", "/library/import")
+    expect(@result["caps"].keys).to contain_exactly("/attachments", "/load", "/library/import")
     @result["caps"].each do |path, r|
       expect(r["over"]).to eq(413), path
       expect(r["over_reason"]).to eq("too_large"), path
@@ -233,8 +235,8 @@ RSpec.describe "Web app and requests from other sites" do
   end
 
   it "still takes uploads from its own page and from programs, kept in the chat's folder" do
-    expect(@result["upload_own_page"]).to eq({ "status" => 200, "written" => true })
-    expect(@result["upload_no_origin"]).to eq({ "status" => 200, "written" => true })
+    expect(@result["upload_own_page"]).to eq({ "status" => 201, "written" => true })
+    expect(@result["upload_no_origin"]).to eq({ "status" => 201, "written" => true })
     expect(@result["uploads_at_top"]).to eq([])
   end
 

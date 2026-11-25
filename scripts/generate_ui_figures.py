@@ -305,7 +305,7 @@ class Figure:
 def input_buttons(table, color, title):
     """The buttons under the message box."""
     figure = Figure(color, title)
-    rows = [['image-file', 'doc', 'url', 'anonymize', 'voice'], ['send', 'clear']]
+    rows = [['image-file', 'anonymize', 'voice'], ['send', 'clear']]
     specs = page_buttons([b for row in rows for b in row])
     y = 20 + 64 + 30
     for row in rows:
@@ -651,49 +651,6 @@ def attachments(table, color, title):
     figure.field(x, y + 40, width, 64)
     figure.lines(x + 14, y + 56, [width - 180])
     figure.grow(x + width, y + 104)
-    return figure
-
-
-def file_dialog(table, color, title):
-    """The dialog of the Text from file button."""
-    figure = Figure(color, title)
-    html = read('views', 'index.erb')
-    modal = html[html.index('id="docModal"'):html.index('id="audioUploadModal"')]
-    keys = re.findall(I18N, modal) + re.findall(r'data-i18n-placeholder="([^"]+)"', modal)
-    wanted = ['ui.modals.fromFile', 'ui.modals.labelOptional', 'ui.modals.docLabelPlaceholder',
-              'ui.modals.documentToConvert', 'ui.cancel', 'ui.modals.convert']
-    missing = [key for key in wanted if key not in keys]
-    style, icon = re.search(r'<i class="(fa-brands|fab|fa-solid|fas) (fa-[a-z0-9-]+)"', modal).groups()
-    if missing or 'type="file"' not in modal:
-        raise SystemExit('the Text from file dialog no longer has %s' % (', '.join(missing) or 'its file field'))
-    word = lambda key: label(table, key)  # noqa: E731
-    line = color('pal-grey-line')
-    x, y = 20, 20
-    width = max(460, text_width(word('ui.modals.documentToConvert')) + 52)
-    figure.add('<rect x="%d" y="%d" width="%.1f" height="268" rx="6" fill="#ffffff" stroke="%s"/>' % (x, y, width, line))
-    icon_width = figure.icon(style, icon, x + 18, y + 17, 15)
-    figure.text(x + 18 + icon_width + 8, y + 30, word('ui.modals.fromFile'), 15, None, '700')
-    figure.add('<line x1="%d" y1="%d" x2="%.1f" y2="%d" stroke="%s"/>' % (x, y + 48, x + width, y + 48, line))
-    figure.text(x + 18, y + 76, word('ui.modals.labelOptional'), 13)
-    figure.field(x + 18, y + 86, width - 36, 30)
-    figure.text(x + 28, y + 106, word('ui.modals.docLabelPlaceholder'), 12, color('pal-grey-mid'))
-    figure.text(x + 18, y + 144, word('ui.modals.documentToConvert'), 13)
-    # The browser draws the file field; its own words are not the page's
-    figure.field(x + 18, y + 154, width - 36, 30)
-    figure.add('<rect x="%d" y="%d" width="96" height="30" rx="5" fill="%s" stroke="%s"/>'
-               % (x + 18, y + 154, color('pal-grey-soft'), color('border-color')))
-    figure.lines(x + 30, y + 165, [72])
-    figure.lines(x + 128, y + 165, [150])
-    figure.add('<line x1="%d" y1="%d" x2="%.1f" y2="%d" stroke="%s"/>' % (x, y + 204, x + width, y + 204, line))
-    right = x + width - 18
-    for key, fill in [('ui.modals.convert', 'pal-accent-strong'), ('ui.cancel', 'pal-grey-strong')]:
-        text = word(key)
-        w = text_width(text) + 22
-        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="4" fill="%s"/>'
-                   % (right - w, y + 226, w, BUTTON_HEIGHT, color(fill)))
-        figure.text(right - w / 2, y + 226 + BUTTON_HEIGHT / 2 + TEXT * 0.36, text, TEXT, '#ffffff', None, 'middle')
-        right -= w + 8
-    figure.grow(x + width, y + 268)
     return figure
 
 
@@ -1480,7 +1437,6 @@ FIGURES = {
     'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': '音声パネル'}),
     'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
     'sent-attachments': (sent_attachments, {'en': 'A sent message with attachments', 'ja': '添付つきで送ったメッセージ'}),
-    'file-dialog': (file_dialog, {'en': 'The Text from file dialog', 'ja': 'ファイルからテキストを読み込むダイアログ'}),
     'realtime-text': (realtime_text, {'en': 'Live transcript in the message box', 'ja': 'メッセージ入力欄に出る書き起こし'}),
     'menu-file': (desktop_menu('file'), {'en': 'The File menu', 'ja': 'File メニュー'}),
     'menu-actions': (desktop_menu('actions'), {'en': 'The Actions menu', 'ja': 'Actions メニュー'}),

@@ -439,6 +439,11 @@
                !(item.preview === 'file' && Number(item.size) > WHOLE_LIMIT)) {
       actions.appendChild(fileSaveButton(item, 'btn-primary'));
     }
+    // A document's text can be taken for the message (as this version).
+    if (item.status === 'ok' && item.kind === 'file' && item.text && item.sha256) {
+      actions.appendChild(button(t('ui.workbench.itemText', 'Text to the message'), 'btn-secondary workbench-item-text',
+        () => askItemText(item)));
+    }
     // An image can be drawn on: a whiteboard with it laid under (as this
     // version of it).
     if (item.status === 'ok' && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
@@ -724,6 +729,39 @@
     const context = board.getContext('2d');
     if (!context || !handle.paint(context, width, height)) return Object.assign(out, { image_note: 'failed' });
     return Object.assign(out, drawnPng(board, 0, 0, width, height));
+  }
+
+  // The texts asked for, by request number: the chat they were asked in
+  // (a text that comes for another chat is not put in the message).
+  let itemTextRequest = 0;
+  const itemTextRequests = new Map();
+
+  function askItemText(item) {
+    if (typeof window.safeWsSend !== 'function') return;
+    itemTextRequest += 1;
+    itemTextRequests.set(itemTextRequest, board ? board.chat_id : null);
+    window.safeWsSend({ message: 'WORKBENCH_ITEM_TEXT', request: itemTextRequest, item_id: item.id, sha256: item.sha256 });
+    announce(t('ui.workbench.itemTextWorking', 'Taking the text of the document…'));
+  }
+
+  // The server's answer: the text put after what the message box holds,
+  // or why there is none.
+  const ITEM_TEXT_REASONS = {
+    changed: ['ui.workbench.itemTextChanged', 'The document changed; open it again to take its text.'],
+    empty: ['ui.workbench.itemTextEmpty', 'No text could be taken from the document.'],
+    converter_starting: ['ui.workbench.itemTextStarting', 'The converter is starting; try again in a moment.']
+  };
+  function onItemText(data) {
+    if (!data || !itemTextRequests.has(data.request)) return;
+    const chat = itemTextRequests.get(data.request);
+    itemTextRequests.delete(data.request);
+    if (!board || board.chat_id !== chat) return;
+    if (typeof data.content === 'string' && data.content) {
+      if (typeof window.appendToMessage === 'function') window.appendToMessage(data.content);
+      return;
+    }
+    const reason = ITEM_TEXT_REASONS[data.error];
+    warn(reason ? t(reason[0], reason[1]) : t('ui.workbench.itemTextFailed', 'The text of the document could not be taken.'));
   }
 
   // The new whiteboards asked for on an image, by request number (a
@@ -3038,7 +3076,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, onSentImage, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

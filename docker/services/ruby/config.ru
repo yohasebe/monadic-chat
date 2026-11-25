@@ -86,7 +86,7 @@ use Monadic::Utils::ReplyCancelServer
 # lib/monadic/workspace/chat_request_scope.rb.
 require_relative "lib/monadic/workspace/chat_request_scope"
 use Monadic::Workspace::ChatRequestScope,
-    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/document", "/fetch_webpage"],
+    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/fetch_webpage"],
     session_lookup: ->(tab_id) { WebSocketHelper.live_session(tab_id) },
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 
@@ -98,16 +98,15 @@ use Rack::TempfileReaper
 # it.
 use Monadic::Workspace::UploadInMemory, paths: ["/load"]
 
-# Attachments and documents to convert: the chat fixed from the tab, then
-# the size cap, both before anything reads the request body.
+# Attachments: the chat fixed from the tab, then the size cap, both before
+# anything reads the request body.
 use Monadic::Workspace::UploadContext,
-    paths: [Monadic::Routes::AttachmentRoutes::PATH, "/document"],
+    paths: [Monadic::Routes::AttachmentRoutes::PATH],
     state_lookup: ->(tab_id) { WebSocketHelper.fetch_http_session_state(tab_id) }
 # Every upload, likewise capped before anything reads the body: Rack writes
 # file parts to disk while parsing, with no total limit of its own.
 use Monadic::Workspace::UploadLimit, limits: {
   Monadic::Routes::AttachmentRoutes::PATH => Monadic::Workspace::UploadLimit::DEFAULT_MAX_BYTES,
-  "/document" => DOCUMENT_UPLOAD_MAX_BYTES,
   "/load" => SESSION_LOAD_MAX_BYTES,
   # The route checks the file itself; this stops the body first, with room
   # for the multipart framing around the file.

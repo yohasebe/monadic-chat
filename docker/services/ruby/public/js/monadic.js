@@ -433,18 +433,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Apply visibility for URL/Doc buttons based on backend capabilities
-  try {
-    fetch('/api/capabilities')
-      .then(function (res) { return res.ok ? res.json() : null; })
-      .then(function (cap) {
-        if (!cap || cap.success === false) return;
-        // Always show #url and #doc buttons - backend handles Selenium/Tavily routing
-        const urlBtn = $id('url');
-        $show(urlBtn); const docBtn = $id('doc');
-        $show(docBtn); // Mistral/Cohere TTS/STT are enabled via /api/ai_user_defaults (more reliable)
-      })
-      .catch(function () { /* ignore */ });
-  } catch (e) { /* ignore */ }
   
   // Directly get textareas and set them up - avoid storing array reference
   const initialHeight = 100;
@@ -1025,7 +1013,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setAlert(alertMessage, "warning");
 
         // Disable UI elements manually here to ensure they're disabled even if websocket events fail
-        ["message", "send", "clear", "image-file", "voice", "doc", "url", "audio-upload", "select-role"].forEach(function(id) {
+        ["message", "send", "clear", "image-file", "voice", "audio-upload", "select-role"].forEach(function(id) {
           var el = $id(id);
           if (el) el.disabled = true;
         });
@@ -2660,7 +2648,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url, #audio-upload").forEach(function(_el) { _el.disabled = false; });
+      document.querySelectorAll("#send, #clear, #image-file, #voice, #audio-upload").forEach(function(_el) { _el.disabled = false; });
       { const el = $id("message"); if (el) el.disabled = false; }
       { const el = $id("select-role"); if (el) el.disabled = false; }
       $hide($id("monadic-spinner"));
@@ -2784,7 +2772,7 @@ document.addEventListener("DOMContentLoaded", function () {
       webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
     { const el = $id("message"); if (el) el.setAttribute("placeholder", placeholderText); }
     { const el = $id("message"); if (el) el.disabled = false; }
-    document.querySelectorAll("#send, #clear, #image-file, #voice, #doc, #url").forEach(function(_el) { _el.disabled = false; });
+    document.querySelectorAll("#send, #clear, #image-file, #voice").forEach(function(_el) { _el.disabled = false; });
     { const el = $id("ai_user_provider"); if (el) el.disabled = false; }
     { const el = $id("ai_user"); if (el) el.disabled = false; }
     { const el = $id("select-role"); if (el) el.disabled = false; }
@@ -3147,105 +3135,6 @@ document.addEventListener("DOMContentLoaded", function () {
     $hide($id("load-spinner"));
   });
 
-  $on($id("doc"), "click", function(event) {
-    event.preventDefault();
-    { const el = $id("docLabel"); if (el) el.value = ""; }
-    { const el = $id("docFile"); if (el) el.value = ""; }
-    
-    // Use the form handlers module if available, otherwise fallback
-    if (formHandlers && formHandlers.showModalWithFocus) {
-      const cleanupFn = function() {
-        { const el = $id('docFile'); if (el) el.value = ''; }
-        { const el = $id('convertDoc'); if (el) el.disabled = true; }
-      };
-      formHandlers.showModalWithFocus('docModal', 'docFile', cleanupFn);
-    } else {
-      // Show the modal using fallback
-      window.MonadicDialog.of($id("docModal")).open();
-      { const el = $id("docFile"); if (el) el.focus(); }
-    }
-  });
-
-  $on($id("docModal"), "mdialog:hidden", function () {
-    { const el = $id('docFile'); if (el) el.value = ''; }
-    { const el = $id('convertDoc'); if (el) el.disabled = true; }
-  });
-
-  // Use the form handlers module for file input validation
-  if (formHandlers && formHandlers.setupFileValidation) {
-    formHandlers.setupFileValidation(
-      $id('docFile'), 
-      $id('convertDoc')
-    );
-  } else {
-    // Fallback to direct event handler
-    $on($id("docFile"), "change", function() {
-      const file = this.files[0];
-      { const el = $id('convertDoc'); if (el) el.disabled = !file; }
-    });
-  }
-
-  $on($id("convertDoc"), "click", async function () {
-    const docInput = $id("docFile");
-    const doc = docInput.files[0];
-    
-    try {
-      const docLabel = ($id("doc-label") || {}).value || "";
-      
-      // Disable UI elements during processing
-      document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = true; });
-      $show($id("doc-spinner"));
-      
-      // Use the form handlers module if available, otherwise fallback
-      const response = await formHandlers.convertDocument(doc, docLabel);
-      
-      // Process the response
-      if (response && response.success) {
-        // Extract content and append it to the message
-        const content = response.content;
-        const message = ($id("message") || {}).value.replace(/\n+$/, "");
-        { const el = $id("message"); if (el) el.value = `${message}\n\n${content}`; }
-        
-        // Use the UI utilities module for resizing
-        if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize($id('message'), 100);
-        } else {
-          autoResizeFallback($id('message'), 100);
-        }
-        
-        // Clean up UI
-        $hide($id("doc-spinner"));
-        document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-        window.MonadicDialog.of($id("docModal")).close('done');
-        $dispatch($id("back_to_bottom"), "click");
-        { const el = $id("message"); if (el) el.focus(); }
-      } else {
-        // Show error message from API
-        const errorMessage = response && response.error ? response.error : "Failed to convert document";
-        
-        // Clean up UI
-        $hide($id("doc-spinner"));
-        document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-        window.MonadicDialog.of($id("docModal")).close('done');
-        
-        setAlert(`${errorMessage}`, "error");
-      }
-      
-    } catch (error) {
-      console.error("Error converting document:", error);
-      
-      // Clean up UI on error
-      $hide($id("doc-spinner"));
-      document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
-      window.MonadicDialog.of($id("docModal")).close('done');
-      
-      // Show appropriate error message
-      const errorMessage = error.statusText || error.message || "Unknown error";
-      const convertErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.convertError') : 'Error converting document';
-      setAlert(`${convertErrorMsg}: ${errorMessage}`, "error");
-    }
-  });
-
   // Audio/MIDI upload button
   $on($id("audio-upload"), "click", function(event) {
     event.preventDefault();
@@ -3293,7 +3182,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  $on($id("url"), "click", function(event) {
+  // Text taken in for the message (a page's, a document's on the work
+  // screen): put after what the message box holds, and the box shown.
+  function appendToMessage(content) {
+    const box = $id("message");
+    if (!box) return;
+    const message = box.value.replace(/\n+$/, "");
+    box.value = `${message}\n\n${content}`;
+    if (uiUtils && uiUtils.autoResize) {
+      uiUtils.autoResize(box, 100);
+    } else {
+      autoResizeFallback(box, 100);
+    }
+    $dispatch($id("back_to_bottom"), "click");
+    box.focus();
+  }
+  window.appendToMessage = appendToMessage;
+
+  // The work screen's Open URL: a page opened in it, or its text taken in.
+  $on($id("workbench-open-url"), "click", function(event) {
     event.preventDefault();
     { const el = $id("urlLabel"); if (el) el.value = ""; }
     { const el = $id("pageURL"); if (el) el.value = ""; }
@@ -3374,24 +3281,11 @@ document.addEventListener("DOMContentLoaded", function () {
       
       // Process the response
       if (response && response.success) {
-        // Extract content and append it to the message
-        const content = response.content;
-        const message = ($id("message") || {}).value.replace(/\n+$/, "");
-        { const el = $id("message"); if (el) el.value = `${message}\n\n${content}`; }
-        
-        // Use the UI utilities module for resizing
-        if (uiUtils && uiUtils.autoResize) {
-          uiUtils.autoResize($id('message'), 100);
-        } else {
-          autoResizeFallback($id('message'), 100);
-        }
-        
         // Clean up UI
         $hide($id("url-spinner"));
         document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
         window.MonadicDialog.of($id("urlModal")).close('done');
-        $dispatch($id("back_to_bottom"), "click");
-        { const el = $id("message"); if (el) el.focus(); }
+        appendToMessage(response.content);
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to fetch webpage";

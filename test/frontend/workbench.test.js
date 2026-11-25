@@ -2033,6 +2033,37 @@ describe('Workbench', () => {
     });
   });
 
+  describe('the text of a document for the message', () => {
+    test('offers it under a document, asks for this version, and puts the answer after the message', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      window.appendToMessage = jest.fn();
+      try {
+        const doc = item({ id: 'i_t', kind: 'file', artifact_id: undefined, preview: 'pdf', name: 'paper.pdf',
+          path: 'c/paper.pdf', sha256: 'f'.repeat(64), text: true });
+        const pic = item({ id: 'i_p', kind: 'file', artifact_id: undefined, preview: 'image', name: 'a.png',
+          path: 'c/a.png', sha256: 'e'.repeat(64) });
+        view([pic, doc], { selected: 'i_p' });
+        expect(document.querySelector('#workbench-view .workbench-item-text')).toBeNull();
+        window.Workbench.select('i_t');
+        document.querySelector('#workbench-view .workbench-item-text').click();
+        const asked = sent.at(-1).payload;
+        expect(asked).toMatchObject({ message: 'WORKBENCH_ITEM_TEXT', item_id: 'i_t', sha256: 'f'.repeat(64) });
+        window.Workbench.onItemText({ request: asked.request, item_id: 'i_t', content: '\n---\nFilename: paper.pdf\n---\nHello' });
+        expect(window.appendToMessage).toHaveBeenCalledWith('\n---\nFilename: paper.pdf\n---\nHello');
+        // Answered once: the same answer again is not taken.
+        window.Workbench.onItemText({ request: asked.request, item_id: 'i_t', content: 'again' });
+        expect(window.appendToMessage).toHaveBeenCalledTimes(1);
+        document.querySelector('#workbench-view .workbench-item-text').click();
+        window.setAlert.mockClear();
+        window.Workbench.onItemText({ request: sent.at(-1).payload.request, item_id: 'i_t', error: 'changed' });
+        expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed'), expect.anything());
+      } finally {
+        delete global.fetch;
+        delete window.appendToMessage;
+      }
+    });
+  });
+
   describe('drawing on an image', () => {
     test('offers to draw on an image made or opened, as the version shown, and on nothing else', () => {
       view([item(), item({ id: 'i_2', kind: 'file', artifact_id: undefined, preview: 'image', path: 'photos/a.png', sha256: 'b'.repeat(64) }),

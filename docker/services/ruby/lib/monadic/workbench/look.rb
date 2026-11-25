@@ -112,6 +112,43 @@ module Monadic
         end
       end
 
+      # A file a look gives the model as it is: a PDF, for a provider and a
+      # model that take one (Availability.native_file?). Bytes the server
+      # read at the item's version and checked, frozen; its text forms carry
+      # no bytes.
+      class FileValue
+        attr_reader :bytes, :content_type, :sha256, :source
+
+        private_class_method :new
+
+        def self.pdf(bytes)
+          raise Refused.new('unsupported_kind', 'the file is not a PDF') unless bytes.to_s.b.start_with?('%PDF-')
+
+          new(bytes.b.dup.freeze, 'application/pdf')
+        end
+
+        def initialize(bytes, content_type)
+          @bytes = bytes
+          @content_type = content_type
+          @sha256 = Digest::SHA256.hexdigest(bytes)
+          @source = 'workbench_file'
+          freeze
+        end
+
+        def base64
+          Base64.strict_encode64(bytes)
+        end
+
+        def to_s
+          "#<#{self.class.name} #{content_type} #{bytes.bytesize} bytes sha256=#{sha256[0, 12]}>"
+        end
+        alias_method :inspect, :to_s
+
+        def to_json(*args)
+          to_s.to_json(*args)
+        end
+      end
+
       # What a look gives the tool call: the text the model reads, and the
       # observation it made (its image, if any, follows the tool's result
       # in the request). to_s is the text, as for any tool result.
@@ -145,7 +182,7 @@ module Monadic
         looked_at = selection.item
         ledger = Ledger.for(caller.chat_id, caller.epoch, caller.request_id, session: caller.session, tab: caller.tab)
         ledger.one_at_a_time do
-          seen = read(board, selection, scope, caller: caller, deadline: deadline, named: named)
+          seen = read(board, selection, scope, caller: caller, deadline: deadline, named: named, files: images)
           seen = seen.merge(image: nil, image_withheld: true) if !images && seen[:image]
           if named
             unless board.still_there?(looked_at)
@@ -162,7 +199,7 @@ module Monadic
           # an image) is checked here against the words the chat hides; they
           # are checked again when the request is sent.
           result = filtered(caller.session, result_text(id, seen, scope))
-          caption = seen[:image] ? filtered(caller.session, caption_text(id, seen)) : nil
+          caption = seen[:image] || seen[:file] ? filtered(caller.session, caption_text(id, seen)) : nil
           ledger.add(seen.merge(id: id, scope: scope, result: result, caption: caption))
           Result.new(observation_id: id, text: result)
         end
@@ -229,7 +266,7 @@ module Monadic
       # { item_id:, kind:, name:, path:, version:, image: | text: ... }.
       # named: an item the tab has not selected (no page to ask for its
       # picture or its view).
-      def read(board, selection, scope, caller:, deadline:, named: false)
+      def read(board, selection, scope, caller:, deadline:, named: false, files: true)
         item = selection.item
         if item['artifact']
           entry = item['artifact']
@@ -256,6 +293,11 @@ module Monadic
                                                                             mark: marked[:mark], mark_drawn: !marked[:image].nil?)
         when 'pdf'
           bytes = -> { board.file_read(item['id'], sha256: file['sha256'])[:bytes] }
+          # The whole PDF goes as it is where the provider and the model
+          # take it; its text otherwise.
+          native = scope == 'whole' && files ? native_pdf(caller, deadline, bytes.call) : nil
+          return seen(item, 'pdf', file['name'], file['path'], file['sha256'], **native) if native
+
           content = if scope == 'visible'
                       Pdf.visible(selection, caller, deadline, still(board, selection, caller), bytes)
                     else
@@ -290,6 +332,27 @@ module Monadic
         raise Refused.new('busy', 'the work screen is reading other files; try again in a moment')
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         raise Refused.new('unsupported_kind', 'the file is not text')
+      end
+
+      # A PDF given as it is ({ file:, pages:, parts: }), or nil when the
+      # request's provider and model do not take it (its size, its pages,
+      # the chat's hidden words: Availability.native_file?).
+      def native_pdf(caller, deadline, data)
+        provider, model = Availability.request_of(caller.session)
+        native = lambda do |pages|
+          Availability.native_file?(session: caller.session, provider: provider, model: model,
+                                    type: 'application/pdf', bytes: data.bytesize, pages: pages)
+        end
+        # Its pages are counted only where all else lets it go.
+        return nil unless native.call(1)
+
+        pages = PdfText.extract(data, first: 1, last: 1, deadline: deadline - Monadic::Shell::STOP_TIMEOUT, chars: 1).total_pages
+        return nil unless native.call(pages)
+
+        { file: FileValue.pdf(data), pages: { first: 1, last: pages, total: pages }, parts: { 'file' => true },
+          cuts: [], truncated: false }
+      rescue PdfText::Unavailable
+        nil
       end
 
       # An Office document's text, converted as for a message (ItemText), as
@@ -602,6 +665,10 @@ module Monadic
       # drew of the page, not the PDF itself.
       def pdf_result(seen)
         out = { 'pages' => seen[:pages].transform_keys(&:to_s), 'parts' => seen[:parts] }
+        if seen[:file]
+          out['file'] = 'The PDF itself, all its pages as they look, is attached after this result, for this reply only.'
+          return out
+        end
         if seen[:image]
           out['image'] = 'The part of the page in view, as the tab drew it, is attached after this result.'
           out['marked'] = "The user marked a part of it with a translucent #{mark_place(seen[:mark], 'the image')} to point at it." if seen[:mark]
@@ -634,6 +701,8 @@ module Monadic
       # is, as data (the name is the user's file name, not an instruction).
       def caption_text(id, seen)
         about = { 'observation_id' => id, 'name' => seen[:name], 'version' => seen[:version]&.[](0, 12) }.compact
+        return "The PDF below is what #{TOOL} looked at: #{JSON.generate(about)}" if seen[:file]
+
         about['page'] = seen.dig(:pages, :first) if seen[:kind] == 'pdf'
         "The image below is what #{TOOL} looked at: #{JSON.generate(about)}"
       end

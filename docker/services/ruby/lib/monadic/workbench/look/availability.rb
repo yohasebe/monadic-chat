@@ -63,6 +63,44 @@ module Monadic
           tools?(model)
         end
 
+        # The files a provider is given as they are by a look, at most (the
+        # bytes leave room in the request for its base64 and the rest).
+        NATIVE_FILES = {
+          'claude' => { types: %w[application/pdf], bytes: 20 * 1024 * 1024, pages: 100 },
+          'gemini' => { types: %w[application/pdf], bytes: 14 * 1024 * 1024, pages: 1000 }
+        }.freeze
+
+        # Whether a look gives the file as it is: the provider and the model
+        # take it (the model's supports_pdf is true), it is within their
+        # limits, and the chat hides no words (a file's text is not checked
+        # against them).
+        def native_file?(session:, provider:, model:, type:, bytes:, pages:)
+          limits = NATIVE_FILES[provider.to_s] or return false
+          return false unless limits[:types].include?(type) && bytes.to_i.between?(1, limits[:bytes])
+          return false unless pages.is_a?(Integer) && pages.between?(1, limits[:pages])
+          return false unless defined?(Monadic::Utils::ModelSpec) &&
+                              Monadic::Utils::ModelSpec.get_model_property(model, 'supports_pdf') == true
+
+          !hides_words?(session)
+        end
+
+        def hides_words?(session)
+          !Monadic::Utils::Privacy::Outbound.terms_of(session).empty?
+        rescue StandardError
+          true
+        end
+
+        # The provider (its id here) and the model a request of session's
+        # reply goes to.
+        def request_of(session)
+          app = session.respond_to?(:[]) ? session[:parameters]&.dig('app_name') : nil
+          settings = defined?(APPS) && app && APPS[app] ? APPS[app].settings : {}
+          provider = transport_of(settings['provider'] || settings[:provider])
+          model = Monadic::Workspace::RequestContext.current&.settings&.model
+          model ||= session[:parameters]&.dig('model') if session.respond_to?(:[])
+          [provider, model]
+        end
+
         # A session of a chat: looks go only for a reply of a chat.
         def chat?(session)
           session.respond_to?(:[]) && !session[Monadic::Workspace::Chats::SESSION_KEY].nil?

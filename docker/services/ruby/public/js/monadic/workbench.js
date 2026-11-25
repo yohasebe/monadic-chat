@@ -1880,7 +1880,8 @@
     if (!handle || typeof handle.pointer !== 'function') return null;
     const shown = handle.shown();
     const pointer = handle.pointer();
-    if (shown.status !== 'ready' || !pointer || pointer.page !== shown.page) return null;
+    if (shown.status !== 'ready') return null;
+    if (!pointer || pointer.page !== shown.page) return unmarkedPageNow(item, handle, shown);
     const seq = handle.pointerSeq();
     if (sentPointer.handle === handle && sentPointer.seq === seq) return null;
     const marked = drawingMark(handle, pointer);
@@ -1901,11 +1902,56 @@
     };
   }
 
+  // A model that cannot call tools cannot look at the work screen itself:
+  // the item the user chose goes with each message they send, unmarked
+  // when nothing is marked on it (the server takes that only for such a
+  // model), while some of it is in view.
+  function looksByMessage() {
+    if (liveProvider()) return false;
+    const el = $id('model');
+    const spec = el && window.modelSpec ? window.modelSpec[el.value] : null;
+    return !!spec && spec.tool_capability === false && spec.vision_capability === true;
+  }
+
+  function unmarkedFor(item) {
+    return looksByMessage() && inViewNow().some((entry) => entry.item_id === item.id);
+  }
+
+  function unmarkedPageNow(item, handle, shown) {
+    if (!unmarkedFor(item)) return null;
+    let part;
+    try {
+      part = cutPage(handle, shown.drawing, null);
+    } catch (_) {
+      return null;
+    }
+    if (!part || !part.image) return null;
+    return {
+      data: { item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
+        unmarked: true, crop: part.crop, image: part.image },
+      sent: () => {}
+    };
+  }
+
   // The same for an image the tab shows: the whole image with the mark
-  // drawn on it, after the user placed or moved the mark.
+  // drawn on it, after the user placed or moved the mark (unmarked for a
+  // model that cannot look at the work screen itself).
   function imagePictureNow(item, handle) {
     const pointer = handle.pointer();
-    if (!pointer) return null;
+    if (!pointer) {
+      if (!unmarkedFor(item) || !handle.img.complete || !(handle.img.naturalWidth > 0)) return null;
+      let part;
+      try {
+        part = drawnPng(handle.img, 0, 0, handle.img.naturalWidth, handle.img.naturalHeight, null);
+      } catch (_) {
+        return null;
+      }
+      if (!part.image) return null;
+      return {
+        data: { item_id: item.id, version: item.version || item.sha256 || '', unmarked: true, crop: part.crop, image: part.image },
+        sent: () => {}
+      };
+    }
     const seq = handle.pointerSeq();
     if (sentPointer.handle === handle && sentPointer.seq === seq) return null;
     const part = markedImage(handle, pointer);

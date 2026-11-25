@@ -64,6 +64,34 @@ RSpec.describe Monadic::Workbench::Picture do
       .to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("not_pointable") }
   end
 
+  context "unmarked, for a model that cannot look at the work screen itself" do
+    let(:plain) { sent.except("mark").merge("unmarked" => true) }
+
+    def accept_unmarked(data, unmarked:)
+      allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id).and_return(board)
+      described_class.accept(data, chat_id: chat_id, request_id: "q_1", tab: "tab-1", generation: 1, unmarked: unmarked)
+    end
+
+    it "is taken only for such a model, said as what the user had in view, and kept as unmarked" do
+      expect { accept_unmarked(plain, unmarked: false) }
+        .to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("unmarked") }
+      expect { accept(plain) }.to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("unmarked") }
+      picture = accept_unmarked(plain, unmarked: true)
+      expect(picture.mark).to be_nil
+      expect(picture.reference).to eq("id" => picture.id, "item_id" => "i_1", "version" => "v" * 64, "page" => 3, "pages" => 9,
+                                      "unmarked" => true)
+      expect(picture.note).to eq("The image attached to this message is the part of page 3 of the PDF selected on the work " \
+                                 "screen that the user had in view when sending.")
+      expect(described_class.clean(picture.reference)).to eq(picture.reference)
+      expect(described_class.clean(picture.reference.merge("unmarked" => "yes"))).to be_nil
+    end
+
+    it "is not taken without a mark otherwise" do
+      expect { accept_unmarked(sent.except("mark"), unmarked: true) }
+        .to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("bad_mark") }
+    end
+  end
+
   context "of an image" do
     let(:item) { { id: "i_1", kind: "file", preview: "image", version: "v" * 64 } }
 

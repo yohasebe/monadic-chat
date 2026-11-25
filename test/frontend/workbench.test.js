@@ -1615,6 +1615,52 @@ describe('Workbench', () => {
       }
     });
 
+    test('gives the page in view unmarked, each time, for a model that takes images and no tools, while the item is in view', async () => {
+      layout.pane = 'work';
+      const realGetContext = HTMLCanvasElement.prototype.getContext;
+      const realToDataURL = HTMLCanvasElement.prototype.toDataURL;
+      HTMLCanvasElement.prototype.getContext = () => ({ drawImage: () => {} });
+      HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,UElDVFVSRQ==';
+      const page = document.createElement('canvas');
+      page.width = 800;
+      page.height = 1000;
+      page.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400, width: 400, height: 500 });
+      window.WorkbenchPdf = {
+        show: () => ({ shown: () => ({ status: 'ready', page: 2, pages: 5, scale: 1, drawing: 1 }), dispose: () => {},
+          state: () => ({}), canvas: () => page, pointer: () => null, pointerSeq: () => 0, setPointable: () => {} })
+      };
+      global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
+      const paper = { id: 'i_p', kind: 'file', actor: 'user', name: 'p.pdf', path: 'p.pdf', preview: 'pdf',
+        sha256: 'f'.repeat(64), version: 'f'.repeat(64), status: 'ok' };
+      document.body.insertAdjacentHTML('beforeend', '<select id="model"><option value="looker" selected>looker</option></select>');
+      try {
+        view([paper], { assets: { i_p: '/workbench/asset/p' } });
+        await flush();
+        const part = document.querySelector('#workbench-view > .workbench-section');
+        part.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400 });
+        window.innerHeight = 600;
+        // A model that can look itself: nothing unmarked.
+        window.modelSpec = { looker: { vision_capability: true } };
+        expect(window.Workbench.pictureNow()).toBeNull();
+        window.modelSpec = { looker: { vision_capability: true, tool_capability: false } };
+        const picture = window.Workbench.pictureNow();
+        expect(picture.data).toMatchObject({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5, unmarked: true,
+          image: 'UElDVFVSRQ==' });
+        expect(picture.data).not.toHaveProperty('mark');
+        picture.sent();
+        expect(window.Workbench.pictureNow()).not.toBeNull();
+        // Out of view: none.
+        part.getBoundingClientRect = () => ({ top: 700, bottom: 900, left: 0, right: 400 });
+        expect(window.Workbench.pictureNow()).toBeNull();
+      } finally {
+        delete window.WorkbenchPdf;
+        delete window.modelSpec;
+        document.getElementById('model').remove();
+        HTMLCanvasElement.prototype.getContext = realGetContext;
+        HTMLCanvasElement.prototype.toDataURL = realToDataURL;
+      }
+    });
+
     test('holds text selected in the PDF shown, offers it with a chip, and sends it once', async () => {
       layout.pane = 'work';
       const text = document.createElement('div');

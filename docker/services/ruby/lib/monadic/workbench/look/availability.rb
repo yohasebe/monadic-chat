@@ -32,6 +32,37 @@ module Monadic
           TRANSPORTS.include?(provider.to_s) && chat?(session) && tools?(model) && vision?(provider.to_s, model)
         end
 
+        # A model that takes images and no tools: it cannot look at the work
+        # screen itself, so the picture of the item the user chose goes with
+        # each message they send instead (Workbench::Picture, unmarked).
+        def by_message?(provider:, model:)
+          TRANSPORTS.include?(provider.to_s) && vision?(provider.to_s, model) && !tools_for?(provider.to_s, model)
+        end
+
+        # A provider's id here (TRANSPORTS) from an app's provider name.
+        # An unknown name is none (not the provider names fall back to).
+        def transport_of(provider_name)
+          name = provider_name.to_s.downcase.gsub(/[\s\-]+/, '')
+          known = MonadicDSL::ProviderConfig::PROVIDER_INFO.any? do |key, info|
+            key == name || Array(info[:aliases]).include?(name)
+          end
+          return '' unless known
+
+          MonadicDSL::ProviderConfig.new(name).helper_module.to_s.delete_suffix('Helper').downcase
+        rescue StandardError
+          ''
+        end
+
+        # Whether the model calls tools; for Ollama, the server's own report.
+        def tools_for?(provider, model)
+          if provider == 'ollama'
+            caps = defined?(OllamaHelper) && OllamaHelper.respond_to?(:fetch_model_capabilities) &&
+                   OllamaHelper.fetch_model_capabilities(model)
+            return caps.is_a?(Hash) && Array(caps[:capabilities]).include?('tools')
+          end
+          tools?(model)
+        end
+
         # A session of a chat: looks go only for a reply of a chat.
         def chat?(session)
           session.respond_to?(:[]) && !session[Monadic::Workspace::Chats::SESSION_KEY].nil?

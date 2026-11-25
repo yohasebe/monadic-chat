@@ -205,9 +205,11 @@ module WebSocketHelper
     model = Monadic::TurnSettings.accepted(obj, session[:parameters]).model
     return nil if model && !Monadic::Utils::ModelSpec.vision_capability?(model)
 
+    provider = Monadic::Workbench::Look::Availability.transport_of(app_settings["provider"] || app_settings[:provider])
+    unmarked = Monadic::Workbench::Look::Availability.by_message?(provider: provider, model: model)
     Monadic::Workbench::Picture.accept(data, chat_id: chat_id, request_id: request_id,
                                              tab: Thread.current[:websocket_session_id],
-                                             generation: session[:_ws_generation]).keep!
+                                             generation: session[:_ws_generation], unmarked: unmarked).keep!
   rescue Monadic::Workbench::Picture::Refused => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not taken: #{e.reason}" }
     nil

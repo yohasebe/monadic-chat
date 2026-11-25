@@ -1029,23 +1029,6 @@ module GrokHelper
     message = nil
     data = nil
 
-    # Grok's image *generation* API supports generation only (no image
-    # upload/edit), so Image Generator refuses a message that carries an
-    # image, to avoid a confusing 400. Every other app sends the image with
-    # the message, for the model to read.
-    is_image_generator = obj["app_name"].to_s.include?("ImageGenerator") ||
-                         obj["display_name"].to_s.include?("Image Generator")
-    if is_image_generator && obj["images"] && obj["images"].is_a?(Array) && !obj["images"].empty?
-      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-        provider: "xAI",
-        message: "Image upload/edit is not supported for Grok image generation. Please provide a text prompt only, or use the OpenAI Image Generator for edits/masks.",
-        code: 400
-      )
-      error_res = { "type" => "error", "content" => formatted_error }
-      block&.call error_res
-      return [error_res]
-    end
-
     # NOTE: Auto-attach of last generated image was removed because it caused
     # stale images to appear after session reset. Image editing now relies on
     # the model explicitly calling monadic_load_state to retrieve the filename,

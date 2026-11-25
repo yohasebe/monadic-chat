@@ -86,8 +86,10 @@ RSpec.describe "The settings of a Grok turn" do
       expect(JSON.generate(sent.first)).to include("iVBORw0KGgo=")
     end
 
-    it "is refused by Image Generator, whose API takes no image" do
-      expect(sent_with({ "display_name" => "Image Generator" })).to be_empty
+    it "is sent with its image in Image Generator too, whose tools edit it" do
+      sent = sent_with({ "display_name" => "Image Generator" })
+      expect(sent).not_to be_empty
+      expect(JSON.generate(sent.first)).to include("iVBORw0KGgo=")
     end
   end
 end

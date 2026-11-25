@@ -434,7 +434,7 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-view').textContent).toContain('Only the beginning');
     });
 
-    test('moves along the row with its buttons and the arrow keys, telling the server what the tab shows', () => {
+    test('moves along the row with its names and the arrow keys, telling the server what the tab shows', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       document.body.insertAdjacentHTML('beforeend', '<div id="work-screen-pane" tabindex="0"></div>');
       jest.resetModules();
@@ -442,23 +442,15 @@ describe('Workbench', () => {
       view([item(), file()]);
       expect(shown()).not.toBeNull();
       sent.length = 0;
-      document.querySelector('#workbench-stepper .workbench-prev').click();
+      document.querySelector('#workbench-items .workbench-item[data-item="i_1"]').click();
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
       expect(document.querySelector('#workbench-view img')).not.toBeNull();
       const pane = document.getElementById('work-screen-pane');
       pane.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       expect(payloads().pop()).toEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_f' });
-      expect(document.querySelector('#workbench-stepper .workbench-next').disabled).toBe(true);
-    });
-
-    test('names the stepper as the items, and shows it only with another item to step to', () => {
-      global.fetch = jest.fn(() => new Promise(() => {}));
-      view([item()]);
-      expect(shown()).not.toBeNull();
-      expect(document.getElementById('workbench-stepper').hidden).toBe(true);
-      view([item(), file()]);
-      expect(document.getElementById('workbench-stepper').hidden).toBe(false);
-      expect(document.querySelector('#workbench-stepper .workbench-item-where').textContent).toBe('Item 2 of 2');
+      sent.length = 0;
+      pane.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      expect(payloads()).toEqual([]);
     });
 
     test('leaves the item shown as it is when its own tab is pressed again', () => {
@@ -610,11 +602,10 @@ describe('Workbench', () => {
       expect(payloads()).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
     });
 
-    test('with nothing selected, shows the empty area and no stepper', () => {
+    test('with nothing selected, shows the empty area', () => {
       view([item()], { selected: null });
       expect(shown()).toBeNull();
       expect(document.getElementById('work-screen-browser').hidden).toBe(false);
-      expect(document.getElementById('workbench-stepper').hidden).toBe(true);
     });
   });
   describe('the mark on the work screen tab', () => {
@@ -2097,6 +2088,13 @@ describe('Workbench', () => {
       // Both stay as they were drawn.
       expect(partOf('i_a').querySelector('img')).toBe(imgA);
       expect(partOf('i_b').querySelector('img')).toBe(imgB);
+      // The click of the touch that chose it does nothing more; the next one does.
+      const clicked = jest.fn();
+      imgA.addEventListener('click', clicked);
+      imgA.click();
+      expect(clicked).not.toHaveBeenCalled();
+      imgA.click();
+      expect(clicked).toHaveBeenCalledTimes(1);
     });
 
     test('keeps one mark: choosing another item takes the mark on the one before away', () => {

@@ -450,12 +450,11 @@ def side_column(table, color, title):
 
 
 def work_screen(table, color, title):
-    """The work screen: its items, the steps through them, and a drawn file with its switch."""
+    """The work screen: its items, and the item chosen (a drawn file with its switch), marked at its left."""
     figure = Figure(color, title)
     source = read('public', 'js', 'monadic', 'workbench.js')
-    for needed in ("t('ui.workbench.browser'", "t('ui.workbench.itemOf'", "t('ui.workbench.viewDrawn'",
-                   "t('ui.workbench.viewSource'", "'fa-solid fa-xmark'", "'fa-solid fa-chevron-left'",
-                   "'fa-solid fa-chevron-right'"):
+    for needed in ("t('ui.workbench.browser'", "t('ui.workbench.viewDrawn'", "t('ui.workbench.viewSource'",
+                   "'fa-solid fa-xmark'", "'workbench-section'", "'is-focus'"):
         if needed not in source:
             raise SystemExit('workbench.js no longer has %s' % needed)
     if 'id="workbench-items"' not in read('views', 'index.erb'):
@@ -481,21 +480,9 @@ def work_screen(table, color, title):
         ix += w + 4
     figure.icon('fa-solid', 'fa-xmark', ix + 4, row + 12, 14, quiet)
     figure.callout(ix + 10, row - 13)
-    # ‹ Item 3 of 3 ›
-    step = row + 52
-    for bx, arrow in ((x, 'fa-chevron-left'), (None, 'fa-chevron-right')):
-        if bx is None:
-            bx = x + 40 + 10 + where + 10
-        figure.add('<rect x="%d" y="%d" width="40" height="%d" rx="4" fill="#ffffff" stroke="%s"/>'
-                   % (bx, step, BUTTON_HEIGHT, color('pal-grey-strong')))
-        figure.icon('fa-solid', arrow, bx + 15, step + (BUTTON_HEIGHT - 12) / 2, 12, color('pal-grey-strong'))
-        if arrow == 'fa-chevron-left':
-            where = figure.text(x + 50, step + BUTTON_HEIGHT / 2 + TEXT * 0.36,
-                                word('ui.workbench.itemOf').replace('{n}', '3').replace('{total}', '3'), TEXT, quiet)
-    figure.callout(x + 40 + 10 + where + 10 + 40 + 20, step + BUTTON_HEIGHT / 2)
     # The switch between the file drawn and its lines, then the file drawn
-    mode = step + BUTTON_HEIGHT + 14
-    mx = x
+    mode = row + 52
+    mx = x + 12
     for i, key in enumerate(('ui.workbench.viewDrawn', 'ui.workbench.viewSource')):
         text = word(key)
         w = text_width(text) + 28
@@ -506,10 +493,12 @@ def work_screen(table, color, title):
         mx += w
     figure.callout(mx + 20, mode + BUTTON_HEIGHT / 2)
     view = mode + BUTTON_HEIGHT + 12
-    figure.add('<rect x="%d" y="%d" width="%d" height="128" rx="6" fill="#ffffff" stroke="%s"/>' % (x, view, width, line))
+    figure.add('<rect x="%d" y="%d" width="%d" height="128" rx="6" fill="#ffffff" stroke="%s"/>' % (x + 12, view, width - 12, line))
     figure.add('<rect x="%d" y="%d" width="%d" height="12" rx="6" fill="%s"/>'
-               % (x + 18, view + 20, 150, color('pal-grey-mid')))
-    figure.lines(x + 18, view + 48, [width - 70, width - 120, width - 90, width - 200])
+               % (x + 30, view + 20, 150, color('pal-grey-mid')))
+    figure.lines(x + 30, view + 48, [width - 82, width - 132, width - 102, width - 212])
+    # The item chosen, marked by a band at its left from its top to its bottom
+    figure.add('<rect x="%d" y="%d" width="3" height="%d" fill="%s"/>' % (x, mode, view + 128 - mode, color('pal-accent-mid')))
     figure.callout(x + width - 24, view + 24)
     figure.grow(x + width, view + 128)
     return figure

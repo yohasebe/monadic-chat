@@ -612,6 +612,20 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(availability.offered?(session: session, provider: "openai", model: "m")).to be(false)
     end
 
+    it "sends the chosen item with each message instead for a model that takes images and no tools" do
+      vision(true)
+      expect(availability.by_message?(provider: "cohere", model: "m")).to be(false)
+      allow(Monadic::Utils::ModelSpec).to receive(:tool_capability?).and_return(false)
+      expect(availability.by_message?(provider: "cohere", model: "m")).to be(true)
+      expect(availability.by_message?(provider: "elsewhere", model: "m")).to be(false)
+      vision(false)
+      expect(availability.by_message?(provider: "cohere", model: "m")).to be(false)
+      expect(availability.transport_of("anthropic")).to eq("claude")
+      expect(availability.transport_of("xai")).to eq("grok")
+      expect(availability.transport_of("cohere")).to eq("cohere")
+      expect(availability.transport_of("nowhere")).to eq("")
+    end
+
     it "takes the tool out of every provider's shape" do
       shapes = [
         [{ "name" => "look_at_workbench" }, { "name" => "x" }],

@@ -116,6 +116,20 @@ RSpec.describe "The picture of the work screen sent with a message" do
     expect(seen.last).to be_nil
   end
 
+  it "is taken unmarked only for a model that takes images and no tools, which cannot look at the work screen itself" do
+    plain = picture_data.except("mark").merge("unmarked" => true)
+    send_message("workbench_picture" => plain)
+    expect(seen.last).to be_nil
+    expect(Monadic::Utils::ModelSpec.tool_capability?("command-a-vision-07-2025")).to be(false)
+    APPS["FakeApp"].define_singleton_method(:settings) { { "provider" => "cohere" } }
+    message = send_message("workbench_picture" => plain, "model" => "command-a-vision-07-2025")
+    expect(seen.last).to be_a(Monadic::Workbench::Picture)
+    expect(message["workbench_picture"]).to include("unmarked" => true)
+    expect(seen.last.note).to start_with("The image attached to this message is the part of page 2")
+  ensure
+    APPS["FakeApp"].define_singleton_method(:settings) { {} }
+  end
+
   it "is sent back to the tab that asks for it, for a message of its chat only" do
     id = send_message("workbench_picture" => picture_data)["workbench_picture"]["id"]
     host.send(:handle_ws_workbench_picture, nil, { "picture_id" => id }, session)

@@ -1924,6 +1924,33 @@ describe('Workbench', () => {
       jest.restoreAllMocks();
     });
 
+    test('gives a look no picture while lines wait to be saved, saving them, nor of another version than asked', async () => {
+      jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => new Proxy({}, {
+        get: () => () => {}, set: () => true
+      }));
+      jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,V0I=');
+      document.querySelector('#workbench-view .workbench-whiteboard').getBoundingClientRect =
+        () => ({ top: 0, bottom: 500, left: 0, right: 800, height: 500 });
+      const posted = jest.fn(() => Promise.resolve({ status: 204 }));
+      global.fetch = posted;
+      const ask = async (version) => {
+        window.Workbench.onCapture({ type: 'workbench_capture', id: 'cap-s', item_id: 'i_w', version: version, serial: 2,
+          wants: ['image'] });
+        await flushAll();
+        return JSON.parse(posted.mock.calls.at(-1)[1].body);
+      };
+      drawStroke();
+      const waiting = await ask('a'.repeat(64));
+      expect(waiting.image).toBeUndefined();
+      expect(waiting.image_note).toBe('saving');
+      expect(saves()).toHaveLength(1);
+      window.Workbench.onWhiteboard({ request: saves()[0].request, status: 'saved', item_id: 'i_w', version: 'b'.repeat(64) });
+      view([Object.assign({}, wb, { sha256: 'b'.repeat(64), version: 'b'.repeat(64) })],
+        { renders: { i_w: '/workbench/asset/render-i_w-2' }, selected: 'i_w', selection_serial: 2 });
+      expect((await ask('b'.repeat(64))).image).toBe('V0I=');
+      jest.restoreAllMocks();
+    });
+
     test('writes the board out from the buttons beside its save button, named after it', () => {
       const buttons = [...document.querySelectorAll('#workbench-view .workbench-whiteboard-exports .workbench-whiteboard-export-option')];
       expect(buttons.map((b) => b.dataset.kind)).toEqual(['svg', 'png', 'pdf']);

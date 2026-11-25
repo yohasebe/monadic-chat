@@ -21,10 +21,15 @@ module Monadic
     # is removed (release), unless a reply still running sent it (pending).
     module Sent
       DIRNAME = 'sent'
+      # Office documents (a ZIP of parts each), by type.
+      OFFICE = { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+                 'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx' }.freeze
       EXTENSIONS = { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif',
-                     'application/pdf' => 'pdf' }.freeze
-      NAME = /\A(\h{64})\.(png|jpg|webp|gif|pdf)\z/
+                     'application/pdf' => 'pdf' }.merge(OFFICE).freeze
+      NAME = /\A(\h{64})\.(png|jpg|webp|gif|pdf|docx|xlsx|pptx)\z/
       PDF = '%PDF-'
+      ZIP = "PK\x03\x04".b
       # What a chat keeps, at most (its export holds it all), and from how
       # much on the user is told it is nearing that (once, as it passes).
       LIMIT_BYTES = 150 * 1024 * 1024
@@ -193,7 +198,7 @@ module Monadic
           size += data.bytesize
           raise ExportTooLarge, size.to_s if size > EXPORT_LIMIT
 
-          table[sha256] = { 'content_type' => kind_of(bytes), 'data' => data }
+          table[sha256] = { 'content_type' => kind_of(bytes, kept_extension(chat_id, sha256)), 'data' => data }
         end
         [table, missing]
       end
@@ -216,7 +221,7 @@ module Monadic
           bytes = decoded(data)
           raise BadFile, 'an image of the file is not the one it names' unless Digest::SHA256.hexdigest(bytes) == sha256
 
-          type = checked_type(bytes)
+          type = checked_type(bytes, entry['content_type'])
           raise BadFile, 'an image of the file is not of its type' unless type == entry['content_type']
 
           out[sha256] = { bytes: bytes, content_type: type }
@@ -229,17 +234,34 @@ module Monadic
         raise BadFile, 'an image of the file is not one'
       end
 
-      def checked_type(bytes)
+      # An Office document is told by its declared type (its bytes are a
+      # ZIP whatever the type); a PDF and an image by their bytes.
+      def checked_type(bytes, declared = nil)
         return 'application/pdf' if bytes.start_with?(PDF) && bytes.bytesize <= ImageCheck::MAX_BYTES
+        if OFFICE.key?(declared)
+          raise BadFile, 'an image of the file is not one' unless bytes.start_with?(ZIP) && bytes.bytesize <= ImageCheck::MAX_BYTES
+
+          return declared
+        end
 
         ImageCheck.check!(bytes)[:content_type]
       rescue ImageCheck::Refused
         raise BadFile, 'an image of the file is not one'
       end
 
-      # What kept bytes are: a PDF, or an image of its type.
-      def kind_of(bytes)
-        bytes.start_with?(PDF) ? 'application/pdf' : Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+      # What kept bytes are: a PDF, an Office document of the type its
+      # name says, or an image of its type.
+      def kind_of(bytes, extension = nil)
+        return 'application/pdf' if bytes.start_with?(PDF)
+        return OFFICE.key(extension) if bytes.start_with?(ZIP) && OFFICE.key(extension)
+
+        Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+      end
+
+      # The extension the file of sha256 the chat keeps has.
+      def kept_extension(chat_id, sha256)
+        dir = dir_for(chat_id) or return nil
+        Dir.children(dir).filter_map { |name| name.match(NAME) }.find { |m| m[1] == sha256 }&.[](2)
       end
 
       # The size of what the chat keeps.

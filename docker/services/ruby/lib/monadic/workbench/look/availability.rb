@@ -65,23 +65,37 @@ module Monadic
 
         # The files a provider is given as they are by a look, at most (the
         # bytes leave room in the request for its base64 and the rest).
+        OFFICE_TYPES = %w[application/vnd.openxmlformats-officedocument.wordprocessingml.document
+                          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+                          application/vnd.openxmlformats-officedocument.presentationml.presentation].freeze
         NATIVE_FILES = {
           'claude' => { types: %w[application/pdf], bytes: 20 * 1024 * 1024, pages: 100 },
-          'gemini' => { types: %w[application/pdf], bytes: 14 * 1024 * 1024, pages: 1000 }
+          'gemini' => { types: %w[application/pdf], bytes: 14 * 1024 * 1024, pages: 1000 },
+          'openai' => { types: %w[application/pdf] + OFFICE_TYPES, bytes: 20 * 1024 * 1024, pages: 100 }
         }.freeze
 
         # Whether a look gives the file as it is: the provider and the model
-        # take it (the model's supports_pdf is true), it is within their
-        # limits, and the chat hides no words (a file's text is not checked
+        # take it (takes_file?), it is within their limits (a PDF's pages
+        # too), and the chat hides no words (a file's text is not checked
         # against them).
         def native_file?(session:, provider:, model:, type:, bytes:, pages:)
           limits = NATIVE_FILES[provider.to_s] or return false
           return false unless limits[:types].include?(type) && bytes.to_i.between?(1, limits[:bytes])
-          return false unless pages.is_a?(Integer) && pages.between?(1, limits[:pages])
-          return false unless defined?(Monadic::Utils::ModelSpec) &&
-                              Monadic::Utils::ModelSpec.get_model_property(model, 'supports_pdf') == true
+          return false if type == 'application/pdf' && !(pages.is_a?(Integer) && pages.between?(1, limits[:pages]))
+          return false unless takes_file?(provider.to_s, model, type)
 
           !hides_words?(session)
+        end
+
+        # What the model is said to take (true, not unknown): a PDF where
+        # supports_pdf is, or for OpenAI where its file inputs are; an Office
+        # document where its file inputs are.
+        def takes_file?(provider, model, type)
+          return false unless defined?(Monadic::Utils::ModelSpec)
+
+          property = ->(name) { Monadic::Utils::ModelSpec.get_model_property(model, name) == true }
+          inputs = provider == 'openai' && property.call('supports_file_inputs')
+          type == 'application/pdf' ? property.call('supports_pdf') || inputs : inputs
         end
 
         def hides_words?(session)

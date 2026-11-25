@@ -207,6 +207,29 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(look.run(caller_for, scope: "whole")).to include("(changed)")
     end
 
+    it "gives an Office document as it is to a provider and model that take it, its text to the others" do
+      write("report.docx", "PK\x03\x04 a report")
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).with(:python).and_return(true)
+      allow(Monadic::Workbench::Look::Availability).to receive(:request_of).and_return(["openai", "doc-model"])
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).and_call_original
+      allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("doc-model", "supports_file_inputs").and_return(true)
+      converted = []
+      stub_const("#{look}::DOCUMENT_CONVERTER", ->(path) { converted << path; "text\n" })
+      open_file("report.docx")
+      body = JSON.parse(look.run(caller_for, scope: "whole").to_s)
+      expect(body["file"]).to include("attached after this result")
+      expect(body).not_to have_key("text")
+      expect(converted).to be_empty
+      observation = ledger.observations_with_content.first
+      expect(observation.file.content_type).to eq("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+      expect(observation.file.filename).to eq("document.docx")
+      expect(observation.caption).to start_with("The document below is what")
+      expect(ledger.records.first).to include("file_sha256" => observation.file.sha256)
+      Monadic::Workbench::Look::Ledger.reset!
+      allow(Monadic::Workbench::Look::Availability).to receive(:request_of).and_return(["claude", "doc-model"])
+      expect(JSON.parse(look.run(caller_for, scope: "whole").to_s)["text"]).to eq("text\n")
+    end
+
     it "starts the document converter when it is not running, and asks to look again" do
       write("report.docx", "PK\x03\x04 a report")
       allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).with(:python).and_return(false)
@@ -633,6 +656,23 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(availability.offered?(session: session.except(:chat_id), provider: "openai", model: "m")).to be(false)
       allow(Monadic::Utils::ModelSpec).to receive(:tool_capability?).and_return(false)
       expect(availability.offered?(session: session, provider: "openai", model: "m")).to be(false)
+    end
+
+    it "gives a file as it is only where the model is said to take it" do
+      property = ->(name, value) { allow(Monadic::Utils::ModelSpec).to receive(:get_model_property).with("m", name).and_return(value) }
+      docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      property.call("supports_pdf", nil)
+      property.call("supports_file_inputs", true)
+      expect(availability.takes_file?("openai", "m", "application/pdf")).to be(true)
+      expect(availability.takes_file?("openai", "m", docx)).to be(true)
+      expect(availability.takes_file?("claude", "m", docx)).to be(false)
+      expect(availability.takes_file?("claude", "m", "application/pdf")).to be(false)
+      property.call("supports_pdf", true)
+      expect(availability.takes_file?("claude", "m", "application/pdf")).to be(true)
+      property.call("supports_file_inputs", nil)
+      property.call("supports_pdf", nil)
+      expect(availability.takes_file?("openai", "m", docx)).to be(false)
+      expect(availability.native_file?(session: session, provider: "claude", model: "m", type: docx, bytes: 10, pages: nil)).to be(false)
     end
 
     it "sends the chosen item with each message instead for a model that takes images and no tools" do

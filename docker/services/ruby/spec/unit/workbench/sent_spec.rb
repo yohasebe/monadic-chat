@@ -144,6 +144,25 @@ RSpec.describe Monadic::Workbench::Sent do
     end
   end
 
+  describe "an Office document a look gave as it is" do
+    let(:docx) { "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }
+    let(:bytes) { "PK\x03\x04 a report".b }
+
+    it "is kept under its kind's extension, exported as its type, and imported only as the type it says" do
+      sha = described_class.keep!(chat, bytes, docx, app_name: "ChatOpenAI")
+      expect(File.exist?(File.join(dir, "#{sha}.docx"))).to be(true)
+      described_class.done(chat, [sha])
+      messages = [{ "role" => "assistant", "workbench_looks" => [{ "file_sha256" => sha, "state" => "sent" }] }]
+      table, = described_class.export_table(chat, messages)
+      expect(table[sha]["content_type"]).to eq(docx)
+      expect(described_class.import_table(table, messages)).to eq(sha => { bytes: bytes, content_type: docx })
+      plain = Digest::SHA256.hexdigest("plain text")
+      not_zip = { plain => { "content_type" => docx, "data" => Base64.strict_encode64("plain text") } }
+      expect { described_class.import_table(not_zip, [{ "workbench_looks" => [{ "file_sha256" => plain, "state" => "sent" }] }]) }
+        .to raise_error(described_class::BadFile)
+    end
+  end
+
   describe "a post of the picture of the work screen a message went with" do
     let(:helper) { Class.new { include BaseVendorHelper }.new }
     let(:request_id) { Monadic::Workspace::Ids.generate(:request) }

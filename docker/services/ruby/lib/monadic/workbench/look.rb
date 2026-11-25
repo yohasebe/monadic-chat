@@ -127,6 +127,26 @@ module Monadic
           new(bytes.b.dup.freeze, 'application/pdf')
         end
 
+        # An Office document (a ZIP of its parts), of its type.
+        def self.document(bytes, content_type)
+          raise Refused.new('unsupported_kind', 'the file is not an Office document') unless bytes.to_s.b.start_with?("PK\x03\x04")
+
+          new(bytes.b.dup.freeze, content_type)
+        end
+
+        # The name the provider is given for it: of its kind, not the
+        # user's (the user's name is in the caption, checked against the
+        # chat's words).
+        def filename
+          { 'application/pdf' => 'document.pdf' }.fetch(content_type) do
+            "document.#{Monadic::Workspace::SharedFolderPreview::FILES.key(content_type) || 'bin'}"
+          end
+        end
+
+        def data_url
+          "data:#{content_type};base64,#{base64}"
+        end
+
         def initialize(bytes, content_type)
           @bytes = bytes
           @content_type = content_type
@@ -320,6 +340,11 @@ module Monadic
                                                   "(#{file['content_type']})")
           end
 
+          # The document as it is where the provider and the model take it;
+          # its text otherwise.
+          native = files ? native_document(caller, board, item, file) : nil
+          return seen(item, 'text', file['name'], file['path'], file['sha256'], **native) if native
+
           seen(item, 'text', file['name'], file['path'], file['sha256'], **document_text(board, item, file))
         else
           raise Refused.new('unsupported_kind', "a #{file['preview']} file cannot be looked at yet")
@@ -332,6 +357,21 @@ module Monadic
         raise Refused.new('busy', 'the work screen is reading other files; try again in a moment')
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         raise Refused.new('unsupported_kind', 'the file is not text')
+      end
+
+      # An Office document given as it is ({ file: }), or nil when the
+      # request's provider and model do not take it.
+      def native_document(caller, board, item, file)
+        provider, model = Availability.request_of(caller.session)
+        type = file['content_type'].to_s
+        return nil unless Availability.native_file?(session: caller.session, provider: provider, model: model,
+                                                    type: type, bytes: file['size'].to_i, pages: nil)
+
+        data = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
+        return nil unless Availability.native_file?(session: caller.session, provider: provider, model: model,
+                                                    type: type, bytes: data.bytesize, pages: nil)
+
+        { file: FileValue.document(data, type), parts: { 'file' => true } }
       end
 
       # A PDF given as it is ({ file:, pages:, parts: }), or nil when the
@@ -590,7 +630,9 @@ module Monadic
         out = { 'status' => 'looked', 'observation_id' => id, 'scope' => scope,
                 'item' => { 'kind' => seen[:kind], 'name' => seen[:name], 'path' => seen[:path],
                             'version' => seen[:version]&.[](0, 12) }.compact }
-        if seen[:kind] == 'pdf'
+        if seen[:file] && seen[:kind] != 'pdf'
+          out['file'] = 'The document itself is attached after this result, for this reply only.'
+        elsif seen[:kind] == 'pdf'
           out.merge!(pdf_result(seen))
           out['image'] = NO_IMAGE if seen[:image_withheld]
         elsif seen[:kind] == 'whiteboard'
@@ -701,7 +743,7 @@ module Monadic
       # is, as data (the name is the user's file name, not an instruction).
       def caption_text(id, seen)
         about = { 'observation_id' => id, 'name' => seen[:name], 'version' => seen[:version]&.[](0, 12) }.compact
-        return "The PDF below is what #{TOOL} looked at: #{JSON.generate(about)}" if seen[:file]
+        return "The #{seen[:kind] == 'pdf' ? 'PDF' : 'document'} below is what #{TOOL} looked at: #{JSON.generate(about)}" if seen[:file]
 
         about['page'] = seen.dig(:pages, :first) if seen[:kind] == 'pdf'
         "The image below is what #{TOOL} looked at: #{JSON.generate(about)}"

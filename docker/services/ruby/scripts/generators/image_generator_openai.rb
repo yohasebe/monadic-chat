@@ -126,14 +126,6 @@ if __FILE__ == $PROGRAM_NAME
       options[:images] << image
     end
 
-    opts.on("--mask MASK", "Mask image for edit operation") do |mask|
-      options[:mask] = mask
-    end
-  
-    opts.on("--original-name NAME", "Original filename for preserving names (especially for mask images)") do |name|
-      options[:original_image_name] = name
-    end
-
     opts.on("-s", "--size SIZE", "Image size (256x256, 512x512, 1024x1024, 1024x1536, 1536x1024, 1792x1024, 1024x1792, auto)") do |size|
       options[:size] = size
     end
@@ -246,14 +238,13 @@ def read_local_image(path)
   [mime_type, bytes]
 end
 
-# The images to edit and the mask, as bytes: images of the shared folder, and
+# The images to edit, as bytes: images of the shared folder, and
 # those the server put in this run's input folder (read only from there).
 def read_inputs(options)
   resolved_images = Array(options[:images]).map do |path|
     Monadic::Utils::SharedPathGuard.resolve_in_shared(path, extensions: Monadic::Utils::SharedPathGuard::IMAGE_EXTENSIONS)
   end
-  mask = options[:mask] && Monadic::Utils::SharedPathGuard.resolve_in_shared(options[:mask], extensions: %w[.png])
-  if resolved_images.any?(&:nil?) || (options[:mask] && !mask)
+  if resolved_images.any?(&:nil?)
     return { operation: options[:operation], success: false, message: "Invalid shared image path or unsupported format" }
   end
 
@@ -266,7 +257,7 @@ def read_inputs(options)
 
     image_data << [File.basename(path), mime_type, bytes]
   end
-  { images: resolved_images, mask: mask, image_data: image_data, mask_data: mask && read_local_image(mask) }
+  { images: resolved_images, image_data: image_data }
 rescue Monadic::Workbench::JobOutput::Refused, ArgumentError => e
   { operation: options[:operation], success: false, message: "Invalid input image: #{e.message}" }
 end
@@ -393,16 +384,6 @@ def generate_image(options, num_retrials = 3)
           end
         end
 
-        # Add mask if provided
-        if options[:mask]
-          mime_type, bytes = options[:mask_data]
-          form[:mask] = HTTP::FormData::File.new(
-            StringIO.new(bytes),
-            content_type: mime_type,
-            filename: File.basename(options[:mask])
-          )
-        end
-
         puts "Sending multipart edit request with prompt: #{options[:prompt]}" if options[:verbose]
         puts "Form data keys: #{form.keys}" if options[:verbose]
 
@@ -449,19 +430,7 @@ def generate_image(options, num_retrials = 3)
           timestamp = Time.now.to_i
           ext = options[:output_format] || "png"
           
-          # Check if this is a mask image (passed in through original_image_name option)
-          if options[:original_image_name] && options[:original_image_name].start_with?("mask__")
-            # Preserve the mask__ prefix in the filename
-            filename = options[:original_image_name]
-          elsif options[:operation] == "edit" && options[:mask] && File.basename(options[:mask]).start_with?("mask__")
-            # If this is an edit operation and we have a mask file, ensure the mask prefix is preserved
-            # This handles cases where the mask image is being processed as part of an image generation
-            mask_basename = File.basename(options[:mask])
-            filename = "mask__#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
-          else
-            # Generate a standard filename for regular images
-            filename = "#{options[:operation]}_#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
-          end
+          filename = "#{options[:operation]}_#{options[:model]}_#{timestamp}_#{idx}.#{ext}"
           file_path = File.join(output_dir, filename)
           
           if options[:out_dir]

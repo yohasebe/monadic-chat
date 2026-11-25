@@ -127,7 +127,6 @@ app "ImageGeneratorOpenAI" do
         description: "Image filename"
       }
       parameter :item, "string", "An item of the work screen to edit, by its id from the work screen observation: an image, or a whiteboard drawn on one (the image with the drawing as a reference). Only with operation edit; not with images", required: false
-      parameter :mask, "string", "Mask image filename for precise editing control", required: false
       parameter :size, "string", "Image dimensions. Larger sizes cost proportionally more.", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "size")
       parameter :quality, "string", "Image quality level. xhigh and max are not accepted by gpt-image-2.", required: false, enum: Monadic::Utils::ModelSpec.image_tool_options("openai", "quality")
       parameter :output_format, "string", "Output image format", required: false, enum: Monadic::Utils::ModelSpec.image_options("openai", "output_format")

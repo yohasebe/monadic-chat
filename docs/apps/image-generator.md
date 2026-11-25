@@ -24,7 +24,7 @@ To show where and what to change, draw on the image: under the image in the work
 
 ## Options by Provider
 
-- **OpenAI**: choose from several image models. One image is made per request. You can ask for the size, the quality, the output format (PNG, JPEG, or WebP), a transparent background, and the compression level. A mask image can limit an edit to part of the image.
+- **OpenAI**: choose from several image models. One image is made per request. You can ask for the size, the quality, the output format (PNG, JPEG, or WebP), a transparent background, and the compression level.
 - **Google Gemini**: two models, Flash (fast) and Pro (keeps the look of an uploaded image more closely). When you upload a reference image without choosing a model, the assistant asks which to use. You can ask for an aspect ratio and a resolution (1K, 2K, or 4K), and use several images for editing.
 - **xAI (Grok)**: you can ask for an aspect ratio and the quality, and use up to 5 images for editing.
 

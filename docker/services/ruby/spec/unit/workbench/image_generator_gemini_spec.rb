@@ -121,24 +121,19 @@ RSpec.describe "the Gemini image tool on the workbench" do
     expect(runs.last[:images].map { |i| decoded(i) }).to eq([png(8, 8, "up")])
   end
 
-  it "gives the generator's error back when it made nothing, and refuses a mask" do
+  it "gives the generator's error back when it made nothing" do
     fake_native(bytes: nil)
     expect(generate).to include("blocked")
-    File.binwrite(File.join(shared, "photo.png"), png(8, 8))
-    File.binwrite(File.join(shared, "mask__photo.png"), png(8, 8, "mask"))
-    session[:messages] << { "role" => "user", "text" => "sky", "images" => [{ "name" => "mask__photo.png" }] }
-    runs.clear
-    expect(generate(operation: "edit", prompt: "sky")).to start_with("❌ Gemini image editing does not take a mask")
-    expect(runs).to be_empty
   end
 
-  it "refuses a mask drawn beside an uploaded image rather than edit without it" do
+  it "edits the image uploaded beside a mask of an older chat, leaving the mask out" do
     fake_native
     data = "data:image/png;base64,#{Base64.strict_encode64(png(8, 8))}"
+    mask = "data:image/png;base64,#{Base64.strict_encode64(png(8, 8, 'mask'))}"
     session[:parameters]["images"] = [{ "title" => "photo.png", "data" => data, "type" => "image/png" },
-                                      { "title" => "mask__photo.png", "data" => data, "type" => "image/png", "is_mask" => true }]
-    expect(edit(text: "change the sky")).to start_with("❌ Gemini image editing does not take a mask")
-    expect(runs).to be_empty
+                                      { "title" => "mask__photo.png", "data" => mask, "type" => "image/png", "is_mask" => true }]
+    edit(text: "change the sky")
+    expect(runs.last[:images].map { |i| decoded(i) }).to eq([png(8, 8)])
   end
 
   describe "the provider call for a workbench run" do

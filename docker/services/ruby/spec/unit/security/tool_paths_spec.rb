@@ -407,26 +407,24 @@ RSpec.describe 'Tool input boundaries' do
       end
     end
 
-    it 'rejects OpenAI image and mask paths before credentials or HTTP are touched' do
+    it 'rejects OpenAI image paths before credentials or HTTP are touched' do
       script = generator('image_generator_openai.rb')
       allow(script).to receive(:image_request_problem).and_return(nil)
       expect(script).not_to receive(:get_api_key)
       paths = outside_inputs('.png') + [fixture('wrong.txt')] + shell_names('.png')
       paths.each do |path|
         expect(script.generate_image(operation: 'edit', images: [path])[:success]).to be(false)
-        expect(script.generate_image(operation: 'edit', images: [], mask: path)[:success]).to be(false)
       end
     end
 
-    it 'accepts shared image and mask files and normalizes them before credentials' do
+    it 'accepts shared image files and normalizes them before credentials' do
       script = generator('image_generator_openai.rb')
       allow(script).to receive(:image_request_problem).and_return(nil)
       png = "\x89PNG\r\n\x1A\n".b + ("x" * 16)
       fixture('日本語 folder/image name.png', text: png)
-      fixture('mask.png', text: png)
       expect(script).to receive(:get_api_key) { throw :validated }
       result = catch(:validated) do
-        script.generate_image(operation: 'edit', images: ['日本語 folder/image name.png'], mask: 'mask.png')
+        script.generate_image(operation: 'edit', images: ['日本語 folder/image name.png'])
         :rejected
       end
       expect(result).to be_nil

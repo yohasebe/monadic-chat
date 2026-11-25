@@ -37,7 +37,6 @@ global.apps = {
 const {
   isPdfSupportedForModel,
   isImageGenerationApp,
-  isMaskEditingEnabled,
   isFileInputsSupportedForModel,
   isResponsesApiModel
 } = require('../../docker/services/ruby/public/js/monadic/model-capabilities');
@@ -88,28 +87,6 @@ describe('model-capabilities', () => {
     });
   });
 
-  describe('isMaskEditingEnabled', () => {
-    it('returns true for standard image generation app', () => {
-      expect(isMaskEditingEnabled('ImageGeneratorOpenAI')).toBe(true);
-    });
-
-    it('returns false for Gemini image generator', () => {
-      expect(isMaskEditingEnabled('ImageGeneratorGemini')).toBe(false);
-    });
-
-    it('returns false for Grok image generator', () => {
-      expect(isMaskEditingEnabled('ImageGeneratorGrok')).toBe(false);
-    });
-
-    it('returns false for upload_only apps', () => {
-      expect(isMaskEditingEnabled('UploadOnlyApp')).toBe(false);
-    });
-
-    it('returns false for non-image apps', () => {
-      expect(isMaskEditingEnabled('ChatOpenAI')).toBe(false);
-    });
-  });
-
   describe('isFileInputsSupportedForModel', () => {
     it('returns true when supports_file_inputs is true', () => {
       expect(isFileInputsSupportedForModel('gpt-4o')).toBe(true);
@@ -150,7 +127,6 @@ describe('model-capabilities', () => {
     it('exports all functions to window', () => {
       expect(window.isPdfSupportedForModel).toBe(isPdfSupportedForModel);
       expect(window.isImageGenerationApp).toBe(isImageGenerationApp);
-      expect(window.isMaskEditingEnabled).toBe(isMaskEditingEnabled);
       expect(window.isFileInputsSupportedForModel).toBe(isFileInputsSupportedForModel);
       expect(window.isResponsesApiModel).toBe(isResponsesApiModel);
     });

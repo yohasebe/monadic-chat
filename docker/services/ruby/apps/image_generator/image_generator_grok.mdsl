@@ -70,7 +70,7 @@ app "ImageGeneratorGrok" do
     - aspect_ratio and quality: use the values listed in the tool schema
     - Omit quality unless the user requests it (API default: auto)
     - Up to 5 images can be edited together
-    - Masks are not supported: describe the area to change in words
+    - The area to change is described in words, or drawn on the image in the work screen (a whiteboard drawn on it)
 
     RESULT DISPLAY:
     A generated image is shown to the user in the work screen; the reply ends

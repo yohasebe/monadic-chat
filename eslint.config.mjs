@@ -112,7 +112,6 @@ export default [
         getModelsForApp: "readonly",
         isPdfSupportedForModel: "readonly",
         isImageGenerationApp: "readonly",
-        isMaskEditingEnabled: "readonly",
         isFileInputsSupportedForModel: "readonly",
         isResponsesApiModel: "readonly",
         adjustScrollButtons: "readonly",
@@ -240,7 +239,6 @@ export default [
         updateToolStatus: "readonly",
 
         // ── Image handling (select_image.js) ──
-        openMaskEditor: "readonly",
         fileToBase64: "readonly",
         imageToBase64: "readonly",
         updateFileDisplay: "readonly",

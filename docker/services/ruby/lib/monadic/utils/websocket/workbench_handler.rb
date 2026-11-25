@@ -187,8 +187,9 @@ module WebSocketHelper
     send_workbench_view(connection, session) unless result['status'] == 'refused'
   end
 
-  # A new whiteboard for this tab's chat, or the board of one saved as the
-  # page drew it (Workbench::Whiteboard). The page is told how it went, with
+  # A new whiteboard for this tab's chat (on an image of its work screen
+  # when the page names one, at the version it showed), or the board of one
+  # saved as the page drew it (Workbench::Whiteboard). The page is told how it went, with
   # the item and its version; the board's other tabs are told it changed.
   def handle_ws_workbench_whiteboard(connection, obj, session)
     reply = { 'type' => 'workbench_whiteboard', 'request' => obj['request'].is_a?(Integer) ? obj['request'] : nil }
@@ -202,7 +203,10 @@ module WebSocketHelper
     origin = { actor: :user, source: :panel, tab: tab, generation: generation }
     epoch = Monadic::Workspace::Chats.epoch(chat_id)
     app_name = session.dig(:parameters, 'app_name').to_s
-    item = if obj['message'] == 'WORKBENCH_WHITEBOARD_NEW'
+    item = if obj['message'] == 'WORKBENCH_WHITEBOARD_NEW' && obj['item_id'].is_a?(String)
+             whiteboard.create_on(chat_id, item_id: obj['item_id'], version: obj['version'].to_s, app_name: app_name,
+                                           origin: origin, epoch: epoch)
+           elsif obj['message'] == 'WORKBENCH_WHITEBOARD_NEW'
              whiteboard.create(chat_id, app_name: app_name, origin: origin, epoch: epoch)
            else
              whiteboard.save(chat_id, item_id: obj['item_id'], version: obj['version'], data: obj['data'],

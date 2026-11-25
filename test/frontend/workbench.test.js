@@ -1953,6 +1953,34 @@ describe('Workbench', () => {
     });
   });
 
+  describe('drawing on an image', () => {
+    test('offers to draw on an image made or opened, as the version shown, and on nothing else', () => {
+      view([item(), item({ id: 'i_2', kind: 'file', artifact_id: undefined, preview: 'image', path: 'photos/a.png', sha256: 'b'.repeat(64) }),
+        item({ id: 'i_3', kind: 'file', artifact_id: undefined, preview: 'text', path: 'notes.txt', sha256: 'c'.repeat(64) })],
+      { selected: 'i_1' });
+      document.querySelector('#workbench-view .workbench-draw-on').click();
+      expect(sent.at(-1).payload).toMatchObject({ message: 'WORKBENCH_WHITEBOARD_NEW', item_id: 'i_1', version: 'a'.repeat(64) });
+      window.Workbench.select('i_2');
+      document.querySelector('#workbench-view .workbench-draw-on').click();
+      expect(sent.at(-1).payload).toMatchObject({ item_id: 'i_2', version: 'b'.repeat(64) });
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      try {
+        window.Workbench.select('i_3');
+        expect(document.querySelector('#workbench-view .workbench-draw-on')).toBeNull();
+      } finally {
+        delete global.fetch;
+      }
+    });
+
+    test('says when the image changed since it was shown', () => {
+      view([item()], { selected: 'i_1' });
+      document.querySelector('#workbench-view .workbench-draw-on').click();
+      const request = sent.at(-1).payload.request;
+      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: request, status: 'refused', reason: 'the image changed' });
+      expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed since it was shown'), 'warning');
+    });
+  });
+
   describe('a whiteboard drawn on a picture', () => {
     const wb = { id: 'i_p', kind: 'file', actor: 'user', name: 'whiteboard-2.wb.json', path: 'c/whiteboards/whiteboard-2.wb.json',
       preview: 'text', render: 'whiteboard', sha256: 'c'.repeat(64), version: 'c'.repeat(64), status: 'ok' };

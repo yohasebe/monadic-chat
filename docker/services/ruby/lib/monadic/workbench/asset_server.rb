@@ -90,6 +90,10 @@ module Monadic
         return serve_render(env, board, view) if view.purpose == :render
         return serve_background(env, board, view) if view.purpose == :background
 
+        entry = board.file_entry(view.item_id, sha256: view.sha256)
+        # A video or an audio file is served a range at a time from the file.
+        return streamed(env, entry) if %w[audio video].include?(entry['preview']) && view.purpose != :download
+
         read = board.file_read(view.item_id, sha256: view.sha256)
         entry = read[:entry]
         bytes = read[:bytes]
@@ -98,9 +102,8 @@ module Monadic
         headers = HEADERS.merge('content-type' => entry['content_type'],
                                 'content-disposition' => disposition('inline', File.basename(entry['path'])))
         bytes = text_shown(board, view, bytes, headers) if entry['preview'] == 'text'
-        status, bytes = ranged(env, headers, bytes) if %w[audio video].include?(entry['preview'])
         headers['content-length'] = bytes.bytesize.to_s
-        [status || 200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+        [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
       rescue Artifact::Changed
         board&.mark(view.item_id, sha256: view.sha256, status: 'changed')
         plain(409, 'Changed')
@@ -175,20 +178,27 @@ module Monadic
         shown[:text].b
       end
 
-      # One range of bytes (Range: bytes=a-b, a-, -n), 206; the whole, 200;
-      # a range outside the bytes, 416.
-      def ranged(env, headers, bytes)
-        headers['accept-ranges'] = 'bytes'
-        range = Monadic::Workspace::SharedFolderPreview.range_for(env['HTTP_RANGE'], bytes.bytesize)
-        return [200, bytes] unless range
-        if range == :unsatisfiable
-          headers['content-range'] = "bytes */#{bytes.bytesize}"
-          return [416, '']
+      # A video or an audio file (FileItem.stream): one range of its bytes
+      # (Range: bytes=a-b, a-, -n), 206; the whole, 200; a range outside
+      # them, 416. The body reads the file as it is sent.
+      def streamed(env, entry)
+        headers = HEADERS.merge('content-type' => entry['content_type'], 'accept-ranges' => 'bytes',
+                                'content-disposition' => disposition('inline', File.basename(entry['path'])))
+        part = FileItem.stream(entry, env['HTTP_RANGE'])
+        if part[:status] == 416
+          headers['content-range'] = "bytes */#{part[:size]}"
+          headers['content-length'] = '0'
+          return [416, headers, []]
         end
 
-        first, last = range
-        headers['content-range'] = "bytes #{first}-#{last}/#{bytes.bytesize}"
-        [206, bytes.byteslice(first, last - first + 1)]
+        headers['content-range'] = "bytes #{part[:first]}-#{part[:last]}/#{part[:size]}" if part[:status] == 206
+        headers['content-length'] = part[:length].to_s
+        if env['REQUEST_METHOD'] == 'HEAD'
+          part[:body].close
+          return [part[:status], headers, []]
+        end
+
+        [part[:status], headers, part[:body]]
       end
 
       # The checked bytes as a file to save: the whole of it (no range),

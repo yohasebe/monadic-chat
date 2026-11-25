@@ -149,8 +149,8 @@ module Monadic
         epoch = Monadic::Workspace::Chats.epoch(chat_id)
         record = Monadic::Workspace::Ids.valid?(:attachment, attachment_id) && ledger.attachment(attachment_id)
         return refuse.call('unknown') unless record && record[:chat_id] == chat_id
-        kind = PLAYABLE.call(record[:relative_path]) or return refuse.call('not_playable')
-        most = kind == 'file' ? FileItem::FILE_LIMIT : FileItem::LIMIT
+        PLAYABLE.call(record[:relative_path]) or return refuse.call('not_playable')
+        most = FileItem.most_for(record[:relative_path])
         return refuse.call('too_large') unless record[:size].is_a?(Integer) && record[:size] <= most
 
         found = Monadic::Workspace::Attachments.resolve!(chat_id: chat_id, attachment_id: attachment_id, ledger: ledger)

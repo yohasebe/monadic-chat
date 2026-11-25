@@ -35,6 +35,10 @@ module Monadic
       # A file it only holds may be larger: its version is read in pieces
       # (CHUNK), never whole.
       FILE_LIMIT = 200 * 1024 * 1024
+      # Video and audio (shown or only held) may be as large as an
+      # attachment: their version is read in pieces, and the page is served
+      # a range of them at a time (stream).
+      MEDIA_LIMIT = 2_000_000_000
       CHUNK = 1024 * 1024
       # Files read and hashed at once, how long a read waits for its turn
       # (by default), and how many may wait.
@@ -91,7 +95,9 @@ module Monadic
       # show; Busy when no turn to read it came within wait seconds.
       def entry_for(path, wait: READ_WAIT)
         relative = normalize(path)
-        return held_entry_for(relative, wait: wait) if Monadic::Workspace::SharedFolderPreview.held_kind_for(relative) == 'file'
+        if Monadic::Workspace::SharedFolderPreview.held_kind_for(relative) == 'file' || media?(relative)
+          return held_entry_for(relative, wait: wait)
+        end
 
         read = read_whole(relative, wait: wait)
         # A text item must be text where it is shown.
@@ -108,13 +114,15 @@ module Monadic
         raise Refused, e.message
       end
 
-      # The entry of a file the work screen only holds (kind 'file'): its
-      # version read in pieces.
+      # The entry of a file the work screen only holds (kind 'file'), or of a
+      # video or an audio file it plays: its version read in pieces.
       def held_entry_for(relative, wait:)
-        read = turn(wait: wait) { hashed(relative) }
+        kind = Monadic::Workspace::SharedFolderPreview.held_kind_for(relative)
+        read = turn(wait: wait) { hashed(relative, kinds: HELD_KINDS) }
+        type = kind == 'file' ? Monadic::Workspace::SharedFolderPreview.held_type_for(relative) : content_type(relative, kind)
         {
           'path' => relative, 'name' => Monadic::Workspace::Attachments.shown_name(File.basename(relative)),
-          'preview' => 'file', 'content_type' => Monadic::Workspace::SharedFolderPreview.held_type_for(relative),
+          'preview' => kind, 'content_type' => type,
           'sha256' => read[:sha256], 'size' => read[:size], 'mtime_ns' => nanoseconds(read[:stat].mtime),
           'ino' => read[:stat].ino
         }
@@ -124,17 +132,19 @@ module Monadic
       end
 
       # The sha256 and size of a file (of kinds: one the work screen only
-      # holds, by default), read in pieces of CHUNK; Refused past FILE_LIMIT.
+      # holds, by default), read in pieces of CHUNK; Refused past what the
+      # work screen takes of it (most_for).
       def hashed(relative, kinds: ['file'])
         io, stat, = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: kinds)
+        most = most_for(relative)
         digest = Digest::SHA256.new
         size = 0
         begin
-          raise Refused, 'the file is too large for the work screen' if stat.size > FILE_LIMIT
+          raise Refused, 'the file is too large for the work screen' if stat.size > most
 
           while (chunk = io.read(CHUNK))
             size += chunk.bytesize
-            raise Refused, 'the file is too large for the work screen' if size > FILE_LIMIT
+            raise Refused, 'the file is too large for the work screen' if size > most
 
             digest.update(chunk)
           end
@@ -218,9 +228,10 @@ module Monadic
 
       def read_now(relative, limit: LIMIT)
         io, stat, kind = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: HELD_KINDS)
-        # A file the work screen only holds is read whole only for a use
-        # that takes it (limit); one it shows, not past LIMIT at all.
-        most = kind == 'file' ? FILE_LIMIT : LIMIT
+        # A file the work screen only holds, or a video or an audio file, is
+        # read whole only for a use that takes it (limit); another it shows,
+        # not past LIMIT at all.
+        most = most_for(relative)
         begin
           raise Refused, 'the file is too large for the work screen' if stat.size > most
           raise TooLarge, 'the file is too large for this use' if stat.size > limit
@@ -232,6 +243,82 @@ module Monadic
           io.close
         end
         { bytes: bytes, kind: kind, stat: stat }
+      end
+
+      # Whether the file is a video or an audio file (one the work screen
+      # plays, or one it only holds of such a type).
+      def media?(relative)
+        preview = Monadic::Workspace::SharedFolderPreview
+        kind = preview.held_kind_for(relative)
+        return true if %w[audio video].include?(kind)
+
+        kind == 'file' && preview.held_type_for(relative).to_s.start_with?('audio/', 'video/')
+      end
+
+      # The largest file of its kind the work screen takes.
+      def most_for(relative)
+        return MEDIA_LIMIT if media?(relative)
+
+        Monadic::Workspace::SharedFolderPreview.held_kind_for(relative) == 'file' ? FILE_LIMIT : LIMIT
+      end
+
+      # A range of a video's or an audio file's bytes for the page (range:
+      # the Range header, or nil for the whole), read from the file as it is
+      # sent. The version was read whole when the item was opened; each
+      # request checks the file's stat against it (as status does), and a
+      # file that changed is not served (Artifact::Changed).
+      # { status:, length:, first:, last:, size:, body: } or { status: 416,
+      # size: }.
+      def stream(entry, range)
+        io, stat, = Monadic::Workspace::SharedFolderPreview.open_file(entry['path'], kinds: HELD_KINDS)
+        unless stat.size == entry['size'] && stat.ino == entry['ino'] && nanoseconds(stat.mtime) == entry['mtime_ns']
+          io.close
+          raise Artifact::Changed, 'the file changed after it was opened'
+        end
+
+        size = stat.size
+        found = Monadic::Workspace::SharedFolderPreview.range_for(range, size)
+        if found == :unsatisfiable
+          io.close
+          return { status: 416, size: size }
+        end
+
+        first, last = found || [0, size - 1]
+        { status: found ? 206 : 200, first: first, last: last, size: size, length: [last - first + 1, 0].max,
+          body: Pieces.new(io, first, last - first + 1) }
+      rescue Monadic::Workspace::SharedFolderPreview::Invalid => e
+        raise Artifact::Missing, 'the file is no longer in the shared folder' if e.message == 'the file is not there'
+
+        raise Artifact::Changed, 'the file changed after it was opened'
+      end
+
+      # A Rack body: length bytes of io from first, read CHUNK at a time as
+      # they are sent; io is closed when the body is.
+      class Pieces
+        def initialize(io, first, length)
+          @io = io
+          @first = first
+          @length = length
+        end
+
+        def each
+          offset = @first
+          left = @length
+          while left.positive?
+            chunk = @io.pread([CHUNK, left].min, offset)
+            break if chunk.nil? || chunk.empty?
+
+            yield chunk
+            offset += chunk.bytesize
+            left -= chunk.bytesize
+          end
+        rescue EOFError
+          nil
+        end
+
+        def close
+          @io.close unless @io.closed?
+        end
       end
     end
   end

@@ -82,12 +82,14 @@ RSpec.describe "an attachment opened on the work screen" do
 
   it "refuses a kind it does not hold and a file too large for its kind, before reading the file" do
     odd = attach("tool.exe", "MZ".b)
-    big = attach("long.mp4", "small on disk".b, size: Monadic::Workbench::FileItem::LIMIT + 1)
-    huge = attach("film.mkv", "small on disk".b, size: Monadic::Workbench::FileItem::FILE_LIMIT + 1)
+    big = attach("long.mp4", "small on disk".b, size: Monadic::Workbench::FileItem::MEDIA_LIMIT + 1)
+    huge = attach("film.mkv", "small on disk".b, size: Monadic::Workbench::FileItem::MEDIA_LIMIT + 1)
+    long = attach("report.docx", "PK\x03\x04".b, size: Monadic::Workbench::FileItem::FILE_LIMIT + 1)
     expect(Monadic::Workspace::Attachments).not_to receive(:resolve!)
     expect(open_attachment(odd)).to include("status" => "refused", "reason" => "not_playable")
     expect(open_attachment(big)).to include("status" => "refused", "reason" => "too_large")
     expect(open_attachment(huge)).to include("status" => "refused", "reason" => "too_large")
+    expect(open_attachment(long)).to include("status" => "refused", "reason" => "too_large")
   end
 
   it "puts a file it only holds (not shown), keeping the upload it came from" do

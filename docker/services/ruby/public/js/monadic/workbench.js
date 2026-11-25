@@ -578,7 +578,7 @@
     if (item.status === 'ok' && item.artifact_id) {
       actions.appendChild(saveButton(item.artifact_id, 'btn-primary'));
     } else if (item.status === 'ok' && item.kind === 'file' && item.sha256 &&
-               !(item.preview === 'file' && Number(item.size) > WHOLE_LIMIT)) {
+               !(Number(item.size) > WHOLE_LIMIT)) {
       actions.appendChild(fileSaveButton(item, 'btn-primary'));
     }
     // A document's text can be taken for the message (as this version).
@@ -689,7 +689,8 @@
     return drawn;
   }
 
-  // The most a file is read whole to be saved (FileItem::LIMIT).
+  // The most a file is read whole to be saved (FileItem::LIMIT); a larger
+  // one (a long video) is not saved from the work screen.
   const WHOLE_LIMIT = 64 * 1024 * 1024;
   // The icon of a file the work screen only holds, by its type.
   const HELD_ICONS = [[/wordprocessingml/, 'fa-file-word'], [/spreadsheetml/, 'fa-file-excel'],

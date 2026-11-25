@@ -2199,6 +2199,22 @@ describe('Workbench', () => {
     });
   });
 
+  describe('saving a file from the work screen', () => {
+    test('is offered up to what is read whole, not for a longer video', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      try {
+        const clip = item({ id: 'i_v', kind: 'file', artifact_id: undefined, preview: 'video', name: 'talk.mp4', path: 'c/talk.mp4',
+          sha256: 'e'.repeat(64), size: 10 * 1024 * 1024 });
+        view([clip], { selected: 'i_v' });
+        expect(document.querySelector('#workbench-view .workbench-info .btn-primary')).not.toBeNull();
+        view([Object.assign({}, clip, { size: 65 * 1024 * 1024 })], { selected: 'i_v' });
+        expect(document.querySelector('#workbench-view .workbench-info .btn-primary')).toBeNull();
+      } finally {
+        delete global.fetch;
+      }
+    });
+  });
+
   describe('to the top and the end of the work screen', () => {
     test('shows the two while the column is longer than it shows, each kept from where it would not move', () => {
       document.body.insertAdjacentHTML('beforeend', `<div id="menu"><div id="work-screen-pane"><div class="workbench-put">

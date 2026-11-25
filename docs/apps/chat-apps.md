@@ -16,7 +16,7 @@ Have a conversation with the AI, which responds with appropriate emojis. Web sea
 
 The lists are made with one more request per reply to the same provider and model. Ask the AI to forget or remove an item, or to clear the lists, and its reply removes it from the saved lists; the conversation itself keeps what was said. Deleting a turn takes back what that turn added to the lists. With an Ollama model without the `tools` capability, the lists are not kept.
 
-With `Open URL` below the message box, you can open a web page on the work screen or read its text into your message, with any provider.
+With `Open URL` at the top of the work screen, you can open a web page on the work screen or read its text into your message, with any provider.
 
 Availability for this app follows the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) table.
 

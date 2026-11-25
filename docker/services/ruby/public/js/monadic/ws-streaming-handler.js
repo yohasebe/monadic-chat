@@ -91,7 +91,7 @@ function handleStreamingComplete(_data) {
     // Always ensure UI elements are enabled and visible (user-panel may be hidden during initiate_from_assistant)
     const scUserPanel = $id("user-panel");
     $show(scUserPanel);
-    ["message", "send", "clear", "image-file", "voice", "doc", "url", "select-role"].forEach(function(id) {
+    ["message", "send", "clear", "image-file", "voice", "select-role"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -287,7 +287,7 @@ function handleUser(data) {
   $hide(handleUserTempStatus);
   const handleUserIndicator = $id("indicator");
   $show(handleUserIndicator);
-  ["message", "send", "clear", "image-file", "voice", "doc", "url", "select-role"].forEach(function(id) {
+  ["message", "send", "clear", "image-file", "voice", "select-role"].forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = true;
   });

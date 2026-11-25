@@ -4,37 +4,6 @@
  */
 
 /**
- * Converts document files to text and adds to the message textarea
- * @param {File} doc - The document file to convert
- * @param {string} docLabel - Optional label for the document
- * @returns {Promise} - Promise resolving to the conversion response
- */
-async function convertDocument(doc, docLabel) {
-  if (!doc) {
-    throw new Error("Please select a document file to convert");
-  }
-
-  // Check if the file is a valid document type
-  if (doc.type === "application/octet-stream") {
-    throw new Error("Unsupported file type");
-  }
-
-  const formData = new FormData();
-  formData.append("docFile", doc);
-  formData.append("docLabel", docLabel || "");
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60000);
-  try {
-    return await window.monadicFetch.postJson("/document", formData, {
-      signal: controller.signal
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/**
  * Fetches content from a webpage and adds to message textarea
  * @param {string} url - The URL to fetch content from
  * @param {string} urlLabel - Optional label for the URL
@@ -318,7 +287,6 @@ function importNotice(response, t) {
 
 // Export functions to window for browser environment
 window.formHandlers = {
-  convertDocument,
   fetchWebpage,
   importSession,
   importNotice,

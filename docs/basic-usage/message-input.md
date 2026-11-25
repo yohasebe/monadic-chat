@@ -5,12 +5,12 @@ After starting the server and selecting an app and configuring it, click the **S
 ![Buttons under the message box](../assets/images/figures/input-buttons.svg)
 
 1. **Image** (or **Attach file**, depending on the model): attaches an image or a PDF to the message. See [Uploading Images](#uploading-images).
-2. **Text from file**: reads the text of a document into the message. See [Reading Text from Document Files](#reading-text-from-document-files).
-3. **Open URL**: opens a web page on the work screen, or reads its text into the message. See [Opening a URL](#reading-text-from-urls).
-4. **Anonymize**: finds names in the message and lets you choose what to hide. See [Anonymize](#anonymize).
-5. **Speech Input**: records your voice and writes what you said into the message. See [Speech Input](#speech-input).
-6. **Send**: sends the message.
-7. **Clear**: empties the message box.
+2. **Anonymize**: finds names in the message and lets you choose what to hide. See [Anonymize](#anonymize).
+3. **Speech Input**: records your voice and writes what you said into the message. See [Speech Input](#speech-input).
+4. **Send**: sends the message.
+5. **Clear**: empties the message box.
+
+The text of a document and of a web page are taken in from the [work screen](web-interface.md#work-screen): see [Reading Text from Document Files](#reading-text-from-document-files) and [Opening a URL](#reading-text-from-urls).
 
 Enter a message in the text area and click the **Send** button to send it. For voice input, see [Speech Input](#speech-input) below.
 
@@ -73,13 +73,11 @@ In apps that analyze video or transcribe audio, the **Image** button also takes 
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 
-Click the **Text from file** button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). The file is kept in the chat's folder (`conversations/…/inputs/`).
-
-![The Text from file dialog](../assets/images/figures/file-dialog.svg)
+Put the document on the [work screen](web-interface.md#work-screen) (**Put a file**, or open it from the shared folder), then click **Text to the message** under it: its text, of the version shown, is added to the message box. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). A file you put is kept in the chat's folder (`conversations/…/inputs/`). If the file changes while its text is taken, nothing is added.
 
 ## Opening a URL :id=reading-text-from-urls
 
-Click **Open URL** below the message box and enter an address that starts with `http://` or `https://`.
+Click **Open URL** at the top of the [work screen](web-interface.md#work-screen) and enter an address that starts with `http://` or `https://`.
 
 - **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there.
 - **Take in as text** reads the page's text into the message box in Markdown format.

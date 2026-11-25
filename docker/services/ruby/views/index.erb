@@ -699,6 +699,9 @@
               <button type="button" class="btn btn-sm btn-secondary ms-1" id="workbench-new-whiteboard" title="Make a new whiteboard in the chat's folder and show it here, to draw on with the AI." data-i18n-title="ui.workbench.wbNewHelp">
                 <i class="fa-solid fa-chalkboard me-1" aria-hidden="true"></i><span data-i18n="ui.workbench.wbNew">New whiteboard</span>
               </button>
+              <button type="button" class="btn btn-sm btn-secondary ms-1" id="workbench-open-url" title="Open a page in the work screen, or take in its text" data-i18n-title="ui.importFromWeb">
+                <i class="fa-solid fa-globe me-1" aria-hidden="true"></i><span data-i18n="ui.fromURL">Open URL</span>
+              </button>
             </div>
             <div class="workbench-drop-hint" aria-hidden="true" data-i18n="ui.workbench.dropHere">Drop to put it on the work screen</div>
             <%# The workbench's items: the browser and the images offered (workbench.js). %>
@@ -1033,8 +1036,6 @@
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap message-tools">
                     <button id="image-file" class="btn btn-sm btn-warning me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> Text from file</button>
-                    <button id="url" class="btn btn-sm btn-warning me-2" title="Open a page in the work screen, or take in its text" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> Open URL</button>
                     <button id="anonymize" type="button" class="btn btn-sm btn-warning me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
                     <%# Hidden where the browser cannot record (monadic.js). %>
                     <span id="voice-input-row" class="voice-input">
@@ -1471,32 +1472,6 @@
               <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.load">Load</button>
             </div>
           </form>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog class="mdialog" id="docModal" aria-labelledby="docModalLabel">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromFile">From file</span></h5>
-            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <label class="form-label" for="doc-label" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
-            <div class="mb-3">
-              <input data-i18n-placeholder="ui.modals.docLabelPlaceholder" placeholder="Text placed at the top of the document" class="form-control form-control-sm" id="doc-label"></input>
-            </div>
-            <label for="docFile" class="form-label" data-i18n="ui.modals.documentToConvert">Document to convert (pdf, docx, pptx, xlsx, and text files)</label>
-            <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
-            <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
-              <span class="visually-hidden">Loading . . .</span>
-            </div>
-            <button type="submit" id="convertDoc" value="doc" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
-          </div>
         </div>
       </div>
     </dialog>

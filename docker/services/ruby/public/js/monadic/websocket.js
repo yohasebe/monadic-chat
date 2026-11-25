@@ -577,7 +577,7 @@ window.loadedApp = "Chat";
       const sendBtnEl = $id("send");
       if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
-        ["send", "clear", "image-file", "voice", "doc", "url", "ai_user"].forEach(function(id) {
+        ["send", "clear", "image-file", "voice", "ai_user"].forEach(function(id) {
           const el = $id(id);
           if (el) el.disabled = false;
         });
@@ -915,6 +915,10 @@ window.loadedApp = "Chat";
 
       case "workbench_picture": {
         if (window.Workbench && typeof window.Workbench.onPicture === 'function') window.Workbench.onPicture(data);
+        break;
+      }
+      case "workbench_item_text": {
+        if (window.Workbench && typeof window.Workbench.onItemText === 'function') window.Workbench.onItemText(data);
         break;
       }
       case "workbench_sent_image": {

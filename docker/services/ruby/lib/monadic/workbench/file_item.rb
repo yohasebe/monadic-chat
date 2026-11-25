@@ -123,10 +123,10 @@ module Monadic
         raise Refused, e.message
       end
 
-      # The sha256 and size of a file the work screen only holds, read in
-      # pieces of CHUNK; Refused past FILE_LIMIT.
-      def hashed(relative)
-        io, stat, = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: ['file'])
+      # The sha256 and size of a file (of kinds: one the work screen only
+      # holds, by default), read in pieces of CHUNK; Refused past FILE_LIMIT.
+      def hashed(relative, kinds: ['file'])
+        io, stat, = Monadic::Workspace::SharedFolderPreview.open_file(relative, kinds: kinds)
         digest = Digest::SHA256.new
         size = 0
         begin
@@ -142,6 +142,14 @@ module Monadic
           io.close
         end
         { sha256: digest.hexdigest, size: size, stat: stat }
+      end
+
+      # Whether the item's file is still the version entry names, read now
+      # in pieces (its bytes are not kept).
+      def same_version?(entry)
+        turn { hashed(entry['path'], kinds: HELD_KINDS)[:sha256] == entry['sha256'] }
+      rescue Refused, Monadic::Workspace::SharedFolderPreview::Invalid, SystemCallError
+        false
       end
 
       # The bytes of the item's file, read now and checked against entry's

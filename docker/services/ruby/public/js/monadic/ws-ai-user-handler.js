@@ -35,7 +35,7 @@ function isCurrent(data) {
   return !!(data && currentRequest && data.request_id === currentRequest);
 }
 
-const LOCKED_IDS = ["message", "send", "clear", "image-file", "voice", "doc", "url", "ai_user", "select-role"];
+const LOCKED_IDS = ["message", "send", "clear", "image-file", "voice", "ai_user", "select-role"];
 // Also locked by the AI User button itself when it sends the request.
 const CLICK_LOCKED_IDS = ["audio-upload"];
 

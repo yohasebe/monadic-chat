@@ -7,6 +7,7 @@ require_relative 'store'
 require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
+require_relative 'item_text'
 require_relative '../workspace/chats'
 
 module Monadic
@@ -754,6 +755,8 @@ module Monadic
           name: entry['name'], path: entry['path'], preview: entry['preview'], content_type: entry['content_type'],
           size: entry['size'], sha256: entry['sha256'], version: entry['sha256'], status: file_status(item),
           render: Monadic::Workspace::SharedFolderPreview.render_for(entry['path']),
+          # A document whose text can be taken for the message (ItemText).
+          text: ItemText.document?(entry['path']) || nil,
           # A document is named by its title where its file's name is not it.
           title: defined?(Document) ? Document.shown_title(entry['path']) : nil
         }

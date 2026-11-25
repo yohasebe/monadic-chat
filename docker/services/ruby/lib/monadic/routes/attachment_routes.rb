@@ -30,10 +30,10 @@ module Monadic
           unless upload.is_a?(Hash) && upload[:tempfile]
             halt 400, { error: 'No file was sent.', reason: 'no_file' }.to_json
           end
-          # A file for the work screen is no larger than the work screen reads
-          # (a file it only holds may be larger: its version is read in pieces).
-          held = Monadic::Workspace::SharedFolderPreview.held_kind_for(upload[:filename].to_s) == 'file'
-          most = held ? Monadic::Workbench::FileItem::FILE_LIMIT : Monadic::Workbench::FileItem::LIMIT
+          # A file for the work screen is no larger than the work screen takes
+          # of its kind (FileItem.most_for: a video, an audio file or a file it
+          # only holds may be larger; its version is read in pieces).
+          most = Monadic::Workbench::FileItem.most_for(upload[:filename].to_s)
           if params['purpose'].to_s == 'workbench' && upload[:tempfile].size > most
             upload[:tempfile].close! if upload[:tempfile].respond_to?(:close!)
             halt 413, { error: 'This file is too large for the work screen.', reason: 'too_large' }.to_json

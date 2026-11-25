@@ -43,6 +43,20 @@ RSpec.describe 'POST /attachments for the work screen' do
     expect(JSON.parse(last_response.body)).to include('reason' => 'too_large')
   end
 
+  it 'takes audio or video larger than another kind may be, up to the most it takes of them' do
+    stub_const('Monadic::Workbench::FileItem::LIMIT', 4)
+    audio = Tempfile.new(['song', '.mp3']).tap { |f| f.write("ID3 a song") && f.flush }
+    allow(Monadic::Workspace::Attachments).to receive(:accept!)
+      .and_return({ attachment_id: 'a_1', original_name: 'song.mp3', size: 10, purpose: 'workbench', status: 'ready' })
+    post '/attachments', 'purpose' => 'workbench', 'file' => Rack::Test::UploadedFile.new(audio.path, 'audio/mpeg')
+    expect(last_response.status).to eq(201)
+    stub_const('Monadic::Workbench::FileItem::MEDIA_LIMIT', 4)
+    post '/attachments', 'purpose' => 'workbench', 'file' => Rack::Test::UploadedFile.new(audio.path, 'audio/mpeg')
+    expect(last_response.status).to eq(413)
+  ensure
+    audio&.close!
+  end
+
   it 'takes a file the work screen reads, as an attachment of the chat' do
     expect(Monadic::Workspace::Attachments).to receive(:accept!)
       .with(hash_including(chat_id: chat_id, purpose: 'workbench'))

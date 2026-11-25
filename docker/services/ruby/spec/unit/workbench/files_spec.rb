@@ -325,14 +325,39 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(board.snapshot[:items].find { |i| i[:name] == "late.txt" }[:status]).to eq("ok")
     end
 
-    it "serves a range of audio or video from the checked bytes" do
+    it "opens audio or video larger than another kind may be, its version read in pieces, and serves it a range at a time" do
+      stub_const("Monadic::Workbench::FileItem::LIMIT", 4)
+      stub_const("Monadic::Workbench::FileItem::CHUNK", 3)
+      write("big.txt", "0123456789")
+      expect(channel.open_file({ "path" => "big.txt" }, session, tab: "tab-1", generation: 1, live: live)).to include("status" => "refused")
+      write("long.mp3", "0123456789")
+      url = address("long.mp3")
+      status, _headers, body = fetch_asset(url, range: "bytes=1-8")
+      sent = []
+      body.each { |chunk| sent << chunk }
+      body.close
+      expect([status, sent]).to eq([206, %w[123 456 78]])
+      stub_const("Monadic::Workbench::FileItem::MEDIA_LIMIT", 8)
+      write("longer.mp3", "0123456789")
+      expect(channel.open_file({ "path" => "longer.mp3" }, session, tab: "tab-1", generation: 1, live: live)).to include("status" => "refused")
+    end
+
+    it "serves a range of audio or video read from the file as it is sent, while the file is the version opened" do
       write("clip.mp3", "0123456789")
       url = address("clip.mp3")
       status, headers, body = fetch_asset(url, range: "bytes=2-4")
       expect(status).to eq(206)
-      expect(body.join).to eq("234")
-      expect(headers).to include("content-range" => "bytes 2-4/10", "accept-ranges" => "bytes")
+      sent = []
+      body.each { |chunk| sent << chunk }
+      body.close
+      expect(sent.join).to eq("234")
+      expect(headers).to include("content-range" => "bytes 2-4/10", "accept-ranges" => "bytes", "content-length" => "3")
+      status, headers, body = fetch_asset(url)
+      expect([status, headers["content-length"]]).to eq([200, "10"])
+      body.close
       expect(fetch_asset(url, range: "bytes=20-").first).to eq(416)
+      write("clip.mp3", "0123456789!")
+      expect(fetch_asset(url, range: "bytes=0-1").first).to eq(409)
     end
 
     def render_address(path)

@@ -12,12 +12,11 @@ module Monadic
     # arrow through a box, a layout too large). One shape inside another is
     # not an overlap: a box in a frame, a text on a box, are meant.
     #
-    # Sizes are on the board (Whiteboard::WIDTH × HEIGHT); a text's size is
+    # Sizes are on the board's sheet (frame: a Whiteboard::Frame, PLAIN
+    # unless given); a text's size is
     # estimated from its characters (wide ones as wide as the text is tall,
     # others about 0.6 of it).
     module WhiteboardLayout
-      WIDTH = Whiteboard::WIDTH
-      HEIGHT = Whiteboard::HEIGHT
       LINE = 1.25
       NARROW = 0.6
       WIDE = /[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}　-〿＀-￯]/
@@ -87,16 +86,16 @@ module Monadic
 
       # Grows a box (about its middle, kept on the board) to hold its text.
       # True when it grew.
-      def fit!(shape)
+      def fit!(shape, frame: Whiteboard::PLAIN)
         return false unless BOXES.include?(shape['type']) && shape['text']
 
         w, h = needed(shape)
-        w = [w, WIDTH].min
-        h = [h, HEIGHT].min
+        w = [w, frame.width].min
+        h = [h, frame.height].min
         return false if w <= shape['w'] && h <= shape['h']
 
-        shape['x'] = within(shape['x'] - ((w - shape['w']) / 2.0), 0, WIDTH - w).round(1)
-        shape['y'] = within(shape['y'] - ((h - shape['h']) / 2.0), 0, HEIGHT - h).round(1)
+        shape['x'] = within(shape['x'] - ((w - shape['w']) / 2.0), 0, frame.width - w).round(1)
+        shape['y'] = within(shape['y'] - ((h - shape['h']) / 2.0), 0, frame.height - h).round(1)
         shape['w'] = w.to_f
         shape['h'] = h.to_f
         true
@@ -125,7 +124,7 @@ module Monadic
       # others in part and stays on the board. [dx, dy] moved, nil when no
       # place is free, :late when deadline (a monotonic clock time) passed.
       # Only the shapes near a place are looked at (Cells).
-      def nudge!(shape, others, deadline: nil)
+      def nudge!(shape, others, deadline: nil, frame: Whiteboard::PLAIN)
         box = bounds(shape)
         near = [box[0] - REACH, box[1] - REACH, box[2] + (REACH * 2), box[3] + (REACH * 2)]
         cells = Cells.new(others.select { |o| SOLID.include?(o['type']) }.map { |o| bounds(o) }.select { |b| meets?(b, near) })
@@ -136,7 +135,7 @@ module Monadic
 
           ring(r).each do |dx, dy|
             at = [box[0] + dx, box[1] + dy, box[2], box[3]]
-            next unless at[0] >= 0 && at[1] >= 0 && at[0] + at[2] <= WIDTH && at[1] + at[3] <= HEIGHT
+            next unless at[0] >= 0 && at[1] >= 0 && at[0] + at[2] <= frame.width && at[1] + at[3] <= frame.height
             next if cells.around(at).any? { |o| overlap?(at, o) }
 
             move!(shape, dx, dy)
@@ -195,10 +194,10 @@ module Monadic
       # The boxes (and texts) a line or an arrow goes through, but those it
       # joins, by id: along its right-angled route when it has one (route
       # 'elbow' between the shapes it joins), else its straight line.
-      def crossings(line, others)
+      def crossings(line, others, frame: Whiteboard::PLAIN)
         ends = [line['from'], line['to'], line['id']]
         boxes = others.select { |o| %w[rect ellipse text].include?(o['type']) && !ends.include?(o['id']) }
-        points = path_of(line, others)
+        points = path_of(line, others, frame: frame)
         boxes.select do |o|
           x, y, w, h = bounds(o)
           points.each_cons(2).any? { |a, b| through?(a, b, [x + 4, y + 4, w - 8, h - 8]) }
@@ -207,7 +206,7 @@ module Monadic
 
       # The points a line goes through: its right-angled route between the
       # shapes it joins, or between its ends; else its two ends.
-      def path_of(line, shapes)
+      def path_of(line, shapes, frame: Whiteboard::PLAIN)
         a = [line['x1'], line['y1']]
         b = [line['x2'], line['y2']]
         return [a, b] unless line['route'] == 'elbow'
@@ -217,7 +216,7 @@ module Monadic
         return elbow(a, b) unless from && to
 
         obstacles = shapes.reject { |s| [from['id'], to['id'], line['id']].include?(s['id']) || LINES.include?(s['type']) }
-        route(bounds(from), bounds(to), obstacles.map { |o| bounds(o) })
+        route(bounds(from), bounds(to), obstacles.map { |o| bounds(o) }, frame: frame)
       end
 
       # A right-angled way from a to b (points), turning half way along x.
@@ -233,8 +232,8 @@ module Monadic
       # facing a (sideways first, then up or down), else round below them,
       # else round above them; the first when every one goes through one.
       # The page draws joined lines by the same rule.
-      def route(a, b, obstacles)
-        candidates = side_routes(a, b) + round_routes(a, b, obstacles)
+      def route(a, b, obstacles, frame: Whiteboard::PLAIN)
+        candidates = side_routes(a, b) + round_routes(a, b, obstacles, frame: frame)
         clear = candidates.find do |points|
           points.each_cons(2).none? do |p, q|
             obstacles.any? { |o| through?(p, q, [o[0] + 4, o[1] + 4, o[2] - 8, o[3] - 8]) }
@@ -275,7 +274,7 @@ module Monadic
       end
 
       # Round below everything between a and b, then round above it.
-      def round_routes(a, b, obstacles)
+      def round_routes(a, b, obstacles, frame: Whiteboard::PLAIN)
         ac = a[0] + (a[2] / 2.0)
         bc = b[0] + (b[2] / 2.0)
         low, high = [ac, bc].minmax
@@ -283,7 +282,7 @@ module Monadic
         below = span.map { |o| o[1] + o[3] }.max + LANE
         above = span.map { |o| o[1] }.min - LANE
         out = []
-        out << [[ac, a[1] + a[3]], [ac, below], [bc, below], [bc, b[1] + b[3]]] if below <= HEIGHT
+        out << [[ac, a[1] + a[3]], [ac, below], [bc, below], [bc, b[1] + b[3]]] if below <= frame.height
         out << [[ac, a[1]], [ac, above], [bc, above], [bc, b[1]]] if above >= 0
         out
       end
@@ -313,7 +312,7 @@ module Monadic
       # the boxes its arrows (edges, [from, to] ids) come from, in a free
       # part of the board beside what is on it (occupied: boxes). Sets x, y,
       # w and h of each; returns an issue when the whole does not fit.
-      def layout!(boxes, edges, direction, occupied)
+      def layout!(boxes, edges, direction, occupied, frame: Whiteboard::PLAIN)
         ids = boxes.map { |b| b['id'] }
         rank = ids.to_h { |id| [id, 0] }
         known = edges.select { |from, to| rank.key?(from) && rank.key?(to) && from != to }
@@ -338,7 +337,7 @@ module Monadic
         total_along = span.sum + (RANK_GAP * (groups.size - 1))
         total_across = depth.max
         size = direction == 'down' ? [total_across, total_along] : [total_along, total_across]
-        origin = free_origin(size, occupied)
+        origin = free_origin(size, occupied, frame: frame)
         at_along = direction == 'down' ? origin[1] : origin[0]
         groups.each_with_index do |group, i|
           at_across = (direction == 'down' ? origin[0] : origin[1]) + ((total_across - depth[i]) / 2.0)
@@ -349,20 +348,20 @@ module Monadic
           end
           at_along += span[i] + RANK_GAP
         end
-        return nil if size[0] <= WIDTH - (MARGIN * 2) && size[1] <= HEIGHT - (MARGIN * 2)
+        return nil if size[0] <= frame.width - (MARGIN * 2) && size[1] <= frame.height - (MARGIN * 2)
 
         "the laid-out boxes (#{size[0].round} × #{size[1].round}) are larger than the board; use fewer or smaller boxes"
       end
 
       # Where a block of size [w, h] goes: the top left when the board is
       # empty, else below what is on it, else beside it, else the top left.
-      def free_origin(size, occupied)
+      def free_origin(size, occupied, frame: Whiteboard::PLAIN)
         return [MARGIN, MARGIN] if occupied.empty?
 
         right = occupied.map { |b| b[0] + b[2] }.max
         bottom = occupied.map { |b| b[1] + b[3] }.max
         [[MARGIN, bottom + GAP], [right + GAP, MARGIN]].each do |x, y|
-          return [x, y] if x + size[0] <= WIDTH - MARGIN && y + size[1] <= HEIGHT - MARGIN
+          return [x, y] if x + size[0] <= frame.width - MARGIN && y + size[1] <= frame.height - MARGIN
         end
         [MARGIN, MARGIN]
       end

@@ -76,6 +76,67 @@ module Monadic
         nil
       end
 
+      # How a JPEG is turned to be seen (its EXIF orientation, 1 to 8); 1
+      # for one without it and for another kind.
+      def orientation(type, bytes)
+        return 1 unless type == 'image/jpeg'
+
+        at = 2
+        while at + 4 <= bytes.bytesize
+          return 1 unless bytes.getbyte(at) == 0xFF
+
+          marker = bytes.getbyte(at + 1)
+          if marker == 0xFF
+            at += 1
+            next
+          end
+          length = bytes.byteslice(at + 2, 2).unpack1('n')
+          return 1 if length.nil? || length < 2 || marker == 0xDA
+
+          if marker == 0xE1 && bytes.byteslice(at + 4, 6) == "Exif\0\0".b
+            return exif_orientation(bytes.byteslice(at + 10, length - 8).to_s)
+          end
+
+          at += 2 + length
+        end
+        1
+      end
+
+      # The orientation tag of the first directory of EXIF data (TIFF), or 1.
+      def exif_orientation(tiff)
+        short = { 'II'.b => 'v', 'MM'.b => 'n' }[tiff.byteslice(0, 2)] or return 1
+        first = tiff.byteslice(4, 4)&.unpack1(short == 'v' ? 'V' : 'N') or return 1
+        count = tiff.byteslice(first, 2)&.unpack1(short) or return 1
+        count.times do |i|
+          entry = first + 2 + (i * 12)
+          tag = tiff.byteslice(entry, 2)&.unpack1(short) or return 1
+          next unless tag == 0x0112
+
+          value = tiff.byteslice(entry + 8, 2)&.unpack1(short)
+          return (1..8).cover?(value) ? value : 1
+        end
+        1
+      end
+
+      # Whether the image moves (an animated PNG or WebP).
+      def animated?(type, bytes)
+        case type
+        when 'image/png'
+          at = 8
+          while at + 8 <= bytes.bytesize
+            length, kind = bytes.byteslice(at, 8).unpack('Na4')
+            return true if kind == 'acTL'
+            return false if kind == 'IDAT'
+
+            at += 12 + length
+          end
+          false
+        when 'image/webp'
+          bytes.byteslice(12, 4) == 'VP8X'.b && bytes.getbyte(20).to_i.anybits?(0x02)
+        else false
+        end
+      end
+
       # VP8 (lossy), VP8L (lossless) or VP8X (extended) chunk.
       def webp(bytes)
         chunk = bytes.byteslice(12, 4)

@@ -61,6 +61,21 @@ RSpec.describe Monadic::Workbench::Observation do
     expect(data["selected"]).to eq("id" => item["id"], "version" => item.dig("file", "sha256")[0, 12], "range_note" => "unknown")
   end
 
+  it "names the items the page reported in view, in its order, each of the board at the version it has, once" do
+    a = open_file("a.txt", "a\n")
+    b = open_file("b.txt", "b\n")
+    of = ->(item) { { "item_id" => item["id"], "version" => item.dig("file", "sha256") } }
+    report = ->(in_view) { { "item_id" => b["id"], "version" => b.dig("file", "sha256"), "in_view" => in_view } }
+    expect(observe(report.call([of.call(b), of.call(a), of.call(b)])).data["work_screen"]["in_view"]).to eq([b["id"], a["id"]])
+    stale = { "item_id" => a["id"], "version" => "0" * 64 }
+    expect(observe(report.call([stale, { "item_id" => "i_gone", "version" => "x" }, "a", of.call(b)])).data["work_screen"]["in_view"])
+      .to eq([b["id"]])
+    expect(observe(report.call([])).data["work_screen"]["in_view"]).to eq([])
+    expect(observe(report.call(nil)).data["work_screen"]).not_to have_key("in_view")
+    expect(observe.data["work_screen"]).not_to have_key("in_view")
+    expect(described_class::PREAMBLE).to include('"in_view"')
+  end
+
   it "says what a file the work screen only holds is, by its type" do
     item = open_file("report.docx", "PK\x03\x04 a document")
     entry = observe.data["work_screen"]["items"].first

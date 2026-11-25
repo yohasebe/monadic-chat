@@ -1736,9 +1736,11 @@
 
   // What the pane shows of the selected item now, sent with a message
   // (workbench_range): the item and its version, the range in view (or
-  // null and why: not_shown, drawing, failed, unknown), and how many
-  // characters are selected in it. The server takes it only for the item
-  // this tab has selected, at that version. null with nothing selected.
+  // null and why: not_shown, drawing, failed, unknown), how many
+  // characters are selected in it, and the items in view (in_view, while
+  // the pane is shown). The server takes the range only for the item this
+  // tab has selected, at that version, and the items in view only as the
+  // board's, at their versions. null with nothing selected.
   function rangeNow() {
     // An attachment shown from the page's data is no item of the board: the
     // model is told of none.
@@ -1748,11 +1750,12 @@
     const version = item.version || item.sha256 || '';
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     const kind = item.kind === 'file' ? item.preview : item.kind;
-    const report = (range, note) => ({
+    const shownNow = paneShown();
+    const report = (range, note) => Object.assign({
       item_id: item.id, version: version, range: range, note: note,
       selection_chars: drawn ? selectedChars(drawn.node) : 0
-    });
-    if (!paneShown()) return report(null, 'not_shown');
+    }, shownNow ? { in_view: inViewNow() } : {});
+    if (!shownNow) return report(null, 'not_shown');
     if (kind === 'image' || kind === 'browser') return report({}, null);
     if (!drawn) return report(null, 'unknown');
     if (drawn.failed || drawn.unshowable) return report(null, 'failed');
@@ -1780,6 +1783,19 @@
       return report({ position_seconds: Math.floor(media.currentTime || 0), duration_seconds: duration }, null);
     }
     return report(null, 'unknown');
+  }
+
+  // The items in view now, in their order (all or part of each): an open
+  // browser chosen is shown alone.
+  function inViewNow() {
+    const item = selected ? itemById(selected) : null;
+    const of = (i) => ({ item_id: i.id, version: i.version || i.sha256 || '' });
+    if (liveBrowser(item)) return [of(item)];
+    const view = $id('workbench-view');
+    if (!view || view.hidden) return [];
+    return Array.from(view.children)
+      .filter((node) => node.classList.contains('workbench-section') && visibleRect(node))
+      .map((node) => itemById(node.dataset.item)).filter(Boolean).map(of);
   }
 
   // Whether the chat's model takes images (the page's model spec; a model it

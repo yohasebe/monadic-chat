@@ -433,6 +433,12 @@
     } else if (item.status === 'ok' && item.kind === 'file' && item.sha256) {
       actions.appendChild(fileSaveButton(item, 'btn-primary'));
     }
+    // An image can be drawn on: a whiteboard with it laid under (as this
+    // version of it).
+    if (item.status === 'ok' && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
+      actions.appendChild(button(t('ui.workbench.wb_drawOn', 'Draw on it'), 'btn-secondary workbench-draw-on',
+        () => newWhiteboard(item)));
+    }
     // A whiteboard is also written out as a picture to keep or pass on.
     if (item.status === 'ok' && isWhiteboard(item)) {
       const group = element('div', 'btn-panel workbench-whiteboard-exports');
@@ -598,7 +604,11 @@
   function onWhiteboard(data) {
     const drawn = data && whiteboardSaves.get(data.request);
     if (!drawn) {
-      if (data && data.status === 'refused') whiteboardRefused(data.reason);
+      const onImage = !!data && drawOnRequests.delete(data.request);
+      if (data && data.status === 'refused') {
+        if (onImage) drawOnRefused(data.reason);
+        else whiteboardRefused(data.reason);
+      }
       return;
     }
     whiteboardSaves.delete(data.request);
@@ -615,6 +625,16 @@
       drawn.whiteboardVersion = '';
       askView(true);
     }
+  }
+
+  // An image could not be drawn on: it changed since it was shown (open
+  // it again, as it is now), or it is not one that can be.
+  function drawOnRefused(reason) {
+    if (typeof window.setAlert !== 'function') return;
+    const text = /changed/.test(String(reason || ''))
+      ? t('ui.workbench.wb_drawOnChanged', 'The image changed since it was shown; open it again to draw on it.')
+      : t('ui.workbench.wb_drawOnRefused', 'This image could not be drawn on.');
+    window.setAlert(text, 'warning');
   }
 
   function whiteboardRefused(reason) {
@@ -660,11 +680,22 @@
     return Object.assign(out, drawnPng(board, 0, 0, width, height));
   }
 
-  // A new whiteboard for this chat (the server makes it and shows it).
-  function newWhiteboard() {
+  // The new whiteboards asked for on an image, by request number (a
+  // refusal of one says the image could not be drawn on).
+  const drawOnRequests = new Set();
+
+  // A new whiteboard for this chat (the server makes it and shows it in
+  // this tab): plain, or on image (an item of the work screen, as the
+  // version shown).
+  function newWhiteboard(image) {
     if (typeof window.safeWsSend !== 'function') return;
     whiteboardRequest += 1;
-    window.safeWsSend({ message: 'WORKBENCH_WHITEBOARD_NEW', request: whiteboardRequest });
+    const message = { message: 'WORKBENCH_WHITEBOARD_NEW', request: whiteboardRequest };
+    if (image && image.id) {
+      drawOnRequests.add(whiteboardRequest);
+      Object.assign(message, { item_id: image.id, version: image.sha256 });
+    }
+    window.safeWsSend(message);
   }
 
   // Whether the item is a text file the work screen can draw.
@@ -2381,7 +2412,7 @@
   const carriesFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
 
   function wirePut() {
-    $on($id('workbench-new-whiteboard'), 'click', newWhiteboard);
+    $on($id('workbench-new-whiteboard'), 'click', () => newWhiteboard());
     const button = $id('workbench-put');
     const input = $id('workbench-put-input');
     const pane = $id('work-screen-pane');

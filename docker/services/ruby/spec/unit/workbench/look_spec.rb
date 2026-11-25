@@ -192,6 +192,29 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
                                               "lines" => { "first" => 1, "last" => 3, "total" => 3 })
     end
 
+    it "gives an Office document's text whole, converted as for a message, and only of the version on the work screen" do
+      write("report.docx", "PK\x03\x04 a report")
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).with(:python).and_return(true)
+      stub_const("#{look}::DOCUMENT_CONVERTER", ->(path) { "# Report\n\nconverted #{File.basename(path)}\n" })
+      open_file("report.docx")
+      body = JSON.parse(look.run(caller_for, scope: "whole").to_s)
+      expect(body["text"]).to eq("# Report\n\nconverted report.docx\n")
+      expect(ledger.records.first).to include("kind" => "text", "scope" => "whole")
+      stub_const("#{look}::DOCUMENT_CONVERTER", lambda do |path|
+        write(path, "PK\x03\x04 changed meanwhile")
+        "text"
+      end)
+      expect(look.run(caller_for, scope: "whole")).to include("(changed)")
+    end
+
+    it "starts the document converter when it is not running, and asks to look again" do
+      write("report.docx", "PK\x03\x04 a report")
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).with(:python).and_return(false)
+      expect(Monadic::Utils::ContainerDependencies).to receive(:start_service_async).with(:python, anything)
+      open_file("report.docx")
+      expect(look.run(caller_for, scope: "whole")).to include("(busy)")
+    end
+
     it "says the text of a file the work screen can draw is its source, not the drawing" do
       write("notes.md", "# Title\n")
       open_file("notes.md")

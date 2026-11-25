@@ -695,9 +695,15 @@ module MonadicSharedTools
             name: "analyze_audio",
             description: "Transcribe the speech in an audio file. Each line of the transcript starts with the " \
                          "time in the recording of the speech it holds, and subtitle files are made from it. " \
-                         "Recordings up to 50 minutes. Give attachment_id for a file attached to the message, " \
-                         "or audio for a file placed in the shared folder.",
+                         "Recordings up to 50 minutes. Give item for an audio file on the work screen, attachment_id for a " \
+                         "file attached to the message, or audio for a file placed in the shared folder.",
             parameters: [
+              {
+                name: :item,
+                type: "string",
+                description: "The id of an audio file on the work screen (from the work screen observation).",
+                required: false
+              },
               {
                 name: :attachment_id,
                 type: "string",
@@ -726,8 +732,15 @@ module MonadicSharedTools
           {
             name: "analyze_video",
             description: "Analyze video content and generate description using vision capabilities (image recognition + audio transcription). " \
-                         "Give attachment_id for a video attached to the message, or file for a video placed in the shared folder.",
+                         "Give item for a video on the work screen, attachment_id for a video attached to the message, " \
+                         "or file for a video placed in the shared folder.",
             parameters: [
+              {
+                name: :item,
+                type: "string",
+                description: "The id of a video on the work screen (from the work screen observation).",
+                required: false
+              },
               {
                 name: :attachment_id,
                 type: "string",

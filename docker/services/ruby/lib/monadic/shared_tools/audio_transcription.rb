@@ -20,6 +20,10 @@ module MonadicSharedTools
           parameters: {
             type: "object",
             properties: {
+              item: {
+                type: "string",
+                description: "The id of an audio file on the work screen (from the work screen observation)."
+              },
               attachment_id: {
                 type: "string",
                 description: "The attachment_id of an audio file the user attached to this chat " \

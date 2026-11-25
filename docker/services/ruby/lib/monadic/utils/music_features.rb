@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../workbench/media_item"
 require "json"
 require "shellwords"
 require_relative "environment"
@@ -24,12 +25,19 @@ module Monadic
                        "(librosa + madmom). Turn it on under Actions → Install Options and rebuild " \
                        "the Python container."
 
-      # The music file a tool was given: a file attached to the chat
-      # (attachment_id) or a file of the shared folder (file_path), as
+      # The music file a tool was given: a file on the work screen (item, its
+      # id), a file attached to the chat (attachment_id) or a file of the
+      # shared folder (file_path), as
       # { relative:, absolute: } (its path in the shared folder, and where
       # this process reads it), or { error: }. Audio is shown on the work
       # screen of the reply, so the user can listen while reading.
-      def music_file(file_path: nil, attachment_id: nil, session: nil, workbench: nil)
+      def music_file(file_path: nil, attachment_id: nil, session: nil, workbench: nil, item: nil)
+        unless item.to_s.empty?
+          found = Monadic::Workbench::MediaItem.resolve(workbench, item, kinds: %w[audio midi])
+          return music_file(file_path: found[:path], session: session, workbench: workbench) if found[:path]
+
+          return found_record(found[:record], workbench)
+        end
         id = attachment_id.to_s.strip
         # Models sometimes pass the attachment id as the file name.
         id = file_path.to_s.strip if id.empty? && Monadic::Workspace::Ids.valid?(:attachment, file_path.to_s.strip)
@@ -50,8 +58,16 @@ module Monadic
           Monadic::Workbench::ChatOutput.show(relative, workbench)
         end
         { relative: relative, absolute: absolute }
-      rescue Monadic::Workspace::Attachments::Unusable => e
+      rescue Monadic::Workspace::Attachments::Unusable, Monadic::Workbench::MediaItem::Refused => e
         { error: e.message }
+      end
+
+      # The music file of a work screen item the user put there (its
+      # attachment's record), shown as an attached one is.
+      def found_record(record, workbench)
+        relative = record[:relative_path]
+        Monadic::Workbench::ChatOutput.show(relative, workbench) if AUDIO_EXTENSIONS.include?(File.extname(relative).delete_prefix(".").downcase)
+        { relative: relative, absolute: record[:path] }
       end
 
       # The analyzer's result for a file music_file found ("success" => true,

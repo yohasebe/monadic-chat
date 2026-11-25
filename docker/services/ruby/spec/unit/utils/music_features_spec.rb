@@ -55,6 +55,20 @@ RSpec.describe Monadic::Utils::MusicFeatures do
       expect(app.asked).to eq([[attachment_id, :s], [attachment_id, :s]])
     end
 
+    it "finds a file on the work screen by its item: one put there as its attachment, one opened there by its path" do
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).with(:wb, "i_put", kinds: %w[audio midi])
+                                                               .and_return(record: record)
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).with(:wb, "i_opened", kinds: %w[audio midi])
+                                                               .and_return(path: "sub/piece.mid")
+      expect(app.music_file(item: "i_put", workbench: :wb))
+        .to eq(relative: "conversations/c1/attachments/song.mp3", absolute: "/somewhere/song.mp3")
+      expect(shown).to eq([["conversations/c1/attachments/song.mp3", :wb]])
+      expect(app.music_file(item: "i_opened", workbench: :wb)).to eq(relative: "sub/piece.mid", absolute: File.join(@data, "sub", "piece.mid"))
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).and_raise(Monadic::Workbench::MediaItem::Refused, "that item is not audio or midi")
+      expect(app.music_file(item: "i_text", workbench: :wb)).to eq(error: "that item is not audio or midi")
+      expect(app.asked).to be_nil
+    end
+
     it "finds a file of the shared folder by its path, with or without the folder in front" do
       expect(app.music_file(file_path: "sub/piece.mid")).to eq(relative: "sub/piece.mid", absolute: File.join(@data, "sub", "piece.mid"))
       expect(app.music_file(file_path: "/monadic/data/song.mp3")).to eq(relative: "song.mp3", absolute: File.join(@data, "song.mp3"))

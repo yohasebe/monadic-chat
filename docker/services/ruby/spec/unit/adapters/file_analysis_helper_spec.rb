@@ -105,6 +105,20 @@ RSpec.describe MonadicHelper do
     end
   end
 
+  describe '#analyze_audio of an item on the work screen' do
+    it 'transcribes the file the user put there, or one opened there, and none of another kind' do
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).with(:wb, "i_opened", kinds: %w[audio]).and_return(path: "talk.mp3")
+      helper.analyze_audio(item: "i_opened", workbench: :wb)
+      expect(helper.audio_agent_calls.last[:audio_path]).to eq("talk.mp3")
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).with(:wb, "i_put", kinds: %w[audio])
+                                                               .and_return(record: { path: "/data/conversations/c/inputs/a__talk.m4a" })
+      helper.analyze_audio(item: "i_put", workbench: :wb)
+      expect(helper.audio_agent_calls.last[:audio_path]).to eq("/data/conversations/c/inputs/a__talk.m4a")
+      allow(Monadic::Workbench::MediaItem).to receive(:resolve).and_raise(Monadic::Workbench::MediaItem::Refused, "that item is not audio")
+      expect(helper.analyze_audio(item: "i_clip", workbench: :wb)).to eq("Error: that item is not audio")
+    end
+  end
+
   describe '#analyze_audio' do
     it 'delegates to audio_transcription_agent' do
       result = helper.analyze_audio(

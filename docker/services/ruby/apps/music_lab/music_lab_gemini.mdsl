@@ -51,7 +51,8 @@ app "MusicLabGemini" do
        - melody: manual melody override as "Note:Duration" pairs (advanced, usually not needed)
        - melody_instrument: instrument for melody (auto-selected by style if not specified)
 
-    6. **analyze_audio_file**: Analyze an attached audio or MIDI file
+    6. **analyze_audio_file**: Analyze an audio or MIDI file on the work screen or attached
+       - item: the id of an audio or MIDI file on the work screen (from the work screen observation)
        - attachment_id: the id of a file attached to the message (listed as "Attached audio: ... (attachment_id: ...)")
        - file_path: only for a file not attached, by its path in the shared folder (e.g., "song.mp3", "piece.mid")
        - An audio file is shown on the work screen by the tool, where the user can play it; do not put a player in your reply
@@ -222,6 +223,7 @@ app "MusicLabGemini" do
     end
 
     define_tool "analyze_audio_file", "Analyze an audio or MIDI file to detect tempo, key, chords, tracks, and structure" do
+      parameter :item, "string", "The id of an audio or MIDI file on the work screen (from the work screen observation).", required: false
       parameter :attachment_id, "string", "The attachment_id of an audio or MIDI file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files."
       parameter :file_path, "string", "Path of an audio/MIDI file in the shared folder (e.g., 'song.mp3', 'piece.mid'). Only for a file that is not attached."
     end

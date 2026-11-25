@@ -6,21 +6,11 @@ require_relative '../workbench/chat_output'
 
 module MonadicHelper
   # Adapter for OpenAI function generate_image
-  # Accepts keyword args from function call: operation, model, prompt, images, mask, n, size, quality, output_format, background, output_compression
-  def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, mask: nil,
+  # Accepts keyword args from function call: operation, model, prompt, images, n, size, quality, output_format, background, output_compression
+  def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
                      n: 1, size: "1024x1024", quality: nil,
                      output_format: nil, background: nil, output_compression: nil, input_fidelity: nil,
-                     session: nil, out_dir: nil, job_inputs: [])
-    # If images/mask are omitted (e.g., "edit the previous image"), fall back to last stored references
-    begin
-      refs = session && session[:openai_last_image_generation]
-      if refs
-        images = refs[:images] if (images.nil? || images.empty?) && refs[:images]&.any?
-        mask = refs[:masks].first if (mask.nil? || mask.to_s.empty?) && refs[:masks]&.any?
-      end
-    rescue StandardError
-      # Ignore session lookup issues
-    end
+                     out_dir: nil, job_inputs: [])
     return JSON.generate({ success: false, message: "There is no chat folder to keep the image in." }) unless out_dir
 
     # Build CLI command
@@ -45,45 +35,6 @@ module MonadicHelper
     if images
       Array(images).each do |img|
         parts << "-i #{Shellwords.shellescape(img)}"
-      end
-    end
-
-    # Handle mask parameter
-    # If mask is explicitly provided, use it
-    if mask
-      # Get the mask filename to pass to the script for name preservation
-      mask_filename = File.basename(mask.to_s)
-      parts << "--mask #{Shellwords.shellescape(mask)}"
-      parts << "--original-name #{Shellwords.shellescape(mask_filename)}"
-    # For edit operation, check if there's a mask associated with the image in MonadicApp
-    elsif operation == "edit" && images && images.size == 1
-      # Get the original image filename
-      original_image = File.basename(images.first.to_s)
-
-      # Set shared folder path for mask images
-      shared_folder = Monadic::Utils::Environment.shared_volume
-
-      # Look for mask file directly in the shared folder with naming convention
-      # Try all possible naming conventions for masks
-      # 1. mask__ prefix (new clear naming)
-      # 2. mask_for_ prefix (previous naming)
-      # 3. mask_*_ wildcard pattern (older naming)
-      mask_pattern1 = File.join(shared_folder, "mask__#{original_image}")
-      mask_pattern2 = File.join(shared_folder, "mask_for_#{original_image.gsub(/\.[^.]+$/, '')}.png")
-      mask_pattern3 = File.join(shared_folder, "mask_*_#{original_image.gsub(/\.[^.]+$/, '')}.png")
-      mask_files = Dir.glob([mask_pattern1, mask_pattern2, mask_pattern3])
-
-      if mask_files.any?
-        # Use the most recent mask file (in case there are multiple)
-        # Filter out directories just in case
-        mask_files = mask_files.reject { |f| File.directory?(f) }
-        mask_path = mask_files.sort_by { |f| File.mtime(f) }.last if mask_files.any?
-        if mask_path && File.exist?(mask_path)
-          # Pass the mask filename to preserve it in output
-          mask_filename = File.basename(mask_path)
-          parts << "--mask #{Shellwords.shellescape(mask_path)}"
-          parts << "--original-name #{Shellwords.shellescape(mask_filename)}"
-        end
       end
     end
 

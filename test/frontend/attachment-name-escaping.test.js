@@ -38,8 +38,8 @@ describe('attachment list escapes file names', () => {
       const used = document.getElementById('image-used');
       // No element or attribute was created from the name
       expect(used.querySelector('[onerror],[onmouseover]')).toBeNull();
-      expect(used.querySelectorAll('img').length).toBe(type.startsWith('image/') ? 1 : 0);
-      expect(used.textContent + (used.querySelector('img')?.getAttribute('alt') || '')).toContain(title);
+      expect(used.querySelectorAll('img').length).toBe(0);
+      expect(used.textContent).toContain(title);
       expect(window.__pwned).toBeUndefined();
     }
   });

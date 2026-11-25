@@ -145,23 +145,23 @@ RSpec.describe "the Grok image tool on the workbench" do
     expect(pairs.map { |p| File.basename(p) }).to eq(%w[a.png b.png])
   end
 
-  it "refuses a mask drawn in the mask editor, which xAI cannot take, rather than ignore it" do
-    File.binwrite(File.join(shared, "photo.png"), png(8, 8))
+  it "takes a mask kept with a message of an older chat for no image to edit" do
     File.binwrite(File.join(shared, "mask__photo.png"), png(8, 8, "mask"))
     fake_generator
     session[:messages] << { "mid" => "m-mask", "role" => "user", "text" => "change the sky",
                             "images" => [{ "name" => "mask__photo.png" }] }
-    expect(generate(operation: "edit", prompt: "change the sky")).to start_with("❌ xAI image editing does not take a mask")
+    expect(generate(operation: "edit", prompt: "change the sky")).to start_with("❌ No image to edit")
     expect(commands).to be_empty
   end
 
-  it "refuses a mask drawn beside an uploaded image rather than edit without it" do
+  it "edits the image uploaded beside a mask of an older chat, leaving the mask out" do
     fake_generator
     data = "data:image/png;base64,#{Base64.strict_encode64(png(8, 8))}"
     session[:parameters]["images"] = [{ "title" => "photo.png", "data" => data, "type" => "image/png" },
                                       { "title" => "mask__photo.png", "data" => data, "type" => "image/png", "is_mask" => true }]
-    expect(edit(text: "change the sky")).to start_with("❌ xAI image editing does not take a mask")
-    expect(commands).to be_empty
+    edit(text: "change the sky")
+    pairs = commands.last.each_cons(2).select { |flag, _| flag == "-i" }.map(&:last)
+    expect(pairs.map { |p| File.basename(p) }).to eq(%w[photo.png])
   end
 
   it "refuses more than five images rather than drop some" do

@@ -1521,9 +1521,6 @@ legend {
 
 /* The remove and mask buttons of an attached image are the shared buttons
    (buttons.css), as on every other attachment. */
-.image-container .btn.create-mask i {
-  margin-right: 5px;
-}
 
 .json-header {
   cursor: pointer;

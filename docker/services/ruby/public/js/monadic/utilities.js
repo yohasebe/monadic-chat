@@ -1247,7 +1247,7 @@ function checkParams() {
   return true;
 }
 
-  // isPdfSupportedForModel, isImageGenerationApp, isMaskEditingEnabled → extracted to model-capabilities.js
+  // isPdfSupportedForModel, isImageGenerationApp → extracted to model-capabilities.js
 
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
@@ -1734,7 +1734,7 @@ if (typeof module !== 'undefined' && module.exports) {
     updateAppSelectIcon,
     // deleteMessage → alert-manager.js
     // applyCollapseStates → json-tree-toggle.js
-    // isPdfSupportedForModel, isImageGenerationApp, isMaskEditingEnabled,
+    // isPdfSupportedForModel, isImageGenerationApp,
     // isFileInputsSupportedForModel, isResponsesApiModel → model-capabilities.js
   };
 }

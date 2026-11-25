@@ -392,7 +392,7 @@ describe('Name chips under the message box', () => {
     jest.isolateModules(() => { require(SOURCE); });
   });
 
-  test('name each file, keep the image for the mask editor, and show the file on the work screen', () => {
+  test('name each file, and show the file on the work screen', () => {
     const heard = jest.fn();
     document.addEventListener('attachments:changed', heard);
     window.restoreImages([{ title: 'cat.png', type: 'image/png', data: PNG },
@@ -401,7 +401,7 @@ describe('Name chips under the message box', () => {
     expect(heard).toHaveBeenCalled();
     const chips = document.querySelectorAll('#image-used .attachment-chip-name');
     expect(chips).toHaveLength(3);
-    expect(document.querySelector('#image-used img.base64-image').getAttribute('src')).toBe(PNG);
+    expect(document.querySelector('#image-used img')).toBeNull();
     expect(window.AttachmentDrafts.list().map((d) => [d.kind, d.name])).toEqual(
       [['image', 'cat.png'], ['pdf', 'a.pdf'], ['video', 'clip.mp4']]);
     chips[1].click();

@@ -121,7 +121,7 @@ describe('video attachments', () => {
 
     window.restoreImages(pending);
     expect(window.snapshotImages()).toEqual(sent);
-    expect(document.querySelector('#image-used img.base64-image').getAttribute('alt')).toBe('shot.png');
+    expect(document.querySelector('#image-used .attachment-chip-name').textContent).toContain('shot.png');
     expect(document.getElementById('image-used').textContent).toContain('notes.pdf');
     pending[0].title = 'changed';
     expect(window.snapshotImages()[0].title).toBe('shot.png');

@@ -137,9 +137,9 @@ RSpec.describe "the OpenAI image tool on the workbench" do
   end
 
   describe "an edit" do
-    def edit(text: "make it brighter", images: nil, mask: nil)
+    def edit(text: "make it brighter", images: nil)
       session[:messages] << { "mid" => "m-u#{session[:messages].size}", "role" => "user", "text" => text }
-      generate(operation: "edit", prompt: text, **(images ? { images: images } : {}), **(mask ? { mask: mask } : {}))
+      generate(operation: "edit", prompt: text, **(images ? { images: images } : {}))
     end
 
     def job_inputs(command)
@@ -225,7 +225,7 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       expect(commands.last.each_cons(2).to_a).to include(["-i", "cat.png"])
     end
 
-    it "edits the image a mask drawn in the mask editor is for, with that mask, whatever the model passed" do
+    it "takes a mask kept with a message of an older chat for no image, and edits the work screen's image with none" do
       File.binwrite(File.join(shared, "photo.png"), png(8, 8))
       File.binwrite(File.join(shared, "mask__photo.png"), png(8, 8, "mask"))
       fake_generator(bytes: png(64, 48, "first"), name: "first.png")
@@ -233,14 +233,13 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       fake_generator(bytes: png(64, 48, "x"), name: "x.png")
       session[:messages] << { "mid" => "m-mask", "role" => "user", "text" => "change the sky",
                               "images" => [{ "name" => "mask__photo.png" }] }
-      generate(operation: "edit", prompt: "change the sky", images: ["first.png"])
-      pairs = commands.last.each_cons(2).to_a
-      expect(pairs).to include(["-i", "photo.png"])
-      expect(pairs.find { |flag, _| flag == "--mask" }&.last).to end_with("mask__photo.png")
-      expect(job_inputs(commands.last)).to be_empty
+      generate(operation: "edit", prompt: "change the sky")
+      words = commands.last
+      expect(words.join(" ")).not_to include("mask")
+      expect(job_inputs(words).size).to eq(1)
     end
 
-    it "keeps a mask drawn in the mask editor with the image uploaded beside it, the model passing no mask" do
+    it "edits the image uploaded beside a mask of an older chat, leaving the mask out" do
       fake_generator
       data = "data:image/png;base64,#{Base64.strict_encode64(png(8, 8))}"
       uploads = [{ "title" => "photo.png", "data" => data, "type" => "image/png" },
@@ -249,9 +248,9 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       session[:parameters]["images"] = uploads
       session[:messages] << { "mid" => "m-mask", "role" => "user", "text" => "change the sky", "images" => uploads }
       generate(operation: "edit", prompt: "change the sky")
-      pairs = commands.last.each_cons(2).to_a
-      expect(pairs).to include(["-i", "photo.png"])
-      expect(pairs.find { |flag, _| flag == "--mask" }&.last).to end_with("mask__photo.png")
+      pairs = commands.last.each_cons(2).select { |flag, _| flag == "-i" }.map(&:last)
+      expect(pairs).to eq(["photo.png"])
+      expect(commands.last.join(" ")).not_to include("mask")
     end
 
     it "stops when an uploaded image cannot be read, rather than edit fewer or another, and leaves out documents" do
@@ -272,14 +271,6 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       expect(job_inputs(commands.last).size).to eq(1)
     end
 
-    it "refuses a mask for the image in the work screen rather than edit without it" do
-      fake_generator(bytes: png(64, 48, "first"), name: "first.png")
-      generate
-      commands.clear
-      expect(edit(text: "change the sky", mask: "mask__photo.png")).to start_with("❌ A mask applies to an uploaded or named image")
-      expect(commands).to be_empty
-    end
-
     it "says there is nothing to edit when the workbench is empty and nothing was uploaded or named" do
       fake_generator
       expect(edit).to start_with("❌ No image to edit")
@@ -295,9 +286,9 @@ RSpec.describe "the OpenAI image tool on the workbench" do
     before { Monadic::Workbench::Board.live = ->(tab) { tab == "t1" ? 1 : 2 } }
     after { Monadic::Workbench::Board.live = nil }
 
-    def edit(text: "make it brighter", mask: nil)
+    def edit(text: "make it brighter")
       session[:messages] << { "mid" => "m-u#{session[:messages].size}", "role" => "user", "text" => text }
-      generate(operation: "edit", prompt: text, **(mask ? { mask: mask } : {}))
+      generate(operation: "edit", prompt: text)
     end
 
     def two_images
@@ -380,14 +371,6 @@ RSpec.describe "the OpenAI image tool on the workbench" do
       allow_any_instance_of(Monadic::Workbench::Board).to receive(:still_selected?).and_return(false)
       commands.clear
       expect(edit).to start_with("❌ The image selected in the work screen changed while it was read")
-      expect(commands).to be_empty
-    end
-
-    it "refuses a mask for the image selected rather than edit without it" do
-      first, = two_images
-      board.select(tab: "t1", generation: 1, item_id: first.item_id)
-      commands.clear
-      expect(edit(text: "change the sky", mask: "mask__photo.png")).to start_with("❌ A mask applies to an uploaded or named image")
       expect(commands).to be_empty
     end
   end

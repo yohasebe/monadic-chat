@@ -198,7 +198,6 @@ function getMimeTypeFromExtension(ext) {
 }
 const selectFileButton = $id("image-file");
 let images = []; // Store multiple images/PDFs
-let currentMaskData = null; // Store current mask data for image editing
 
 // Function to limit the number of images in memory
 function limitImageCount() {
@@ -567,28 +566,6 @@ function updateFileDisplay(files) {
   const imageUsed = $id("image-used");
   if (imageUsed) imageUsed.innerHTML = ""; // Clear current display
 
-  // Check if there's a mask image
-  const hasMask = window.currentMaskData !== null;
-  let maskData = null;
-  let maskForImageIndex = -1;
-
-  // If we have a mask, identify the associated base image
-  if (hasMask && window.currentMaskData && window.currentMaskData.mask_for) {
-    maskData = window.currentMaskData;
-    // Find the index of the base image that this mask is for
-    maskForImageIndex = files.findIndex(file => file.title === maskData.mask_for);
-  }
-
-  // Check if image generation is enabled in the current app
-  const appsSelect = $id("apps");
-  const currentApp = appsSelect ? appsSelect.value : '';
-  const isImageGenerationEnabled = window.isImageGenerationApp ?
-    (window.isImageGenerationApp(currentApp) ||
-     (apps[currentApp] && apps[currentApp].image_generation === "upload_only")) : false;
-
-  // Check if mask editing is enabled - separate from basic image generation
-  const isMaskEditingEnabled = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp) : false;
-
   // The remove buttons show only an icon: their name, for screen readers
   // and as a tooltip.
   const removeLabel = window.escapeHtml((typeof webUIi18n !== 'undefined' && webUIi18n.t('ui.removeAttachment')) || 'Remove this attachment');
@@ -627,37 +604,11 @@ function updateFileDisplay(files) {
           </button>
         </div>
       `);
-    } else if (hasMask && maskData && index === maskForImageIndex && maskForImageIndex !== -1) {
-      // This is the base image for which we have a mask - display as overlay
-
-      const overlayDisplay = `
-        <div class="mask-overlay-container">
-          <img class='base-image' alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' />
-          <img class='mask-overlay opacity-60' alt='${window.escapeHtml(maskData.title)}' src='${window.escapeHtml(maskData.display_data || maskData.data)}' />
-          <div class="mask-overlay-label">MASK</div>
-          <div class="mask-controls">
-            <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
-              <i class="fa-regular fa-trash-can"></i> Remove Mask
-            </button>
-            <button class='btn btn-sm btn-secondary toggle-mask' tabindex="100">
-              <i class="fas fa-eye-slash"></i> Toggle Mask
-            </button>
-          </div>
-        </div>
-      `;
-      if (imageUsed) imageUsed.insertAdjacentHTML('beforeend', overlayDisplay);
-    } else if (!hasMask || !maskData || file.title !== maskData.title) { // Skip displaying the mask image separately
-      // A name chip: the image itself is shown on the work screen. The
-      // image stays in the chip, hidden, for the mask editor.
+    } else {
+      // A name chip: the image itself is shown on the work screen.
       const imageDisplay = `
         <div class="image-container file-container attachment-chip">
-          <img class='base64-image' hidden alt='${window.escapeHtml(file.title)}' src='${window.escapeHtml(file.data)}' data-type='${window.escapeHtml(file.type)}' />
           <button type="button" class="attachment-chip-name" data-draft-index='${index}'><i class="fas fa-image"></i> ${window.escapeHtml(file.title)}</button>
-          ${isMaskEditingEnabled ?
-            `<button class='btn btn-primary btn-sm create-mask' data-index='${index}' tabindex="100">
-              <i class="fas fa-brush"></i> Create Mask
-            </button>` : ''
-          }
           <button class='btn btn-secondary btn-sm btn-icon remove-file' data-index='${index}' aria-label='${removeLabel}' title='${removeLabel}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -712,118 +663,16 @@ function updateFileDisplay(files) {
         currentPdfData = null;
       }
 
-      // If this is the base image for a mask, also remove the mask
-      if (window.currentMaskData && window.currentMaskData.mask_for && window.currentMaskData.mask_for === removedFile.title) {
-        // Find and remove the mask from images array
-        const maskIndex = images.findIndex(img => img.title === window.currentMaskData.title);
-        if (maskIndex !== -1) {
-          images.splice(maskIndex, 1);
-        }
-        window.currentMaskData = null;
-      }
-
       // Remove the file from the images array
       images.splice(index, 1);
       updateFileDisplay(images);
     });
   });
-
-  // Add event listeners for mask toggle
-  document.querySelectorAll(".toggle-mask").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      const container = this.closest(".mask-overlay-container");
-      const maskOverlay = container ? container.querySelector(".mask-overlay") : null;
-      const icon = this.querySelector("i");
-
-      if (maskOverlay && maskOverlay.classList.contains("opacity-0")) {
-        // Show mask
-        maskOverlay.classList.remove("opacity-0");
-        maskOverlay.classList.add("opacity-60");
-        if (icon) { icon.classList.remove("fa-eye"); icon.classList.add("fa-eye-slash"); }
-      } else if (maskOverlay) {
-        // Hide mask
-        maskOverlay.classList.remove("opacity-60");
-        maskOverlay.classList.add("opacity-0");
-        if (icon) { icon.classList.remove("fa-eye-slash"); icon.classList.add("fa-eye"); }
-      }
-    });
-  });
-
-  // Add event listeners for mask removal
-  document.querySelectorAll(".remove-mask").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      const index = parseInt(this.dataset.index, 10);
-      const maskFilename = this.dataset.maskFilename;
-      const container = this.closest(".mask-overlay-container");
-      const originalImageTitle = container ? container.dataset.originalImage : null;
-
-      // Only remove the mask, not the base image
-      if (window.currentMaskData) {
-        // Find and remove the mask from images array
-        const maskToRemove = maskFilename || (window.currentMaskData ? window.currentMaskData.title : null);
-        if (maskToRemove) {
-          const maskIndex = images.findIndex(img => img.title === maskToRemove);
-          if (maskIndex !== -1) {
-            images.splice(maskIndex, 1);
-          }
-        }
-        window.currentMaskData = null;
-      }
-
-      // Remove the mask overlay container
-      if (container) container.remove();
-
-      // Show the original image if it exists and is hidden
-      if (originalImageTitle) {
-        const hiddenContainer = document.querySelector(`.image-container img[alt="${originalImageTitle}"]`);
-        if (hiddenContainer) {
-          const parent = hiddenContainer.closest('.image-container');
-          if (parent && parent.style.display === 'none') {
-            $show(parent);
-          }
-        }
-      }
-
-      // Update display to show changes
-      updateFileDisplay(images);
-
-      // Show success alert
-      const maskRemovedText = getTranslation('ui.messages.maskRemoved', 'Mask removed');
-      setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedText}`, "success");
-    });
-  });
-
-  // Add event listeners for mask creation
-  document.querySelectorAll(".create-mask").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      const index = parseInt(this.dataset.index, 10);
-
-      // Check if mask editing is enabled in the current app
-      const appsSelect2 = $id("apps");
-      const currentApp2 = appsSelect2 ? appsSelect2.value : '';
-      const isMaskEditingEnabled2 = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp2) : false;
-
-      if (!isMaskEditingEnabled2) {
-        const maskNotAvailableText = getTranslation('ui.messages.maskEditingNotAvailable', 'Mask editing is not available in this app');
-        setAlert(maskNotAvailableText, "error");
-        return;
-      }
-
-      if (typeof window.openMaskEditor === 'function') {
-        window.openMaskEditor(images[index]);
-      } else {
-        console.error("Mask editor not loaded");
-        const maskEditorNotAvailableText = getTranslation('ui.messages.maskEditorNotAvailable', 'Mask editor not available');
-        setAlert(maskEditorNotAvailableText, "error");
-      }
-    });
-  });
 }
 
-// Clear all images and mask data - call when switching apps
+// Clear all images - call when switching apps
 function clearAllImages() {
   images = [];
-  currentMaskData = null;
   attachmentGeneration += 1;
   videoAttachments = [];
   updateFileDisplay(images);

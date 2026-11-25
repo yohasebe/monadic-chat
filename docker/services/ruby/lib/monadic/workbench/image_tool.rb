@@ -19,11 +19,11 @@ module Monadic
     # image an edit starts from, and a run of a generator whose image goes
     # to the chat's workbench. Calls no provider API.
     module ImageTool
-      # The edit's images: paths in the shared folder (and a mask), the
+      # The edit's images: paths in the shared folder, the
       # bytes of a board image (board_input), or the original and the drawn
       # reference of a whiteboard drawn on an image (inputs, in that order:
       # BoardEdit::Input).
-      Source = Struct.new(:images, :mask, :board_input, :inputs, keyword_init: true) do
+      Source = Struct.new(:images, :board_input, :inputs, keyword_init: true) do
         def drawn? = !inputs.nil?
       end
 
@@ -46,9 +46,8 @@ module Monadic
       end
 
       # Which images an edit starts from, in this order: the user's uploads
-      # in this turn (with the mask the user drew for one of them in the
-      # mask editor, an upload named mask__<image>); a mask drawn in the
-      # last user message, with that message's uploads; images of the
+      # in this turn (a mask kept with a message of an older chat is not an
+      # image to edit); images of the
       # shared folder the user named in their message (a name at the top of
       # the shared folder, or a path in it such as an image of a chat
       # folder); the image the asking tab has selected on the workbench (a
@@ -62,8 +61,8 @@ module Monadic
       # as drawn (BoardEdit). item (an item of the work screen, by its id)
       # comes before all of these. Raises NoSource when there is nothing to
       # edit.
-      def edit_source(session:, workbench:, images:, mask: nil, item: nil)
-        return item_source(workbench, item.to_s, images, mask) unless item.nil? || item.to_s.empty?
+      def edit_source(session:, workbench:, images:, item: nil)
+        return item_source(workbench, item.to_s, images) unless item.nil? || item.to_s.empty?
 
         named = Array(images).filter_map do |img|
           upload = upload_name(img)
@@ -73,24 +72,21 @@ module Monadic
         user_text = last_user ? last_user['text'].to_s : ''
         last_uploads = last_user && last_user['images']
 
-        source = upload_source(session, session && session[:parameters] && session[:parameters]['images'], mask)
+        source = upload_source(session, session && session[:parameters] && session[:parameters]['images'])
         return source if source
-        return upload_source(session, last_uploads, mask) if Array(last_uploads).any? { |u| mask_upload?(u) }
 
         if !named.empty? && named.all? { |n| named_in_text?(user_text, n) }
           missing = named.reject { |name| shared_image?(name) || (!name.include?('/') && restore_upload(session, name)) }
           raise NoSource, "❌ The image you named was not found: #{missing.join(', ')}" unless missing.empty?
 
-          return Source.new(images: named, mask: mask)
+          return Source.new(images: named)
         end
 
-        selected = selected_image(workbench, mask)
+        selected = selected_image(workbench)
         return selected if selected
 
         latest = workbench && Board.existing(workbench.chat_id)&.latest_image
         if latest
-          raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
-
           begin
             return Source.new(board_input: Board.for(workbench.chat_id).image_input(latest['id']))
           rescue Board::Refused => e
@@ -98,7 +94,7 @@ module Monadic
           end
         end
 
-        source = upload_source(session, last_uploads, mask)
+        source = upload_source(session, last_uploads)
         return source if source
 
         raise NoSource, '❌ No image to edit: there is no image in the work screen, and none was uploaded or named.'
@@ -108,8 +104,8 @@ module Monadic
       # version it has now, selected or not), or a whiteboard drawn on an
       # image (its picture and the board as the tab draws it: only one the
       # tab shows). Nothing else, and no other image in its place.
-      def item_source(workbench, item_id, images, mask)
-        raise NoSource, '❌ Name an item of the work screen or images, not both.' if Array(images).any? || mask
+      def item_source(workbench, item_id, images)
+        raise NoSource, '❌ Name an item of the work screen or images, not both.' if Array(images).any?
 
         board = workbench && Board.existing(workbench.chat_id)
         item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is edited.'
@@ -152,20 +148,16 @@ module Monadic
       # is gone: the latest image is used then, as before. An image that was
       # selected and then is gone, changed or no longer selected while it is
       # read stops the edit: no other image is used in its place.
-      def selected_image(workbench, mask)
+      def selected_image(workbench)
         board = workbench && Board.existing(workbench.chat_id)
         target = board&.look_target(tab: workbench.tab, generation: workbench.generation)
         return nil unless target.is_a?(Board::Target)
 
         item = target.item
-        if BoardEdit.whiteboard?(item)
-          raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
+        return drawn_source(workbench) if BoardEdit.whiteboard?(item)
 
-          return drawn_source(workbench)
-        end
         file_image = item['kind'] == 'file' && item.dig('file', 'preview') == 'image'
         return nil unless item['artifact'] || file_image
-        raise NoSource, '❌ A mask applies to an uploaded or named image, not to the image in the work screen.' if mask
 
         input = input_of(board, item)
         unless board.still_selected?(tab: workbench.tab, generation: workbench.generation, item: item, serial: target.serial)
@@ -177,27 +169,20 @@ module Monadic
         raise NoSource, "❌ The image selected in the work screen cannot be edited (#{e.message}): no other image is used in its place."
       end
 
-      # The images of a list of uploads, as files of the shared folder, with
-      # the mask drawn for one of them (that image first); nil when the list
-      # has neither. Attachments that are not images are left out. Raises
-      # NoSource when an image cannot be found.
-      def upload_source(session, list, mask)
-        list = Array(list).select { |upload| upload.is_a?(Hash) }
-        editor_mask = list.find { |upload| mask_upload?(upload) }
-        plain = list.reject { |upload| mask_upload?(upload) }.select { |upload| image_upload?(upload) }
-        return nil if plain.empty? && !editor_mask
+      # The images of a list of uploads, as files of the shared folder; nil
+      # when the list has none. Attachments that are not images, and masks
+      # kept with messages of older chats, are left out. Raises NoSource
+      # when an image cannot be found.
+      def upload_source(session, list)
+        plain = Array(list).select { |upload| upload.is_a?(Hash) }
+                           .reject { |upload| mask_upload?(upload) }.select { |upload| image_upload?(upload) }
+        return nil if plain.empty?
 
         found = plain.map { |upload| [upload_name(upload) || '(unnamed)', stored_upload(upload)] }
-        if editor_mask
-          mask = upload_name(editor_mask)
-          target = File.basename((editor_mask['mask_for'] || mask.delete_prefix('mask__')).to_s)
-          found.reject! { |name, _| File.basename(name) == target }
-          found.unshift([target, shared_image?(target) || restore_upload(session, target) ? target : nil])
-        end
         missing = found.reject(&:last).map(&:first)
         raise NoSource, "❌ The image you uploaded could not be read: #{missing.join(', ')}" unless missing.empty?
 
-        Source.new(images: found.map(&:last), mask: mask)
+        Source.new(images: found.map(&:last))
       end
 
       def mask_upload?(upload)

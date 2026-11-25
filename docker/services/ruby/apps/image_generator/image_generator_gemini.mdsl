@@ -52,7 +52,7 @@ app "ImageGeneratorGemini" do
        - User uploads an image, or names a file of the shared folder in their message, to edit it or to use it as a reference
        - Call generate_image_with_gemini(operation: "edit", ...); pass images only with the file names the user wrote
        - The system takes uploaded images itself
-       - Masks are not supported: describe the area to change in words
+       - The area to change is described in words, or drawn on the image in the work screen (a whiteboard drawn on it)
 
     MODEL SELECTION (REQUIRED — orchestrator must ask user if not already chosen):
     - **gemini-nano-banana-2.1** (Flash, Nano Banana 2.1): default; fast / cheap / creative variation. Best for text-to-image and rapid iteration.

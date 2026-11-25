@@ -28,7 +28,6 @@ class ImageGeneratorOpenAI < MonadicApp
   # @param model [String] Model to use for image generation
   # @param prompt [String] Text description of the desired image
   # @param images [Array<String>] Array of image filenames for editing/variation
-  # @param mask [String] Mask image filename for precise editing
   # @param item [String, nil] An item of the work screen to edit (its id):
   #   an image, or a whiteboard drawn on one (its picture and the drawing)
   # @param size [String, nil] Image dimensions (1024x1024 unless given; an
@@ -48,7 +47,7 @@ class ImageGeneratorOpenAI < MonadicApp
   # @return [Monadic::Workbench::Offered, String] The image on the
   #   workbench, or an error
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil,
-                                mask: nil, item: nil, size: nil,
+                                item: nil, size: nil,
                                 quality: nil, output_format: "png",
                                 background: nil, output_compression: nil, input_fidelity: nil,
                                 session: nil, workbench: nil)
@@ -67,22 +66,14 @@ class ImageGeneratorOpenAI < MonadicApp
     source = nil
     if operation == "edit"
       begin
-        source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, mask: mask,
-                                                           item: item)
+        source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, item: item)
       rescue Monadic::Workbench::ImageTool::NoSource => e
         return e.message
       end
       images = source.images
-      mask = source.mask
       board_input = source.board_input
       prompt = Monadic::Workbench::ImageTool.edit_prompt(source, prompt)
       size ||= "auto" if source.drawn?
-      # The mask is a file of the shared folder (an upload of an earlier
-      # turn with its name is written there first).
-      if mask && !Monadic::Workbench::ImageTool.shared_image?(mask) &&
-         !Monadic::Workbench::ImageTool.restore_upload(session, File.basename(mask))
-        return "❌ Mask file not found. (Target mask: '#{mask}')"
-      end
     end
 
     # Validate background parameter if provided
@@ -106,7 +97,7 @@ class ImageGeneratorOpenAI < MonadicApp
     # in the chat's folder of the shared folder.
     Monadic::Workbench::ImageTool.run_job(workbench, board_input: board_input, drawn: source&.inputs) do |out_dir, inputs|
       super(operation: operation, model: model, prompt: prompt, images: images,
-            mask: mask, n: 1, size: size || "1024x1024", quality: quality, output_format: output_format,
+            n: 1, size: size || "1024x1024", quality: quality, output_format: output_format,
             background: background, output_compression: output_compression, input_fidelity: input_fidelity,
             out_dir: out_dir, job_inputs: inputs)
     end
@@ -182,8 +173,6 @@ class ImageGeneratorGrok < MonadicApp
       rescue Monadic::Workbench::ImageTool::NoSource => e
         return e.message
       end
-      return "❌ xAI image editing does not take a mask: describe the change in words instead." if source.mask
-
       images = source.images
       board_input = source.board_input
       prompt = Monadic::Workbench::ImageTool.edit_prompt(source, prompt)
@@ -250,8 +239,6 @@ class ImageGeneratorGemini < MonadicApp
     source = nil
     if operation == "edit"
       source = Monadic::Workbench::ImageTool.edit_source(session: session, workbench: workbench, images: images, item: item)
-      return "❌ Gemini image editing does not take a mask: describe the change in words instead." if source.mask
-
       board_input = source.board_input
       prompt = Monadic::Workbench::ImageTool.edit_prompt(source, prompt)
       names = Array(source.images)

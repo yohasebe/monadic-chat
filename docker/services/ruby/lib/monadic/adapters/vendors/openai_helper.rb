@@ -524,14 +524,11 @@ module OpenAIHelper
     end
   end
 
-  # Save image/mask files to shared folder and return reference paths for image generation.
+  # Save image files to shared folder and return reference paths for image generation.
   # Returns an array of image file reference paths (e.g. ["/data/img_foo.png"]).
   private def prepare_openai_image_generation_refs(context, image_generation, role, shared_folder)
     image_file_references = []
     return image_file_references unless image_generation && role == "user"
-
-    image_name_map = {}
-    pending_masks = []
 
     ext_for_image = lambda do |img|
       ext = File.extname(img["data"].to_s)
@@ -566,42 +563,18 @@ module OpenAIHelper
       end
     end
 
-    find_mapped_image = lambda do |name|
-      return nil if name.to_s.strip.empty?
-      key = name.to_s.strip.downcase
-      return image_name_map[key] if image_name_map[key]
-      base_key = File.basename(key, File.extname(key))
-      image_name_map[base_key]
-    end
-
     context.compact.each do |msg|
       next unless msg["images"]
 
       msg["images"].each do |img|
-        # A picture of the work screen is no material for an image.
+        # A picture of the work screen is no material for an image, nor is
+        # a mask kept with a message of an older chat.
         next if img["workbench_picture"]
+        next if img["is_mask"] == true || img["title"].to_s.start_with?("mask__")
 
         begin
-          is_mask = img["is_mask"] == true || img["title"].to_s.start_with?("mask__")
           if img["data"].to_s.start_with?("/data/")
-            stored_filename = File.basename(img["data"].to_s)
             image_file_references << img["data"].to_s
-            unless is_mask
-              raw_title = img["title"].to_s
-              unless raw_title.strip.empty?
-                key = raw_title.strip.downcase
-                image_name_map[key] = stored_filename
-                base_key = File.basename(key, File.extname(key))
-                image_name_map[base_key] ||= stored_filename if base_key && !base_key.empty?
-              end
-            else
-              pending_masks << img.merge("stored_name" => stored_filename)
-            end
-            next
-          end
-
-          if is_mask
-            pending_masks << img
             next
           end
 
@@ -615,62 +588,15 @@ module OpenAIHelper
           sanitized_title = raw_title.strip.empty? ? nil : raw_title.gsub(/[^\p{Word}.\-]/, "_")
           base_name = sanitized_title ? "img_#{sanitized_title}" : "img_#{timestamp}_#{random_suffix}"
           base_name += ext unless base_name.downcase.end_with?(ext.downcase)
-          new_filename = base_name
-          target_path = File.join(shared_folder, new_filename)
+          target_path = File.join(shared_folder, base_name)
 
-          if save_image_to_shared.call(img, target_path)
-            image_file_references << "/data/#{new_filename}"
-
-            unless raw_title.to_s.strip.empty?
-              key = raw_title.strip.downcase
-              image_name_map[key] = new_filename
-              base_key = File.basename(key, File.extname(key))
-              image_name_map[base_key] ||= new_filename if base_key && !base_key.empty?
-            end
-          end
+          image_file_references << "/data/#{base_name}" if save_image_to_shared.call(img, target_path)
         rescue StandardError => e
           Monadic::Utils::ExtraLogger.log { "Error processing image for generation: #{e.message}" }
         end
       end
 
       msg.delete("images")
-    end
-
-    pending_masks.each do |img|
-      begin
-        timestamp = Time.now.to_i
-        random_suffix = SecureRandom.hex(4)
-        ext = ext_for_image.call(img)
-
-        raw_title = img["title"].to_s
-        associated_title = img["mask_for"].to_s
-        associated_title = raw_title.sub(/^mask__/, "") if associated_title.to_s.strip.empty?
-        mapped_original = find_mapped_image.call(associated_title)
-
-        if img["stored_name"]
-          new_filename = img["stored_name"]
-          image_file_references << "/data/#{new_filename}"
-          next
-        end
-
-        base_name = if mapped_original
-                      "mask__#{mapped_original}"
-                    elsif !associated_title.to_s.strip.empty?
-                      safe_mask_base = associated_title.gsub(/[^\p{Word}.\-]/, "_")
-                      "mask__#{safe_mask_base}"
-                    else
-                      "mask__#{timestamp}_#{random_suffix}"
-                    end
-        base_name += ext unless base_name.downcase.end_with?(ext.downcase)
-        new_filename = base_name
-        target_path = File.join(shared_folder, new_filename)
-
-        if save_image_to_shared.call(img, target_path)
-          image_file_references << "/data/#{new_filename}"
-        end
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "Error processing mask for generation: #{e.message}" }
-      end
     end
 
     image_file_references
@@ -762,48 +688,8 @@ module OpenAIHelper
 
     # If this is an image generation request, add the image filenames to the last message
     if image_generation && !image_file_references.empty? && role == "user"
-      regular_images = []
-      mask_images = []
-
-      image_file_references.each do |img_path|
-        filename = File.basename(img_path)
-        if filename.start_with?("mask__")
-          mask_images << filename
-        else
-          regular_images << filename
-        end
-      end
-
-      img_references_text = ""
-
-      unless regular_images.empty?
-        img_references_text += "\n\nAttached images:\n"
-        regular_images.each do |filename|
-          img_references_text += "- #{filename}\n"
-        end
-      end
-
-      unless mask_images.empty?
-        img_references_text += "\n\nMask images for editing (MUST use edit operation):\n"
-        mask_images.each do |mask_filename|
-          original_name = mask_filename.sub(/^mask__/, "img_")
-          img_references_text += "- #{mask_filename} (mask for editing)\n"
-
-          if regular_images.include?(original_name)
-            img_references_text += "  Original image: #{original_name}\n"
-          end
-        end
-        img_references_text += "\nIMPORTANT: You have mask files attached. You MUST use the 'edit' operation with these masks, NOT 'generate'.\n"
-      end
-
-      begin
-        session[:openai_last_image_generation] = {
-          images: regular_images,
-          masks: mask_images
-        }
-      rescue StandardError
-        # Ignore session storage issues
-      end
+      img_references_text = "\n\nAttached images:\n"
+      image_file_references.each { |img_path| img_references_text += "- #{File.basename(img_path)}\n" }
 
       # The references go into what is sent (the message's own text,
       # below), never into the session's message.

@@ -465,30 +465,11 @@ function attachEventListeners(card) {
         if (currentMessage.images && Array.isArray(currentMessage.images) && currentMessage.images.length > 0) {
           images = images.filter(img => img.type === 'application/pdf');
 
-          const messageImages = [...currentMessage.images];
-          const baseImages = [];
-          const maskImages = [];
-
-          messageImages.forEach(imageData => {
-            const imageCopy = {...imageData};
-            if (imageCopy.is_mask || (imageCopy.title && imageCopy.title.startsWith("mask__"))) {
-              maskImages.push(imageCopy);
-            } else {
-              baseImages.push(imageCopy);
-            }
-          });
-
-          baseImages.forEach(baseImage => { images.push(baseImage); });
-
-          maskImages.forEach(maskImage => {
-            images.push(maskImage);
-            if (maskImage.mask_for) {
-              const hasBaseImage = baseImages.some(img => img.title === maskImage.mask_for);
-              if (hasBaseImage) {
-                window.currentMaskData = maskImage;
-              }
-            }
-          });
+          // A mask kept with a message of an older chat is not put back
+          // with its images.
+          currentMessage.images
+            .filter((imageData) => !(imageData.is_mask || (imageData.title && imageData.title.startsWith("mask__"))))
+            .forEach((imageData) => { images.push({ ...imageData }); });
 
           updateFileDisplay(images);
         }

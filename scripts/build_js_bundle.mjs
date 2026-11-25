@@ -136,7 +136,6 @@ const FILES = [
   "js/monadic/thinking-effort-link.js",
   "js/monadic/recording.js",
   "js/monadic/select_image.js",
-  "js/monadic/mask_editor.js",
   "js/syntax-theme-handler.js",
   "js/i18n/translations.js",
   "js/monadic/help-database.js",

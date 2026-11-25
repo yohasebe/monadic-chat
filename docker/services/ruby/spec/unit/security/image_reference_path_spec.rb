@@ -53,4 +53,14 @@ RSpec.describe "OpenAI image generation references" do
   it "still accepts a data URI" do
     expect(refs_for("data:image/png;base64,UE5HREFUQQ==").size).to eq(1)
   end
+
+  it "writes and names no mask kept with a message of an older chat" do
+    data = "data:image/png;base64,UE5HREFUQQ=="
+    context = [{ "role" => "user", "images" => [{ "title" => "pic.png", "data" => data },
+                                                 { "title" => "mask__pic.png", "data" => data, "is_mask" => true },
+                                                 { "title" => "mask__old.png", "data" => "/data/mask__old.png" }] }]
+    refs = helper.send(:prepare_openai_image_generation_refs, context, true, "user", @shared)
+    expect(refs).to eq(["/data/img_pic.png"])
+    expect(Dir.children(@shared)).to eq(["img_pic.png"])
+  end
 end

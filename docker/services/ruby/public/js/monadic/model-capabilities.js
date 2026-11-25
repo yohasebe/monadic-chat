@@ -4,7 +4,6 @@
  * Read-only query functions for model and app capabilities:
  * - isPdfSupportedForModel: Check PDF upload support (SSOT-driven)
  * - isImageGenerationApp: Check if app supports image generation
- * - isMaskEditingEnabled: Check if app supports mask editing
  * - isFileInputsSupportedForModel: Check File Inputs API support
  * - isResponsesApiModel: Check if model uses Responses API
  *
@@ -55,29 +54,6 @@ function isImageGenerationApp(appName) {
 }
 
 /**
- * Check if the current app supports mask editing.
- * Distinct from basic image generation — Gemini/Grok use semantic masking instead.
- * @param {string} [appName] - App name (defaults to current selection)
- * @returns {boolean}
- */
-function isMaskEditingEnabled(appName) {
-  if (!appName) {
-    var appsEl = $id("apps");
-    appName = appsEl ? appsEl.value : null;
-  }
-
-  // Disable mask editor for Gemini/Grok Image Generators (use semantic masking instead)
-  if (appName && (appName.includes("ImageGeneratorGemini") || appName.includes("ImageGeneratorGrok"))) {
-    return false;
-  }
-
-  return !!(typeof apps !== 'undefined' && apps[appName] &&
-    (apps[appName].image_generation === true ||
-     apps[appName].image_generation === "true") &&
-    apps[appName].image_generation !== "upload_only");
-}
-
-/**
  * Check if the selected model supports OpenAI File Inputs API (XLSX, DOCX, etc.).
  * @param {string} selectedModel - Model ID
  * @returns {boolean}
@@ -102,7 +78,6 @@ function isResponsesApiModel(selectedModel) {
 // Export for browser environment
 window.isPdfSupportedForModel = isPdfSupportedForModel;
 window.isImageGenerationApp = isImageGenerationApp;
-window.isMaskEditingEnabled = isMaskEditingEnabled;
 window.isFileInputsSupportedForModel = isFileInputsSupportedForModel;
 window.isResponsesApiModel = isResponsesApiModel;
 
@@ -111,7 +86,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     isPdfSupportedForModel,
     isImageGenerationApp,
-    isMaskEditingEnabled,
     isFileInputsSupportedForModel,
     isResponsesApiModel
   };

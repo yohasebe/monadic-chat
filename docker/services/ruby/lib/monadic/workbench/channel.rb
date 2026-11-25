@@ -46,7 +46,7 @@ module Monadic
         # is new) lets it go.
         unless board
           return { 'type' => 'workbench', 'board' => empty_board(chat_id), 'approvals' => {}, 'assets' => {},
-                   'renders' => {}, 'selected' => nil, 'initial' => initial,
+                   'renders' => {}, 'backgrounds' => {}, 'selected' => nil, 'initial' => initial,
                    'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
         end
 
@@ -58,6 +58,7 @@ module Monadic
         approvals = {}
         assets = {}
         renders = {}
+        backgrounds = {}
         snapshot[:items].each do |item|
           next unless item[:version]
 
@@ -67,13 +68,18 @@ module Monadic
 
           source = item[:kind] == 'file' ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
           assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
+          # The picture under a whiteboard (served only for one drawn on one).
+          if item[:render] == 'whiteboard'
+            backgrounds[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
+                                                                                              purpose: :background)
+          end
           next unless item[:render] && item[:size].to_i <= Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
 
           renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
                                                                                          purpose: :render)
         end
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
-          'renders' => renders, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet || nil,
+          'renders' => renders, 'backgrounds' => backgrounds, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet || nil,
           'initial' => initial, 'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
       end
 

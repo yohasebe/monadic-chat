@@ -7,6 +7,9 @@ require "digest"
 require_relative "../../../lib/monadic/workspace/ids"
 require_relative "../../../lib/monadic/workbench/whiteboard"
 require_relative "../../../lib/monadic/workbench/whiteboard_layout"
+require_relative "../../../lib/monadic/workbench/asset_server"
+require_relative "../../../lib/monadic/workbench/look"
+require "base64"
 
 # A whiteboard drawn on an image: the image copied into the chat's
 # whiteboards folder when the board is made, the sheet taking its
@@ -216,6 +219,104 @@ RSpec.describe Monadic::Workbench::WhiteboardBackground do
       expect(sheet).to eq(whiteboard::Frame.new(width: 1200, height: 1600))
       expect(kept(changed)["background"]).to eq(kept(item)["background"])
       expect(kept(changed)["shapes"].size).to eq(1)
+    end
+  end
+
+  describe "the picture the page gets" do
+    let(:session) { { chat_id: chat, _ws_generation: 1, messages: [] } }
+    let(:live) { ->(t) { t == "tab-1" ? 1 : nil } }
+    let(:server) { Monadic::Workbench::AssetServer.new(->(_env) { [200, {}, ["app"]] }, live: live) }
+    let(:bytes) { png(300, 400, "photo") }
+
+    before { Monadic::Workbench::ViewTokens.reset! }
+
+    def addresses = Monadic::Workbench::Channel.view(session, tab: "tab-1", generation: 1, live: live)["backgrounds"]
+
+    def fetch(url)
+      status, headers, body = server.call({ "PATH_INFO" => url, "REQUEST_METHOD" => "GET",
+                                            "HTTP_SEC_FETCH_SITE" => "same-origin" })
+      [status, headers, body.join]
+    end
+
+    def copy_of(item)
+      File.join(File.dirname(File.join(@data, item.dig("file", "path"))), "assets", "#{Digest::SHA256.hexdigest(bytes)}.png")
+    end
+
+    it "serves the copy the board names, as the image it is, at the board's own address" do
+      item = draw_on(opened("photos/a.png", bytes))
+      status, headers, body = fetch(addresses.fetch(item["id"]))
+      expect(status).to eq(200)
+      expect(headers).to include("content-type" => "image/png")
+      expect(body.b).to eq(bytes)
+    end
+
+    it "serves nothing for a plain board, a copy gone, or a copy that is not the picture" do
+      plain = whiteboard.create(chat, app_name: "ChatOpenAI", origin: origin, epoch: epoch)
+      expect(fetch(addresses.fetch(plain["id"])).first).to eq(404)
+      item = draw_on(opened("photos/a.png", bytes))
+      File.binwrite(copy_of(item), png(300, 400, "another"))
+      expect(fetch(addresses.fetch(item["id"])).first).to eq(409)
+      File.delete(copy_of(item))
+      expect(fetch(addresses.fetch(item["id"])).first).to eq(410)
+    end
+
+    it "serves nothing for a board file kept elsewhere in the shared folder" do
+      item = draw_on(opened("photos/a.png", bytes))
+      FileUtils.mkdir_p(File.join(@data, "notes", "assets"))
+      FileUtils.cp(copy_of(item), File.join(@data, "notes", "assets"))
+      File.write(File.join(@data, "notes", "plan.wb.json"), JSON.generate(kept(item)))
+      elsewhere, = board.add_file(path: "notes/plan.wb.json", origin: origin, epoch: epoch)
+      expect(fetch(addresses.fetch(elsewhere["id"])).first).to eq(404)
+    end
+
+    it "gives no address for an item that is not a whiteboard" do
+      photo = opened("photos/a.png", bytes)
+      expect(addresses).not_to have_key(photo["id"])
+    end
+  end
+
+  describe "a look at it" do
+    let(:capture) { Monadic::Workbench::Capture }
+    let(:caller_for) do
+      Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: Monadic::Workspace::Ids.generate(:request),
+                                     session: { chat_id: chat, messages: [] }, tab: "tab-1", generation: 1)
+    end
+
+    around do |example|
+      transport = capture.transport
+      example.run
+    ensure
+      capture.transport = transport
+      capture.reset!
+    end
+
+    before { Monadic::Workbench::Look::Ledger.reset! }
+
+    def page(width, height)
+      answer = { "range" => {}, "image" => Base64.strict_encode64(png(width, height)),
+                 "crop" => { "x" => 0, "y" => 0, "width" => 1200, "height" => 1600, "sent_width" => width,
+                             "sent_height" => height } }
+      capture.transport = lambda do |_tab, _generation, _chat, json|
+        request = JSON.parse(json)
+        Thread.new { capture.reading(request["id"], 2) { answer } }
+        true
+      end
+    end
+
+    it "takes the tab's picture of the board at its sheet's proportions, and says it is drawn on a picture" do
+      draw_on(opened("photos/a.png", png(300, 400)))
+      page(600, 800)
+      out = JSON.parse(Monadic::Workbench::Look.run(caller_for, scope: "visible").to_s)
+      expect(out["image"]).to include("attached")
+      expect(out["board"]).to eq("width" => 1200, "height" => 1600)
+      expect(out["drawn_on_picture"]).to include("picture")
+    end
+
+    it "takes no picture of the plain sheet's proportions for it" do
+      draw_on(opened("photos/a.png", png(300, 400)))
+      page(800, 500)
+      out = JSON.parse(Monadic::Workbench::Look.run(caller_for, scope: "visible").to_s)
+      expect(out["image"]).to include("No picture")
     end
   end
 

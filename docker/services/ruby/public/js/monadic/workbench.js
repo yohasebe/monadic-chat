@@ -48,6 +48,9 @@
   let assets = {};
   // The address of the whole text of each item the work screen can draw.
   let renders = {};
+  // The address of the picture under each whiteboard (served for one drawn
+  // on a picture).
+  let backgrounds = {};
   // How each drawable text item is shown, by item and version: 'drawn'
   // (the default) or 'source' (its numbered lines).
   const modes = new Map();
@@ -552,10 +555,22 @@
         data = null;
       }
       drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next),
-        name: item.name, save: saveBlob });
+        name: item.name, save: saveBlob, loadPicture: () => whiteboardPicture(drawn, item.id) });
       drawn.loaded = true;
     });
     return box;
+  }
+
+  // The picture under a whiteboard drawn on one, from the address this
+  // connection has for it now (a view gives a new one when it expired).
+  function whiteboardPicture(drawn, id) {
+    const url = backgrounds[id];
+    drawn.pictureUrl = url;
+    if (!url || typeof fetch !== 'function') return Promise.reject(new Error('no address'));
+    return fetch(url, { credentials: 'same-origin', cache: 'no-store' }).then((response) => {
+      if (!response.ok) throw new Error(String(response.status));
+      return response.blob();
+    });
   }
 
   function whiteboardChanged(drawn, data) {
@@ -613,6 +628,10 @@
   // The view says the whiteboard has a version this page did not save (in
   // another tab): it is read and drawn again, unless the user is drawing.
   function syncWhiteboard(drawn, item) {
+    // A picture that could not be had is asked for again with a new address.
+    if (drawn.whiteboard && backgrounds[item.id] && backgrounds[item.id] !== drawn.pictureUrl) {
+      drawn.whiteboard.retryPicture();
+    }
     const version = item.version || item.sha256 || '';
     if (!drawn.whiteboard || version === drawn.whiteboardVersion || drawn.whiteboardSaving || drawn.whiteboardPending) return;
     drawn.whiteboardVersion = version;
@@ -624,20 +643,21 @@
       .catch(() => {});
   }
 
-  // A capture of a whiteboard: the whole board painted, when an image is
-  // asked for.
+  // A capture of a whiteboard: the whole board painted at its sheet's
+  // size, when an image is asked for (a board drawn on a picture, once the
+  // picture is had: never on a blank sheet).
   function whiteboardAnswer(data, handle) {
     const out = { range: {}, note: null };
     const wants = Array.isArray(data.wants) ? data.wants : [];
     if (!wants.includes('image')) return out;
-    const { WIDTH, HEIGHT } = window.WorkbenchWhiteboard;
+    if (!handle.pictureReady()) return Object.assign(out, { image_note: 'failed' });
+    const { width, height } = handle.size();
     const board = document.createElement('canvas');
-    board.width = WIDTH;
-    board.height = HEIGHT;
+    board.width = width;
+    board.height = height;
     const context = board.getContext('2d');
-    if (!context) return Object.assign(out, { image_note: 'failed' });
-    handle.paint(context, WIDTH, HEIGHT);
-    return Object.assign(out, drawnPng(board, 0, 0, WIDTH, HEIGHT));
+    if (!context || !handle.paint(context, width, height)) return Object.assign(out, { image_note: 'failed' });
+    return Object.assign(out, drawnPng(board, 0, 0, width, height));
   }
 
   // A new whiteboard for this chat (the server makes it and shows it).
@@ -1218,6 +1238,7 @@
     approvals = {};
     assets = {};
     renders = {};
+    backgrounds = {};
     modes.clear();
     scrolls.clear();
     selected = null;
@@ -2079,6 +2100,7 @@
     approvals = data.approvals || {};
     assets = data.assets || {};
     renders = data.renders || {};
+    backgrounds = data.backgrounds || {};
     const news = [];
     // A document whose versions are listed, while it is the one shown.
     const listed = selected ? itemById(selected) : null;

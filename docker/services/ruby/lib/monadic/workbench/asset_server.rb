@@ -3,6 +3,7 @@
 require_relative 'artifact'
 require_relative 'board'
 require_relative 'view_tokens'
+require_relative 'whiteboard'
 require_relative '../workspace/chats'
 require_relative '../workspace/shared_folder_preview'
 
@@ -28,6 +29,8 @@ module Monadic
     # shown (SharedFolderPreview.text_view: its beginning, as UTF-8 with
     # "\n" line ends; x-workbench-truncated when cut), or 415 when that is
     # not text. A single byte range is served from the checked bytes (audio, video).
+    # A :background token serves the picture under a whiteboard drawn on
+    # one (serve_background).
     class AssetServer
       PREFIX = '/workbench/asset/'
       HEADERS = {
@@ -85,6 +88,7 @@ module Monadic
       def serve_file(env, view)
         board = Board.existing(view.chat_id) or return plain(404, 'Not found')
         return serve_render(env, board, view) if view.purpose == :render
+        return serve_background(env, board, view) if view.purpose == :background
 
         read = board.file_read(view.item_id, sha256: view.sha256)
         entry = read[:entry]
@@ -133,6 +137,28 @@ module Monadic
         plain(413, 'Too large')
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         plain(415, 'Not text')
+      end
+
+      # The picture under the whiteboard of the item at the version given:
+      # the copy its record names beside it (WhiteboardBackground.read), as
+      # the image it is. 404 for a file that is not a whiteboard or a board
+      # with no picture; 410 when the copy is gone; 409 when it is not the
+      # picture recorded.
+      def serve_background(env, board, view)
+        entry = board.file_entry(view.item_id, sha256: view.sha256)
+        return plain(404, 'Not found') unless Whiteboard.kept_as?(entry['path'])
+
+        data = JSON.parse(board.file_read(view.item_id, sha256: view.sha256, limit: Whiteboard::BYTES_LIMIT)[:bytes].to_s)
+        record = Whiteboard.background_of(data) or return plain(404, 'Not found')
+        bytes = WhiteboardBackground.read(entry['path'], record)
+        headers = HEADERS.merge('content-type' => record['content_type'], 'content-length' => bytes.bytesize.to_s)
+        [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      rescue JSON::ParserError, Whiteboard::Refused, FileItem::TooLarge
+        plain(404, 'Not found')
+      rescue WhiteboardBackground::Missing
+        plain(410, 'Gone')
+      rescue WhiteboardBackground::Changed
+        plain(409, 'Changed')
       end
 
       # What a text item shows of its file (SharedFolderPreview.text_view),

@@ -1165,8 +1165,61 @@
       const at = entry.at ? new Date(entry.at) : null;
       if (at && !Number.isNaN(at.getTime())) details.push(at.toLocaleTimeString());
       if (details.length) line.appendChild(document.createTextNode(` (${details.join(', ')})`));
+      // The image it sent, as kept in the chat's folder.
+      if (typeof entry.image_sha256 === 'string' && SENT_STATES.includes(entry.state)) {
+        line.appendChild(document.createTextNode(' '));
+        line.appendChild(sentImageButton(mid, entry.image_sha256, t('ui.workbench.lookShowImage', 'Show the image sent')));
+      }
       el.appendChild(line);
     });
+  }
+
+  // The states of a look whose image left for the provider.
+  const SENT_STATES = ['sent', 'refused', 'unknown'];
+
+  // A button that shows an image the message mid sent (sha256), as the
+  // chat's folder keeps it (WORKBENCH_SENT_IMAGE).
+  function sentImageButton(mid, sha256, label) {
+    const button = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-sent-open', label);
+    button.type = 'button';
+    button.dataset.sha256 = sha256;
+    button.addEventListener('click', () => {
+      if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_SENT_IMAGE', mid: mid, sha256: sha256 });
+    });
+    return button;
+  }
+
+  // The images of the work screen the reply's image edits sent (their
+  // records): a line on the message's card, each image shown when
+  // clicked.
+  function drawEdits(mid, list) {
+    if (!mid) return;
+    const card = $id(mid);
+    const text = card ? card.querySelector('.card-text') : null;
+    if (!text) return;
+    const entries = (Array.isArray(list) ? list : []).filter((e) => e && typeof e.sha256 === 'string' &&
+      (e.role === 'original' || e.role === 'reference'));
+    let el = text.querySelector(':scope > .workbench-edit-note');
+    if (entries.length === 0) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = element('div', 'workbench-edit-note small text-secondary mt-2');
+      text.appendChild(el);
+    }
+    el.replaceChildren();
+    const line = element('div', 'workbench-note-line');
+    line.appendChild(element('i', 'fa-solid fa-wand-magic-sparkles me-1'));
+    line.appendChild(document.createTextNode(`${t('ui.workbench.editSent', 'Sent for an image edit')}: `));
+    entries.forEach((entry, i) => {
+      if (i > 0) line.appendChild(document.createTextNode(', '));
+      const label = entry.role === 'reference'
+        ? t('ui.workbench.editReference', 'the drawing on it')
+        : t('ui.workbench.editOriginal', 'the image');
+      line.appendChild(sentImageButton(mid, entry.sha256, label));
+    });
+    el.appendChild(line);
   }
 
   function draw() {
@@ -1311,12 +1364,14 @@
     shownRecords.clear();
     document.querySelectorAll('.workbench-shown-note').forEach((el) => el.remove());
     document.querySelectorAll('.workbench-picture-note').forEach((el) => el.remove());
+    document.querySelectorAll('.workbench-edit-note').forEach((el) => el.remove());
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
       if (m && m.mid && m.workbench_picture) drawPicture(m.mid, m.workbench_picture);
       if (m && m.mid && m.workbench_selection) drawSelection(m.mid, m.workbench_selection);
       if (m && m.mid && Array.isArray(m.workbench_shown)) drawShown(m.mid, m.workbench_shown);
       if (m && m.mid && Array.isArray(m.workbench_looks)) drawLooks(m.mid, m.workbench_looks);
+      if (m && m.mid && Array.isArray(m.workbench_edit_inputs)) drawEdits(m.mid, m.workbench_edit_inputs);
     });
   }
 
@@ -2869,6 +2924,18 @@
                      title: t('ui.workbench.pictureTitle', 'The work screen as sent') });
   }
 
+  // The server's answer to WORKBENCH_SENT_IMAGE: the image, shown in the
+  // work screen as an attachment is, or a note that it is no longer kept.
+  function onSentImage(data) {
+    if (!data || typeof data.sha256 !== 'string') return;
+    if (!data.found || typeof data.data !== 'string' || !IMAGE_DATA.test(data.data)) {
+      warn(t('ui.workbench.sentImageGone', 'The image sent is no longer kept in the chat\'s folder.'));
+      return;
+    }
+    showAttachment({ kind: 'image', key: `sent:${data.sha256}`, data: data.data,
+                     title: t('ui.workbench.sentImageTitle', 'The image sent') });
+  }
+
   function drawShown(mid, list) {
     if (!mid) return;
     const entries = (Array.isArray(list) ? list : []).filter((e) => e && typeof e.path === 'string' && typeof e.sha256 === 'string');
@@ -2941,7 +3008,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, onSentImage, select, openFile, step,
     showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

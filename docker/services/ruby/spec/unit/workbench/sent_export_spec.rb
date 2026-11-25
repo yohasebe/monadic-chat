@@ -102,6 +102,32 @@ RSpec.describe "The images a chat sent, in its export" do
     end
   end
 
+  describe "showing it" do
+    it "gives an image a message of the chat names, and none it does not name" do
+      sha = looked("shown")
+      mid = session[:messages].last["mid"]
+      host.send(:handle_ws_workbench_sent_image, :conn, { "mid" => mid, "sha256" => sha }, session)
+      expect(host.sent_out.last).to include("type" => "workbench_sent_image", "found" => true,
+                                            "data" => "data:image/png;base64,#{Base64.strict_encode64(png('shown'))}")
+      other = sent.keep!(chat, png("other"), "image/png", app_name: "ChatOpenAI")
+      host.send(:handle_ws_workbench_sent_image, :conn, { "mid" => mid, "sha256" => other }, session)
+      expect(host.sent_out.last).to include("found" => false)
+      host.send(:handle_ws_workbench_sent_image, :conn, { "mid" => "nope", "sha256" => sha }, session)
+      expect(host.sent_out.last).to include("found" => false)
+    end
+
+    it "gives the picture a message went with from the chat's folder when its workbench does not keep it" do
+      sha = sent.keep!(chat, png("picture"), "image/png", app_name: "ChatOpenAI")
+      sent.done(chat, [sha])
+      id = "p_#{'d' * 20}"
+      session[:messages] << { "mid" => "u1", "role" => "user", "text" => "here",
+                              "workbench_picture" => { "id" => id, "sha256" => sha } }
+      host.send(:handle_ws_workbench_picture, :conn, { "picture_id" => id }, session)
+      expect(host.sent_out.last).to include("found" => true)
+      expect(host.sent_out.last["data"]).to end_with(Base64.strict_encode64(png("picture")))
+    end
+  end
+
   describe "reading it" do
     let(:sha) { Digest::SHA256.hexdigest(png("one")) }
     let(:messages) { [{ "role" => "assistant", "workbench_looks" => [{ "state" => "sent", "image_sha256" => sha }] }] }

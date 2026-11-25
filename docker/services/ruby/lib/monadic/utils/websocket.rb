@@ -279,6 +279,8 @@ module WebSocketHelper
           handle_ws_workbench_download(connection, obj, session)
         when "WORKBENCH_PICTURE"
           handle_ws_workbench_picture(connection, obj, session)
+        when "WORKBENCH_SENT_IMAGE"
+          handle_ws_workbench_sent_image(connection, obj, session)
         when "WORKBENCH_OPEN"
           handle_ws_workbench_open(connection, obj, session)
         when "WORKBENCH_VERSIONS"
@@ -417,6 +419,8 @@ module WebSocketHelper
           handle_ws_stop_tts(connection, obj, session)
         when "PLAY_TTS"
           handle_ws_play_tts(connection, obj, session, thread)
+        when "PRIVACY_EXPORT_ESTIMATE"
+          handle_ws_privacy_export_estimate(connection, session)
         when "PRIVACY_EXPORT"
           handle_ws_privacy_export(connection, session, obj)
         when "WORDS_FIND"

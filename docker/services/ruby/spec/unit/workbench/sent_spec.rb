@@ -69,6 +69,31 @@ RSpec.describe Monadic::Workbench::Sent do
     end
   end
 
+  describe "nearing what the chat may keep" do
+    it "tells once, as the images it keeps pass the mark, how much it keeps" do
+      size = png("a").bytesize
+      stub_const("#{described_class}::LIMIT_BYTES", size * 10)
+      stub_const("#{described_class}::WARN_BYTES", (size * 2) + 1)
+      keep(png("a"))
+      keep(png("b"))
+      expect(described_class.take_crossing(chat)).to be_nil
+      keep(png("c"))
+      expect(described_class.take_crossing(chat)).to eq(size * 3)
+      expect(described_class.take_crossing(chat)).to be_nil
+      keep(png("d"))
+      expect(described_class.take_crossing(chat)).to be_nil
+    end
+
+    it "estimates what the images the messages name take, and whether an export of them is near its limit" do
+      sha = keep(png("a"))
+      keep(png("unnamed"))
+      expect(described_class.estimate(chat, [sent_look(sha)])).to eq(bytes: png("a").bytesize, near: false)
+      stub_const("#{described_class}::EXPORT_LIMIT", 10)
+      expect(described_class.estimate(chat, [sent_look(sha)])[:near]).to be(true)
+      expect(described_class.estimate(nil, [sent_look(sha)])).to eq(bytes: 0, near: false)
+    end
+  end
+
   describe "releasing" do
     it "removes the images no message names, but none a running reply sent, nor one the user changed" do
       named = keep(png("named"))

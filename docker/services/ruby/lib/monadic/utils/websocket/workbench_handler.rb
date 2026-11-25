@@ -6,6 +6,8 @@ require_relative '../../workbench/look/record'
 require_relative '../../workbench/document'
 require_relative '../../workbench/picture'
 require_relative '../../workbench/edit_inputs'
+require_relative '../../workbench/sent'
+require_relative '../tool_image_utils'
 require_relative '../../workbench/point'
 require_relative '../../workbench/whiteboard'
 
@@ -72,15 +74,39 @@ module WebSocketHelper
     id = obj['picture_id'].to_s
     reply = { 'type' => 'workbench_picture', 'picture_id' => id }
     chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
-    named = Array(session[:messages]).any? do |m|
+    named = Array(session[:messages]).find do |m|
       m.is_a?(Hash) && m['role'] == 'user' && m['workbench_picture'].is_a?(Hash) && m['workbench_picture']['id'] == id
     end
+    # Kept with the chat's workbench, or, as it was sent, in its folder (a
+    # chat taken from a file has only that).
+    sha256 = named && named['workbench_picture']['sha256']
     bytes = named && chat_id ? Monadic::Workbench::Picture.read(chat_id, id) : nil
+    bytes ||= Monadic::Workbench::Sent.read(chat_id, sha256) if chat_id && sha256
     return send_to_client(connection, reply.merge('found' => false)) unless bytes
 
     send_to_client(connection, reply.merge('found' => true, 'data' => "data:image/png;base64,#{Base64.strict_encode64(bytes)}"))
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not sent: #{e.class}" }
+    send_to_client(connection, reply.merge('found' => false))
+  end
+
+  # An image of the work screen a message of this tab's chat sent (its mid
+  # and the image's sha256, which the message must name: Sent.named_by),
+  # as kept in the chat's folder: to this connection only.
+  private def handle_ws_workbench_sent_image(connection, obj, session)
+    mid = obj['mid'].to_s
+    sha256 = obj['sha256'].to_s
+    reply = { 'type' => 'workbench_sent_image', 'mid' => mid, 'sha256' => sha256 }
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    message = Array(session[:messages]).find { |m| m.is_a?(Hash) && m['mid'].to_s == mid && !mid.empty? }
+    sent = Monadic::Workbench::Sent
+    bytes = message && chat_id && sent.named_by([message]).include?(sha256) ? sent.read(chat_id, sha256) : nil
+    return send_to_client(connection, reply.merge('found' => false)) unless bytes
+
+    type = Monadic::Utils::ToolImageUtils.image_media_type(bytes)
+    send_to_client(connection, reply.merge('found' => true, 'data' => "data:#{type};base64,#{Base64.strict_encode64(bytes)}"))
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Sent image not given: #{e.class}" }
     send_to_client(connection, reply.merge('found' => false))
   end
 

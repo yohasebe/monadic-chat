@@ -132,6 +132,9 @@ function handlePastMessages(data) {
         if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
           window.Workbench.drawPicture(msg.mid, msg.workbench_picture);
         }
+        if (window.Workbench && typeof window.Workbench.drawEdits === 'function') {
+          window.Workbench.drawEdits(msg.mid, msg.workbench_edit_inputs);
+        }
         if (window.Workbench && typeof window.Workbench.drawSelection === 'function') {
           window.Workbench.drawSelection(msg.mid, msg.workbench_selection);
         }
@@ -172,6 +175,9 @@ function handlePastMessages(data) {
           }
           if (typeof window.Workbench.drawShown === 'function') {
             window.Workbench.drawShown(msg.mid, Array.isArray(msg.workbench_shown) ? msg.workbench_shown : []);
+          }
+          if (typeof window.Workbench.drawEdits === 'function') {
+            window.Workbench.drawEdits(msg.mid, Array.isArray(msg.workbench_edit_inputs) ? msg.workbench_edit_inputs : []);
           }
         }
         // Restore a persisted verification verdict, if the message carries one.

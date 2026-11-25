@@ -60,6 +60,20 @@
     if (!modalEl || !window.MonadicDialog) return;
     resetExportDialog();
     window.MonadicDialog.of(modalEl).open();
+    // How much the images the chat sent will take in the file.
+    if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'PRIVACY_EXPORT_ESTIMATE' });
+  }
+
+  // The server's answer: said in the dialog (before an export is asked
+  // for), as a warning when it nears what a file may hold.
+  function handleExportEstimate(data) {
+    if (!data || _pendingExport) return;
+    const bytes = Number(data.image_bytes) || 0;
+    if (bytes <= 0) return;
+    const mb = Math.max(1, Math.round(bytes / (1024 * 1024)));
+    let text = t('ui.exportImagesSize', 'The images sent in this chat take about {size} MB in the file.').replace('{size}', String(mb));
+    if (data.near) text += ' ' + t('ui.exportImagesNear', 'This is close to what a file may hold.');
+    setExportStatus(text, data.near ? 'text-warning' : 'text-muted');
   }
 
   function resetExportDialog() {
@@ -311,5 +325,6 @@
     resetExportDialog: resetExportDialog,
     handleExportData: handleExportData,
     handleExportError: handleExportError,
+    handleExportEstimate: handleExportEstimate,
   };
 })();

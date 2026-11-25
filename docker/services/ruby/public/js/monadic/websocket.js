@@ -712,6 +712,25 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "privacy_export_estimate": {
+        const wph5 = window.WsPrivacyHandler;
+        if (wph5 && typeof wph5.handleExportEstimate === 'function') {
+          wph5.handleExportEstimate(data);
+        }
+        break;
+      }
+
+      // The images this chat sent near what its export may hold.
+      case "sent_images_near_limit": {
+        const mb = Math.max(1, Math.round((Number(data.bytes) || 0) / (1024 * 1024)));
+        if (typeof setAlert === 'function') {
+          const tr = (k, f) => (typeof webUIi18n !== 'undefined' && webUIi18n.t(k)) || f;
+          setAlert(tr('ui.sentImagesNearLimit', 'The images sent in this chat take about {size} MB; its export is nearing what a file may hold.')
+            .replace('{size}', String(mb)), 'warning');
+        }
+        break;
+      }
+
       case "tool_executing": {
         const wtoolh = window.WsToolHandler;
         if (wtoolh && typeof wtoolh.handleToolExecuting === 'function') {
@@ -896,6 +915,10 @@ window.loadedApp = "Chat";
 
       case "workbench_picture": {
         if (window.Workbench && typeof window.Workbench.onPicture === 'function') window.Workbench.onPicture(data);
+        break;
+      }
+      case "workbench_sent_image": {
+        if (window.Workbench && typeof window.Workbench.onSentImage === 'function') window.Workbench.onSentImage(data);
         break;
       }
       case "workbench_download": {

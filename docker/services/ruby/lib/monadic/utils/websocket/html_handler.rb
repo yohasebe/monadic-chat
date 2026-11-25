@@ -271,6 +271,10 @@ module WebSocketHelper
 
           session[:messages] << new_data
           sync_session_state!
+          # The images this chat sent passed the mark where its export nears
+          # what a file may hold: the user is told, once.
+          crossing = Monadic::Workbench::Sent.take_crossing(session[Monadic::Workspace::Chats::SESSION_KEY])
+          send_or_broadcast({ "type" => "sent_images_near_limit", "bytes" => crossing }.to_json, ws_session_id) if crossing
           # The notes added after the reply, for an app that keeps them
           # itself (Monadic::TurnState::Keeper): the user message this reply
           # answers (its request), and the model the request was sent with.

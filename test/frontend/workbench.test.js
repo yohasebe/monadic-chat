@@ -1011,10 +1011,30 @@ describe('Workbench', () => {
 
     test('gives the lines in view of the text shown, with its item and version', async () => {
       layout.pane = 'work';
-      await showText(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+      const box = await showText(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+      box.closest('.workbench-section').getBoundingClientRect = () => ({ top: 20, bottom: 120, left: 0, right: 400 });
       expect(window.Workbench.rangeNow()).toEqual({
-        item_id: 'i_t', version: 'e'.repeat(64), range: { first_line: 3, last_line: 5 }, note: null, selection_chars: 0
+        item_id: 'i_t', version: 'e'.repeat(64), range: { first_line: 3, last_line: 5 }, note: null, selection_chars: 0,
+        in_view: [{ item_id: 'i_t', version: 'e'.repeat(64) }]
       });
+    });
+
+    test('names the items in view, in their order, and none while the pane is not shown', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const a = item({ id: 'i_a', artifact_id: 'r_a', name: 'a.png', version: 'a'.repeat(64) });
+      const b = item({ id: 'i_b', artifact_id: 'r_b', name: 'b.png', sha256: 'b'.repeat(64), version: 'b'.repeat(64) });
+      const c = item({ id: 'i_c', artifact_id: 'r_c', name: 'c.png', sha256: 'c'.repeat(64), version: 'c'.repeat(64) });
+      layout.pane = 'work';
+      view([a, b, c], { selected: 'i_c' });
+      const part = (id) => Array.from(document.querySelectorAll('#workbench-view > .workbench-section')).find((n) => n.dataset.item === id);
+      part('i_a').getBoundingClientRect = () => ({ top: -300, bottom: -10, left: 0, right: 400 });
+      part('i_b').getBoundingClientRect = () => ({ top: -10, bottom: 200, left: 0, right: 400 });
+      part('i_c').getBoundingClientRect = () => ({ top: 200, bottom: 500, left: 0, right: 400 });
+      expect(window.Workbench.rangeNow().in_view).toEqual([
+        { item_id: 'i_b', version: 'b'.repeat(64) }, { item_id: 'i_c', version: 'c'.repeat(64) }
+      ]);
+      layout.pane = 'settings';
+      expect(window.Workbench.rangeNow()).not.toHaveProperty('in_view');
     });
 
     test('says the item is not shown when the pane is not, and counts only a selection inside the item', async () => {

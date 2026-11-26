@@ -121,7 +121,9 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
           chat_id: "c", parameters: session[:parameters],
           settings: Monadic::TurnSettings.of("model" => "of-the-message", "websearch" => true)
         )
-        Monadic::Workspace::RequestContext.with(context) { app.dispatch_parallel_tasks(tasks: valid_tasks, session: session) }
+        Monadic::Workspace::RequestContext.with(context) do
+          app.dispatch_parallel_tasks(tasks: valid_tasks, websearch: true, session: session)
+        end
         expect(asked.uniq).to eq([["of-the-message", true]])
       end
 
@@ -483,21 +485,32 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       allow(app).to receive(:sub_agent_api_call).and_return("Mocked response")
     end
 
-    it "propagates websearch: true to sub_agent_api_call" do
-      expect(app).to receive(:sub_agent_api_call)
-        .with(anything, anything, anything, anything, websearch: true)
-        .and_return("text")
-      tasks = [{ "id" => "t1", "prompt" => "test" }]
-      app.dispatch_parallel_tasks(tasks: tasks, websearch: true, session: session)
-    end
-
-    it "inherits websearch from session parameters" do
+    it "searches when the call asks for it and the message may search" do
       ws_session = { parameters: { "model" => "gpt-4.1", "websearch" => true } }
       expect(app).to receive(:sub_agent_api_call)
         .with(anything, anything, anything, anything, websearch: true)
         .and_return("text")
       tasks = [{ "id" => "t1", "prompt" => "test" }]
+      app.dispatch_parallel_tasks(tasks: tasks, websearch: true, session: ws_session)
+    end
+
+    it "does not search when the call does not ask, though the message may search (nothing is sent ahead)" do
+      ws_session = { parameters: { "model" => "gpt-4.1", "websearch" => true } }
+      expect(app).to receive(:sub_agent_api_call)
+        .with(anything, anything, anything, anything, websearch: false)
+        .and_return("text")
+      tasks = [{ "id" => "t1", "prompt" => "test" }]
       app.dispatch_parallel_tasks(tasks: tasks, session: ws_session)
+    end
+
+    it "does not search when the call asks but the message may not" do
+      stub_const("CONFIG", { "WEB_SEARCH_IN_CHATS" => "false" })
+      ws_session = { parameters: { "model" => "gpt-4.1", "websearch" => true } }
+      expect(app).to receive(:sub_agent_api_call)
+        .with(anything, anything, anything, anything, websearch: false)
+        .and_return("text")
+      tasks = [{ "id" => "t1", "prompt" => "test" }]
+      app.dispatch_parallel_tasks(tasks: tasks, websearch: true, session: ws_session)
     end
 
     it "explicit websearch: false overrides session" do

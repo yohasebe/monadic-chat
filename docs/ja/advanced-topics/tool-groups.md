@@ -67,7 +67,7 @@
 #### Parallel Dispatch（1 ツール）
 - 互いに独立した 2〜5 個の小さな作業を、別々の API の呼び出しで並行して実行する
 - それぞれのサブエージェントはテキストだけの呼び出しで動き、結果は集められてまとめられる
-- Web Search のスイッチがオンなら、サブエージェントも Web を検索できる。検索にはプロバイダー自身の検索を使い、それがないプロバイダーでは Tavily API を使う。[プロバイダー機能の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
+- 呼び出しが求め、会話が検索してよいとき（設定の **AI が使える情報源** と、アプリの `websearch true`）、サブエージェントも Web を検索する。検索にはプロバイダー自身の検索を使い、それがないプロバイダーでは Tavily API を使う。[プロバイダー機能の表](../basic-usage/basic-apps.md#provider-capabilities)を参照
 - 実行中は、進み具合が一時的なカードに表示される
 
 **使っているアプリ**：Research Assistant
@@ -127,7 +127,7 @@ Selenium のコンテナは Monadic Chat とともに起動します。グルー
 - Tavily で Web を検索し、ページを取得する（引用付き）
 - URL の内容を取得し、共有フォルダに保存する
 
-このグループの検索のツールは、Tavily を通して結果を返します。プロバイダー自身の Web 検索は、Web Search のスイッチでオンにする別の機能で、このグループがなくても使えます。[プロバイダー機能の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。`TAVILY_API_KEY` がないときは、このグループの検索のツールは結果を返しません。
+このグループの検索のツールは、Tavily を通して結果を返します。プロバイダー自身の Web 検索は、設定の **AI が使える情報源** が Web 検索を許している間に使われる別の機能で、このグループがなくても使えます。[プロバイダー機能の表](../basic-usage/basic-apps.md#provider-capabilities)を参照してください。`TAVILY_API_KEY` がないときは、このグループの検索のツールは結果を返しません。
 
 **使っているアプリ**：Research Assistant、Mermaid Grapher、Wikipedia
 

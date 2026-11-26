@@ -18,7 +18,7 @@ The `parallel_dispatch` group (`lib/monadic/shared_tools/parallel_dispatch.rb`) 
 
 ## Web Search
 
-Web search is on when `websearch` is true, otherwise when the session's `websearch` parameter is true.
+Web search is on only when the call passes `websearch: true` and the message being answered may search (`TurnSettings#websearch`: `WEB_SEARCH_IN_CHATS` and the app's MDSL). It is never inherited: a Tavily sub-call sends its query before the subtask runs.
 
 | Strategy | Providers | How |
 |---|---|---|

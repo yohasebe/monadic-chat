@@ -602,9 +602,6 @@ function handleAppsMessage(data) {
         if (titleEl) titleEl.textContent = displayText;
 
         // Update badges immediately
-        const websearchBadge = $id("websearch-badge");
-        $toggle(websearchBadge, selectedApp["websearch"]);
-
         const toolsBadge = $id("tools-badge");
         $toggle(toolsBadge, selectedApp["tools"]);
 

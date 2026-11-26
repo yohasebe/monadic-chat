@@ -44,8 +44,6 @@ function sanitizeParamsForSync(source) {
   // Sync checkbox states to ensure params reflect current UI state
   // This prevents stale values from being broadcast
   // Boolean checkboxes
-  const websearchEl = $id("websearch");
-  clone.websearch = (websearchEl && websearchEl.checked) || false;
   const easySubmitEl = $id("check-easy-submit");
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
@@ -491,8 +489,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (summaryModelName) summaryModelName.textContent = modelName;
 
     var indicators = "";
-    var websearchCb = $id("websearch");
-    if (websearchCb && websearchCb.checked) indicators += '<span class="mc-badge mc-badge--blue me-1">Web Search</span>';
     var reasoningEffortSel = $id("reasoning-effort");
     var re = reasoningEffortSel ? reasoningEffortSel.value : "";
     if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {
@@ -1666,16 +1662,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (modelSpec[selectedModel]) {
-      const supportsWeb = (modelSpec[selectedModel]["supports_web_search"] === true) ||
-                          (modelSpec[selectedModel]["tool_capability"] === true); // fallback for tool-based providers
-      if (supportsWeb) {
-        { const el = $id("websearch"); if (el) { el.disabled = false; el.removeAttribute("title"); } }
-      } else {
-        $hide($id("websearch-badge"));
-        const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-        { const el = $id("websearch"); if (el) { el.disabled = true; el.setAttribute("title", tt); } }
-      }
-
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
         { const el = $id("temperature"); if (el) el.disabled = false; }
       } else {
@@ -2082,15 +2068,6 @@ document.addEventListener("DOMContentLoaded", function () {
       window.updateExpressiveSpeechIndicator();
     }
 
-    // Use toBool helper for defensive boolean evaluation
-    const toBool = window.toBool || ((value) => {
-      if (typeof value === 'boolean') return value;
-      if (typeof value === 'string') return value === 'true';
-      return !!value;
-    });
-
-
-
     if (typeof window.applyAppCapabilityClasses === "function") window.applyAppCapabilityClasses(appValue);
 
 
@@ -2139,14 +2116,6 @@ document.addEventListener("DOMContentLoaded", function () {
         { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model} - ${$id("reasoning-effort") ? $id("reasoning-effort").value : ''})` };
       } else {
         { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${model})`; }
-      }
-
-      if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-        { const el = $id("websearch"); if (el) { el.disabled = false; el.removeAttribute("title"); } }
-      } else {
-        $hide($id("websearch-badge"));
-        const tt2 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
-        { const el = $id("websearch"); if (el) { el.disabled = true; el.setAttribute("title", tt2); } }
       }
 
       { const el = $id("model"); if (el) el.value = model; }
@@ -2220,14 +2189,6 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("tools-badge"));
     }
 
-    if (toBool(apps[appValue]["websearch"])) {
-      { const el = $id("websearch"); if (el) el.checked = true; }
-      $show($id("websearch-badge"));
-    } else {
-      { const el = $id("websearch"); if (el) el.checked = false; }
-      $hide($id("websearch-badge"));
-    }
-
     if (window.VocabularyPanel && typeof window.VocabularyPanel.renderForApp === 'function') {
       window.VocabularyPanel.renderForApp(appValue);
     }
@@ -2272,22 +2233,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (window.HelpDatabase) window.HelpDatabase.setApp(appValue);
   }
-
-  $on($id("websearch"), "change", function() {
-    if (this.checked) {
-      params["websearch"] = true;
-    } else {
-      params["websearch"] = false;
-    }
-    // Update badges to reflect toggle state
-    const selectedApp = ($id("apps") || {}).value;
-    if (selectedApp && typeof window.updateAppBadges === 'function') {
-      window.updateAppBadges(selectedApp);
-    }
-    if (!isParamBroadcastSuppressed()) {
-      broadcastParamsUpdate('websearch_toggle');
-    }
-  })
 
   $on($id("check-auto-speech"), "change", function() {
     if (this.checked) {
@@ -2590,7 +2535,6 @@ document.addEventListener("DOMContentLoaded", function () {
       window.safeWsSend({
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
-        websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",
       });

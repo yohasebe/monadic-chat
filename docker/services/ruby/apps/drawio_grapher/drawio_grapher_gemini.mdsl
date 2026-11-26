@@ -140,6 +140,7 @@ app "DrawIOGrapherGemini" do
   end
 
   features do
+    websearch true
     max_tool_rounds 10
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false

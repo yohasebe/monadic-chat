@@ -2,6 +2,8 @@
 
 require_relative "../../../lib/monadic/utils/progressive_tool_manager"
 require_relative "../../../lib/monadic/library/in_chats"
+require_relative "../../../lib/monadic/workspace/request_context"
+require_relative "../../../lib/monadic/turn_settings"
 
 RSpec.describe Monadic::Utils::ProgressiveToolManager do
   let(:app_name) { "TestApp" }
@@ -141,9 +143,21 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
   # The web_search_tools group is governed by the Web Search UI toggle, not by
   # dynamic unlocking. When the toggle is explicitly off it must stay fully
   # hidden: absent from the tool set and menu, and not unlockable.
-  describe "Web Search UI-toggle gating" do
-    let(:ws_off) { { parameters: { "websearch" => false } } }
-    let(:ws_on) { { parameters: { "websearch" => true } } }
+  # The search tools follow the setting and the chat's app (WebSearchSetting);
+  # a "websearch" a chat still carries from the old switch does not count.
+  describe "Web Search gating" do
+    let(:ws_off) { { parameters: { "app_name" => "PlainApp", "websearch" => true } } }
+    let(:ws_on) { { parameters: { "app_name" => "SearchApp", "websearch" => false } } }
+
+    before do
+      allow(Monadic::WebSearchSetting).to receive(:app_allows?) { |name| name == "SearchApp" }
+    end
+
+    it "hides web_search_tools in every chat while the setting is off" do
+      stub_const("CONFIG", { "WEB_SEARCH_IN_CHATS" => "false" })
+      expect(visible_with(ws_on)).not_to include(*web_tools)
+      expect(visible_with({})).not_to include(*web_tools)
+    end
 
     def visible_with(session)
       described_class.visible_tools(

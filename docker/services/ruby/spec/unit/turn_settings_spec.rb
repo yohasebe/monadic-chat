@@ -64,7 +64,21 @@ RSpec.describe Monadic::TurnSettings do
 
     it "takes the chat's model and limits where the message leaves them out, and nothing else of the chat's" do
       turn = described_class.accepted({ "temperature" => "0.3" }, kept)
-      expect(turn.to_h.compact).to eq(model: "kept", temperature: 0.3, context_size: 9, max_input_tokens: 4000)
+      expect(turn.to_h.compact).to eq(model: "kept", temperature: 0.3, context_size: 9, max_input_tokens: 4000,
+                                      websearch: false)
+    end
+
+    it "lets the message search the web as the setting and the chat's app say, whatever the message or the chat carries" do
+      allow(Monadic::WebSearchSetting).to receive(:allowed?).with("Search").and_return(true)
+      allow(Monadic::WebSearchSetting).to receive(:allowed?).with("Plain").and_return(false)
+
+      expect(described_class.accepted({ "websearch" => false }, { "app_name" => "Search" }).websearch).to be true
+      expect(described_class.accepted({ "websearch" => true }, { "app_name" => "Plain", "websearch" => true }).websearch).to be false
+    end
+
+    it "lets nothing of a chat search the web while the setting is off" do
+      stub_const("CONFIG", { "WEB_SEARCH_IN_CHATS" => "false" })
+      expect(described_class.of({ "websearch" => true }).websearch).to be false
     end
 
     it "takes the message's own where it names them" do

@@ -62,6 +62,7 @@ app "MusicAnalystGemini" do
   end
 
   features do
+    websearch true
     max_tool_rounds 10
   end
 

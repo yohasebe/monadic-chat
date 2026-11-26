@@ -419,6 +419,7 @@ app "JupyterNotebookOpenAI" do
   end
 
   features do
+    websearch true
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false

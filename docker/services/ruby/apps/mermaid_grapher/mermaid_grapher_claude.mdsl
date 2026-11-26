@@ -39,6 +39,7 @@ app "MermaidGrapherClaude" do
   end
 
   features do
+    websearch true
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     mermaid true
     easy_submit false

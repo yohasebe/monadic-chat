@@ -213,6 +213,7 @@ app "JupyterNotebookGemini" do
   end
 
   features do
+    websearch true
     disabled !CONFIG["GEMINI_API_KEY"]
     jupyter true
     initiate_from_assistant true

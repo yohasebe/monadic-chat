@@ -359,7 +359,7 @@ module OpenAIHelper
 
   # Resolve model capability flags from model_spec.
   # Returns a hash of boolean/string flags used throughout api_request.
-  private def resolve_openai_model_capabilities(model, obj, use_responses_api, &block)
+  private def resolve_openai_model_capabilities(model, obj, use_responses_api)
     reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
     non_stream_model = (Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming") == false)
     # Use the canonical SSOT accessor so an absent `tool_capability` flag
@@ -370,21 +370,14 @@ module OpenAIHelper
     non_tool_model = !tool_capability
     supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model)
 
-    websearch_enabled = Monadic::TurnSettings.current(obj).websearch == true
-    use_responses_api_for_websearch = websearch_enabled &&
-                                      Monadic::Utils::ModelSpec.supports_web_search?(model)
-
-    # If websearch is enabled but the model doesn't support it, disable websearch
-    if websearch_enabled && !supports_websearch && !use_responses_api
-      websearch_enabled = false
-      if block
-        system_msg = {
-          "type" => "system_info",
-          "content" => "Web search is not available for model #{model}. Proceeding without web search."
-        }
-        block.call system_msg
-      end
-    end
+    # The message may search (TurnSettings); a model that cannot, or the
+    # reasoning effort chosen when the model says it does not go with web
+    # search, answers without (the effort is kept).
+    turn = Monadic::TurnSettings.current(obj)
+    websearch_enabled = turn.websearch == true &&
+                        Monadic::WebSearchSetting.effort_allows?(model, turn.reasoning_effort)
+    use_responses_api_for_websearch = websearch_enabled && supports_websearch
+    websearch_enabled = false if websearch_enabled && !supports_websearch && !use_responses_api
 
     websearch_prompt = websearch_enabled ? WEBSEARCH_PROMPT : nil
 
@@ -1312,7 +1305,7 @@ module OpenAIHelper
     use_responses_api = Monadic::Utils::ModelSpec.responses_api?(original_user_model)
 
     # Resolve model capabilities
-    caps = resolve_openai_model_capabilities(model, obj, use_responses_api, &block)
+    caps = resolve_openai_model_capabilities(model, obj, use_responses_api)
     websearch_enabled = caps[:websearch_enabled]
     websearch_prompt = caps[:websearch_prompt]
     reasoning_model = caps[:reasoning_model]

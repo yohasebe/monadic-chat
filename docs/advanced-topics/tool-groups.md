@@ -67,7 +67,7 @@ These tools do not read, write or list other chats' folders.
 #### Parallel Dispatch (1 tool)
 - Dispatch 2-5 independent sub-tasks to run in parallel as separate API calls
 - Each sub-agent runs as a text-only call; the results are collected and combined
-- Sub-agents can search the web when the Web Search toggle is on. The search uses the provider's own search, or the Tavily API for providers without it; see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
+- Sub-agents search the web when the call asks for it and the chat may search (**Sources the AI can use** in Settings, and the app's `websearch true`). The search uses the provider's own search, or the Tavily API for providers without it; see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities)
 - Progress is shown in the temporary card while it runs
 
 **Apps using this**: Research Assistant
@@ -127,7 +127,7 @@ Each chat has its own interactive browser session, and up to two chats can have 
 - Search the web and fetch pages through Tavily, with citations
 - Fetch the content of a URL and save it to the shared folder
 
-The search tools of this group return results through Tavily. A provider's own web search is a separate feature, turned on with the Web Search toggle, and works without this group; see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). Without `TAVILY_API_KEY`, the search tools of this group return no results.
+The search tools of this group return results through Tavily. A provider's own web search is a separate feature, used while **Sources the AI can use** in Settings allows web search, and works without this group; see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities). Without `TAVILY_API_KEY`, the search tools of this group return no results.
 
 **Apps using this**: Research Assistant, Mermaid Grapher, Wikipedia
 

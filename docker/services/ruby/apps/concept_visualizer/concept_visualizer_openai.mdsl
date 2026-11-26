@@ -128,6 +128,7 @@ app "ConceptVisualizerOpenAI" do
   TEXT
 
   features do
+    websearch true
     max_tool_rounds 10
     # Disabled unless LaTeX option is enabled AND provider key present
     disabled (!CONFIG["INSTALL_LATEX"]) || (!CONFIG["OPENAI_API_KEY"])

@@ -123,6 +123,10 @@ parallel beta-header handling.**
 | Mistral | Tavily web search | Shared adapter |
 | Cohere | Tavily web search, reasoning-model detection | Name-based detection |
 
+## Web Search Setting
+
+Whether a chat may search the web is decided on the server, once per message, by `Monadic::WebSearchSetting` (`lib/monadic/web_search_setting.rb`): `WEB_SEARCH_IN_CHATS` (Settings, Sources the AI can use; on unless `"false"`, read at server start) and the app's MDSL `websearch true` (unsaid or `false`: no search). `TurnSettings.accepted` sets `websearch` from it, whatever the page or the chat's parameters carry; `TurnSettings.of` keeps a given `websearch` only while the setting is on. Each adapter then decides whether the model and provider can search (a native search tool, or Tavily with `TAVILY_API_KEY`): OpenAI leaves web search out at a reasoning effort the model lists as incompatible (`feature_constraints`, `WebSearchSetting.effort_allows?`); Grok keeps the model chosen (no model is switched for search). `ProgressiveToolManager.websearch_disabled?` hides the search tools on the same terms; a caller with no chat parameters is left to the setting. Live's `search_web` needs the setting, the Live Tools switch and `TAVILY_API_KEY`.
+
 ## Semantic pairs across providers
 
 The following features serve similar UX goals across providers but use

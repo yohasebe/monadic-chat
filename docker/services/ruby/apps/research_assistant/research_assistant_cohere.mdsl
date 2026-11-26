@@ -116,7 +116,7 @@ app "ResearchAssistantCohere" do
 
   features do
     disabled !CONFIG["COHERE_API_KEY"]
-    websearch !!CONFIG["TAVILY_API_KEY"]
+    websearch true
     temperature 0.3
     easy_submit false
     auto_speech false

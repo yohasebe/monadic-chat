@@ -61,7 +61,7 @@ app "MailComposerCohere" do
   features do
     max_tool_rounds 10
     work_screen "drafts"
-    websearch false
+    websearch true
     disabled !CONFIG["COHERE_API_KEY"]
     initiate_from_assistant true
     easy_submit false

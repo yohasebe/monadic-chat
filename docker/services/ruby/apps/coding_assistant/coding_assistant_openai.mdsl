@@ -97,6 +97,7 @@ app "CodingAssistantOpenAI" do
   display_name "Coding Assistant"
  
   features do
+    websearch true
     work_screen "code"
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false

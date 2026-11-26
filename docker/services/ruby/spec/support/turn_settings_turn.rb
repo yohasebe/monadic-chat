@@ -57,6 +57,9 @@ module TurnSettingsTurn
                   selection: nil, hidden: [])
     helper = Class.new(MonadicApp) { include helper_module }.new
     allow(helper).to receive(:sleep)
+    # Whether the message may search is the server's (the setting and the
+    # app, WebSearchSetting); here the message's "websearch" stands for it.
+    allow(Monadic::WebSearchSetting).to receive(:allowed?).and_return([true, "true"].include?(message["websearch"]))
     session = { parameters: { "app_name" => "SpecApp", "message" => "What is the weather?", "tools" => [TOOL] }
                             .merge(kept).merge(message),
                 messages: messages || ([{ "role" => "system", "text" => "S", "active" => true }] + history) }

@@ -18,27 +18,6 @@ RSpec.describe 'Websearch Tavily Configuration' do
       let(:apps_dir) { File.join(File.dirname(__FILE__), '../../apps') }
       let(:chat_apps) { Dir.glob(File.join(apps_dir, 'chat', 'chat_*.mdsl')) }
 
-      it 'Chat apps have appropriate websearch defaults based on provider capabilities' do
-        chat_apps.each do |app_file|
-          content = File.read(app_file)
-          app_name = File.basename(app_file, '.mdsl')
-          provider = app_name.gsub('chat_', '')
-
-          # Check if provider has native websearch support
-          has_native_support = native_websearch_providers.include?(provider)
-
-          if has_native_support
-            # Providers with native support should have websearch enabled
-            expect(content).to match(/websearch\s+true/),
-              "Expected #{app_name} to have 'websearch true' (provider has native support)"
-          else
-            # Providers without native support should have websearch disabled
-            expect(content).to match(/websearch\s+false/),
-              "Expected #{app_name} to have 'websearch false' (Tavily API required)"
-          end
-        end
-      end
-
       it 'Chat apps have appropriate web search mentions in prompts' do
         chat_apps.each do |app_file|
           content = File.read(app_file)
@@ -49,30 +28,6 @@ RSpec.describe 'Websearch Tavily Configuration' do
             "Expected #{app_name} to mention web search capabilities in prompt"
         end
       end
-    end
-  end
-
-  describe 'JavaScript module exports' do
-    let(:websearch_check_js) { File.join(File.dirname(__FILE__), '../../public/js/monadic/websearch_tavily_check.js') }
-    let(:utilities_js) { File.join(File.dirname(__FILE__), '../../public/js/monadic/utilities.js') }
-
-    it 'websearch_tavily_check.js exports required functions' do
-      expect(File.exist?(websearch_check_js)).to be true
-      content = File.read(websearch_check_js)
-
-      # Check for required exports
-      expect(content).to include('window.websearchTavilyCheck')
-      expect(content).to include('requiresTavilyAPI')
-      expect(content).to include('updateWebSearchState')
-    end
-
-    it 'doResetActions checks Tavily availability (merged from former websearch patch)' do
-      expect(File.exist?(utilities_js)).to be true
-      content = File.read(utilities_js)
-
-      expect(content).to include('fetch(\'/api/environment\')')
-      expect(content).to include('websearchTavilyCheck.updateWebSearchState')
-      expect(content).to include('getProviderFromGroup')
     end
   end
 

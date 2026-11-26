@@ -122,6 +122,7 @@ app "TranslateDeepSeek" do
   end
 
   features do
+    websearch true
     max_tool_rounds 10
     work_screen "translations"
     disabled !CONFIG["DEEPSEEK_API_KEY"]

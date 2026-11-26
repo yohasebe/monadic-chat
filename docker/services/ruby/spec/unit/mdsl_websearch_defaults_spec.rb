@@ -60,37 +60,6 @@ RSpec.describe 'MDSL Web Search Default Settings' do
 
   end
 
-  describe 'Tavily-based web search providers' do
-    let(:apps_dir) { File.join(__dir__, '../../apps/chat') }
-
-    it 'keeps websearch disabled by default for Cohere Chat (requires TAVILY_API_KEY)' do
-      mdsl_file = File.join(apps_dir, 'chat_cohere.mdsl')
-      websearch_enabled = parse_mdsl_websearch(mdsl_file)
-
-      # Cohere uses Tavily, so it should remain false (requires separate API key)
-      expect(websearch_enabled).to eq(false),
-        "chat_cohere.mdsl should have websearch false (requires TAVILY_API_KEY)"
-    end
-
-    it 'keeps websearch disabled by default for DeepSeek Chat (requires TAVILY_API_KEY)' do
-      mdsl_file = File.join(apps_dir, 'chat_deepseek.mdsl')
-      websearch_enabled = parse_mdsl_websearch(mdsl_file)
-
-      # DeepSeek uses Tavily, so it should remain false
-      expect(websearch_enabled).to eq(false),
-        "chat_deepseek.mdsl should have websearch false (requires TAVILY_API_KEY)"
-    end
-
-    it 'keeps websearch disabled by default for Mistral Chat (requires TAVILY_API_KEY)' do
-      mdsl_file = File.join(apps_dir, 'chat_mistral.mdsl')
-      websearch_enabled = parse_mdsl_websearch(mdsl_file)
-
-      # Mistral uses Tavily, so it should remain false
-      expect(websearch_enabled).to eq(false),
-        "chat_mistral.mdsl should have websearch false (requires TAVILY_API_KEY)"
-    end
-  end
-
   describe 'System prompt verification for web search' do
     let(:apps_dir) { File.join(__dir__, '../../apps/chat') }
 
@@ -133,64 +102,49 @@ RSpec.describe 'MDSL Web Search Default Settings' do
       end
     end
 
-    it 'keeps Tavily-based apps with websearch false' do
+    it 'lets Chat search with the Tavily providers too (they search when Tavily has its key)' do
       apps_dir = File.join(__dir__, '../../apps/chat')
+      %w[chat_cohere.mdsl chat_deepseek.mdsl chat_mistral.mdsl chat_ollama.mdsl].each do |app_file|
+        expect(parse_mdsl_websearch(File.join(apps_dir, app_file))).to eq(true), "#{app_file} should have websearch true"
+      end
+    end
 
-      # These apps use Tavily and should remain false
-      tavily_apps = [
-        'chat_cohere.mdsl',
-        'chat_deepseek.mdsl',
-        'chat_mistral.mdsl'
-      ]
+    # Built-in apps search when it helps; these three do not: Monadic Help
+    # answers from its own documentation, Wikipedia has a search of its own,
+    # and Voice Interpreter only translates what is said.
+    NOT_SEARCHING = %w[monadic_help wikipedia voice_interpreter].freeze
 
-      tavily_apps.each do |app_file|
-        mdsl_file = File.join(apps_dir, app_file)
-        next unless File.exist?(mdsl_file)
+    it 'lets every built-in app search except those whose task a web search would get in the way of' do
+      Dir.glob(File.join(__dir__, '../../apps/*/*.mdsl')).each do |file|
+        app = File.basename(File.dirname(file))
+        next if app == 'live_conversation' # Live searches through its Live Tools switch
 
-        websearch_enabled = parse_mdsl_websearch(mdsl_file)
-
-        expect(websearch_enabled).to eq(false),
-          "#{app_file} should keep websearch disabled (requires TAVILY_API_KEY)"
+        expected = !NOT_SEARCHING.include?(app)
+        expect(parse_mdsl_websearch(file)).to eq(expected), "#{File.basename(file)} should have websearch #{expected}"
       end
     end
   end
 
-  # Apps that follow the same "native → true, Tavily fallback → false"
-  # convention as the Chat app. Added 2026-05-13 when these apps were
-  # promoted to default-on web search where the provider supports it.
-  #
-  # The convention is *not* universal — purpose-specific apps (Image
-  # Generator, Translate, Math Tutor, etc.) keep websearch absent /
-  # false even on native providers because their core task does not
-  # benefit from web search and the toggle would just add noise. The
-  # parameterised group below pins which apps consciously opted into
-  # the chat-style default; adding a new app here means: "for this
-  # app, the conversational use case dominates and current-events
-  # context is worth the extra latency on native providers."
+  # Apps whose conversations may search the web (MDSL `websearch true`) with
+  # every provider: whether a search is made is the model's choice, and
+  # whether it can be is the provider's (a native search tool, or Tavily
+  # with its key). An app that does not say `websearch true` does not search.
   CHAT_STYLE_APPS_AND_PROVIDERS = {
     'voice_chat' => %w[claude cohere deepseek gemini grok mistral ollama openai],
     'second_opinion' => %w[claude cohere deepseek gemini grok mistral openai],
     'mail_composer' => %w[claude cohere deepseek gemini grok mistral ollama openai]
   }.freeze
 
-  CHAT_NATIVE_PROVIDERS = %w[openai claude gemini grok].freeze
-
   CHAT_STYLE_APPS_AND_PROVIDERS.each do |app_name, providers|
     describe "Chat-style default convention for #{app_name}" do
       providers.each do |provider|
-        expected = CHAT_NATIVE_PROVIDERS.include?(provider)
-
-        it "sets websearch #{expected} for #{app_name}_#{provider}" do
+        it "sets websearch true for #{app_name}_#{provider}" do
           mdsl_file = File.join(__dir__, "../../apps/#{app_name}/#{app_name}_#{provider}.mdsl")
-          actual = parse_mdsl_websearch(mdsl_file)
-
-          expect(actual).to eq(expected),
-            "#{app_name}_#{provider}.mdsl should have websearch #{expected} " \
-            "(#{CHAT_NATIVE_PROVIDERS.include?(provider) ? 'native search provider' : 'Tavily fallback — toggle stays opt-in'})"
+          expect(parse_mdsl_websearch(mdsl_file)).to eq(true), "#{app_name}_#{provider}.mdsl should have websearch true"
         end
 
-        # The MDSL `websearch <bool>` directive controls UI default
-        # and tool registration, but without a system prompt nudge
+        # The MDSL `websearch true` lets the app's chats search, but without
+        # a system prompt nudge
         # the LLM (especially native-search providers like Claude /
         # Gemini) often won't actually USE the tool. Each chat-style
         # app must therefore advertise web search in its prompt the

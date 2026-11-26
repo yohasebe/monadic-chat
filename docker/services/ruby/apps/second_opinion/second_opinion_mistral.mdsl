@@ -130,7 +130,7 @@ app "SecondOpinionMistral" do
 
   features do
     max_tool_rounds 10
-    websearch false
+    websearch true
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false

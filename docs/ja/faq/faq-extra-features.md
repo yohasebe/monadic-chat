@@ -26,7 +26,7 @@
 - **Tavily検索**: Mistral、Cohere、DeepSeek、Ollamaは`~/monadic/config/env`に`TAVILY_API_KEY`を設定することでTavily APIを使用
 - **URLコンテンツ抽出**: どのプロバイダーでも、作業画面の上の **URLを開く** で、Web ページを作業画面に開くか、そのテキストをメッセージ欄に読み込めます（Selenium を使います）
 
-Web 検索は **ウェブ検索** のスイッチでオンとオフを切り替えます。Chat アプリでは、OpenAI、Claude、Gemini、Grok で既定がオン、ほかのプロバイダーでは既定がオフです。
+Web 検索は、設定（**一般 › AI が使える情報源**）でオフにしない限り使えます。Monadic Help、Wikipedia、Voice Interpreter 以外の組み込みのアプリでは、頼まれたときや最新の情報が要るときに AI が検索します。Mistral、Cohere、DeepSeek、Ollama では `TAVILY_API_KEY` が要ります。
 
 ---
 

@@ -58,7 +58,7 @@ app "VoiceChatCohere" do
   features do
     max_tool_rounds 10
     show_thinking false
-    websearch false
+    websearch true
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit true
     auto_speech true

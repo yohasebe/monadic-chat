@@ -114,6 +114,7 @@ app "TranslateOpenAI" do
   end
 
   features do
+    websearch true
     max_tool_rounds 10
     work_screen "translations"
     disabled !CONFIG["OPENAI_API_KEY"]

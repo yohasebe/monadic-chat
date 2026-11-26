@@ -128,6 +128,7 @@ app "NovelWriterOpenAI" do
   display_name "Novel Writer"
 
   features do
+    websearch true
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false

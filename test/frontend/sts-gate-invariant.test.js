@@ -124,7 +124,7 @@ describe('speech-to-speech mode is derived at a single point per side', () => {
     const listMatch = lc.match(/const HIDDEN_IN_LC = \[([\s\S]*?)\];/);
     expect(listMatch).not.toBeNull();
     const ids = Array.from(listMatch[1].matchAll(/'([^']+)'/g)).map(m => m[1]);
-    expect(ids.length).toBeGreaterThanOrEqual(12);
+    expect(ids.length).toBeGreaterThanOrEqual(11);
 
     ids.forEach(id => {
       // The element must exist in the shipped markup…

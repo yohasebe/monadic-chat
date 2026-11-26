@@ -1251,7 +1251,7 @@ module MonadicSharedTools
               {
                 name: :websearch,
                 type: "boolean",
-                description: "Enable web search for sub-agents. Uses provider-native search when available, Tavily API for others.",
+                description: "Set true only when the tasks need current information from the web (the sub-agents then search: provider-native search where available, Tavily for others). Default false.",
                 required: false
               }
             ]

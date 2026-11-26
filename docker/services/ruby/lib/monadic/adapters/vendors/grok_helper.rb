@@ -50,24 +50,6 @@ module GrokHelper
     def vendor_name
       "xAI"
     end
-
-    # Get appropriate model based on websearch requirement
-    def get_model_for_websearch(requested_model, websearch_needed)
-      return requested_model unless websearch_needed
-
-      # Check if model supports websearch via ModelSpec
-      if !Monadic::Utils::ModelSpec.supports_web_search?(requested_model)
-        fallback_model = Monadic::Utils::ModelSpec.get_websearch_fallback(requested_model)
-
-        if fallback_model
-          Monadic::Utils::ExtraLogger.log { "[Grok] Switching from #{requested_model} to #{fallback_model} for web search capability" }
-
-          return fallback_model
-        end
-      end
-
-      requested_model
-    end
   end
 
   define_model_lister :grok,
@@ -833,10 +815,9 @@ module GrokHelper
 
 
     # Handle websearch via search tools
-    websearch = options["websearch"] == true || options["websearch"] == "true"
+    websearch = [true, "true"].include?(options["websearch"]) && Monadic::WebSearchSetting.on? &&
+                Monadic::Utils::ModelSpec.supports_web_search?(model)
     if websearch
-      model = GrokHelper.get_model_for_websearch(model, true)
-      body["model"] = model
       body["tools"] ||= []
       body["tools"] << XAI_WEB_SEARCH_TOOL.dup
       body["tools"] << XAI_X_SEARCH_TOOL.dup
@@ -1008,17 +989,8 @@ module GrokHelper
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
 
-    # Check for websearch configuration
+    # The model chosen is kept: a model that cannot search answers without.
     websearch = turn.websearch == true
-
-    # Dynamically switch model if websearch is needed but not supported
-    original_model = model
-    model = GrokHelper.get_model_for_websearch(model, websearch)
-
-    if model != original_model
-      Monadic::Utils::ExtraLogger.log { "[Grok] Model switched from #{original_model} to #{model} for web search capability" }
-    end
-
     websearch_native = websearch && Monadic::Utils::ModelSpec.supports_web_search?(model)
     unless websearch_native
       DebugHelper.debug("Grok websearch disabled (requested=#{websearch}, supports=#{Monadic::Utils::ModelSpec.supports_web_search?(model)})", category: :api, level: :info)

@@ -75,7 +75,7 @@ RSpec.describe "The settings a reply is recorded with" do
     stub_const("APPS", { "FakeApp" => app })
     session[:parameters].merge!("show_thinking" => true, "temperature" => "1.5")
     reply_card({ "model" => "of-the-message", "temperature" => "0.3" }, {})
-    expect(read[:chat].to_h.compact).to eq(model: "of-the-message", temperature: 0.3)
+    expect(read[:chat].to_h.compact).to eq(model: "of-the-message", temperature: 0.3, websearch: false)
     expect(read[:tool].model).to eq("of-a-tool")
   end
 

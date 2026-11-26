@@ -68,7 +68,7 @@ All settings in the features block are optional:
 - `initiate_from_assistant` - Start conversation with AI message
 
 #### Content Features
-- `websearch` - Enable web search capability
+- `websearch` - Let the app's chats search the web (only `websearch true` does; the setting in **Sources the AI can use** turns web search off for every app)
 - `image_generation` - Enable AI image generation capabilities. Accepts:
   - `true` - Image generation and editing
   - `"upload_only"` - Image upload only (no generation/editing)
@@ -121,7 +121,7 @@ These are set in the **Settings** window (**Open → Settings**), not in MDSL fi
 
 - API keys for the providers, ElevenLabs and Tavily
 - UI language, Browser Mode, Launch at Login, Menu Bar Mode and Notify When a Reply Arrives in the Background
-- Whether the AI may use the Library in chats (Sources the AI can use)
+- Whether the AI may use the Library and search the web in chats (Sources the AI can use)
 - Extra Logging
 - The TTS dictionary file and the size limit for Auto Speech
 - The MCP server and its port

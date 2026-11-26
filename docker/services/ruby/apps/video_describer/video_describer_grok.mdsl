@@ -88,6 +88,7 @@ app "VideoDescriberGrok" do
   include_modules "VideoAnalyzeAgent"
 
   features do
+    websearch true
     max_tool_rounds 10
     disabled !CONFIG["XAI_API_KEY"]
     group "xAI"

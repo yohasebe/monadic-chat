@@ -1672,7 +1672,7 @@ describe('thinking display stays hidden in LC (capability $show race)', () => {
     expect(block[1]).toMatch(/\.lc-app #thinking-display-container/);
     // All HIDDEN_IN_LC surfaces ride the same layer (the .d-flex trap is
     // not specific to the thinking toggle).
-    expect(block[1]).toMatch(/\.lc-app #websearch-form/);
+    expect(block[1]).toMatch(/\.lc-app #reasoning-effort-container/);
     expect(block[1]).toMatch(/\.lc-app #model_parameters/);
   });
 });

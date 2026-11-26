@@ -35,7 +35,7 @@ app "AutoForgeOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    websearch false
+    websearch true
     autonomy "high"
   end
 

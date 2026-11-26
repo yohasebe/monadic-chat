@@ -59,6 +59,7 @@ app "CodingAssistantMistral" do
   display_name "Coding Assistant"
  
   features do
+    websearch true
     work_screen "code"
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false

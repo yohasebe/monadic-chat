@@ -17,7 +17,7 @@ All boolean feature flags MUST use actual boolean values (`true`/`false`), not s
 | `initiate_from_assistant` | Boolean | `false` | Allows assistant to send first message |
 | `mermaid` | Boolean | `false` | Enables Mermaid diagram rendering |
 | `abc` | Boolean | `false` | Enables ABC music notation rendering |
-| `websearch` | Boolean | `false` | Enables web search functionality |
+| `websearch` | Boolean | `false` | The app's chats may search the web (`Monadic::WebSearchSetting.app_allows?`; only `true` does), while `WEB_SEARCH_IN_CHATS` allows it |
 | `jupyter` | Boolean | `false` | Enables Jupyter notebook access |
 | `image_generation` | Boolean | `false` | Enables AI image generation |
 | `video` | Boolean | `false` | Enables video upload and processing |

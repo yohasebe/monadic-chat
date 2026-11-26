@@ -88,6 +88,7 @@ app "VideoDescriberGemini" do
   include_modules "VideoAnalyzeAgent"
 
   features do
+    websearch true
     max_tool_rounds 10
     disabled !CONFIG["GEMINI_API_KEY"]
     group "Google"

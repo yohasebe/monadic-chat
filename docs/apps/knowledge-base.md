@@ -2,7 +2,7 @@
 
 Save chat sessions and import documents into one searchable library.
 
-The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base browser shows all of it, and apps can search it as described under the scope model below.
+The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base browser shows all of it, and every app that searches the Knowledge Base searches all of it.
 
 ![Knowledge Base panel](../assets/images/figures/knowledge-base.svg)
 
@@ -28,18 +28,14 @@ The text and tables of PDFs are extracted. With the Knowledge Base Quality Pack 
 
 A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, but it can still search the Knowledge Base.
 
-**Scope model:**
-
-Each entry belongs either to the app and provider it was saved in (for example `Chat (OpenAI)`) or to `Global`. When an app searches the Knowledge Base, an app-only entry is found only from the same app and provider: `Chat (OpenAI)` does not find entries saved in `Chat (Claude)`, and the reverse. `Global` entries are found from every app that searches the Knowledge Base. Click the rotate icon in the Browse table, or **Make Global** / **Make app-only** in the Conversation Viewer, to switch between the two.
-
 **Other features:**
 
 - **Saving again updates the entry**: saving the same chat session again updates its entry instead of creating another one. The dialog then reads "Update Conversation in Knowledge Base", with an **Update** button and a note. The link between the session and the entry ends on Reset, on switching apps, or when the entry is deleted in Browse.
 - **Suggested titles**: when you first save a conversation, the title field is filled in by the current provider's model, based on the conversation. You can type over it. The suggestion is kept, so closing and reopening the dialog does not ask the model again.
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
-- **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched, filtered by scope, and sorted.
+- **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched and sorted.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. It finds the entries of the current app and the `Global` entries. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
+- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
 - **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

@@ -7,20 +7,12 @@ require_relative '../utils/app_names'
 module Monadic
   module Library
     # Storage facade for the Library. Provides a thin layer over Qdrant
-    # that knows about the Library collections and the `scope_app` /
-    # `conversation_id` payload conventions used everywhere.
+    # that knows about the Library collections and the `conversation_id`
+    # payload convention used everywhere.
     #
-    # The Library is shared across apps. Cross-app retrieval is gated by
-    # the `scope_app` payload field on each conversation:
-    #   - "<AppClassName>" (e.g. "ChatOpenAI", "JupyterNotebookGrok") —
-    #     library_search only returns hits when the requesting app
-    #     matches this exact class. Provider variants are intentionally
-    #     separate scopes ("ChatOpenAI" and "ChatClaude" do not share).
-    #   - "Global" — searchable from every app + every provider.
-    #
-    # The Knowledge Base UI sees every entry regardless of scope_app —
-    # scoping is a retrieval-time concern, not a visibility-from-the-user
-    # concern.
+    # The Library is one shelf: every read sees every entry. Each point
+    # still carries `scope_app` ("Global" for new entries; an app's name
+    # on entries of earlier versions), which nothing reads by.
     class Store
       Schema = Monadic::VectorStore::Schema
 
@@ -64,17 +56,15 @@ module Monadic
         @store.upsert_points(collection: collection, points: points)
       end
 
-      # Search a Library collection. Pass `app_name:` to restrict to
-      # entries scoped to that app or "Global". Pass nil (default) to
-      # search across every entry — used by the KB UI's full-inventory
-      # surfaces.
-      def search(collection:, vector:, app_name: nil, filter: nil, limit: 5)
+      # Search a Library collection: every entry (the Knowledge Base is one
+      # shelf; scope_app is written but not searched by).
+      def search(collection:, vector:, filter: nil, limit: 5)
         ensure_library_collection!(collection)
         bootstrap_collections!
         @store.search(
           collection: collection,
           vector: vector, vector_name: 'content',
-          filter: combine_filters(scope_filter(app_name), filter),
+          filter: filter,
           limit: limit
         )
       end
@@ -134,16 +124,10 @@ module Monadic
         page[:points].first&.dig('payload', 'original')
       end
 
-      # Number of registered conversations. Pass app_name to count only
-      # entries this app would see (its own + Global); pass nil for the
-      # total.
-      def conversation_count(app_name: nil)
+      # Number of registered conversations.
+      def conversation_count
         bootstrap_collections!
-        @store.count(
-          collection: Schema::LIBRARY_SUMMARIES,
-          filter: scope_filter(app_name),
-          exact: true
-        )
+        @store.count(collection: Schema::LIBRARY_SUMMARIES, exact: true)
       end
 
       def scroll(collection:, filter: nil, limit: 256, offset: nil, with_vectors: false)
@@ -155,26 +139,8 @@ module Monadic
 
       # ─── Filter helpers ────────────────────────────────────────────────
 
-      # Returns a filter that matches scope_app == app_name (or a name the
-      # app took the place of) OR scope_app == "Global". When app_name is
-      # nil/empty, returns nil so the caller's combine_filters skips the
-      # scope clause entirely (used by the KB UI to show every entry).
-      def scope_filter(app_name)
-        s = app_name.to_s.strip
-        return nil if s.empty?
-        { must: [{ key: 'scope_app', match: { any: [*Monadic::Utils::AppNames.with_former(s), SCOPE_GLOBAL] } }] }
-      end
-
       def conversation_filter(conversation_id)
         { must: [{ key: 'conversation_id', match: { value: conversation_id.to_s } }] }
-      end
-
-      def combine_filters(*filters)
-        merged = { must: [] }
-        filters.compact.each do |f|
-          merged[:must].concat(Array(f[:must])) if f[:must]
-        end
-        merged[:must].empty? ? nil : merged
       end
 
       private

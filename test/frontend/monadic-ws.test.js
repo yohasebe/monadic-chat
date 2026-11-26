@@ -236,7 +236,6 @@ describe('safeWsSend', () => {
     expect(MonadicWs.isIdempotent('RESET')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_SAVE')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_RAG_QUERY')).toBe(true);
-    expect(MonadicWs.isIdempotent('LIBRARY_SET_SCOPE')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_RENAME')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_GET_CONVERSATION')).toBe(true);
     expect(MonadicWs.isIdempotent('EDIT')).toBe(true);

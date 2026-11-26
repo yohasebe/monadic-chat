@@ -29,20 +29,16 @@ module Monadic
 
       # @param conversation [Hash] monadic-conversation v1 conformant
       # @param store [Monadic::Library::Store]
-      # @param scope_app [String] app class name (e.g. "ChatOpenAI") or
-      #   the Store::SCOPE_GLOBAL sentinel ("Global"). The literal value
-      #   is stored on every produced point and used by library_search to
-      #   decide whether the requesting app may see the conversation.
       # @param levels [Array<Symbol>] subset of DEFAULT_LEVELS
       # @param original [Hash, nil] the kept file the entry was made from
       #   (Manager.import_file), on the summary as 'original'
       # @return [Hash] counts of upserted points per level
       def ingest(conversation,
                  store:,
-                 scope_app: Store::SCOPE_GLOBAL,
                  levels: DEFAULT_LEVELS,
                  original: nil)
-        validate_inputs!(conversation, scope_app)
+        validate_inputs!(conversation)
+        scope_app = Store::SCOPE_GLOBAL
         embeddings = store.embeddings
         conv_id = conversation['conversation_id']
         turns = TurnSegmenter.segment(conversation)
@@ -75,12 +71,9 @@ module Monadic
 
       # ─── Private helpers ───────────────────────────────────────────────
 
-      def validate_inputs!(conversation, scope_app)
+      def validate_inputs!(conversation)
         raise ArgumentError, 'conversation must be a Hash' unless conversation.is_a?(Hash)
         raise ArgumentError, "missing conversation_id" if conversation['conversation_id'].to_s.empty?
-        if scope_app.to_s.strip.empty?
-          raise ArgumentError, "scope_app must be a non-empty string (an app class name or 'Global')"
-        end
       end
 
       # Placeholder summary: concatenate the first ~1500 chars of the

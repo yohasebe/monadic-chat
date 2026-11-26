@@ -21,17 +21,13 @@ module Monadic
       # Build a structured summary of what's currently in the Library.
       #
       # @param store [Monadic::Library::Store]
-      # @param app_name [String, nil] when given, only entries scoped to
-      #   that app or "Global" are counted (matches what the requesting
-      #   app would actually see via library_search). nil counts the full
-      #   library — used by KB UI surfaces.
       # @param page_size [Integer] internal scroll batch size
-      def summarize(store:, app_name: nil, page_size: 256)
+      def summarize(store:, page_size: 256)
         by_source = Hash.new(0)
         by_content_type = Hash.new(0)
         total = 0
 
-        each_summary_payload(store: store, app_name: app_name, page_size: page_size) do |payload|
+        each_summary_payload(store: store, page_size: page_size) do |payload|
           total += 1
           source = payload['source'].to_s
           source = '(unknown)' if source.empty?
@@ -49,13 +45,11 @@ module Monadic
         }
       end
 
-      def each_summary_payload(store:, app_name: nil, page_size: 256)
+      def each_summary_payload(store:, page_size: 256)
         offset = nil
-        filter = store.scope_filter(app_name)
         loop do
           page = store.scroll(
             collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-            filter: filter,
             limit: page_size,
             offset: offset
           )

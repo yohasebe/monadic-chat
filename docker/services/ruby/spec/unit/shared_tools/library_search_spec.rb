@@ -131,7 +131,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
     end
 
-    it 'invokes Retriever with the resolved app_name and returns formatted text' do
+    it 'invokes Retriever and returns formatted text' do
       canned = [{
         text: 'returned snippet', conversation_id: 'conv-1', turn_idx: 0,
         speaker_role: 'human', start_message_id: 'm-1', score: 0.9,
@@ -142,16 +142,16 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' }
       })
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
-        .with('how it works', hash_including(app_name: 'ChatOpenAI', top_n: 3))
+        .with('how it works', hash_including(top_n: 3))
         .and_return(canned)
       out = host.library_search(query: 'how it works')
       expect(out).to include('Found 1 relevant passage')
       expect(out).to include('returned snippet')
     end
 
-    it 'searches the Global entries only when the session names no app' do
+    it 'searches every entry, whatever app the session names' do
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
-        .with('q', hash_including(app_name: 'Global'))
+        .with('q', hash_excluding(:app_name))
         .and_return([])
       host.library_search(query: 'q')
     end

@@ -80,13 +80,6 @@ post "/library/import" do
     return error_json("File exceeds the #{mb} MB import limit. Split the document or raise LIBRARY_IMPORT_MAX_BYTES.")
   end
 
-  # File imports are knowledge artifacts that the user typically wants
-  # accessible from any app, so they default to the "Global" scope. The
-  # UI can still pass `libraryScopeApp` (e.g. an app class name) when
-  # the caller wants the import scoped to one particular app.
-  scope_app = params["libraryScopeApp"].to_s.strip
-  scope_app = Monadic::Library::Store::SCOPE_GLOBAL if scope_app.empty?
-
   options = {}
   options[:title] = params["libraryTitle"].to_s unless params["libraryTitle"].to_s.strip.empty?
   options[:license] = params["libraryLicense"].to_s unless params["libraryLicense"].to_s.strip.empty?
@@ -115,7 +108,6 @@ post "/library/import" do
     Monadic::Library::ImportTracker.update(
       import_id,
       filename: filename,
-      scope_app: scope_app,
       upload_bytes: upload_size
     )
 
@@ -128,7 +120,7 @@ post "/library/import" do
       begin
         result = Monadic::Library::Manager.import_file(
           store: Monadic::Library::Store.new, path: dest_path, filename: filename, options: options,
-          scope_app: scope_app, on_stage: ->(stage) { Monadic::Library::ImportTracker.update(import_id, stage: stage.to_s) }
+          on_stage: ->(stage) { Monadic::Library::ImportTracker.update(import_id, stage: stage.to_s) }
         )
 
         Monadic::Library::ImportTracker.update(
@@ -180,8 +172,7 @@ post "/library/import" do
     success: true,
     import_id: import_id,
     status_url: "/library/import/status/#{import_id}",
-    filename: filename,
-    scope_app: scope_app
+    filename: filename
   }.to_json
 end
 
@@ -202,8 +193,7 @@ get "/library/import/status/:id" do
     success: true,
     import_id: params[:id],
     stage: entry[:stage],
-    filename: entry[:filename],
-    scope_app: entry[:scope_app]
+    filename: entry[:filename]
   }
   payload[:conversation_id] = entry[:conversation_id] if entry[:conversation_id]
   payload[:counts] = entry[:counts] if entry[:counts]

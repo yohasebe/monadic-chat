@@ -101,7 +101,8 @@ RSpec.describe '/library/import contract', :integration do
       expect(last_response.status).to eq(202)
       expect(last_response.content_type).to start_with('application/json')
       data = JSON.parse(last_response.body)
-      expect(data).to include('success' => true, 'filename' => 'hello.md', 'scope_app' => 'Global')
+      expect(data).to include('success' => true, 'filename' => 'hello.md')
+      expect(data).not_to have_key('scope_app')
       expect(data['import_id']).to match(/\A[0-9a-f-]{36}\z/)
       expect(data['status_url']).to eq("/library/import/status/#{data['import_id']}")
 
@@ -109,25 +110,6 @@ RSpec.describe '/library/import contract', :integration do
       entry = Monadic::Library::ImportTracker.get(data['import_id'])
       expect(entry).to include(stage: 'done', conversation_id: 'conv-test-123')
       expect(entry[:counts]).to include('summaries' => 1, 'turns' => 1, 'messages' => 1)
-    end
-
-    it 'forwards libraryScopeApp to the manager' do
-      file = Rack::Test::UploadedFile.new(
-        StringIO.new('# Hello'), 'text/markdown', original_filename: 'hello.md'
-      )
-
-      allow(Monadic::Library::Store).to receive(:new).and_return(instance_double(Monadic::Library::Store))
-
-      expect(Monadic::Library::Manager)
-        .to receive(:import_file)
-        .with(hash_including(scope_app: 'ChatOpenAI'))
-        .and_return(import_result)
-
-      post '/library/import', { 'libraryFile' => file, 'libraryScopeApp' => 'ChatOpenAI' }
-
-      expect(last_response.status).to eq(202)
-      data = JSON.parse(last_response.body)
-      expect(data).to include('scope_app' => 'ChatOpenAI')
     end
   end
 

@@ -31,9 +31,6 @@ module Monadic
 
       # @param query [String] user query
       # @param store [Monadic::Library::Store]
-      # @param app_name [String, nil] app class name of the requester.
-      #   Restricts results to entries scoped to that app or "Global".
-      #   Pass nil to search the full library (KB UI surfaces).
       # @param top_n [Integer] final number of turn hits returned
       # @param summary_top_k [Integer] convs to consider after summary pass
       # @param turns_per_conv [Integer] turn hits collected per conv
@@ -43,7 +40,6 @@ module Monadic
       #   slice of the Knowledge Base when it has a prior.
       def cascade_search(query,
                          store:,
-                         app_name: nil,
                          top_n: DEFAULT_TOP_N,
                          summary_top_k: DEFAULT_SUMMARY_TOP_K,
                          turns_per_conv: DEFAULT_TURNS_PER_CONV,
@@ -56,7 +52,6 @@ module Monadic
         summary_hits = store.search(
           collection: VectorStore::Schema::LIBRARY_SUMMARIES,
           vector: query_vec,
-          app_name: app_name,
           filter: payload_filter,
           limit: summary_top_k
         )
@@ -77,7 +72,6 @@ module Monadic
           turn_hits = store.search(
             collection: VectorStore::Schema::LIBRARY_TURNS,
             vector: query_vec,
-            app_name: app_name,
             filter: store.conversation_filter(conv_id),
             limit: turns_per_conv
           )

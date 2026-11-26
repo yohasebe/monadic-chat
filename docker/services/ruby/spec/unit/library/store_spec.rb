@@ -132,34 +132,19 @@ RSpec.describe Monadic::Library::Store do
   describe '#search' do
     let(:vec) { Array.new(768, 0.1) }
 
-    it 'restricts to scope_app IN [app_name, "Global"] when app_name is given' do
+    it 'searches every entry: no filter of its own' do
       expect(vector_store).to receive(:search) do |args|
-        filter = args[:filter]
-        expect(filter[:must]).to include(
-          { key: 'scope_app', match: { any: %w[ChatOpenAI ChatPlusOpenAI Global] } }
-        )
-      end
-      store.search(collection: 'library_turns', vector: vec, app_name: 'ChatOpenAI')
-    end
-
-    it 'omits the scope filter entirely when app_name is nil (KB UI behaviour)' do
-      expect(vector_store).to receive(:search) do |args|
-        # When no scope filter is needed and no extra filter is supplied,
-        # the resulting filter is nil so Qdrant searches across everything.
         expect(args[:filter]).to be_nil
       end
-      store.search(collection: 'library_turns', vector: vec, app_name: nil)
+      store.search(collection: 'library_turns', vector: vec)
     end
 
-    it 'composes an additional filter with the scope filter' do
+    it 'passes the filter it is given as it is' do
+      filter = store.conversation_filter('conv-abc')
       expect(vector_store).to receive(:search) do |args|
-        keys = args[:filter][:must].map { |c| c[:key] }
-        expect(keys).to include('scope_app', 'conversation_id')
+        expect(args[:filter]).to eq(filter)
       end
-      store.search(
-        collection: 'library_turns', vector: vec, app_name: 'ChatOpenAI',
-        filter: store.conversation_filter('conv-abc')
-      )
+      store.search(collection: 'library_turns', vector: vec, filter: filter)
     end
 
     it 'rejects non-Library collections' do
@@ -182,23 +167,9 @@ RSpec.describe Monadic::Library::Store do
   end
 
   describe '#conversation_count' do
-    it 'counts summaries with no scope filter when app_name is nil' do
-      allow(vector_store).to receive(:count).and_return(7)
-      expect(vector_store).to receive(:count).with(
-        collection: 'library_summaries',
-        filter: nil,
-        exact: true
-      )
+    it 'counts every summary' do
+      expect(vector_store).to receive(:count).with(collection: 'library_summaries', exact: true).and_return(7)
       expect(store.conversation_count).to eq(7)
-    end
-
-    it 'narrows to scope_app IN [app_name, "Global"] when app_name is given' do
-      expect(vector_store).to receive(:count).with(
-        collection: 'library_summaries',
-        filter: { must: [{ key: 'scope_app', match: { any: %w[CodeInterpreterOpenAI Global] } }] },
-        exact: true
-      )
-      store.conversation_count(app_name: 'CodeInterpreterOpenAI')
     end
   end
 
@@ -241,12 +212,12 @@ RSpec.describe Monadic::Library::Store do
       allow(vector_store).to receive(:scroll).and_return(page)
       expect(vector_store).to receive(:scroll).with(
         collection: 'library_summaries',
-        filter: { must: [{ key: 'scope_app', match: { any: %w[ChatOpenAI ChatPlusOpenAI Global] } }] },
+        filter: { must: [{ key: 'conversation_id', match: { value: 'conv-abc' } }] },
         limit: 50, offset: 'cur-prev', with_vectors: false
       )
       store.scroll(
         collection: 'library_summaries',
-        filter: store.scope_filter('ChatOpenAI'),
+        filter: store.conversation_filter('conv-abc'),
         limit: 50, offset: 'cur-prev'
       )
     end
@@ -271,44 +242,9 @@ RSpec.describe Monadic::Library::Store do
     end
   end
 
-  describe '#combine_filters' do
-    it 'merges multiple `must` arrays into a single filter' do
-      a = { must: [{ key: 'x', match: { value: 1 } }] }
-      b = { must: [{ key: 'y', match: { value: 2 } }] }
-      expect(store.combine_filters(a, b)).to eq(
-        must: [
-          { key: 'x', match: { value: 1 } },
-          { key: 'y', match: { value: 2 } }
-        ]
-      )
-    end
-
-    it 'returns nil when there is nothing to combine' do
-      expect(store.combine_filters(nil)).to be_nil
-      expect(store.combine_filters({})).to be_nil
-    end
-
-    it 'ignores nil arguments' do
-      a = { must: [{ key: 'x', match: { value: 1 } }] }
-      expect(store.combine_filters(a, nil)).to eq(a)
-    end
-  end
-
   describe 'scope constants' do
     it 'exposes the "Global" sentinel as the cross-app scope value' do
       expect(described_class::SCOPE_GLOBAL).to eq('Global')
-    end
-  end
-
-  describe '#scope_filter' do
-    it 'returns nil for nil/empty input so KB-UI surfaces see every entry' do
-      expect(store.scope_filter(nil)).to be_nil
-      expect(store.scope_filter('   ')).to be_nil
-    end
-
-    it 'returns a match.any filter that includes the literal app name + Global' do
-      f = store.scope_filter('MathTutorOpenAI')
-      expect(f[:must].first[:match][:any]).to eq(%w[MathTutorOpenAI Global])
     end
   end
 end

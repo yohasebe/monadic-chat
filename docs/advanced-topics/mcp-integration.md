@@ -59,9 +59,9 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 **Knowledge Base** (the same [Knowledge Base](../apps/knowledge-base.md) the web interface uses)
 - `monadic_search_kb` — semantic search over the Knowledge Base
 - `monadic_list_kb` — list the entries of the Knowledge Base
-- `monadic_import_kb` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as a Global entry
+- `monadic_import_kb` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as an entry
 
-These tools read every entry by default (`all`); give an app name, such as `ChatOpenAI`, to read only that app's entries and the Global ones. The chat tools `monadic_query`, `monadic_parallel_query` and `monadic_confidence` use the Knowledge Base only when their `knowledge_base` argument is given: `all` searches every entry, and an app name searches that app's entries and the Global ones. They search on your computer and send the passages found to the provider with the question; without the argument, nothing from the Knowledge Base is sent.
+These tools read every entry. The chat tools `monadic_query`, `monadic_parallel_query` and `monadic_confidence` use the Knowledge Base only when their `knowledge_base` argument is given (any value, such as `all`); it searches every entry. They search on your computer and send the passages found to the provider with the question; without the argument, nothing from the Knowledge Base is sent.
 
 **Analysis (input)**
 - `monadic_analyze_image` — describe or answer questions about an image

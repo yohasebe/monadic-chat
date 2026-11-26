@@ -12,16 +12,6 @@ RSpec.describe Monadic::Library::Retriever do
     allow(store).to receive(:conversation_filter) { |id|
       { must: [{ key: 'conversation_id', match: { value: id.to_s } }] }
     }
-    # Mirror the real Store#combine_filters: AND the :must clauses of the
-    # supplied filters, dropping nils. Tests that omit payload_filter still
-    # see only the conversation_id clause; tests that pass one see both.
-    allow(store).to receive(:combine_filters) { |*filters|
-      merged = { must: [] }
-      filters.compact.each do |f|
-        merged[:must].concat(Array(f[:must])) if f.is_a?(Hash) && f[:must]
-      end
-      merged[:must].empty? ? nil : merged
-    }
     allow(embeddings).to receive(:embed_query).and_return(Array.new(768, 0.1))
   end
 
@@ -70,10 +60,10 @@ RSpec.describe Monadic::Library::Retriever do
       described_class.cascade_search('how to ...', store: store)
     end
 
-    it 'searches summaries with no app_name filter and the configured summary_top_k by default' do
+    it 'searches every summary with the configured summary_top_k by default' do
       expect(store).to receive(:search).with(hash_including(
         collection: 'library_summaries',
-        app_name: nil,
+        filter: nil,
         limit: Monadic::Library::Retriever::DEFAULT_SUMMARY_TOP_K
       )).and_return([])
       described_class.cascade_search('q', store: store)
@@ -135,14 +125,6 @@ RSpec.describe Monadic::Library::Retriever do
       expect(turn_filter_seen).to eq(
         { must: [{ key: 'conversation_id', match: { value: 'A' } }] }
       )
-    end
-  end
-
-  describe '.cascade_search (per-app scoping)' do
-    it 'forwards app_name down to both the summary and turn passes' do
-      expect(store).to receive(:search).with(hash_including(app_name: 'ChatOpenAI'))
-        .at_least(:once).and_return([])
-      described_class.cascade_search('q', store: store, app_name: 'ChatOpenAI')
     end
   end
 

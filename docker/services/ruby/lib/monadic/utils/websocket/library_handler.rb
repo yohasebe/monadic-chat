@@ -8,19 +8,12 @@ require_relative '../privacy/outbound'
 # Messages handled:
 #   - LIBRARY_LIST          → 'library_conversations' (full inventory)
 #   - LIBRARY_DELETE        → 'library_deleted'
-#   - LIBRARY_STATS         → 'library_stats' (totals + per-scope counts)
+#   - LIBRARY_STATS         → 'library_stats' (the number of entries)
 #   - LIBRARY_SAVE          → 'library_saved' (ingest current session)
-#   - LIBRARY_SET_SCOPE     → 'library_scope_updated' (flip an entry
-#                              between an app scope and "Global")
 #   - LIBRARY_RENAME        → 'library_renamed'
 #   - LIBRARY_GET_CONVERSATION → 'library_conversation_data'
 #   - LIBRARY_RAG_TOGGLE    → 'library_rag_state'
 #   - LIBRARY_RAG_QUERY     → 'library_rag_state' (UI sync on connect)
-#
-# Inventory reads (LIBRARY_LIST, GET_CONVERSATION, STATS) pass
-# `app_name: nil` so the KB UI sees the entire library regardless of
-# scope — scoping is a retrieval-time concern enforced by
-# library_search, not a UI visibility gate.
 module WebSocketHelper
   private def library_store_for_ws
     Monadic::Library::Store.new
@@ -28,7 +21,7 @@ module WebSocketHelper
 
   private def handle_ws_library_list(connection, _obj, _session)
     store = library_store_for_ws
-    rows = Monadic::Library::Manager.list_conversations(store: store, app_name: nil, limit: 500)
+    rows = Monadic::Library::Manager.list_conversations(store: store, limit: 500)
     send_to_client(connection, {
       'type' => 'library_conversations',
       'content' => rows.map { |r| symbol_keys_to_strings(r) }
@@ -100,7 +93,7 @@ module WebSocketHelper
 
     store = library_store_for_ws
     record = Monadic::Library::Manager.get_conversation_messages(
-      store: store, conversation_id: conv_id, app_name: nil
+      store: store, conversation_id: conv_id
     )
     if record.nil?
       send_to_client(connection, {
@@ -162,52 +155,6 @@ module WebSocketHelper
     })
   end
 
-  # Flip an entry between an app-specific scope and "Global". The UI
-  # sends the desired `scope_app` literal (e.g. "ChatOpenAI" or
-  # "Global") in the payload.
-  private def handle_ws_library_set_scope(connection, obj, _session)
-    payload = obj['contents']
-    payload = {} unless payload.is_a?(Hash)
-    conv_id = payload['conversation_id'].to_s
-    scope_app = payload['scope_app'].to_s.strip
-
-    if conv_id.empty?
-      send_to_client(connection, {
-        'type' => 'library_scope_updated', 'res' => 'failure',
-        'content' => 'Missing conversation_id'
-      })
-      return
-    end
-    if scope_app.empty?
-      send_to_client(connection, {
-        'type' => 'library_scope_updated', 'res' => 'failure',
-        'content' => "scope_app must not be empty",
-        'conversation_id' => conv_id
-      })
-      return
-    end
-
-    store = library_store_for_ws
-    Monadic::Library::Manager.update_scope_app(
-      store: store, conversation_id: conv_id, scope_app: scope_app
-    )
-    send_to_client(connection, {
-      'type' => 'library_scope_updated', 'res' => 'success',
-      'conversation_id' => conv_id, 'scope_app' => scope_app
-    })
-  rescue ArgumentError => e
-    send_to_client(connection, {
-      'type' => 'library_scope_updated', 'res' => 'failure',
-      'content' => e.message, 'conversation_id' => obj.dig('contents', 'conversation_id')
-    })
-  rescue StandardError => e
-    Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_SET_SCOPE failed: #{e.class}: #{e.message}" }
-    send_to_client(connection, {
-      'type' => 'library_scope_updated', 'res' => 'failure',
-      'content' => e.message, 'conversation_id' => obj.dig('contents', 'conversation_id')
-    })
-  end
-
   # After the new version of a conversation is written, deletes the prior
   # version's points. The new version is kept whatever happens here: a
   # delete that failed may still have been applied, so taking the new
@@ -245,16 +192,6 @@ module WebSocketHelper
     title = payload['title']
     license = payload['license']
     monadic_state = payload['monadic_state']
-    # The UI sends the requested scope_app literally — either the
-    # currently active app's class name (default for "save my session
-    # privately to this app") or "Global" (default for shareable
-    # knowledge artifacts). Fall back to the literal app_name from the
-    # save parameters so the UI does not have to compute the value.
-    scope_app = payload['scope_app'].to_s.strip
-    if scope_app.empty? && parameters.is_a?(Hash)
-      scope_app = parameters['app_name'].to_s.strip
-    end
-    scope_app = Monadic::Library::Store::SCOPE_GLOBAL if scope_app.empty?
 
     unless messages.is_a?(Array) && !messages.empty?
       send_to_client(connection, {
@@ -320,7 +257,7 @@ module WebSocketHelper
     prior_ids = existing_id ? store.point_ids(existing_id) : nil
 
     result = Monadic::Library::Manager.import_from_text(
-      store: store, input: importer_input, options: options, scope_app: scope_app
+      store: store, input: importer_input, options: options
     )
     leftover = prior_ids ? prior_version_left?(store, prior_ids) : false
     send_to_client(connection, {
@@ -328,7 +265,6 @@ module WebSocketHelper
       'content' => existing_id ? 'Updated conversation in Knowledge Base.' : 'Conversation saved to Knowledge Base.',
       'conversation_id' => result[:conversation_id],
       'updated' => !existing_id.nil?,
-      'scope_app' => scope_app,
       'counts' => result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
     }.tap { |reply| reply['warning'] = 'prior_version_left' if leftover })
   rescue ArgumentError => e
@@ -401,7 +337,7 @@ module WebSocketHelper
     Monadic::Utils::ExtraLogger.log { "[Library] LIBRARY_STATS failed: #{e.class}: #{e.message}" }
     send_to_client(connection, {
       'type' => 'library_stats',
-      'content' => { 'conversations_total' => 0, 'conversations_by_scope' => {} },
+      'content' => { 'conversations_total' => 0 },
       'error' => e.message
     })
   end

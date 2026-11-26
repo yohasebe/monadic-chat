@@ -363,6 +363,16 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
       )).to include("Nothing to unlock")
     end
 
+    it "says web search is off, rather than that nothing matched, when the setting turns it off" do
+      allow(Monadic::WebSearchSetting).to receive(:on?).and_return(false)
+      msg = described_class.handle_request_tool(
+        session: session, app_name: app_name, app_settings: app_settings,
+        argument_hash: { tool_name: "web_search" }
+      )
+      expect(msg).to include("Web search is off for this chat")
+      expect(msg).not_to include("Nothing to unlock")
+    end
+
     it "prompts when no skill name is provided" do
       expect(described_class.handle_request_tool(
         session: session, app_name: app_name, app_settings: app_settings,

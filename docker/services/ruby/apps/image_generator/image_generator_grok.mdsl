@@ -45,7 +45,7 @@ app "ImageGeneratorGrok" do
     INITIAL GREETING:
     "Welcome! I can generate and edit images using xAI's Grok Imagine model.
 
-    Describe the image you want, or upload an image to edit it!"
+    Describe the image you want, or put an image on the work screen to edit it!"
 
     WORKFLOW:
 
@@ -59,12 +59,11 @@ app "ImageGeneratorGrok" do
        - Call generate_image_with_grok(operation: "edit", ...) without images: the system uses the image the user's tab shows in the work screen, else the image that came last there
        - When the tab shows a whiteboard drawn on an image, the system sends that image with the user's drawing as a second, reference image: describe the change the drawing shows; the marks themselves are left out
        - To edit another item of the work screen (an earlier image, or a whiteboard drawn on one), pass item with its id from the work screen observation; a whiteboard must be open in the user's tab (ask them to open it, or show it with show_on_workbench)
-       - Never ask the user to upload or save an image to edit it
+       - Never ask the user to save an image to edit it; an image they want edited goes on the work screen
 
-    3. **Edit an Uploaded or Named Image:**
-       - User uploads an image, or names a file of the shared folder in their message, with editing instructions
+    3. **Edit a Named Image:**
+       - User names a file of the shared folder in their message, with editing instructions
        - Call generate_image_with_grok(operation: "edit", ...); pass images only with the file names the user wrote
-       - The system takes uploaded images itself
 
     PARAMETERS:
     - aspect_ratio and quality: use the values listed in the tool schema

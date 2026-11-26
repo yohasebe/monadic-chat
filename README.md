@@ -8,7 +8,7 @@
 
   ---
 
-**🎯 Features** · [Multimodal Input](https://yohasebe.github.io/monadic-chat/#/basic-usage/message-input#uploading-images) · [Knowledge Base](https://yohasebe.github.io/monadic-chat/#/apps/knowledge-base) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#provider-capabilities) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/apps/coding-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/apps/chat-apps#voice-chat) · [Anonymization](https://yohasebe.github.io/monadic-chat/#/advanced-topics/anonymization)
+**🎯 Features** · [Multimodal Input](https://yohasebe.github.io/monadic-chat/#/basic-usage/message-input#files-for-the-ai) · [Knowledge Base](https://yohasebe.github.io/monadic-chat/#/apps/knowledge-base) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#provider-capabilities) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/apps/coding-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/apps/chat-apps#voice-chat) · [Anonymization](https://yohasebe.github.io/monadic-chat/#/advanced-topics/anonymization)
 
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · xAI · DeepSeek · Ollama
 

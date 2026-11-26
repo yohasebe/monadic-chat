@@ -2,7 +2,7 @@
 
 Two music apps: Music Tutor teaches music theory with explanations, playable scores, and backing patterns, and Music Analyst analyzes audio or MIDI files and gives interpretive feedback on recorded performances. To make new music as an audio file from a text description, use [Music Generator](music-generator.md).
 
-In both apps, put an audio or MIDI file on the [work screen](../basic-usage/web-interface.md#work-screen), or attach it with the attach button below the message box. The file is kept in the chat's folder and goes with your next message. Before sending, click the attached file's name to play an audio file on the [work screen](../basic-usage/web-interface.md#work-screen); MIDI files are not played there.
+In both apps, put an audio or MIDI file on the [work screen](../basic-usage/web-interface.md#work-screen). The file is kept in the chat's folder, and an audio file can be played there; MIDI files are not played there.
 
 ## Music Tutor :id=music-tutor
 
@@ -11,7 +11,7 @@ In both apps, put an audio or MIDI file on the [work screen](../basic-usage/web-
 Learn music theory hands-on: play chords, scales, intervals, and progressions, and generate backing tracks to hear concepts in action. The AI explains music concepts and writes its examples as scores that play in the browser. To evaluate the musicality and performance of an existing recording, use the Music Analyst app instead.
 
 **Key Features:**
-- **Audio/MIDI analysis**: Upload audio files (mp3, wav, m4a, ogg, flac) or MIDI files (mid, midi) to detect tempo, key, time signature, chord progressions, and song structure. MIDI analysis also extracts track/instrument information.
+- **Audio/MIDI analysis**: Put audio files (mp3, wav, m4a, ogg, flac) or MIDI files (mid, midi) on the work screen to detect tempo, key, time signature, chord progressions, and song structure. MIDI analysis also extracts track/instrument information.
 - **Audio playback**: Chords, scales, intervals, and progressions are shown as sheet music in the [work screen](../basic-usage/web-interface.md#work-screen) beside the chat and played there with in-browser MIDI synthesis, with the instrument sounds of the FluidR3 GM sound font by Frank Wen ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/us/)), as rendered in [midi-js-soundfonts](https://github.com/paulrosen/midi-js-soundfonts). Each one is a `.abc` file in the chat's folder of the shared folder; the reply names its path
 - **Backing tracks**: Multi-instrument backing tracks (chords + bass) with style-specific patterns (jazz, bossa nova, pop, rock, ballad)
 - **Algorithmic melody**: Generate melodies automatically using chord-scale theory, Euclidean rhythms, and contour shaping (lyrical, rhythmic, jazz, latin, gentle styles)
@@ -30,7 +30,7 @@ Music Tutor is available for OpenAI, Claude, Gemini, and Grok.
 Evaluate a recorded performance from two complementary angles: features measured from the file and an interpretive critique of the music and playing. To play, generate, and learn music theory hands-on, use the Music Tutor app.
 
 **Key Features:**
-- **Measured features**: Estimate tempo, key, time signature, chord progression, and song structure from an uploaded audio or MIDI file by signal processing.
+- **Measured features**: Estimate tempo, key, time signature, chord progression, and song structure from an audio or MIDI file on the work screen by signal processing.
 - **Interpretive critique**: Gemini listens to the audio and comments on character and mood, genre and instrumentation, and performance qualities (expression, dynamics, phrasing, timing, energy), with strengths, weaknesses, and an overall evaluation.
 - **Complementary lenses**: Ask for the measured features, an interpretive critique, or both — the two are presented as clearly separated sections.
 

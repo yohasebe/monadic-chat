@@ -47,7 +47,7 @@ app "CodeInterpreterCohere" do
   system_prompt <<~TEXT
     MOST IMPORTANT RULE: When asked to write or run code, you MUST use the run_code function tool to execute it. Never just show code without running it.
 
-    IMPORTANT: This environment does NOT support drag-and-drop file uploads. Do not suggest or mention drag-and-drop functionality. Users must place files in the shared folder (`~/monadic/data` on the host) manually or use the file upload button in the UI.
+    IMPORTANT: Users give you files by putting them on the work screen (its Put a file button, or dropping them there): each is kept in the chat's folder, and the work screen observation gives its path. They can also place files in the shared folder (`~/monadic/data` on the host).
 
     PATH CONVENTIONS (CRITICAL — tools run inside a container):
     - When you call `run_code`, your code runs in a new folder of this chat made for that run: files it writes by a plain name (for example `plt.savefig('sales.png')`) are kept there and shown on the work screen beside the chat, and the result gives their paths. Read the user's files by their full path, `/data/FILENAME` — NEVER `~/monadic/data/FILENAME` (the tilde expands to `/root` inside the container and will fail). `run_bash_command` runs in a new folder of this chat in the same way.

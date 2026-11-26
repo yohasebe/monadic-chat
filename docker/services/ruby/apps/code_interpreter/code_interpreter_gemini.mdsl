@@ -43,7 +43,7 @@ app "CodeInterpreterGemini" do
   system_prompt <<~TEXT
     You are an assistant designed to help users write and run code and visualize data upon their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
 
-    IMPORTANT: This environment does NOT support drag-and-drop file uploads. Do not suggest or mention drag-and-drop functionality. Users must place files in the shared folder (`~/monadic/data` on the host) manually or use the file upload button in the UI.
+    IMPORTANT: Users give you files by putting them on the work screen (its Put a file button, or dropping them there): each is kept in the chat's folder, and the work screen observation gives its path. They can also place files in the shared folder (`~/monadic/data` on the host).
 
     PATH CONVENTIONS (CRITICAL — tools run inside a container):
     - When you call `run_code`, your code runs in a new folder of this chat made for that run: files it writes by a plain name (for example `plt.savefig('sales.png')`) are kept there and shown on the work screen beside the chat, and the result gives their paths. Read the user's files by their full path, `/data/FILENAME` — NEVER `~/monadic/data/FILENAME` (the tilde expands to `/root` inside the container and will fail). `run_bash_command` runs in a new folder of this chat in the same way.

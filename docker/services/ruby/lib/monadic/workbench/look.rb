@@ -304,7 +304,7 @@ module Monadic
           return seen(item, 'browser', name, path, nil, **content.except(:name, :path))
         end
 
-        return library_seen(board, selection, scope, item, caller, deadline) if item['library']
+        return library_seen(board, selection, scope, item, caller, deadline, files: files) if item['library']
 
         file = item['file'] or raise Refused.new('unsupported_kind', 'this item cannot be looked at')
         case file['preview']
@@ -362,27 +362,55 @@ module Monadic
         raise Refused.new('unsupported_kind', 'the file is not text')
       end
 
-      # A Library entry on the work screen, as text: read from the Library
-      # now, and only at the version the item was opened at (an entry
-      # deleted, or changed since, is not read). The lines in view, or the
-      # whole, as for a text file.
-      def library_seen(board, selection, scope, item, caller, deadline)
+      # A Library entry on the work screen, read from the Library now and
+      # only at the version the item was opened at (EntryText.bytes_for: its
+      # kept file while the entry names it, or its text). A PDF is read as a
+      # PDF file is (the pages in view, its text, or the file as it is where
+      # the model takes it); text as a text file is, an Office document given
+      # as it is where the model takes it for the whole.
+      def library_seen(board, selection, scope, item, caller, deadline, files: true)
         record = board.library_entry(item['id'], version: item.dig('library', 'version'))
-        entry = Monadic::Library::EntryText.of(record['id'])
-        unless entry[:version] == record['version']
-          board.mark(item['id'], sha256: record['version'], status: 'changed')
-          raise Refused.new('changed', 'the entry changed in the Library since it was opened; open it again to look at it')
+        held = nil
+        bytes = -> { held ||= Monadic::Library::EntryText.bytes_for(record) }
+        title = record['title']
+        if record['preview'] == 'pdf'
+          native = scope == 'whole' && files ? native_pdf(caller, deadline, bytes.call) : nil
+          return seen(item, 'pdf', title, nil, record['version'], **native) if native
+
+          content = if scope == 'visible'
+                      Pdf.visible(selection, caller, deadline, still(board, selection, caller), bytes)
+                    else
+                      Pdf.whole(bytes.call, deadline)
+                    end
+          return seen(item, 'pdf', title, nil, record['version'], **content)
         end
 
+        native = scope == 'whole' && files && record['content_type'] ? native_library_document(caller, record) : nil
+        return seen(item, 'text', title, nil, record['version'], **native) if native
+
         lines = scope == 'visible' ? lines_in_view(board, selection, caller, deadline) : nil
-        bytes = entry[:text].b
-        content = lines ? visible_text(bytes, **lines) : whole_text(bytes)
-        seen(item, 'text', entry[:title], nil, entry[:version], **content)
+        content = lines ? visible_text(bytes.call, **lines) : whole_text(bytes.call)
+        seen(item, 'text', title, nil, record['version'], **content)
+      rescue Monadic::Library::EntryText::Changed
+        board.mark(item['id'], sha256: item.dig('library', 'version'), status: 'changed')
+        raise Refused.new('changed', 'the entry changed in the Library since it was opened; open it again to look at it')
       rescue Monadic::Library::EntryText::Missing
         board.mark(item['id'], sha256: item.dig('library', 'version'), status: 'missing')
         raise Refused.new('missing', 'the entry is no longer in the Library; it was not looked at')
       rescue Monadic::Library::EntryText::Incomplete
         raise Refused.new('unsupported_kind', 'the Library did not keep the whole text of this entry')
+      end
+
+      # The kept file of an Office entry given as it is ({ file: }), or nil
+      # when there is none or the request's provider and model do not take it.
+      def native_library_document(caller, record)
+        provider, model = Availability.request_of(caller.session)
+        type = record['content_type'].to_s
+        data = Monadic::Library::EntryText.original_for(record) or return nil
+        return nil unless Availability.native_file?(session: caller.session, provider: provider, model: model,
+                                                    type: type, bytes: data.bytesize, pages: nil)
+
+        { file: FileValue.document(data, type), parts: { 'file' => true } }
       end
 
       # An Office document given as it is ({ file: }), or nil when the

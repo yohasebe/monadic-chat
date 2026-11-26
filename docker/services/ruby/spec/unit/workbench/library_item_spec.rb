@@ -7,6 +7,7 @@ require_relative "../../../lib/monadic/workspace/ids"
 require_relative "../../../lib/monadic/workbench/channel"
 require_relative "../../../lib/monadic/workbench/look"
 require_relative "../../../lib/monadic/library/entry_text"
+require_relative "../../../lib/monadic/library/originals"
 
 # An entry of the Library opened on the work screen: its text, read from
 # the Library when it is shown or looked at, and only at the version it was
@@ -39,7 +40,7 @@ RSpec.describe "a Library entry on the work screen" do
     allow(Monadic::Workbench::Store).to receive(:default).and_return(store)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(@data)
     allow(Monadic::Utils::Environment).to receive(:state_path).and_return(@state)
-    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1").and_return(entry)
+    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1", any_args).and_return(entry)
   end
 
   after { Monadic::Workspace::Ledger.clear_unsettled! }
@@ -69,9 +70,9 @@ RSpec.describe "a Library entry on the work screen" do
 
   it "opens nothing for a tab that is not live, or an entry that is gone or not kept whole" do
     expect(open_entry(generation: 2)).to include("status" => "refused", "reason" => "not_allowed")
-    allow(Monadic::Library::EntryText).to receive(:of).with("gone").and_raise(Monadic::Library::EntryText::Missing)
+    allow(Monadic::Library::EntryText).to receive(:of).with("gone", any_args).and_raise(Monadic::Library::EntryText::Missing)
     expect(open_entry("gone")).to include("status" => "refused", "reason" => "missing")
-    allow(Monadic::Library::EntryText).to receive(:of).with("cut").and_raise(Monadic::Library::EntryText::Incomplete)
+    allow(Monadic::Library::EntryText).to receive(:of).with("cut", any_args).and_raise(Monadic::Library::EntryText::Incomplete)
     expect(open_entry("cut")).to include("status" => "refused", "reason" => "incomplete")
     expect(board.snapshot[:items]).to be_empty
   end
@@ -91,7 +92,7 @@ RSpec.describe "a Library entry on the work screen" do
   it "serves nothing once the entry is another version, or gone, and says so on the item" do
     item_id = open_entry["item_id"]
     address = channel.view(session, tab: "tab-1", generation: 1, live: live)["assets"][item_id]
-    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1").and_return(entry.merge(version: "b" * 64))
+    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1", any_args).and_return(entry.merge(version: "b" * 64))
 
     expect(fetch(address).first).to eq(409)
     expect(board.snapshot[:items].first[:status]).to eq("changed")
@@ -99,7 +100,7 @@ RSpec.describe "a Library entry on the work screen" do
     # A changed item is given no address; the one given before finds the
     # entry gone.
     expect(channel.view(session, tab: "tab-1", generation: 1, live: live)["assets"]).not_to have_key(item_id)
-    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1").and_raise(Monadic::Library::EntryText::Missing)
+    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1", any_args).and_raise(Monadic::Library::EntryText::Missing)
     expect(fetch(address).first).to eq(410)
   end
 
@@ -112,7 +113,7 @@ RSpec.describe "a Library entry on the work screen" do
     expect(seen).to include(item_id: item_id, kind: "text", name: "Tides", version: entry[:version])
     expect(seen[:text]).to include("The moon pulls the sea.")
 
-    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1").and_return(entry.merge(version: "c" * 64))
+    allow(Monadic::Library::EntryText).to receive(:of).with("conv-1", any_args).and_return(entry.merge(version: "c" * 64))
     expect { look.send(:read, board, selection, "whole", caller: nil, deadline: nil) }
       .to raise_error(look::Refused) { |e| expect(e.reason).to eq("changed") }
   end
@@ -121,5 +122,74 @@ RSpec.describe "a Library entry on the work screen" do
     open_entry
 
     expect(Monadic::Workbench::Observation.send(:kind_of, board.snapshot[:items].first)).to eq("library")
+  end
+
+  describe "with its kept original" do
+    let(:library_store) { double("store") }
+    let(:upload) { File.join(@data, "upload") }
+
+    def keep(bytes)
+      File.binwrite(upload, bytes)
+      Monadic::Library::Originals.instance_variable_set(:@held, Hash.new(0))
+      sha = Monadic::Library::Originals.keep(upload)[:sha256]
+      Monadic::Library::Originals.release(sha)
+      sha
+    end
+
+    def with_original(sha, extension)
+      original = { "sha256" => sha, "extension" => extension }
+      allow(Monadic::Library::EntryText).to receive(:of).with("conv-1", any_args).and_return(entry.merge(original: original))
+      allow(Monadic::Library::Store).to receive(:new).and_return(library_store)
+      allow(library_store).to receive(:original_of).with("conv-1").and_return(original)
+      allow(Monadic::Library::Manager).to receive(:get_conversation_details).and_return({ conversation_id: "conv-1" })
+    end
+
+    def address_of(item_id)
+      channel.view(session, tab: "tab-1", generation: 1, live: live)["assets"][item_id]
+    end
+
+    it "shows a PDF as it is, while the entry still names that file" do
+      sha = keep("%PDF-1.4 paper")
+      with_original(sha, "pdf")
+      item_id = open_entry["item_id"]
+      expect(board.snapshot[:items].first).to include(preview: "pdf", version: sha, content_type: "application/pdf")
+
+      status, headers, body = fetch(address_of(item_id))
+      expect([status, headers["content-type"], body.join]).to eq([200, "application/pdf", "%PDF-1.4 paper"])
+
+      allow(library_store).to receive(:original_of).with("conv-1").and_return("sha256" => "f" * 64)
+      expect(fetch(address_of(item_id)).first).to eq(409)
+    end
+
+    it "shows a code file as its own text, and nothing once the kept file is gone" do
+      sha = keep("puts 1\n")
+      with_original(sha, "rb")
+      item_id = open_entry["item_id"]
+      address = address_of(item_id)
+      expect(board.snapshot[:items].first).to include(preview: "text", version: sha)
+      expect(fetch(address).last.join).to eq("puts 1\n")
+
+      File.delete(Monadic::Library::Originals.path_of(sha))
+      expect(fetch(address).first).to eq(410)
+    end
+
+    it "shows an Office document as its text, and gives the AI the file only where the model takes it" do
+      sha = keep("PK\x03\x04 office bytes")
+      with_original(sha, "docx")
+      item_id = open_entry["item_id"]
+      expect(board.snapshot[:items].first).to include(preview: "text", version: entry[:version])
+      selection = Struct.new(:item).new(board.item(item_id))
+      look = Monadic::Workbench::Look
+      caller = Struct.new(:session).new({})
+      allow(look::Availability).to receive(:request_of).and_return(%w[openai gpt-x])
+
+      allow(look::Availability).to receive(:native_file?).and_return(false)
+      expect(look.send(:read, board, selection, "whole", caller: caller, deadline: nil)[:text]).to include("The moon pulls")
+
+      allow(look::Availability).to receive(:native_file?).and_return(true)
+      seen = look.send(:read, board, selection, "whole", caller: caller, deadline: nil)
+      expect(seen[:parts]).to eq("file" => true)
+      expect(seen[:file]).not_to be_nil
+    end
   end
 end

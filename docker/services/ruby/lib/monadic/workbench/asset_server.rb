@@ -146,25 +146,28 @@ module Monadic
         plain(415, 'Not text')
       end
 
-      # A Library item's text at the version given, read from the Library
-      # now (Library::EntryText) and served as a text file is shown
-      # (text_view; the board keeps how many lines it is). 409 when the
-      # entry is not that version any more, 410 when it is gone, 415 when
-      # the Library did not keep its whole text; a download is not served.
+      # A Library item at the version given, read from the Library now
+      # (EntryText.bytes_for: its kept file while the entry names it, or
+      # its text): a PDF as it is, text as a text file is shown (text_view;
+      # the board keeps how many lines it is). 409 when it is not that
+      # version any more, 410 when it is gone, 415 when the Library did not
+      # keep its whole text; a download is not served.
       def serve_library(env, board, view)
         return plain(404, 'Not found') unless view.purpose == :view
 
         record = board.library_entry(view.item_id, version: view.sha256)
-        entry = Monadic::Library::EntryText.of(record['id'])
-        unless entry[:version] == view.sha256
-          board.mark(view.item_id, sha256: view.sha256, status: 'changed')
-          return plain(409, 'Changed')
+        bytes = Monadic::Library::EntryText.bytes_for(record)
+        if record['preview'] == 'pdf'
+          headers = HEADERS.merge('content-type' => 'application/pdf')
+        else
+          headers = HEADERS.merge('content-type' => 'text/plain; charset=utf-8')
+          bytes = text_shown(board, view, bytes, headers)
         end
-
-        headers = HEADERS.merge('content-type' => 'text/plain; charset=utf-8')
-        bytes = text_shown(board, view, entry[:text].b, headers)
         headers['content-length'] = bytes.bytesize.to_s
         [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      rescue Monadic::Library::EntryText::Changed
+        board.mark(view.item_id, sha256: view.sha256, status: 'changed')
+        plain(409, 'Changed')
       rescue Monadic::Library::EntryText::Missing
         board.mark(view.item_id, sha256: view.sha256, status: 'missing')
         plain(410, 'Gone')

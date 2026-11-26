@@ -9,6 +9,7 @@ require_relative 'artifact'
 require_relative 'file_item'
 require_relative 'item_text'
 require_relative '../library/file_importer'
+require_relative '../library/entry_text'
 require_relative '../workspace/chats'
 
 module Monadic
@@ -298,13 +299,15 @@ module Monadic
         end
       end
 
-      # An entry of the Library opened on the board (entry: EntryText.of's
-      # id, title, version and original): the tab of origin selects it. The
-      # same entry at the same version again is selected, not added.
-      # Returns [item, added].
+      # An entry of the Library opened on the board (entry: EntryText.of),
+      # shown as EntryText.shown says (its kept file, or its text, at that
+      # version): the tab of origin selects it. The same entry at the same
+      # version again is selected, not added. Returns [item, added].
       def add_library(entry:, origin:, epoch:)
-        record = { 'id' => entry[:id].to_s, 'title' => entry[:title].to_s, 'version' => entry[:version].to_s,
-                   'original' => entry.dig(:original, 'sha256') }.compact
+        shown = Monadic::Library::EntryText.shown(entry)
+        record = { 'id' => entry[:id].to_s, 'title' => entry[:title].to_s, 'version' => shown[:version].to_s,
+                   'preview' => shown[:preview], 'source' => shown[:source], 'original' => shown[:original],
+                   'content_type' => shown[:content_type] }.compact
         change do |data|
           check_epoch!(epoch)
           raise Refused, 'not_allowed' if origin[:actor].to_s == 'user' && !live?(origin[:tab], origin[:generation])
@@ -773,7 +776,7 @@ module Monadic
           entry = item['library']
           return { id: item['id'], kind: 'library', actor: item.dig('origin', 'actor'), mid: item['mid'],
                    name: entry['title'], library_id: entry['id'], version: entry['version'], sha256: entry['version'],
-                   preview: 'text',
+                   preview: entry['preview'] || 'text', content_type: entry['content_type'],
                    original: entry['original'] ? true : nil, status: library_status(item) }.compact
         end
         if item['kind'] == 'browser'

@@ -198,7 +198,8 @@ module Monadic
         # [range, nil], or [nil, why]. Only a report for this item at this
         # version, of this kind's type, is taken.
         def range_for(item, text, reported)
-          kind = kind_of(item)
+          # A Library entry is in view as what it shows (its text, or a PDF).
+          kind = item[:kind] == 'library' ? item[:preview].to_s : kind_of(item)
           return [nil, nil] if %w[image browser].include?(kind)
           return [nil, 'unknown'] unless reported_for?(item, reported)
 
@@ -206,7 +207,7 @@ module Monadic
           return [nil, NOTES.include?(note) ? note : 'unknown'] unless reported['range'].is_a?(Hash)
 
           range = case kind
-                  when 'text', 'library' then text_range(reported['range'], text)
+                  when 'text' then text_range(reported['range'], text)
                   when 'pdf' then pdf_range(reported['range'])
                   when 'audio', 'video' then media_range(reported['range'])
                   end

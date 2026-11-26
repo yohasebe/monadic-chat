@@ -21,8 +21,16 @@ module Monadic
   module Utils
     module SSLConfiguration
       class << self
+        # The parameters the contexts made here take: OpenSSL's defaults
+        # (DEFAULT_PARAMS, frozen since openssl 4.0, so copied, never
+        # changed) with CRL checks off and the CA file and folder resolved.
+        def params
+          @params ||= OpenSSL::SSL::SSLContext::DEFAULT_PARAMS.dup
+        end
+
         def configure!(config = {})
           config ||= {}
+          @params = nil
           adjust_default_params(config)
           apply_http_defaults(config)
           patch_net_http_ssl(config)
@@ -33,7 +41,7 @@ module Monadic
         private
 
         def adjust_default_params(config)
-          defaults = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
+          defaults = params
 
           # Try to get and modify verify_flags if available
           verify_flags = defaults[:verify_flags]
@@ -75,7 +83,6 @@ module Monadic
         def apply_http_defaults(config)
           require 'http'
           ctx = OpenSSL::SSL::SSLContext.new
-          params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
 
           ctx.verify_mode = params[:verify_mode] if params[:verify_mode]
           if ctx.respond_to?(:verify_flags=) && params[:verify_flags]
@@ -102,7 +109,7 @@ module Monadic
             def start(&block)
               if use_ssl? && @ssl_context.nil?
                 @ssl_context = OpenSSL::SSL::SSLContext.new
-                params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
+                params = Monadic::Utils::SSLConfiguration.params
 
                 @ssl_context.verify_mode = params[:verify_mode] if params[:verify_mode]
                 @ssl_context.ca_file = params[:ca_file] if params[:ca_file]

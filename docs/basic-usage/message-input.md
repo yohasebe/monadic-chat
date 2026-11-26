@@ -4,13 +4,12 @@ After starting the server and selecting an app and configuring it, click the **S
 
 ![Buttons under the message box](../assets/images/figures/input-buttons.svg)
 
-1. **Image** (or **Attach file**, depending on the model): attaches an image or a PDF to the message. See [Uploading Images](#uploading-images).
-2. **Anonymize**: finds names in the message and lets you choose what to hide. See [Anonymize](#anonymize).
-3. **Speech Input**: records your voice and writes what you said into the message. See [Speech Input](#speech-input).
-4. **Send**: sends the message.
-5. **Clear**: empties the message box.
+1. **Anonymize**: finds names in the message and lets you choose what to hide. See [Anonymize](#anonymize).
+2. **Speech Input**: records your voice and writes what you said into the message. See [Speech Input](#speech-input).
+3. **Send**: sends the message.
+4. **Clear**: empties the message box.
 
-The text of a document and of a web page are taken in from the [work screen](web-interface.md#work-screen): see [Reading Text from Document Files](#reading-text-from-document-files) and [Opening a URL](#reading-text-from-urls).
+The text of a document and of a web page are taken in from the [work screen](web-interface.md#work-screen): see [Reading Text from Document Files](#reading-text-from-document-files) and [Opening a URL](#reading-text-from-urls). Files for the AI go on the work screen too: see [Files for the AI](#files-for-the-ai).
 
 Enter a message in the text area and click the **Send** button to send it. For voice input, see [Speech Input](#speech-input) below.
 
@@ -25,51 +24,18 @@ Enter a message in the text area and click the **Send** button to send it. For v
 3. **Assistant (to add to past messages)**: added to the conversation as the AI's reply, without being sent.
 4. **System (to provide additional direction)**: added to the conversation as an instruction.
 
-## Uploading Images :id=uploading-images
+## Files for the AI :id=files-for-the-ai
 
-Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Cohere, DeepSeek, and Ollama vision models).
+The message box is for what you say to the AI. Files you want to look at together (images, PDFs, documents, audio, video, MIDI) go on the [work screen](web-interface.md#work-screen), the desk between you and the AI: click **Put a file** at the top of the work screen, or drop files there. Each file is kept in the chat's folder, and the AI is told with your next message what is on the work screen and what is in view; it looks at a file when your question needs it.
 
-Click **Image** (or **Image/PDF** for models that support PDF) to select an image. Supported formats: JPG, JPEG, PNG, GIF, WebP. Up to 5 images can be attached to a message.
+- **Images**: the AI looks at the image as it is. To point at a part of it, mark it on the work screen before you send.
+- **PDFs and documents**: the AI reads their text; with models that read files, a whole PDF (or, with OpenAI, a Word, Excel or PowerPoint document) is given as it is.
+- **Audio, video and MIDI** (up to 2 GB each): apps that analyze them take the file on the work screen, such as Video Describer, Speech Draft Helper, Music Tutor and Music Analyst.
+- **Images for a new image, video or music**: image generators edit the image on the work screen, and Video Generator and Music Generator start from the images you ask them to use.
 
-![Files attached to a message](../assets/images/figures/attachments.svg)
+A model that reads images but cannot use tools cannot look at the work screen itself: with each message, it is given the image or the part of the PDF page you have in view of the item you chose.
 
-1. The attached file. Click its name to look at it on the work screen before sending (the AI does not see that view; to look at a file together, put it on the work screen, as below).
-2. Removes the file from the message.
-
-After uploading the image, its name appears below the message input area with a delete button (×). The image is sent along with your text prompt, and the attachments are cleared once the message is sent.
-
-To look at a file of your computer together with the AI, put it on the work screen with **Put a file** at the top of the work screen, or drop it there; see [Work Screen](web-interface.md#work-screen).
-
-Attached images are downscaled in the browser before sending (long side up to 2000px, short side up to 768px). For full-resolution analysis of fine details, place the image file in the shared folder instead and ask the AI to analyze it — apps with the image-analysis skill read the original file directly and can be asked to use original fidelity.
-
-![A sent message with attachments](../assets/images/figures/sent-attachments.svg)
-
-1. An image, shown in the card of the message it was sent with.
-2. A PDF, shown by its name.
-
-## Uploading PDFs :id=uploading-pdfs
-
-Some providers (OpenAI, Anthropic Claude, Google Gemini) support PDF uploads. Click the **Image/PDF** button to attach a PDF file.
-
-?> **Anthropic Claude**: Claude apps support direct PDF upload for AI content recognition.
-
-The PDF is sent with the message it is attached to, and stays in the conversation history for later turns.
-
-## Uploading Extended Document Formats :id=uploading-extended-documents
-
-Some OpenAI models support an extended set of document formats through the File Inputs API. With such a model, the button reads **Attach file** and accepts the following formats in addition to images and PDFs (up to 50 MB; PDFs up to 35 MB):
-
-- Spreadsheets: `.xlsx`, `.csv`
-- Documents: `.docx`, `.pptx`, `.txt`, `.md`
-- Data/Markup: `.json`, `.html`, `.xml`
-
-Files are cached per session, so the same document is uploaded to OpenAI only once even if it is referenced across multiple turns.
-
-For models using the Responses API, you can also enter a file URL directly in the modal dialog instead of uploading a local file.
-
-## Attaching Video and Audio Files :id=attaching-video-audio
-
-In apps that analyze video or transcribe audio, the **Image** button also takes video files (MP4, M4V, MOV, WebM, MKV, AVI) or audio files (MP3, M4A, WAV, OGG, Opus, FLAC, AAC, WebM). The file is uploaded to the chat's folder and shown below the message box until you send the message. A message can be sent with attached files and no text. The files are listed on the message's card. Video Describer takes videos, and Speech Draft Helper takes audio files.
+When you send again a message of an earlier chat that was sent with files, those files are put on the work screen.
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 

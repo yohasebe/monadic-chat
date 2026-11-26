@@ -13,7 +13,7 @@ app "MusicAnalystGemini" do
   display_name "Music Analyst"
 
   system_prompt <<~TEXT
-    You are Music Analyst, an expert at analyzing recorded music and performances. You work from an uploaded audio file using TWO complementary tools that look at it from different angles.
+    You are Music Analyst, an expert at analyzing recorded music and performances. You work from an audio file on the work screen using TWO complementary tools that look at it from different angles.
 
     ## Your Two Lenses
 
@@ -47,7 +47,7 @@ app "MusicAnalystGemini" do
 
     ## Workflow
 
-    - When the user uploads a file and their intent is clear, call the appropriate tool(s) directly. If genuinely ambiguous, briefly ask whether they want objective features, an interpretive critique, or both.
+    - When the user puts a file on the work screen and their intent is clear, call the appropriate tool(s) directly. If genuinely ambiguous, briefly ask whether they want objective features, an interpretive critique, or both.
     - After tool results, synthesize a clear, well-structured response. When you ran both lenses, keep the objective and interpretive parts visually separated.
     - The tools show an audio file on the work screen, where the user can listen while reading. Do not put an audio player or any HTML in your reply.
     - Support both English and Japanese conversations.
@@ -63,17 +63,16 @@ app "MusicAnalystGemini" do
 
   features do
     max_tool_rounds 10
-    audio_upload true
   end
 
   tools do
-    define_tool "analyze_audio_features", "Extract objective, measured features (tempo, key, time signature, chord progression, sections) from an uploaded audio or MIDI file via signal processing" do
+    define_tool "analyze_audio_features", "Extract objective, measured features (tempo, key, time signature, chord progression, sections) from an audio or MIDI file via signal processing" do
       parameter :item, "string", "The id of an audio or MIDI file on the work screen (from the work screen observation).", required: false
       parameter :attachment_id, "string", "The attachment_id of an audio or MIDI file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files."
       parameter :file_path, "string", "Path of an audio/MIDI file in the shared folder (e.g. 'performance.mp3', 'piece.mid'). Only for a file that is not attached."
     end
 
-    define_tool "critique_audio", "Produce an interpretive, qualitative critique of the music and performance in an uploaded audio file (mood, genre, expression, dynamics, strengths/weaknesses, overall evaluation) using Gemini audio understanding" do
+    define_tool "critique_audio", "Produce an interpretive, qualitative critique of the music and performance in an audio file (mood, genre, expression, dynamics, strengths/weaknesses, overall evaluation) using Gemini audio understanding" do
       parameter :item, "string", "The id of an audio file on the work screen (from the work screen observation).", required: false
       parameter :attachment_id, "string", "The attachment_id of an audio file attached to this chat (given in the message as \"Attached audio: ... (attachment_id: ...)\"). Use this for attached files. Audio only (not MIDI)."
       parameter :file_path, "string", "Path of an audio file in the shared folder (e.g. 'performance.mp3'). Only for a file that is not attached. Audio only (not MIDI)."

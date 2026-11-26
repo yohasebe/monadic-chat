@@ -17,7 +17,6 @@ const PDF = 'data:application/pdf;base64,JVBERi0xLjQ=';
 
 describe('Attachments on the work screen', () => {
   let sent;
-  let drafts;
   let layout;
   let messages;
 
@@ -45,10 +44,6 @@ describe('Attachments on the work screen', () => {
     return sent.filter((x) => x.payload.message === 'WORKBENCH_OPEN_ATTACHMENT').pop();
   }
 
-  function changed() {
-    document.dispatchEvent(new CustomEvent('attachments:changed'));
-  }
-
   // Each test loads the script again: its handlers on the document go when
   // the test ends, so no earlier copy answers a later test's clicks.
   let added;
@@ -70,13 +65,11 @@ describe('Attachments on the work screen', () => {
     document.body.innerHTML = `
       <div id="discourse"></div>
       <div id="workbench-status"></div>
-      <div id="workbench-drafts" hidden></div>
       <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
       <textarea id="message"></textarea>`;
     sent = [];
-    drafts = [];
     messages = [];
     layout = { hidden: false, pane: 'settings' };
     window.LayoutController = {
@@ -88,7 +81,6 @@ describe('Attachments on the work screen', () => {
     window.WorkScreen = { refresh: jest.fn() };
     window.safeWsSend = (payload, opts) => sent.push({ payload, opts });
     window.SessionState = { getMessages: () => messages };
-    window.AttachmentDrafts = { list: () => drafts };
     window.WorkbenchPdf = { show: jest.fn(() => ({ dispose: jest.fn() })) };
     window.setAlert = jest.fn();
     // A board item's body is fetched; these tests look only at what the pane holds.
@@ -99,33 +91,13 @@ describe('Attachments on the work screen', () => {
     require(js('monadic/workbench.js'));
   });
 
-  test('lists what the next message carries above the board, and a name shows that file', () => {
-    drafts = [{ key: 'file:0:cat.png', kind: 'image', name: 'cat.png', size: 2048, data: PNG }];
-    changed();
-    const strip = document.getElementById('workbench-drafts');
-    expect(strip.hidden).toBe(false);
-    const chips = strip.querySelectorAll('.workbench-draft');
-    expect(Array.from(chips, (c) => c.textContent)).toEqual(['cat.png']);
-    expect(chips[0].classList.contains('mc-badge')).toBe(true);
-    chips[0].click();
-    expect(window.Workbench.shownAttachment()).toMatchObject({ source: 'draft', key: 'file:0:cat.png' });
-    expect(pane().hidden).toBe(false);
-    expect(pane().querySelector('img').getAttribute('src')).toBe(PNG);
-    expect(pane().querySelector('code').textContent).toBe('cat.png');
-    expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
-    expect(document.getElementById('workbench-drafts').querySelector('.workbench-draft').getAttribute('aria-pressed')).toBe('true');
-    drafts = [];
-    changed();
-    expect(strip.hidden).toBe(true);
-  });
-
   test('while an attachment is shown, nothing of the board is selected for a range or a look', () => {
     view([NOTES], { selected: 'i_t', selection_serial: 7 });
     window.Workbench.select('i_t');
     window.Workbench.onSelected({ type: 'workbench_selected', status: 'accepted', item_id: 'i_t', serial: 7,
                                   seq: lastSelect().payload.seq });
     expect(window.Workbench.rangeNow()).not.toBeNull();
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     expect(lastSelect().payload.item_id).toBeNull();
     expect(window.Workbench.rangeNow()).toBeNull();
     expect(pane().dataset.item).toBeUndefined();
@@ -142,7 +114,7 @@ describe('Attachments on the work screen', () => {
 
   test('choosing a board item puts the attachment away', () => {
     view([NOTES], { selected: null });
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     window.Workbench.select('i_t');
     expect(window.Workbench.shownAttachment()).toBeNull();
     expect(pane().dataset.local).toBeUndefined();
@@ -150,7 +122,7 @@ describe('Attachments on the work screen', () => {
 
   test('an item offered quietly leaves the attachment shown', () => {
     view([], { selected: null });
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
       selection_quiet: true });
     expect(window.Workbench.shownAttachment()).not.toBeNull();
@@ -160,7 +132,7 @@ describe('Attachments on the work screen', () => {
 
   test('an item first offered while the attachment is shown does not take the pane at a later offer', () => {
     view([], { selected: null });
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
       selection_quiet: true });
     window.Workbench.select('i_t');
@@ -176,7 +148,7 @@ describe('Attachments on the work screen', () => {
 
   test('a first view that offers an item quietly leaves the attachment shown and tells the server', () => {
     view([], { selected: null });
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     sent.length = 0;
     view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t',
       selection_quiet: true, initial: true });
@@ -186,7 +158,7 @@ describe('Attachments on the work screen', () => {
 
   test('a first view leaves the attachment shown over the open browser and tells the server', () => {
     view([], { selected: null });
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     sent.length = 0;
     const open = { id: 'i_b', kind: 'browser', actor: 'agent', version: 'browser:1', status: 'open' };
     view([NOTES, open], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES, open] }, selected: 'i_t',
@@ -197,7 +169,7 @@ describe('Attachments on the work screen', () => {
 
   test('a new item the server brings forward puts the attachment away, so what is shown is what is named', () => {
     view([], { selected: null });
-    window.Workbench.showAttachment({ source: 'draft', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+    window.Workbench.showAttachment({ source: 'message', key: 'file:0:cat.png', kind: 'image', name: 'cat.png', data: PNG });
     expect(window.Workbench.rangeNow()).toBeNull();
     view([NOTES], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [NOTES] }, selected: 'i_t' });
     expect(window.Workbench.shownAttachment()).toBeNull();
@@ -208,7 +180,7 @@ describe('Attachments on the work screen', () => {
   test('the same PDF shown again keeps its live view, and other data is drawn anew', () => {
     const restore = useRealBinaryGlobals();
     try {
-      const entry = { source: 'draft', key: 'file:0:a.pdf', kind: 'pdf', name: 'a.pdf', data: PDF };
+      const entry = { source: 'message', key: 'file:0:a.pdf', kind: 'pdf', name: 'a.pdf', data: PDF };
       window.Workbench.showAttachment(entry);
       window.Workbench.showAttachment(Object.assign({}, entry));
       expect(window.WorkbenchPdf.show).toHaveBeenCalledTimes(1);
@@ -223,24 +195,15 @@ describe('Attachments on the work screen', () => {
     }
   });
 
-  test('a removed attachment is no longer shown', () => {
-    drafts = [{ key: 'file:0:cat.png', kind: 'image', name: 'cat.png', size: 2048, data: PNG }];
-    window.Workbench.showAttachment(Object.assign({ source: 'draft' }, drafts[0]));
-    drafts = [];
-    changed();
-    expect(window.Workbench.shownAttachment()).toBeNull();
-    expect(pane().querySelector('img')).toBeNull();
-  });
-
   test('a PDF is drawn from its bytes and let go when another file is shown', () => {
     const restore = useRealBinaryGlobals();
     try {
-      window.Workbench.showAttachment({ source: 'draft', key: 'file:0:a.pdf', kind: 'pdf', name: 'a.pdf', data: PDF });
+      window.Workbench.showAttachment({ source: 'message', key: 'file:0:a.pdf', kind: 'pdf', name: 'a.pdf', data: PDF });
       expect(window.WorkbenchPdf.show).toHaveBeenCalledTimes(1);
       const bytes = window.WorkbenchPdf.show.mock.calls[0][1];
       expect([bytes[0], bytes[1], bytes[2], bytes[3]]).toEqual([0x25, 0x50, 0x44, 0x46]);
       const handle = window.WorkbenchPdf.show.mock.results[0].value;
-      window.Workbench.showAttachment({ source: 'draft', key: 'file:1:cat.png', kind: 'image', name: 'cat.png', data: PNG });
+      window.Workbench.showAttachment({ source: 'message', key: 'file:1:cat.png', kind: 'image', name: 'cat.png', data: PNG });
       expect(handle.dispose).toHaveBeenCalled();
     } finally {
       restore();
@@ -304,9 +267,7 @@ describe('Attachments on the work screen', () => {
     document.body.insertAdjacentHTML('beforeend',
       '<div id="workbenchZoom"><div class="modal-content"><img id="workbench-zoom-image" alt=""></div></div>');
     try {
-      drafts = [{ key: 'file:0:cat.png', kind: 'image', name: 'cat.png', size: 2048, data: PNG }];
-      changed();
-      document.querySelector('.workbench-draft').click();
+      window.Workbench.showAttachment({ source: 'message', key: 'message:m-1:cat.png', kind: 'image', name: 'cat.png', data: PNG });
       const img = pane().querySelector('img');
       expect(img.classList.contains('workbench-zoomable')).toBe(true);
       expect(img.tabIndex).toBe(0);
@@ -324,7 +285,7 @@ describe('Attachments on the work screen', () => {
   });
 
   describe('audio and video', () => {
-    const clip = { source: 'draft', key: 'attachment:a_1', kind: 'video', name: 'clip.mp4', size: 10, attachmentId: 'a_1' };
+    const clip = { source: 'message', key: 'attachment:a_1', kind: 'video', name: 'clip.mp4', size: 10, attachmentId: 'a_1' };
 
     test('are asked of the server by attachment id, and the item it opens is selected', () => {
       window.Workbench.showAttachment(clip);
@@ -363,52 +324,5 @@ describe('Attachments on the work screen', () => {
       expect(window.Workbench.shownAttachment()).toBeNull();
       expect(pane().querySelector('.alert')).toBeNull();
     });
-  });
-});
-
-describe('Name chips under the message box', () => {
-  const SOURCE = '../../docker/services/ruby/public/js/monadic/select_image.js';
-
-  beforeEach(() => {
-    document.body.innerHTML = `
-      <div id="image-used"></div>
-      <select id="apps"><option value="ChatApp" selected>ChatApp</option></select>
-      <select id="model"><option value="m" selected>m</option></select>
-      <button id="image-file"></button>
-      <div id="imageModal"><h5 id="imageModalLabel"></h5>
-        <input type="file" id="imageFile" accept=".jpg"><label for="imageFile">File to import</label>
-        <div id="select_image_error"></div><button id="uploadImage"></button></div>`;
-    global.$id = (id) => document.getElementById(id);
-    global.$show = () => {};
-    global.$hide = () => {};
-    global.setAlert = jest.fn();
-    global.getTranslation = (_key, fallback) => fallback;
-    window.escapeHtml = (s) => String(s).replace(/</g, '&lt;');
-    global.bootstrap = { Modal: { getOrCreateInstance: () => ({ show() {}, hide() {} }) } };
-    global.apps = { ChatApp: {} };
-    window.getMonadicTabId = () => 'tab 1';
-    window.monadicFetch = { postJson: jest.fn() };
-    window.Workbench = { showAttachment: jest.fn() };
-    jest.isolateModules(() => { require(SOURCE); });
-  });
-
-  test('name each file, and show the file on the work screen', () => {
-    const heard = jest.fn();
-    document.addEventListener('attachments:changed', heard);
-    window.restoreImages([{ title: 'cat.png', type: 'image/png', data: PNG },
-                          { title: 'a.pdf', type: 'application/pdf', data: PDF }]);
-    window.restoreVideoAttachments([{ attachment_id: 'a_1', name: 'clip.mp4', size: 1048576, purpose: 'video' }]);
-    expect(heard).toHaveBeenCalled();
-    const chips = document.querySelectorAll('#image-used .attachment-chip-name');
-    expect(chips).toHaveLength(3);
-    expect(document.querySelector('#image-used img')).toBeNull();
-    expect(window.AttachmentDrafts.list().map((d) => [d.kind, d.name])).toEqual(
-      [['image', 'cat.png'], ['pdf', 'a.pdf'], ['video', 'clip.mp4']]);
-    chips[1].click();
-    expect(window.Workbench.showAttachment).toHaveBeenLastCalledWith(
-      expect.objectContaining({ source: 'draft', kind: 'pdf', name: 'a.pdf', data: PDF }));
-    chips[2].click();
-    expect(window.Workbench.showAttachment).toHaveBeenLastCalledWith(
-      expect.objectContaining({ source: 'draft', kind: 'video', attachmentId: 'a_1' }));
   });
 });

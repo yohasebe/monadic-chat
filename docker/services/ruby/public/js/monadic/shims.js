@@ -164,80 +164,8 @@ window.shims.uiUtils = {
   // Hides any tooltip shown; the controls keep theirs
   cleanupAllTooltips: function() {
     if (window.MonadicTip) window.MonadicTip.hideAll();
-  },
-
-  // Adjusts image upload button based on selected model and app settings
-  adjustImageUploadButton: function(selectedModel) {
-    if (!modelSpec || !selectedModel) return;
-
-    var modelData = modelSpec[selectedModel];
-    var imageFileElement = $id('image-file');
-    var appsElement = $id('apps');
-    var currentApp = appsElement ? appsElement.value : null;
-
-    // Check if current app has image capability enabled
-    var toBool = window.toBool || (function(value) {
-      if (typeof value === 'boolean') return value;
-      if (typeof value === 'string') return value === 'true';
-      return !!value;
-    });
-
-    // Check if current app is an image generation app
-    var isImageGenerationApp = apps[currentApp] && toBool(apps[currentApp].image_generation);
-    var allowPdfInImageApp = currentApp === "ImageGeneratorGemini";
-
-    // Show button if model has vision capability OR if it's an image generation app
-    if ((modelData && modelData.vision_capability) || isImageGenerationApp) {
-      // Enable the button
-      if (imageFileElement) imageFileElement.disabled = false;
-
-      // Update button text based on PDF/File Inputs support and image generation capability (SSOT-aware)
-      var isPdfEnabled = (typeof window !== 'undefined' && window.isPdfSupportedForModel)
-        ? window.isPdfSupportedForModel(selectedModel)
-        : /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
-      var isFileInputsEnabled = (typeof window !== 'undefined' && window.isFileInputsSupportedForModel)
-        ? window.isFileInputsSupportedForModel(selectedModel)
-        : false;
-
-      // Button text labels
-      var imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
-      var imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
-      var fileText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.file') : 'File';
-
-      if (imageFileElement) {
-        if (isImageGenerationApp && !allowPdfInImageApp) {
-          imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
-        } else if (isImageGenerationApp && allowPdfInImageApp) {
-          imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
-        } else if (isFileInputsEnabled) {
-          imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.file">' + fileText + '</span>';
-        } else if (isPdfEnabled) {
-          imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
-        } else {
-          imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
-        }
-      }
-
-      // Update accept attribute if present
-      var imageFileInput = $id('imageFile');
-      if (imageFileInput) {
-        if (isFileInputsEnabled && !isImageGenerationApp) {
-          imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
-        } else if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
-          imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp');
-        } else {
-          imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
-        }
-      }
-
-      $show(imageFileElement);
-    } else {
-      if (imageFileElement) {
-        imageFileElement.disabled = true;
-        $hide(imageFileElement);
-      }
-    }
   }
+
 };
 
 // Form Handlers Shims. Routes through window.monadicFetch (which is

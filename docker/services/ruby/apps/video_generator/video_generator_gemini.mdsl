@@ -57,16 +57,11 @@ app "VideoGeneratorGemini" do
        - User describes a video → call generate_video_with_gemini(prompt: "...")
        - Pass user's prompt unchanged
 
-    2. **Image-to-Video (New Upload):**
-       - User uploads an image with video description
-       - Call generate_video_with_gemini directly
-       - The system automatically retrieves uploaded images from session
-       - The uploaded image filename is automatically saved for later reuse
-
-    2b. **Image-to-Video (an image on the work screen):**
+    2. **Image-to-Video (an image on the work screen):**
        - The user asks for a video from an image on the work screen ("this image", the one in view, one they name)
        - Call generate_video_with_gemini(prompt: "...", item: id) with the image item's id from the work screen observation
        - Pass item only when the user asks for that image to start the video
+       - The image's filename is saved for later reuse
 
     3. **Image-to-Video (Reuse Previous Image):**
        - User wants to create another video with the previously used image
@@ -144,7 +139,7 @@ app "VideoGeneratorGemini" do
 
     define_tool "generate_video_with_gemini", "Generate one 720p video of 3 to 10 seconds (24 fps, with a generated audio track) using Google's Gemini Omni model, from text or from an image that becomes its first frame." do
       parameter :prompt, "string", "The prompt to generate a video from (English gives the best results).", required: true
-      parameter :image_path, "string", "Optional: Filename of an image in the shared folder (PNG, JPEG or WebP) to start the video from (e.g., 'cat.jpg'). An image uploaded with the message is used automatically.", required: false
+      parameter :image_path, "string", "Optional: Filename of an image in the shared folder (PNG, JPEG or WebP) to start the video from (e.g., 'cat.jpg').", required: false
       parameter :item, "string", "Optional: an image item of the work screen (its id from the work screen observation) to start the video from, when the user asks for that image to be the first frame. Pass it only then: a video is not started from an image the user did not ask for.", required: false
       parameter :aspect_ratio, "string", "Optional: '16:9' (default) or '9:16'.", required: false, enum: ["16:9", "9:16"]
       parameter :duration, "integer", "Optional: Length in whole seconds, 3 to 10 (default 8).", required: false

@@ -12,7 +12,7 @@ Chat providers, each with its own vendor adapter:
 - **Mistral AI** — chat, code generation, vision, text-to-speech, and speech-to-text
 - **Cohere** — chat, vision, and speech-to-text
 - **xAI Grok** — chat, code generation, vision, image generation, video generation, text-to-speech, and speech-to-text
-- **DeepSeek** — chat and vision (with a model that cannot see images, an attached image switches the request to a vision model)
+- **DeepSeek** — chat and vision (with a model that cannot see images, a request with an image switches to a vision model)
 - **Ollama** — chat with local models on your own machine. Ollama runs natively on the host OS (not in a Docker container); vision and tool-calling support depend on the installed model. See [Using Ollama](/advanced-topics/ollama.md).
 
 Audio service:

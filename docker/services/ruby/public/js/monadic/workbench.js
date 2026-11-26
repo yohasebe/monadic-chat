@@ -300,29 +300,7 @@
     return wrap;
   }
 
-  // What the next message carries, above the board's items.
-  function drawDrafts() {
-    const strip = $id('workbench-drafts');
-    if (!strip) return;
-    const entries = window.AttachmentDrafts && typeof window.AttachmentDrafts.list === 'function'
-      ? window.AttachmentDrafts.list() : [];
-    strip.replaceChildren();
-    strip.hidden = entries.length === 0;
-    if (strip.hidden) return;
-    strip.appendChild(element('span', 'workbench-drafts-label', t('ui.workbench.toSend', 'To send')));
-    entries.forEach((entry) => {
-      const chip = element('button', 'mc-badge mc-badge--grey workbench-draft');
-      chip.type = 'button';
-      chip.textContent = entry.name || '';
-      chip.title = t('ui.workbench.showAttachment', 'Show on the work screen');
-      chip.setAttribute('aria-pressed', local && local.key === entry.key ? 'true' : 'false');
-      chip.addEventListener('click', () => showAttachment(Object.assign({ source: 'draft' }, entry)));
-      strip.appendChild(chip);
-    });
-  }
-
   function drawList() {
-    drawDrafts();
     const list = $id('workbench-items');
     if (!list) return;
     list.replaceChildren();
@@ -2818,6 +2796,20 @@
     for (const file of list.slice(0, PUT_AT_ONCE)) await putFile(file);
   }
 
+  // Files kept with a message as data ({ title, type, data: a data URL }),
+  // put on the work screen as files from the computer are.
+  function putDataFiles(entries) {
+    const files = (Array.isArray(entries) ? entries : []).filter((entry) => entry && typeof entry.data === 'string' &&
+      entry.data.startsWith('data:')).map((entry) => {
+      const comma = entry.data.indexOf(',');
+      const binary = atob(entry.data.slice(comma + 1));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new File([bytes], String(entry.title || 'file'), { type: String(entry.type || '') });
+    });
+    if (files.length) putFiles(files);
+  }
+
   // Whether a drag carries files from the computer.
   const carriesFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
 
@@ -3002,16 +2994,6 @@
                      data: file && typeof file.data === 'string' ? file.data : null });
   }
 
-  function onDraftsChanged() {
-    const entries = window.AttachmentDrafts && typeof window.AttachmentDrafts.list === 'function'
-      ? window.AttachmentDrafts.list() : [];
-    if (local && local.source === 'draft' && !entries.some((entry) => entry.key === local.key)) {
-      clearLocal();
-      drawView();
-    }
-    drawDrafts();
-  }
-
   // An image of the work screen is shown larger, over the whole window, on a
   // click (or Enter or Space); a click on the larger image, outside it, or
   // Esc closes it.
@@ -3052,7 +3034,6 @@
   }
 
   if (typeof document !== 'undefined') {
-    document.addEventListener('attachments:changed', onDraftsChanged);
     document.addEventListener('click', onCardClick);
     document.addEventListener('click', onZoomClick);
     document.addEventListener('keydown', onZoomKey);
@@ -3353,7 +3334,7 @@
 
   window.Workbench = {
     onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, onSentImage, onItemText, select, openFile, step,
-    showAttachment, onAttachmentOpened, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
+    showAttachment, onAttachmentOpened, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),

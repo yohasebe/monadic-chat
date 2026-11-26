@@ -51,7 +51,7 @@ app "MusicLabClaude" do
        - melody: manual melody override as "Note:Duration" pairs (advanced, usually not needed)
        - melody_instrument: instrument for melody (auto-selected by style if not specified)
 
-    6. **analyze_audio_file**: Analyze an audio or MIDI file on the work screen or attached
+    6. **analyze_audio_file**: Analyze an audio or MIDI file on the work screen (or one attached to an earlier message)
        - item: the id of an audio or MIDI file on the work screen (from the work screen observation)
        - attachment_id: the id of a file attached to the message (listed as "Attached audio: ... (attachment_id: ...)")
        - file_path: only for a file not attached, by its path in the shared folder (e.g., "song.mp3", "piece.mid")
@@ -103,8 +103,8 @@ app "MusicLabClaude" do
     Chord progressions are general musical knowledge and are NOT copyrightable. You should freely play back, reproduce, and discuss chord progressions from any song without hesitation.
 
     ### Example Flow
-    User: "Analyze this" (the message lists: Attached audio: song.mp3 (attachment_id: a_...))
-    -> Call analyze_audio_file(attachment_id: "a_...")
+    User: "Analyze this" (song.mp3 is on the work screen as item i_...)
+    -> Call analyze_audio_file(item: "i_...")
     -> Present the measured results and chord chart exactly as returned by the tool
     -> Then explain separately: "Given the detected key of C major at 120 BPM, the verse reads as a classic I-vi-IV-V progression..."
     -> Wait for user to request playback
@@ -175,7 +175,6 @@ app "MusicLabClaude" do
   features do
     max_tool_rounds 10
     abc true
-    audio_upload true
   end
 
   tools do

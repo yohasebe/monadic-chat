@@ -59,7 +59,7 @@ app "MusicGeneratorGemini" do
     - **Tempo, structure, or timing** — e.g. "around 120 BPM, a quiet intro
       building to a big chorus"
     - **Lyrics** for a song with vocals — e.g. "a song about a road trip, gentle vocals"
-    - **A reference image** — attach one and its mood and colors shape the music
+    - **A reference image** — put one on the work screen and its mood and colors shape the music
     - **Length** — a full song (default, a couple of minutes) or a quick
       30-second instrumental clip
 
@@ -80,8 +80,6 @@ app "MusicGeneratorGemini" do
       how much to embellish — default is: barely at all).
     - For a full song with singing, keep lyria_model: "pro" (default).
     - For a quick instrumental sketch, use lyria_model: "clip".
-    - If the user uploaded an image, it automatically influences the composition
-      (image-to-music) — no extra step needed; just describe what they want.
     - If the user asks for music from images on the work screen ("this picture",
       the ones in view, ones they name), pass their item ids as items.
     - If the user asks for high quality / lossless / WAV, pass output_format: "wav"
@@ -189,7 +187,7 @@ app "MusicGeneratorGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image_generation "upload_only"  # Enable image upload for image-to-music
+    image_generation "upload_only"
     group "Google"
   end
 
@@ -202,7 +200,7 @@ app "MusicGeneratorGemini" do
       parameter :lyria_model, "string", "Optional: 'pro' (default, full songs with optional vocals) or 'clip' (fast 30s instrumental).", required: false
       parameter :output_format, "string", "Optional: 'wav' for lossless audio (Pro model only; larger file) or 'mp3' (default).", required: false
       parameter :items, "array", "Optional: image items of the work screen (their ids from the work screen observation, up to 10) whose mood and colors shape the music, when the user asks for music from those images. Pass them only then.", required: false, items: { type: "string" }
-      parameter :session, "object", "Session object (automatically provided). Carries any uploaded images for image-to-music.", required: false
+      parameter :session, "object", "Session object (automatically provided).", required: false
     end
 
     define_tool "generate_music_with_elevenlabs", "Generate music with ElevenLabs Music instead of Lyria. Use ONLY when the user explicitly asks for ElevenLabs by name; never as a fallback when Lyria fails or as a silent substitute. In a chat, keeps the audio in this chat's folder and shows it on the work screen (no lyrics text); returns the service that made it." do

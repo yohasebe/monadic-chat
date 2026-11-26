@@ -591,7 +591,6 @@
     });
     $on($id('message'), 'input', () => { if (state.open) renderPreview(); });
     $on($id('voice'), 'click', noticeNotHidden);
-    $on($id('image-file'), 'click', noticeNotHidden);
     watchShown();
     render();
   }

@@ -305,7 +305,7 @@ class Figure:
 def input_buttons(table, color, title):
     """The buttons under the message box."""
     figure = Figure(color, title)
-    rows = [['image-file', 'anonymize', 'voice'], ['send', 'clear']]
+    rows = [['anonymize', 'voice'], ['send', 'clear']]
     specs = page_buttons([b for row in rows for b in row])
     y = 20 + 64 + 30
     for row in rows:
@@ -615,34 +615,6 @@ def voice_input(table, color, title):
     return figure
 
 
-def attachments(table, color, title):
-    """Files attached to the message, above the message box."""
-    figure = Figure(color, title)
-    source = read('public', 'js', 'monadic', 'select_image.js')
-    for needed in ('attachment-chip-name', 'remove-file', 'fa-file-pdf', 'fa-image', 'fa-times'):
-        if needed not in source:
-            raise SystemExit('select_image.js no longer makes an attachment chip with %s' % needed)
-    x, y, width = 20, 34, 520
-    cx = x
-    for icon, name in (('fa-image', 'photo.png'), ('fa-file-pdf', 'report.pdf')):
-        w = 12 + 13 + 6 + text_width(name) + 12
-        figure.add('<rect x="%.1f" y="%d" width="%.1f" height="%d" rx="4" fill="#ffffff" stroke="%s"/>'
-                   % (cx, y, w + 30, BUTTON_HEIGHT, color('border-color')))
-        iw = figure.icon('fas', icon, cx + 12, y + (BUTTON_HEIGHT - TEXT) / 2, TEXT, color('pal-grey-strong'))
-        figure.text(cx + 12 + iw + 6, y + BUTTON_HEIGHT / 2 + TEXT * 0.36, name)
-        figure.add('<rect x="%.1f" y="%d" width="22" height="20" rx="3" fill="%s"/>'
-                   % (cx + w + 4, y + 4, color('pal-grey-strong')))
-        figure.icon('fas', 'fa-times', cx + w + 10.5, y + 8.5, 11, '#ffffff')
-        if cx == x:                               # the two parts of a chip, marked once
-            figure.callout(cx + (w - 4) / 2, y - 13)
-            figure.callout(cx + w + 15, y - 13)
-        cx += w + 30 + 10
-    figure.field(x, y + 40, width, 64)
-    figure.lines(x + 14, y + 56, [width - 180])
-    figure.grow(x + width, y + 104)
-    return figure
-
-
 def card(figure, x, y, width, height, role, icon, name):
     """A message card: a white header over a body in the role's color."""
     color = figure.color
@@ -655,30 +627,6 @@ def card(figure, x, y, width, height, role, icon, name):
     figure.icon('fas', icon, x + 14, y + 12, 16, color('color-%s' % role))
     figure.text(x + 40, y + 25, name, 14, color('color-%s' % role), '700')
     figure.grow(x + width, y + height)
-
-
-def sent_attachments(table, color, title):
-    """A sent message with an image and a PDF, and the reply under it."""
-    figure = Figure(color, title)
-    source = read('public', 'js', 'monadic', 'card-renderer.js')
-    for needed in ('roleIcon = "fa-face-smile"', 'roleIcon = "fa-robot"', 'class="base64-image', 'class="pdf-preview',
-                   'fa-file-pdf'):
-        if needed not in source:
-            raise SystemExit('card-renderer.js no longer draws a card with %s' % needed)
-    x, y, width = 20, 20, 520
-    card(figure, x, y, width, 196, 'user', 'fa-face-smile', 'User')
-    figure.lines(x + 16, y + 58, [width - 200])
-    # The image as the card shows it, and the PDF as a line with its name
-    figure.add('<rect x="%d" y="%d" width="150" height="84" rx="4" fill="#ffffff" stroke="%s"/>'
-               % (x + 16, y + 78, color('border-color')))
-    figure.icon('fas', 'fa-image', x + 16 + 59, y + 78 + 26, 32, color('pal-grey-mid'))
-    figure.callout(x + 16 + 150 + 16, y + 88)
-    pdf_width = figure.icon('fas', 'fa-file-pdf', x + 16, y + 172, 14, color('pal-red-strong'))
-    name_width = figure.text(x + 16 + pdf_width + 8, y + 184, 'report.pdf')
-    figure.callout(x + 16 + pdf_width + 8 + name_width + 18, y + 179)
-    card(figure, x, y + 208, width, 106, 'assistant', 'fa-robot', 'Assistant')
-    figure.lines(x + 16, y + 208 + 58, [width - 60, width - 140])
-    return figure
 
 
 def realtime_text(table, color, title):
@@ -1424,8 +1372,6 @@ FIGURES = {
     'web-interface': (web_interface, {'en': 'The web interface', 'ja': 'Web インターフェース'}),
     'system-settings': (system_settings, {'en': 'System settings', 'ja': 'システム設定'}),
     'speech-panel': (speech_panel, {'en': 'Speech panel', 'ja': '音声パネル'}),
-    'attachments': (attachments, {'en': 'Files attached to a message', 'ja': 'メッセージに添付したファイル'}),
-    'sent-attachments': (sent_attachments, {'en': 'A sent message with attachments', 'ja': '添付つきで送ったメッセージ'}),
     'realtime-text': (realtime_text, {'en': 'Live transcript in the message box', 'ja': 'メッセージ入力欄に出る書き起こし'}),
     'menu-file': (desktop_menu('file'), {'en': 'The File menu', 'ja': 'File メニュー'}),
     'menu-actions': (desktop_menu('actions'), {'en': 'The Actions menu', 'ja': 'Actions メニュー'}),

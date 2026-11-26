@@ -2,7 +2,7 @@
 
 ##### Q: Can I send data other than text to the AI agent? :id=sending-non-text-data
 
-**A**: Yes, if the selected model supports it, you can attach images (JPG, JPEG, PNG, GIF, WebP) with the button below the message box, up to 5 per message. The button's label follows the model: `Image`, `Image/PDF` for models that also take PDF files (Anthropic Claude, OpenAI and Google Gemini models with vision), or `Attach file` for OpenAI models that take other files, such as Office documents and CSV, as well. In Video Describer and Speech Draft Helper, the same button attaches video or audio files.
+**A**: Yes. Put the files on the [work screen](../basic-usage/web-interface.md#work-screen) (images, PDFs, documents, audio, video): the AI looks at them when your question needs it, with a model that reads images. See [Files for the AI](../basic-usage/message-input.md#files-for-the-ai).
 
 For other media, place the file in the shared folder and specify the file name (no path required) in the message box to inform the AI agent. If the selected app supports it, the AI agent will read and process the file.
 
@@ -20,5 +20,5 @@ You can also click the `Speech Input` button to use voice input. Speech input us
 
 **A**: Yes, there are several ways to do this. In the [Knowledge Base](../apps/knowledge-base.md) browser you can use **Import file** to ingest the PDF into the project-wide vector database, and an app that searches the Knowledge Base answers using RAG (Retrieval-Augmented Generation). In the [`Code Interpreter`](../apps/coding-apps.md#code-interpreter) app you can also convert the PDF to Markdown programmatically and have the AI agent read the content so you can ask questions about it.
 
-In apps that use vision-capable models from Anthropic Claude, OpenAI, or Google Gemini, you can click the `Image/PDF` button below the text input box to upload a PDF file directly and ask the AI agent about its contents. The button dynamically allows PDF uploads when using models that support this feature. For more information, see [Uploading PDFs](../basic-usage/message-input.md#uploading-pdfs).
+You can also put a PDF on the [work screen](../basic-usage/web-interface.md#work-screen) and ask the AI agent about its contents: the AI reads its text, and with Anthropic Claude, OpenAI and Google Gemini models that read PDFs, it is given the whole PDF as it is. For more information, see [Files for the AI](../basic-usage/message-input.md#files-for-the-ai).
 

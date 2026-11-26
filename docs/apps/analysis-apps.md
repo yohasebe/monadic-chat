@@ -39,7 +39,7 @@ Web Insight is available with the providers marked in the [availability table](.
 
 Get a detailed description of a video. The app extracts frames and the audio from the video, and the AI describes what is seen and heard. Video Describer is available with OpenAI, Google Gemini, and xAI (Grok).
 
-**How to use**: put a video on the [work screen](../basic-usage/web-interface.md#work-screen), attach it with the attach button below the message box (`Attach file` or `Image`, depending on the model), or place a video file in the shared folder and give its name. Give the frames per second (fps) to check. You can send the video with or without text. The answer plays the video.
+**How to use**: put a video on the [work screen](../basic-usage/web-interface.md#work-screen), or place a video file in the shared folder and give its name. Give the frames per second (fps) to check. The answer plays the video.
 
 **Video files**: MP4, M4V, MOV, WebM, MKV, AVI, or MPEG, with a video track, up to 50 minutes long and 4096 pixels on each side. The format must match the file extension. A file that does not meet these conditions is not processed, and the reason is shown.
 

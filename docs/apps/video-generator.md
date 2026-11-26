@@ -8,15 +8,15 @@ Create videos from text descriptions (text-to-video) or from an image (image-to-
 
 **Key Features:**
 -   **Text-to-video generation**: Create videos from text descriptions
--   **Image-to-video generation**: Animate an image you upload in the conversation; the uploaded image is used without your naming it. You can also ask for a video from an image on the [work screen](../basic-usage/web-interface.md#work-screen) ("make a video from this image"): the image is read as it is when the video starts, and a work screen image is used only when you ask for it
+-   **Image-to-video generation**: Ask for a video from an image on the [work screen](../basic-usage/web-interface.md#work-screen) ("make a video from this image"): the image is read as it is when the video starts, and a work screen image is used only when you ask for it
 
 **Options by provider:**
--   **Google Gemini (Gemini Omni)**: 720p in 16:9 or 9:16, lasting 3 to 10 seconds (8 by default), with generated audio. An uploaded image becomes the first frame. You can also describe what to avoid in the video.
+-   **Google Gemini (Gemini Omni)**: 720p in 16:9 or 9:16, lasting 3 to 10 seconds (8 by default), with generated audio. The image you ask for becomes the first frame. You can also describe what to avoid in the video.
 -   **xAI (Grok)**: aspect ratio 16:9, 9:16, or 1:1, and a resolution of 720p or 480p. Text-to-video lasts 1 to 15 seconds, and image-to-video 6 to 15 seconds.
 
 **Usage:**
 1. For text-to-video: describe the video you want. Include the shot type, subject, action, setting, lighting, and camera movement
-2. For image-to-video: upload an image and describe how it should move
+2. For image-to-video: put an image on the work screen and describe how it should move
 
 ?> **Note:** Generated videos are kept in the chat's folder in the shared folder and shown on the work screen beside the chat.
 

@@ -347,11 +347,6 @@ module Monadic
           icon: "fa-music",
           label: "music",
           description: "ABC music notation and playback"
-        },
-        audio_upload: {
-          icon: "fa-microphone",
-          label: "audio input",
-          description: "Audio file upload and analysis"
         }
       }.freeze
     end

@@ -163,10 +163,10 @@ module MathTutor
 
     When writing mathematical expressions, use proper LaTeX format:
 
-    **For inline expressions:** Use single dollar signs `$...$`
-    - Example: `$a^2 + b^2 = c^2$`
-    - Example: `$\\frac{1}{2}$`
-    - Example: `$\\sqrt{x}$`
+    **For inline expressions:** Use `\\(...\\)`
+    - Example: `\\(a^2 + b^2 = c^2\\)`
+    - Example: `\\(\\frac{1}{2}\\)`
+    - Example: `\\(\\sqrt{x}\\)`
 
     **For block expressions:** Use double dollar signs `$$...$$`
     - Example: `$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$`
@@ -174,11 +174,11 @@ module MathTutor
 
     **IMPORTANT - Headers with Math:** When including math expressions in headers (####, ###, etc.):
     - Option 1 (Preferred): Use bold text instead of headers
-      - Instead of: `#### Example: $1 + 2 + ... + n = \\frac{n(n+1)}{2}$ Proof`
-      - Use: `**Example: $1 + 2 + ... + n = \\frac{n(n+1)}{2}$ Proof**`
+      - Instead of: `#### Example: \\(1 + 2 + ... + n = \\frac{n(n+1)}{2}\\) Proof`
+      - Use: `**Example: \\(1 + 2 + ... + n = \\frac{n(n+1)}{2}\\) Proof**`
     - Option 2: Separate header and math
       - Header: `#### Example: Sum of First n Natural Numbers`
-      - Math on next line: `$1 + 2 + ... + n = \\frac{n(n+1)}{2}$`
+      - Math on next line: `\\(1 + 2 + ... + n = \\frac{n(n+1)}{2}\\)`
 
     **CRITICAL LaTeX formatting rules:**
     - **Use single backslashes** for ALL LaTeX commands: `\\frac`, `\\sqrt`, `\\sum`, `\\begin`, `\\end`, `\\text`, etc.

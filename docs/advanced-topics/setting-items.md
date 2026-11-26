@@ -75,7 +75,6 @@ All settings in the features block are optional:
   - `false` - Disabled (default)
 - `mermaid` - Tell the model how to write Mermaid diagrams, and show the badge (Mermaid diagrams are drawn in every app)
 - `abc` - Enable ABC music notation
-- `math` - Enable LaTeX math rendering
 - `max_tool_rounds` - At most this many rounds of tool calls in a turn (otherwise 20; see [Feature Flags](monadic_dsl.md#feature-flags)). In any app, a tool called with the same arguments is not run a third time in a turn unless a call not made before in that turn came between
 
 #### Speech-to-Speech

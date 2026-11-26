@@ -247,7 +247,7 @@ module DeepSeekHelper
                   "mid" => request_id,
                   "role" => role,
                   "text" => obj["message"],
-                  "html" => markdown_to_html(obj["message"], math: obj["math"]),
+                  "html" => markdown_to_html(obj["message"]),
                   "lang" => detect_language(message),
                   "app_name" => obj["app_name"]
                 } }
@@ -1019,7 +1019,6 @@ module DeepSeekHelper
       assistant_message = {
         "role" => "assistant",
         "text" => kept,
-        "html" => markdown_to_html(kept, math: true),
         "lang" => detect_language(kept),
         "mid" => request_id,
         "active" => true,
@@ -1099,7 +1098,6 @@ module DeepSeekHelper
           assistant_message = {
             "role" => "assistant",
             "text" => kept,
-            "html" => markdown_to_html(kept, math: true),
             "lang" => detect_language(kept),
             "mid" => request_id,
             "active" => true,

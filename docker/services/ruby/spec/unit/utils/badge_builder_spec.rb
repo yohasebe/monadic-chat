@@ -189,26 +189,26 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     context "with features" do
       it "builds capability badges from features" do
         settings = {
-          features: { jupyter: true, math: true }
+          features: { jupyter: true, websearch: true }
         }
 
         result = described_class.build_all_badges(settings)
 
         expect(result[:capabilities].size).to eq(2)
-        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("jupyter", "math")
+        expect(result[:capabilities].map { |b| b[:id] }).to contain_exactly("jupyter", "websearch")
       end
 
       it "marks user-controlled features correctly" do
         settings = {
-          features: { math: true, jupyter: true }
+          features: { websearch: true, jupyter: true }
         }
 
         result = described_class.build_all_badges(settings)
 
-        math_badge = result[:capabilities].find { |b| b[:id] == "math" }
+        websearch_badge = result[:capabilities].find { |b| b[:id] == "websearch" }
         jupyter_badge = result[:capabilities].find { |b| b[:id] == "jupyter" }
 
-        expect(math_badge[:user_controlled]).to be true
+        expect(websearch_badge[:user_controlled]).to be true
         expect(jupyter_badge[:user_controlled]).to be false
       end
 

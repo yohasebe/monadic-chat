@@ -120,7 +120,7 @@ end
 
 ## 以前のバージョンの設定
 
-MDSL ファイルの `monadic`、`turn_state`、`context_schema` は、読み込まれますが使われません。削除してかまいません。
+MDSL ファイルの `monadic`、`turn_state`、`context_schema`、`math`、`audio_upload` は、読み込まれますが使われません。削除してかまいません。
 
 ## 関連項目
 

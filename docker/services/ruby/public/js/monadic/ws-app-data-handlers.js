@@ -608,9 +608,6 @@ function handleAppsMessage(data) {
         const toolsBadge = $id("tools-badge");
         $toggle(toolsBadge, selectedApp["tools"]);
 
-        const mathBadge = $id("math-badge");
-        $toggle(mathBadge, selectedApp["math"]);
-
         const iconEl = $id("base-app-icon");
         if (iconEl) iconEl.innerHTML = selectedApp["icon"];
 

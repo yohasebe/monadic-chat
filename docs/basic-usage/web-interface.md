@@ -124,10 +124,10 @@ The sidebar has four tabs at the top: **Menu**, which holds the following panels
 The tabs, and the bar with **Current settings** above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab. On a narrow window, the sidebar and the conversation take turns at the full width.
 
 **Monadic Chat Info**<br />
-Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the **Web Search** and **Math Rendering** switches, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
+Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the **Web Search** switch, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
 
 - **Web Search**: Allow the AI to search the web for current information. Available for models that support tool/function calling. In [Live Conversation](../apps/chat-apps.md#live-conversation), web search is part of the app's own **Search and compute** switch instead (off by default).
-- **Math Rendering**: Render mathematical expressions using KaTeX. When it is off, the model is asked to write formulas in plain text or Unicode, and to return LaTeX source, when you ask for it, in a code block.
+- **Formulas**: formulas in answers are drawn with KaTeX in every app. A formula is written as `\( … \)` in a line, or `\[ … \]` or `$$ … $$` on a line of its own; `$ … $` is also read as a formula, but an amount such as $5 is shown as it is.
 
 **AI Assistant & AI User**<br />
 The models in use for the assistant and for the AI User feature, and the statistics of the current session (message and token counts).

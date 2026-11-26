@@ -110,10 +110,6 @@ module MDSLSchema
       type: :boolean,
       description: "Enable Jupyter notebook support"
     },
-    math: {
-      type: :boolean,
-      description: "Enable math rendering (KaTeX)"
-    },
     websearch: {
       type: :boolean,
       description: "Enable web search capability"

@@ -67,7 +67,6 @@ app "CodingAssistantOllama" do
     work_screen "code"
     easy_submit false
     auto_speech false
-    math false
     initiate_from_assistant false
     group "Ollama"
   end

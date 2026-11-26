@@ -60,7 +60,7 @@ To keep client rendering deterministic, the server must send:
 
 - `text`: Markdown (raw string, no HTML)
 - `app_name`: the app's name
-- Feature flags (KaTeX, Mermaid, ABC) in `params`
+- Feature flags (Mermaid, ABC) in `params`
 
 ## Tab isolation
 

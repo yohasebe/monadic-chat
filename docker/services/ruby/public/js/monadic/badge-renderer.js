@@ -192,7 +192,7 @@ function getBadgeColorClass(badge) {
  */
 function getUserControlCheckbox(featureId) {
   if ($id(featureId)) return featureId;
-  var legacyMapping = { 'math': 'math', 'mermaid': 'mermaid', 'websearch': 'websearch' };
+  var legacyMapping = { 'mermaid': 'mermaid', 'websearch': 'websearch' };
   return legacyMapping[featureId];
 }
 

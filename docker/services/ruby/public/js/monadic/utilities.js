@@ -722,10 +722,6 @@ window.loadParams = function(params, calledFor = "loadParams") {
       initiateFromAssistantCb.checked = toBool(params["initiate_from_assistant"]);
     }
   }
-  const mathCb = $id("math");
-  const mathBadge = $id("math-badge");
-  if (mathCb) mathCb.checked = toBool(params["math"]);
-  $toggle(mathBadge, toBool(params["math"]));
 
   const initialPromptEl = $id("initial-prompt");
   if (initialPromptEl) {
@@ -1057,8 +1053,6 @@ function setParams() {
     params["initiate_from_assistant"] = false;
   }
 
-  const mathEl = $id("math");
-  params["math"] = mathEl ? mathEl.checked : false;
 
   // Knowledge Base (RAG) session toggle. It must round-trip through the submit
   // so the backend reflects the visible toggle: RESET clears session[:parameters]
@@ -1512,8 +1506,6 @@ function doResetActions(resetToDefaultApp = false) {
   const drToolsBadge = $id("tools-badge");
   $toggle(drToolsBadge, apps[currentApp]["tools"]);
 
-  const drMathBadge = $id("math-badge");
-  $toggle(drMathBadge, toBool(apps[currentApp]["math"]));
 
   const drBaseAppIcon = $id("base-app-icon");
   if (drBaseAppIcon) drBaseAppIcon.innerHTML = apps[currentApp]["icon"];
@@ -1640,7 +1632,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   // Handle checkbox changes for user-controlled capabilities
-  ["math", "mermaid", "websearch"].forEach(id => {
+  ["mermaid", "websearch"].forEach(id => {
     const el = $id(id);
     if (el) {
       el.addEventListener("change", function() {

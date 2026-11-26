@@ -578,7 +578,7 @@ module StringUtils
     nil
   end
 
-  def markdown_to_html(text, math: false)
+  def markdown_to_html(text)
     # if text is not a String, return a string representation of it
     return text.to_s unless text.is_a?(String)
 
@@ -629,189 +629,22 @@ module StringUtils
       }
     }
 
-    if math
-      # === Math Expression Processing Algorithm ===
-      # 1. Protect code blocks first (as they might contain math-like syntax)
-      # 2. Convert \[...\] and \(...\) to $$...$$ and $...$ outside code blocks
-      # 3. Detect and protect math expressions
-      # 4. Render markdown
-      # 5. Restore protected math expressions and code blocks into HTML
-
-      # Arrays to store math expressions
-      block_math = []
-      inline_math = []
-
-      # First protect code blocks (to prevent math expressions being processed within code)
-      # Use non-greedy matching with careful pattern to match fenced code blocks
-      code_blocks = []
-      t4 = t3.gsub(/```(?:[a-zA-Z0-9+\-]*)\n[\s\S]*?\n```|`[^`]*`/m) do |match|
-        code_blocks << match
-        "CODE_BLOCK_PLACEHOLDER_#{code_blocks.size - 1}"
-      end
-
-      # Fix common LLM output issues with math environments
-      # Replace $\begin{align}...\end{align}$ with proper display math
-      t4 = t4.gsub(/\$\s*\\begin\{(align|align\*|equation|equation\*|gather|gather\*|alignat|alignat\*)\}([\s\S]*?)\\end\{\1\}\s*\$/m) do
-        env = $1
-        content = $2
-        "\\begin{#{env}}#{content}\\end{#{env}}"
-      end
-
-      # Process the text outside of code blocks
-      result = ""
-      current_pos = 0
-
-      # Identify all code block positions
-      code_blocks_positions = []
-      t4.scan(/CODE_BLOCK_PLACEHOLDER_\d+/) do |match|
-        start_pos = Regexp.last_match.begin(0)
-        end_pos = Regexp.last_match.end(0)
-        code_blocks_positions << [start_pos, end_pos, match]
-      end
-
-      # Sort positions by start position
-      code_blocks_positions.sort_by! { |pos| pos[0] }
-
-      # Process text in segments, skipping code blocks
-      last_end = 0
-      code_blocks_positions.each do |start_pos, end_pos, placeholder|
-        if start_pos > last_end
-          # Process the segment before this code block
-          segment = t4[last_end...start_pos]
-
-          # Convert \[...\] to $$...$$
-          segment = segment.gsub(/\\\[(.*?)\\\]/m) { "$$#{$1}$$" }
-
-          # Convert \(...\) to $...$
-          segment = segment.gsub(/\\\((.*?)\\\)/m) { "$#{$1}$" }
-
-          result += segment
-        end
-
-        # Add the code block placeholder unchanged
-        result += placeholder
-        last_end = end_pos
-      end
-
-      # Process any remaining text after the last code block
-      if last_end < t4.length
-        segment = t4[last_end..-1]
-
-        # Convert \[...\] to $$...$$
-        segment = segment.gsub(/\\\[(.*?)\\\]/m) { "$$#{$1}$$" }
-
-        # Convert \(...\) to $...$
-        segment = segment.gsub(/\\\((.*?)\\\)/m) { "$#{$1}$" }
-
-        result += segment
-      end
-
-      # If there were no code blocks, process the entire text
-      if code_blocks_positions.empty?
-        # Convert \[...\] to $$...$$
-        result = t4.gsub(/\\\[(.*?)\\\]/m) { "$$#{$1}$$" }
-
-        # Convert \(...\) to $...$
-        result = result.gsub(/\\\((.*?)\\\)/m) { "$#{$1}$" }
-      end
-
-      t4_6 = result
-
-      # Protect block math expressions - $$...$$
-      t5 = t4_6.gsub(/\$\$([\s\S]*?)\$\$/m) do |match|
-        content = Regexp.last_match(1)
-        block_math << content
-        "BLOCK_MATHJAX_PLACEHOLDER_#{block_math.size - 1}"
-      end
-
-      # Protect block math expressions - \[...\] (any remaining after conversion)
-      t6 = t5.gsub(/\\\[([\s\S]*?)\\\]/m) do |match|
-        content = Regexp.last_match(1)
-        block_math << content
-        "BLOCK_MATHJAX_PLACEHOLDER_#{block_math.size - 1}"
-      end
-
-      # Protect inline math expressions (multiple patterns)
-      # $...$ pattern - avoid $ that appears in the middle of words
-      t7 = t6.gsub(/(?<!\w)\$((?!\s)[\s\S]*?(?<!\s))\$(?!\w)/m) do |match|
-        content = Regexp.last_match(1)
-        inline_math << content
-        "INLINE_MATHJAX_PLACEHOLDER_#{inline_math.size - 1}"
-      end
-
-      # \(...\) pattern (any remaining after conversion)
-      t8 = t7.gsub(/\\\(([\s\S]*?)\\\)/m) do |match|
-        content = Regexp.last_match(1)
-        inline_math << content
-        "INLINE_MATHJAX_PLACEHOLDER_#{inline_math.size - 1}"
-      end
-
-      # Convert Markdown to HTML
-      t8_utf8 = t8.dup.force_encoding('UTF-8')
-      html = Commonmarker.to_html(t8_utf8, options: options)
-      code_block_placeholders.each do |block|
-        html.gsub!(/#{block[:placeholder]}(?!\d)/) { block[:html] }
-      end
-      html = convert_fenced_code_html(html)
-
-      # Get theme settings
-      theme_mode = CONFIG["ROUGE_THEME"] || "github:light"
-      theme, mode = theme_mode.split(":")
-      mode = mode || "light"
-
-      # Apply syntax highlighting - but save for after restoring code blocks
-      highlighted_html = html.dup
-
-      # A placeholder is put back by its whole number (10 is not 1 followed
-      # by 0), with its text as it is (a backslash in it is not a pattern).
-      # Restore code blocks first to ensure proper syntax highlighting
-      code_blocks.each_with_index do |code, index|
-        # First handle code blocks wrapped in <p> tags
-        html.gsub!(%r{<p>CODE_BLOCK_PLACEHOLDER_#{index}</p>}) { code }
-        # Then handle any remaining placeholders
-        html.gsub!(/CODE_BLOCK_PLACEHOLDER_#{index}(?!\d)/) { code }
-      end
-
-      # Now apply syntax highlighting after code blocks are properly restored
-      html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
-
-      # Restore block math expressions
-      block_math.each_with_index do |code, index|
-        # Extract math expressions from within <p> tags if present
-        html.gsub!(%r{<p>BLOCK_MATHJAX_PLACEHOLDER_#{index}</p>}) { "$$#{code}$$" }
-        # Handle other cases with normal replacement
-        html.gsub!(/BLOCK_MATHJAX_PLACEHOLDER_#{index}(?!\d)/) { "$$#{code}$$" }
-      end
-
-      # Restore inline math expressions
-      inline_math.each_with_index do |code, index|
-        placeholder = /INLINE_MATHJAX_PLACEHOLDER_#{index}(?!\d)/
-        # Use \(...\) format for expressions with \text{} or other complex commands
-        if code.include?('\\text') || code.include?('\\math') || code.count('\\') > 2
-          html.gsub!(placeholder) { "\\(#{code}\\)" }
-        else
-          # Use $...$ format for simpler expressions
-          html.gsub!(placeholder) { "$#{code}$" }
-        end
-      end
-    else
-      # Convert markdown to HTML using Commonmarker
-      # Ensure text is UTF-8 encoded
-      t3_utf8 = t3.dup.force_encoding('UTF-8')
-      html = Commonmarker.to_html(t3_utf8, options: options)
-      code_block_placeholders.each do |block|
-        html.gsub!(/#{block[:placeholder]}(?!\d)/) { block[:html] }
-      end
-      html = convert_fenced_code_html(html)
-
-      # Get theme settings
-      theme_mode = CONFIG["ROUGE_THEME"] || "github:light"
-      theme, mode = theme_mode.split(":")
-      mode = mode || "light"
-
-      # Convert CommonMarker output format and apply current theme
-      html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
+    # Convert markdown to HTML using Commonmarker
+    # Ensure text is UTF-8 encoded
+    t3_utf8 = t3.dup.force_encoding('UTF-8')
+    html = Commonmarker.to_html(t3_utf8, options: options)
+    code_block_placeholders.each do |block|
+      html.gsub!(/#{block[:placeholder]}(?!\d)/) { block[:html] }
     end
+    html = convert_fenced_code_html(html)
+
+    # Get theme settings
+    theme_mode = CONFIG["ROUGE_THEME"] || "github:light"
+    theme, mode = theme_mode.split(":")
+    mode = mode || "light"
+
+    # Convert CommonMarker output format and apply current theme
+    html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
 
     # Restore bold placeholders
     all_bold_items.each_with_index do |content, index|

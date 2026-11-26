@@ -119,79 +119,6 @@
     });
   }
 
-  // ── KaTeX ──────────────────────────────────────────────────────────
-
-  // The page's macros (markdown-renderer.js, loaded before this file)
-  var katexMacros = window.MarkdownRenderer.katexMacros;
-
-  function renderKatexInHTML(html) {
-    if (typeof katex === 'undefined') return html;
-
-    // Protect vocabulary substitution tokens (${TOKEN}, TOKEN = UPPER_CASE) so
-    // their `$` characters are never paired as inline-math delimiters. Restored
-    // to the literal `${TOKEN}` at the end. Mirrors the placeholder strategy in
-    // markdown-renderer.js. This path is a degraded fallback (only reached when
-    // MarkdownRenderer is unavailable), but protecting it keeps token handling
-    // consistent across both renderers. Pattern matches the walker regex exactly.
-    var vocabTokens = [];
-    html = html.replace(/\$\{([A-Z][A-Z_]*)\}/g, function(match) {
-      var index = vocabTokens.length;
-      vocabTokens.push(match);
-      return 'VOCAB_TOKEN_PLACEHOLDER_' + index;
-    });
-
-    // Display math: $$...$$ (may span multiple lines)
-    html = html.replace(/\$\$([\s\S]+?)\$\$/g, function(match, tex) {
-      try {
-        return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
-      } catch (e) { return match; }
-    });
-
-    // Display math: \[...\]
-    html = html.replace(/\\\[([\s\S]+?)\\\]/g, function(match, tex) {
-      try {
-        return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
-      } catch (e) { return match; }
-    });
-
-    // Inline math: $...$ (single line, not preceded by \)
-    html = html.replace(/(?<![\\$])\$([^\n$]+?)\$(?!\$)/g, function(match, tex) {
-      try {
-        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
-      } catch (e) { return match; }
-    });
-
-    // Inline math: \(...\)
-    html = html.replace(/\\\(([\s\S]+?)\\\)/g, function(match, tex) {
-      try {
-        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
-      } catch (e) { return match; }
-    });
-
-    // Restore vocabulary tokens to their literal `${TOKEN}` form.
-    vocabTokens.forEach(function(original, index) {
-      html = html.replace(new RegExp('VOCAB_TOKEN_PLACEHOLDER_' + index, 'g'), function() { return original; });
-    });
-
-    return html;
-  }
-
-  function applyMath(element) {
-    var domElement = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
-    if (!domElement) return;
-    if (domElement.classList.contains("diagram")) {
-      return;
-    }
-
-    if (typeof katex === 'undefined') {
-      return;
-    }
-
-    // KaTeX rendering is now done at markdown-renderer level (placeholder → rendered HTML).
-    // This function remains as a fallback for any remaining raw delimiters.
-    domElement.innerHTML = renderKatexInHTML(domElement.innerHTML);
-  }
-
   // ── Mermaid ────────────────────────────────────────────────────────
 
   // ── DrawIO viewer lazy loader ─────────────────────────────────────
@@ -624,7 +551,6 @@
   var ns = {
     renderMessage: renderMessage,
     setCopyCodeButton: setCopyCodeButton,
-    applyMath: applyMath,
     abcCursorControl: abcCursorControl,
     abcClickListener: abcClickListener,
     applyAbc: applyAbc,
@@ -639,7 +565,6 @@
   window.WsContentRenderer = ns;
 
   // Backward-compat individual exports
-  window.applyMath = applyMath;
   window.applyDrawIO = applyDrawIO;
   window.applyAbc = applyAbc;
   window.applyToggle = applyToggle;

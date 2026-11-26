@@ -131,7 +131,7 @@ module WebSocketHelper
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s
-        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "math", "mermaid", "abc", "websearch", "jupyter", "image_generation", "video", "library_save", "library_search", "show_thinking"].include?(p.to_s)
+        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "mermaid", "abc", "websearch", "jupyter", "image_generation", "video", "library_save", "library_search", "show_thinking"].include?(p.to_s)
           # Preserve boolean values for feature flags
           # These need to be actual booleans, not strings, for proper JavaScript evaluation
           apps[k][p] = m
@@ -194,9 +194,6 @@ module WebSocketHelper
 
     # Debug logging for message filtering (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log { "prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name || 'NONE'})" }
-
-    params_for_render = params
-    math_enabled = params_for_render["math"].to_s == "true"
 
     filtered_messages
   end

@@ -214,21 +214,11 @@
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(\\*)(?!\\*)', 'g'), '$1\u200B$2');
       text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(_)(?!_)', 'g'), '$1\u200B$2');
 
-      // 1. Protect math block expressions (KaTeX) behind placeholders
-      const mathBlocks = [];
-      text = text.replace(/\$\$([\s\S]+?)\$\$/g, (match, content) => {
-        const index = mathBlocks.length;
-        mathBlocks.push(content);
-        return `MATH_BLOCK_PLACEHOLDER_${index}`;
-      });
-
-      // 2. Protect math inline expressions (KaTeX) behind placeholders
-      const mathInline = [];
-      text = text.replace(/\$(.+?)\$/g, (match, content) => {
-        const index = mathInline.length;
-        mathInline.push(content);
-        return `MATH_INLINE_PLACEHOLDER_${index}`;
-      });
+      // 1-2. Protect math (KaTeX) behind placeholders (extractMath)
+      const extracted = MarkdownRenderer.extractMath(text);
+      text = extracted.text;
+      const mathBlocks = extracted.blocks;
+      const mathInline = extracted.inlines;
 
       // 3. Protect ABC notation behind placeholders
       const abcBlocks = [];
@@ -444,6 +434,40 @@
 
   // Export to global scope
   MarkdownRenderer.katexMacros = katexMacros;
+
+  // Code: a fenced block (to its closing fence, or to the end) or a code
+  // span. Nothing in it is math.
+  const CODE = /(^|\n)[ ]{0,3}(`{3,}|~{3,})[^\n]*(?:[\s\S]*?\n[ ]{0,3}\2[`~]*[ \t]*(?=\n|$)|[\s\S]*$)|(`+)[\s\S]*?[^`]\3(?!`)/g;
+  // Math: $$...$$ and \[...\] on their own; \(...\) and $...$ in a line. A
+  // single $ follows Pandoc's rule: the opening one is not followed by a
+  // space, the closing one is not after a space and not before a digit, so
+  // "$5 and $10" is not math. \$ is a dollar sign.
+  const MATH = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|(?<![\\$])\$(?![\s$])([^\n$]*?[^\s\\$])\$(?!\d|\$)/g;
+
+  // The math of the text outside code, each put in the text as a
+  // placeholder (MATH_BLOCK_PLACEHOLDER_n, MATH_INLINE_PLACEHOLDER_n).
+  MarkdownRenderer.extractMath = function(text) {
+    const blocks = [];
+    const inlines = [];
+    const take = (part) => part.replace(MATH, (match, dollars, bracket, paren, single) => {
+      if (dollars !== undefined || bracket !== undefined) {
+        blocks.push(dollars !== undefined ? dollars : bracket);
+        return `MATH_BLOCK_PLACEHOLDER_${blocks.length - 1}`;
+      }
+      inlines.push(paren !== undefined ? paren : single);
+      return `MATH_INLINE_PLACEHOLDER_${inlines.length - 1}`;
+    });
+    let out = '';
+    let last = 0;
+    text.replace(CODE, (match, ...args) => {
+      const at = args[args.length - 2];
+      out += take(text.slice(last, at)) + match;
+      last = at + match.length;
+      return match;
+    });
+    out += take(text.slice(last));
+    return { text: out, blocks, inlines };
+  };
   window.MarkdownRenderer = MarkdownRenderer;
 
 })(window);

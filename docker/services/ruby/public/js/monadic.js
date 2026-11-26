@@ -50,8 +50,6 @@ function sanitizeParamsForSync(source) {
   clone.easy_submit = (easySubmitEl && easySubmitEl.checked) || false;
   const autoSpeechEl = $id("check-auto-speech");
   clone.auto_speech = (autoSpeechEl && autoSpeechEl.checked) || false;
-  const mathEl = $id("math");
-  clone.math = (mathEl && mathEl.checked) || false;
   const initiateEl = $id("initiate-from-assistant");
   clone.initiate_from_assistant = (initiateEl && initiateEl.checked) || false;
 
@@ -520,8 +518,6 @@ document.addEventListener("DOMContentLoaded", function () {
     var indicators = "";
     var websearchCb = $id("websearch");
     if (websearchCb && websearchCb.checked) indicators += '<span class="mc-badge mc-badge--blue me-1">Web Search</span>';
-    var mathCb = $id("math");
-    if (mathCb && mathCb.checked) indicators += '<span class="mc-badge mc-badge--grey me-1">Math</span>';
     // Knowledge Base access indicator: an app with the shared library_search
     // tool, when the sidebar "Use Knowledge Base for retrieval" toggle is ON
     // (checked AND enabled — a checked-but-disabled toggle means this app
@@ -2032,8 +2028,6 @@ document.addEventListener("DOMContentLoaded", function () {
       console.warn(`App '${appValue}' not found in apps object`);
       return;
     }
-    // Preserve important values before Object.assign overwrites them
-    const currentMathjax = ($id("math") || {}).checked;
     // Preserve previous values only during import flows
     const importingFlow = (typeof window !== 'undefined') && (window.isImporting || window.isProcessingImport);
 
@@ -2089,10 +2083,6 @@ document.addEventListener("DOMContentLoaded", function () {
         // Default back to user-first conversations when the app does not specify the flag.
         params['initiate_from_assistant'] = false;
       }
-    }
-    // Restore math state if not explicitly set in app parameters
-    if (apps[appValue] && !apps[appValue].hasOwnProperty('math')) {
-      params['math'] = currentMathjax;
     }
     
     // Ensure loadParams runs even if another async selection is in progress
@@ -2271,14 +2261,6 @@ document.addEventListener("DOMContentLoaded", function () {
       $hide($id("websearch-badge"));
     }
 
-    if (toBool(apps[appValue]["math"])) {
-      { const el = $id("math"); if (el) el.checked = true; }
-      $show($id("math-badge"));
-    } else {
-      { const el = $id("math"); if (el) el.checked = false; }
-      $hide($id("math-badge"));
-    }
-
     if (window.VocabularyPanel && typeof window.VocabularyPanel.renderForApp === 'function') {
       window.VocabularyPanel.renderForApp(appValue);
     }
@@ -2378,21 +2360,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  $on($id("math"), "change", function() {
-    if (this.checked) {
-      params["math"] = true;
-    } else {
-      params["math"] = false;
-    }
-    // Update badges to reflect toggle state
-    const selectedApp = ($id("apps") || {}).value;
-    if (selectedApp && typeof window.updateAppBadges === 'function') {
-      window.updateAppBadges(selectedApp);
-    }
-    if (!isParamBroadcastSuppressed()) {
-      broadcastParamsUpdate('math_toggle');
-    }
-  });
 
   // Initialize page state based on screen width when document is ready
   (function() {
@@ -2656,7 +2623,6 @@ document.addEventListener("DOMContentLoaded", function () {
       window.safeWsSend({
         message: "SYSTEM_PROMPT",
         content: ($id("initial-prompt") || {}).value,
-        math: ($id("math") || {}).checked,
         websearch: params["websearch"],
         jupyter: params["jupyter"],
         conversation_language: params["conversation_language"] || "auto",

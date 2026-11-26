@@ -2,7 +2,7 @@
 
 Two music apps: Music Tutor teaches music theory with explanations, playable scores, and backing patterns, and Music Analyst analyzes audio or MIDI files and gives interpretive feedback on recorded performances. To make new music as an audio file from a text description, use [Music Generator](music-generator.md).
 
-In both apps, put an audio or MIDI file on the [work screen](../basic-usage/web-interface.md#work-screen), or attach it with the **Audio/MIDI** button or the attach button below the message box. The file is kept in the chat's folder and goes with your next message. Before sending, click the attached file's name to play an audio file on the [work screen](../basic-usage/web-interface.md#work-screen); MIDI files are not played there.
+In both apps, put an audio or MIDI file on the [work screen](../basic-usage/web-interface.md#work-screen), or attach it with the attach button below the message box. The file is kept in the chat's folder and goes with your next message. Before sending, click the attached file's name to play an audio file on the [work screen](../basic-usage/web-interface.md#work-screen); MIDI files are not played there.
 
 ## Music Tutor :id=music-tutor
 

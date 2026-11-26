@@ -1054,7 +1054,6 @@
                       <div id="asr-p-value" class="textbox-caption me-2"></div>
                     </span>
                     <button id="word-table-status" type="button" class="word-table-status me-2" style="display: none;"></button>
-                    <button id="audio-upload" class="btn btn-sm btn-warning me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
               </div>
@@ -1480,28 +1479,6 @@
               <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.load">Load</button>
             </div>
           </form>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog class="mdialog" id="audioUploadModal" aria-labelledby="audioUploadModalLabel">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="audioUploadModalLabel"><i class="fas fa-music"></i> <span data-i18n="ui.modals.audioUploadTitle">Upload Audio/MIDI</span></h5>
-            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <label for="audioFile" class="form-label" data-i18n="ui.modals.audioFileLabel">Audio or MIDI file (mp3, wav, m4a, ogg, flac, mid, midi)</label>
-            <input class="form-control form-control-sm" id="audioFile" type="file" name="audioFile" accept=".mp3,.wav,.m4a,.ogg,.flac,.mid,.midi">
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
-            <div class="spinner-border" role="status" id="audio-upload-spinner" style="display: none;">
-              <span class="visually-hidden">Loading . . .</span>
-            </div>
-            <button type="submit" id="uploadAudioBtn" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.upload">Upload</button>
-          </div>
         </div>
       </div>
     </dialog>

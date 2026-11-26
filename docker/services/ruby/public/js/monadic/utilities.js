@@ -1028,14 +1028,6 @@ function resetParams() {
   loadParams(params, "reset");
   // wait for loadParams to finish
   setTimeout(function () {
-    const toBool = window.toBool || ((value) => {
-      if (typeof value === 'boolean') return value;
-      if (typeof value === 'string') return value === 'true';
-      return !!value;
-    });
-
-    const audioUpload = $id("audio-upload");
-    $toggle(audioUpload, toBool(params["audio_upload"]));
     // Reset the flag after loading is complete
     window.isLoadingParams = false;
   }, 500);

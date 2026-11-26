@@ -1382,6 +1382,22 @@
       }
       el.appendChild(line);
     });
+    localizeOfferLine(text, entries);
+  }
+
+  // The reply's line naming the image it made, which the server writes in
+  // English (Offer.reply_text) and the model reads as it is: shown in the
+  // page's language. It is the reply's paragraph whose one code is the
+  // path of an image the message made.
+  function localizeOfferLine(text, entries) {
+    const paths = new Set(entries.map((entry) => String(entry.path)));
+    text.querySelectorAll('p').forEach((p) => {
+      if (p.closest('.workbench-note')) return;
+      const codes = p.querySelectorAll('code');
+      // A path the page shortened keeps the whole one (ShortPaths).
+      if (codes.length !== 1 || !paths.has(codes[0].dataset.fullPath || codes[0].textContent)) return;
+      p.replaceChildren(document.createTextNode(`${t('ui.workbench.offerLine', 'The image is in the work screen and in the shared folder:')} `), codes[0]);
+    });
   }
 
   function drawNotes() {

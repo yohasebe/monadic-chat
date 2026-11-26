@@ -186,6 +186,20 @@ describe('ws-html-handler', () => {
       expect(window.appendCard).not.toHaveBeenCalled();
     });
 
+    it('draws what the reply records on its card also when the handler made the card', () => {
+      window.wsHandlers = { handleHtmlMessage: jest.fn().mockReturnValue(true) };
+      window.Workbench = { drawRecord: jest.fn(), drawLooks: jest.fn(), drawReadings: jest.fn() };
+      const artifacts = [{ id: 'a_1', path: 'conversations/c/artifacts/x.png' }];
+      const looks = [{ state: 'sent', name: 'x.png' }];
+      const readings = [{ id: 'r_1' }];
+      handlers.handleHtml({ ...assistantData, content: { ...assistantData.content, artifacts, workbench_looks: looks, library_readings: readings } });
+
+      expect(window.Workbench.drawRecord).toHaveBeenCalledWith(assistantData.content.mid, artifacts);
+      expect(window.Workbench.drawLooks).toHaveBeenCalledWith(assistantData.content.mid, looks);
+      expect(window.Workbench.drawReadings).toHaveBeenCalledWith(assistantData.content.mid, readings);
+      delete window.Workbench;
+    });
+
     it('uses fallback when handler returns false', () => {
       window.wsHandlers = { handleHtmlMessage: jest.fn().mockReturnValue(false) };
 

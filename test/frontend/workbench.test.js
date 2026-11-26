@@ -99,6 +99,25 @@ describe('Workbench', () => {
     require(js('monadic/workbench.js'));
   });
 
+  test("shows the reply's line naming the image in the page's language, keeping the path and other paragraphs", () => {
+    const el = card('m-1');
+    el.querySelector('.card-text').innerHTML = '<p>Made with a note.</p><p>The image is in the work screen and in the shared folder: <code>' + PATH + '</code></p>';
+    global.webUIi18n = { t: (key) => (key === 'ui.workbench.offerLine' ? '画像は作業画面と共有フォルダにあります：' : key) };
+    window.Workbench.drawRecord('m-1', [entry()]);
+    const paragraphs = [...el.querySelectorAll('.card-text > p')];
+    expect(paragraphs[0].textContent).toBe('Made with a note.');
+    expect(paragraphs[1].textContent).toBe('画像は作業画面と共有フォルダにあります： ' + PATH);
+    expect(paragraphs[1].querySelector('code').textContent).toBe(PATH);
+  });
+
+  test("finds the line by the whole path when the page shortened it", () => {
+    const el = card('m-1');
+    el.querySelector('.card-text').innerHTML = '<p>The image is in the work screen and in the shared folder: <code class="short-path" data-full-path="' + PATH + '">x.png</code></p>';
+    global.webUIi18n = { t: (key) => (key === 'ui.workbench.offerLine' ? '画像は作業画面と共有フォルダにあります：' : key) };
+    window.Workbench.drawRecord('m-1', [entry()]);
+    expect(el.querySelector('.card-text > p').textContent).toBe('画像は作業画面と共有フォルダにあります： x.png');
+  });
+
   test('shows a new image in the pane with its path and Download, and only a line of text in the conversation', () => {
     const el = card('m-1');
     window.Workbench.drawRecord('m-1', [entry()]);

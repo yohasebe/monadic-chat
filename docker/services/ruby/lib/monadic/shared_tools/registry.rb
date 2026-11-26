@@ -170,6 +170,9 @@ module MonadicSharedTools
                          "for the browser, still its viewport, not the whole page). " \
                          "When a PDF's result says page_text_stopped 'time', reading ran out of time after pages.last " \
                          "and the later pages were not read; for one of them, ask the user to show it and look with scope 'visible'. " \
+                         "Read what the conversation needs: what is in view or marked first, the whole only when " \
+                         "the question needs it (it takes more of the context). An item from the Library (kind " \
+                         "'library') is read as the rest. " \
                          "Use it when the user refers to what they are looking at. " \
                          "#{Monadic::Workbench::LookTool::CHANGES_HINT} Looking is not the user's approval of anything.",
             parameters: [

@@ -259,7 +259,7 @@ The **History** tab lists the kept chats, the latest activity first, and is show
 
 ## Library Tab :id=library-tab
 
-The **Library** tab lists what the [Knowledge Base](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry on the work screen (its text, which the AI can read there as any item of the work screen), shows its details, or deletes it. **Import file** adds a document. What the tab lists is not told to the AI.
+The **Library** tab lists what the [Knowledge Base](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry on the work screen (a PDF as it is, other entries as their text; the AI can read it there as any item of the work screen), shows its details, or deletes it. **Import file** adds a document. What the tab lists is not told to the AI.
 
 ## Files Tab :id=shared-folder-panel
 

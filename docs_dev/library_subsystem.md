@@ -104,11 +104,11 @@ The working copy in `<data>/library/imports/` is separate: the route deletes it 
 
 ## On the Work Screen
 
-An entry opened from the Library tab (`WORKBENCH_OPEN_LIBRARY` → `Workbench::Channel.open_library`) is a board item of kind `library`: `{ 'library' => { 'id', 'title', 'version', 'original' } }` (`Board#add_library`; the same entry at the same version is selected again, not added). Its text is `Monadic::Library::EntryText.of` (each part, under `[User]` / `[Assistant]` for a conversation; the version is the SHA-256 of that text), read when it is shown or looked at:
+An entry opened from the Library tab (`WORKBENCH_OPEN_LIBRARY` → `Workbench::Channel.open_library`) is a board item of kind `library` (`Board#add_library`; the same entry at the same version is selected again, not added). `Monadic::Library::EntryText.shown` decides what it shows: a kept PDF as it is (`preview: 'pdf'`, `source: 'original'`, version = the file's SHA-256), a kept Markdown or code file as its text (`preview: 'text'`, `source: 'original'`), anything else as the entry's text (`EntryText.of`: each part, under `[User]` / `[Assistant]` for a conversation; `source: 'text'`, version = the SHA-256 of that text; an Office original is named in `original` with its `content_type`). `EntryText.bytes_for(record)` reads it now at that version only: for `original`, while the entry is in the Library and its summary still names that file (`Store#original_of`), then `Originals.read`; for `text`, the entry's text.
 
-- `Board#public_item` describes it with `kind: 'library'`, `preview: 'text'`, `version` and `sha256` (the text's version); the observation names it by kind `library` and takes lines in view as for text.
-- `AssetServer#serve_library` serves its text (view tokens only) as a text file is shown and keeps its line count (`note_text`); 409 and the item marked `changed` when the entry's text is another version, 410 and `missing` when it is gone, 415 when the entry did not keep its whole text.
-- `Look` reads it as text (`library_seen`), at the item's version only.
+- `Board#public_item` describes it with `kind: 'library'`, its `preview`, `version` and `sha256`; the observation names it by kind `library` and takes what is in view by its preview (lines, or a PDF's page).
+- `AssetServer#serve_library` serves it (view tokens only): a PDF as `application/pdf`, text as a text file is shown, keeping its line count (`note_text`); 409 and the item marked `changed` when it is not that version, 410 and `missing` when the entry or its file is gone, 415 when the entry did not keep its whole text.
+- `Look` reads it (`library_seen`) at the item's version only: a PDF as a PDF file is read (`Pdf.visible`, `Pdf.whole`, or the file where the model takes PDFs), text as a text file is, and an Office entry's kept file as it is for the whole where the model takes it (`native_library_document`).
 - File-only operations (drawing, edits, pointing, keeping in the Library) do not take it: the item has no `file`.
 
 ## Save

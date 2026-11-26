@@ -234,7 +234,8 @@ module WebSocketHelper
                    "a text file's lines in view, a PDF's page (its text, any text the user selected, and the part " \
                    "in view with any part the user marked), an image. Call it whenever the user refers to " \
                    "something they are looking at (\"this\", \"here\", \"the list\", \"what I marked\"), " \
-                   "before you answer about it. scope 'whole' reads a text file or a PDF from its beginning.",
+                   "before you answer about it. scope 'whole' reads a text file or a PDF from its beginning: use it " \
+                   "only when the question needs the whole (an item from the Library, kind 'library', too).",
       parameters: {
         type: "object",
         properties: {

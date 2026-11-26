@@ -46,7 +46,7 @@
 
 ## アプリと Knowledge Base :id=kb-by-app
 
-どのアプリでも、会話を Knowledge Base に保存し、検索できます。検索するのは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** をオンにしたときだけです。このスイッチはアプリごとに記憶されます。あるアプリでオンにしても、ほかのアプリではオフのままです。Live Conversation は、アプリの **検索と計算** のスイッチで検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
+どのアプリでも、会話を Knowledge Base に保存し、検索できます。AI が検索するのは、頼まれたときや明らかに役立つときで、ターンごとには検索しません。設定の「一般」の **AI が使える情報源** でオフにできます。Live Conversation は、アプリの **検索と計算** のスイッチがオンの間だけ検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
 
 
 ## プロバイダー機能概要 :id=provider-capabilities
@@ -126,7 +126,7 @@ Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説�
 
 ### Knowledge Base
 
-保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。各エントリは保存したアプリから検索でき、`Global` スコープに切り替えると、ほかのアプリからも（**このセッションでナレッジベース検索を使う** がオンのとき）検索できます。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
+保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。どのアプリもすべてのエントリを検索します。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
 
 ### コーディング・ノートブックアプリ
 

@@ -5,6 +5,7 @@ require_relative "../error_formatter"
 require_relative "../error_pattern_detector"
 require_relative "../../workbench/caller"
 require_relative "../../library/readings"
+require_relative "../../library/in_chats"
 require_relative "../../workbench/look"
 require_relative "../../workbench/made"
 require_relative "../../workbench/draw_tool"
@@ -228,6 +229,14 @@ module WebSocketHelper
   #         call: ->(args, session) or ->(args, session, context) with
   #               context { tab:, provider: },
   #         always: offered whether or not the session's tools are on }
+  # The Library's tools in Live: while the setting allows them and the
+  # Library's services run (the Live Tools switch offers the tools at all).
+  STS_LIBRARY_AVAILABLE = lambda { |_provider, _session|
+    Monadic::Library::InChats.on? &&
+      Monadic::Utils::ContainerDependencies.container_running?(:qdrant) &&
+      Monadic::Utils::ContainerDependencies.container_running?(:embeddings)
+  }
+
   STS_TOOLS = {
     "look_at_workbench" => {
       description: "Look at what the user has selected in the work screen beside the conversation, as it is now: " \
@@ -369,8 +378,9 @@ module WebSocketHelper
       }
     },
     "library_search" => {
-      description: "Search the user's saved knowledge base (past conversations " \
-                   "and imported documents).",
+      description: "Search the user's Library (documents and earlier conversations kept as " \
+                   "documents) when they ask for it or it would clearly help; what you read is shown " \
+                   "to them in the work screen.",
       parameters: {
         type: "object",
         properties: {
@@ -380,21 +390,29 @@ module WebSocketHelper
         required: ["query"],
         additionalProperties: false
       },
-      available?: lambda { |_provider, _session|
-        Monadic::Utils::ContainerDependencies.container_running?(:qdrant) &&
-          Monadic::Utils::ContainerDependencies.container_running?(:embeddings)
-      },
+      available?: STS_LIBRARY_AVAILABLE,
       # What is read is recorded for the turn's card and shown on the work
       # screen, as in a chat (Library::Readings).
       records: true,
       call: lambda { |args, session, context|
-        # The shared tool self-gates on params['library_rag_enabled']; the LC
-        # Tools toggle is the explicit opt-in, so shim a session that is
-        # enabled.
-        shim = { parameters: (session[:parameters] || {}).merge("library_rag_enabled" => true) }
         WebSocketHelper.sts_tool_host.new.library_search(
-          query: args["query"].to_s, top_n: (args["top_n"] || 3).to_i, session: shim, workbench: context[:workbench]
+          query: args["query"].to_s, top_n: (args["top_n"] || 3).to_i, session: session, workbench: context[:workbench]
         )
+      }
+    },
+    "library_list" => {
+      description: "List what the user's Library holds (titles, kinds, sources, dates), newest first, " \
+                   "a page at a time, when they ask what is in it.",
+      parameters: {
+        type: "object",
+        properties: {
+          page: { type: "integer", description: "The page to list, from 1", default: 1 }
+        },
+        additionalProperties: false
+      },
+      available?: STS_LIBRARY_AVAILABLE,
+      call: lambda { |args, session, _context|
+        WebSocketHelper.sts_tool_host.new.library_list(page: (args["page"] || 1).to_i, session: session)
       }
     },
     "run_code" => {

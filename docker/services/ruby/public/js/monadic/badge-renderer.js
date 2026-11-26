@@ -156,12 +156,12 @@ function filterCapabilityBadges(capabilityBadges) {
  * @param {Object} badge - Badge object with icon, label, description
  * @returns {string} HTML string
  */
-// Tools whose availability is gated by a per-session UI toggle elsewhere
-// in the sidebar — appending the location to the tooltip removes the
-// "where do I turn this on?" guesswork when multiple Conditional badges
-// (e.g. `library_search` and `web_search_tools`) share the row.
+// Tools whose availability is set elsewhere — appending the location to the
+// tooltip removes the "where do I turn this on?" guesswork when multiple
+// Conditional badges (e.g. `library_search` and `web_search_tools`) share
+// the row.
 var TOGGLE_LOCATION_HINTS = {
-  library_search: 'Controlled by the "Use Knowledge Base for retrieval" toggle in the Knowledge Base panel.',
+  library_search: 'Controlled by "Sources the AI can use" in the General section of Settings.',
   web_search_tools: 'Controlled by the "Web Search" toggle in the Monadic Chat Info panel.'
 };
 

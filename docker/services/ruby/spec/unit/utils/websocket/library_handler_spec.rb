@@ -486,46 +486,6 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     end
   end
 
-  describe 'LIBRARY_RAG_TOGGLE → library_rag_state' do
-    it 'persists the enabled flag in session[:parameters] and echoes back state' do
-      session = {}
-      host.send(:handle_ws_library_rag_toggle, connection,
-                { 'contents' => { 'enabled' => true } }, session)
-      expect(session[:parameters]['library_rag_enabled']).to be true
-      expect(replies.first).to eq('type' => 'library_rag_state', 'enabled' => true)
-    end
-
-    it 'clears the flag when payload disables the toggle' do
-      session = { parameters: { 'library_rag_enabled' => true } }
-      host.send(:handle_ws_library_rag_toggle, connection,
-                { 'contents' => { 'enabled' => false } }, session)
-      expect(session[:parameters]['library_rag_enabled']).to be false
-      expect(replies.first['enabled']).to be false
-    end
-
-    it 'accepts a bare boolean in `contents` for older clients' do
-      session = {}
-      host.send(:handle_ws_library_rag_toggle, connection,
-                { 'contents' => true }, session)
-      expect(session[:parameters]['library_rag_enabled']).to be true
-    end
-  end
-
-  describe 'LIBRARY_RAG_QUERY → library_rag_state' do
-    it 'returns the current flag without mutating session' do
-      session = { parameters: { 'library_rag_enabled' => true } }
-      host.send(:handle_ws_library_rag_query, connection, {}, session)
-      expect(replies.first).to eq('type' => 'library_rag_state', 'enabled' => true)
-      expect(session[:parameters]['library_rag_enabled']).to be true
-    end
-
-    it 'reports false when the flag is missing' do
-      session = {}
-      host.send(:handle_ws_library_rag_query, connection, {}, session)
-      expect(replies.first['enabled']).to be false
-    end
-  end
-
   describe 'LIBRARY_STATS → library_stats' do
     it 'returns the counts payload with stringified keys' do
       # Manager.library_stats now returns total + per-scope_app counts.

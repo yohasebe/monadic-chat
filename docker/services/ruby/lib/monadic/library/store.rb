@@ -130,11 +130,11 @@ module Monadic
         @store.count(collection: Schema::LIBRARY_SUMMARIES, exact: true)
       end
 
-      def scroll(collection:, filter: nil, limit: 256, offset: nil, with_vectors: false)
+      def scroll(collection:, filter: nil, limit: 256, offset: nil, with_vectors: false, with_payload: true)
         ensure_library_collection!(collection)
         bootstrap_collections!
         @store.scroll(collection: collection, filter: filter, limit: limit, offset: offset,
-                      with_vectors: with_vectors)
+                      with_payload: with_payload, with_vectors: with_vectors)
       end
 
       # ─── Filter helpers ────────────────────────────────────────────────

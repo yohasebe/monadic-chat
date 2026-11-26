@@ -203,16 +203,14 @@ module MonadicDSL
 
   # After the user's MDSL block runs, ensure library_search is wired into
   # eligible apps even when they did not declare a `tools do` block at
-  # all. The tool itself is gated by a per-session UI toggle (default
-  # OFF), so this injection just makes RAG *available* — users still
-  # have to enable it explicitly per session in the Knowledge Base panel.
+  # all. The tools follow the setting (Library::InChats; Settings, Sources
+  # the AI can use), so this injection makes them available to the app.
   def self.inject_library_search!(state)
     provider = state.settings[:provider].to_s.downcase.to_sym
     tool_config = ToolConfiguration.new(state, provider)
     # Imported as `conditional`; ProgressiveToolManager then shows it exactly
-    # while the per-session "Use Knowledge Base for retrieval" toggle is ON
-    # (it is never unlocked through request_tool). The tool also returns a
-    # disabled message when the toggle is off.
+    # while the setting allows it (it is never unlocked through request_tool).
+    # The tools also return a disabled message while the setting is off.
     tool_config.import_shared_tools(:library_search, visibility: "conditional")
     new_tools = tool_config.to_h
 
@@ -537,8 +535,8 @@ module MonadicDSL
 
         # Auto-inject library_search into the SAME ToolConfiguration so
         # progressive_tools metadata, formatter wrapping, and tool count
-        # stay coherent with whatever the user declared. The tool runs
-        # inside its own per-session toggle gate, default OFF.
+        # stay coherent with whatever the user declared. The tools follow
+        # the setting (Library::InChats).
         if MonadicDSL.library_search_eligible?(@state) &&
            !MonadicDSL.library_search_already_imported?(@state)
           begin

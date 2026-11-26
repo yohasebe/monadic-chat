@@ -46,7 +46,7 @@ The table below shows which apps are available for which AI model providers.
 
 ## Knowledge Base in Apps :id=kb-by-app
 
-Every app can save its conversation to the Knowledge Base and search it. An app searches only after you turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel. The switch is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation searches through its own **Search and compute** switch. A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation as a file, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
+Every app can save its conversation to the Knowledge Base and search it. The AI searches when you ask it to or when it clearly helps, not on every turn; **Sources the AI can use** in the General section of Settings turns this off. Live Conversation searches only while its **Search and compute** switch is on. A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation as a file, use **Export**. To see what is saved in the Knowledge Base, click **Browse** in the Knowledge Base panel.
 
 
 ## Provider Capabilities Overview :id=provider-capabilities
@@ -126,7 +126,7 @@ Capture and interact with web pages through a controlled browser, and analyze th
 
 ### Knowledge Base
 
-A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). An entry is retrievable from the app that saved it, or, once it is scoped `Global`, from the other apps (with **Use Knowledge Base for retrieval (this session)** on). See [Knowledge Base](../apps/knowledge-base.md).
+A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). Every app searches every entry. See [Knowledge Base](../apps/knowledge-base.md).
 
 ### Coding & Notebook Apps
 

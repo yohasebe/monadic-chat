@@ -5,13 +5,14 @@
 # Exposes the project-wide Knowledge Base (Library) as a retrieval tool
 # that any app can import via `imported_tool_groups [:library_search]`.
 #
-# Every app searches every entry (the Knowledge Base is one shelf). The
-# user also has to flip the per-session RAG toggle in the Knowledge Base
-# sidebar before this tool will run at all (default OFF).
+# Every app searches every entry (the Knowledge Base is one shelf), while
+# the setting allows it (Library::InChats: Settings, Sources the AI can
+# use; on unless turned off).
 #
 # Available tools:
 #   - library_search: cascade retrieval (summaries → turns) returning
 #     turn-level passages with conversation citations.
+#   - library_list: what the Library holds, a page at a time.
 
 require 'monadic/library'
 require 'monadic/library/readings'
@@ -27,9 +28,9 @@ module MonadicSharedTools
 
     # Returns true when the Library subsystem can plausibly serve a query
     # right now. We check (a) the schema/store classes are loadable, and
-    # (b) the embeddings service answers a health probe. The session_id
-    # gate (env + per-session toggle) is enforced by the registry layer
-    # via Progressive Tool Disclosure, not here.
+    # (b) the embeddings service answers a health probe. The setting
+    # (Library::InChats) is applied by Progressive Tool Disclosure and by
+    # the tools themselves, not here.
     def available?
       defined?(Monadic::Library::Store) &&
         Monadic::Embeddings.default_client.respond_to?(:health) &&
@@ -38,22 +39,19 @@ module MonadicSharedTools
       false
     end
 
-    SESSION_TOGGLE_KEY = 'library_rag_enabled'
 
     NO_RECORD_MESSAGE = "❌ The Knowledge Base was not searched: what is read is shown to the user, " \
                         "and this reply has no chat to show it in.".freeze
 
-    DISABLED_MESSAGE = "❌ Knowledge Base RAG is disabled for this session. " \
-                       "The user can enable it by toggling 'Use Knowledge Base' " \
-                       "in the Knowledge Base sidebar panel. Tell the user this " \
-                       "and let them re-ask once enabled.".freeze
+    DISABLED_MESSAGE = "❌ The Library is turned off for chats in Settings (Sources the AI can use). " \
+                       "Tell the user this.".freeze
 
-    # Resolve the session-level toggle. Same fallback chain shared tools
-    # use elsewhere: explicit kwarg → @session ivar → Thread-local.
-    def self.session_enabled?(session)
-      params = (session && (session[:parameters] || session['parameters'])) || {}
-      value = params[SESSION_TOGGLE_KEY]
-      value == true || value.to_s == 'true'
+    LIST_PAGE = 30
+
+    # Whether the setting lets the AI consult the Library (the session is
+    # not asked: there is no switch in a chat).
+    def self.session_enabled?(_session = nil)
+      Monadic::Library::InChats.on?
     end
 
     # The instance-side mixin that apps include. The MDSL `tools` block
@@ -63,10 +61,9 @@ module MonadicSharedTools
       # Search the Knowledge Base for passages relevant to a query.
       # Returns a formatted string ready to inject into the LLM context.
       #
-      # The tool is gated by a per-session UI toggle (default OFF). When
-      # the toggle is off the tool returns a short instruction so the LLM
-      # can pass the message back to the user instead of issuing a
-      # confusing search-failed error.
+      # The tool follows the setting (Library::InChats). While it is off the
+      # tool returns a short message the LLM can pass on to the user instead
+      # of a search-failed error.
       #
       # The `session:` keyword is auto-injected by every vendor's tool
       # dispatcher (openai_helper / claude_helper / ...) when the method
@@ -115,6 +112,34 @@ module MonadicSharedTools
       rescue StandardError => e
         "❌ Knowledge Base search failed: #{e.message}"
       end
+
+      # What the Library holds, a page at a time (titles, kinds, sources and
+      # dates only).
+      def library_list(page: 1, session: nil)
+        return MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE unless MonadicSharedTools::LibrarySearch.session_enabled?
+
+        MonadicSharedTools::LibrarySearch.list_text(page)
+      rescue StandardError => e
+        "❌ The Library could not be listed: #{e.class.name.split('::').last}"
+      end
+    end
+
+    # What the Library holds, newest first, page (from 1) of LIST_PAGE:
+    # each entry's title, kind, source and date, as a text block.
+    def list_text(page)
+      page = [page.to_i, 1].max
+      rows = Monadic::Library::Manager.catalog(store: default_store)
+      return 'The Library is empty.' if rows.empty?
+
+      pages = (rows.size + LIST_PAGE - 1) / LIST_PAGE
+      return "No page #{page}: the Library holds #{rows.size} entries (#{pages} pages)." if page > pages
+
+      lines = ["The Library holds #{rows.size} entries; page #{page} of #{pages}:", '']
+      rows.drop((page - 1) * LIST_PAGE).first(LIST_PAGE).each do |row|
+        date = row[:created_at].to_s[0, 10]
+        lines << "- #{row[:title].to_s.empty? ? '(untitled)' : row[:title]} (#{row[:content_type]}, #{row[:source]}, #{date})"
+      end
+      lines.join("\n")
     end
 
     # Compose an optional Qdrant payload filter from the LLM-supplied

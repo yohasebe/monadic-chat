@@ -49,7 +49,7 @@ Knowledge Base にファイルを取り込むときの流れです。
 
 ## 検索するもの :id=visibility
 
-サイドバーの **書庫** のタブはすべての項目を表示し、Knowledge Base を検索するアプリは、どのアプリで保存した項目もすべて検索します。アプリが検索するのは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** がオンのときだけです。Live Conversation は、専用の **Tools** の切り替えで検索します。[Knowledge Base](/ja/apps/knowledge-base.md) のページを参照してください。
+サイドバーの **書庫** のタブはすべての項目を表示し、Knowledge Base を検索するアプリは、どのアプリで保存した項目もすべて検索します。AI が検索するのは、頼まれたときや明らかに役立つときで、設定の **AI が使える情報源** が許している間だけです。Live Conversation は、アプリの **検索と計算** のスイッチがオンの間だけ検索します。[Knowledge Base](/ja/apps/knowledge-base.md) のページを参照してください。
 
 ## Knowledge Base での使い方 :id=use-in-knowledge-base
 

@@ -920,53 +920,6 @@ describe('library-panel module', () => {
     });
   });
 
-  describe('RAG toggle', () => {
-    afterEach(() => { document.body.innerHTML = ''; });
-
-    it('setRagToggle(true) sends LIBRARY_RAG_TOGGLE with enabled=true', () => {
-      const ok = lib.setRagToggle(true);
-      expect(ok).toBe(true);
-      const msg = sentMessages.find(m => m.message === 'LIBRARY_RAG_TOGGLE');
-      expect(msg).toBeDefined();
-      expect(msg.contents).toEqual({ enabled: true });
-    });
-
-    it('setRagToggle(false) sends LIBRARY_RAG_TOGGLE with enabled=false', () => {
-      lib.setRagToggle(false);
-      const msg = sentMessages.find(m => m.message === 'LIBRARY_RAG_TOGGLE');
-      expect(msg.contents).toEqual({ enabled: false });
-    });
-
-    it('requestRagState sends LIBRARY_RAG_QUERY', () => {
-      lib.requestRagState();
-      expect(sentMessages.some(m => m.message === 'LIBRARY_RAG_QUERY')).toBe(true);
-    });
-
-    it('handleRagState syncs the checkbox without re-firing change', () => {
-      document.body.innerHTML = '<input type="checkbox" id="library-rag-toggle">';
-      const el = document.getElementById('library-rag-toggle');
-      let changes = 0;
-      el.onchange = () => { changes += 1; };
-      lib.handleRagState({ enabled: true });
-      expect(el.checked).toBe(true);
-      expect(changes).toBe(0);
-      lib.handleRagState({ enabled: false });
-      expect(el.checked).toBe(false);
-      expect(changes).toBe(0);
-    });
-
-    it('init binds the toggle change to setRagToggle', () => {
-      document.body.innerHTML = '<input type="checkbox" id="library-rag-toggle">';
-      lib.init();
-      const el = document.getElementById('library-rag-toggle');
-      el.checked = true;
-      el.onchange();
-      const msg = sentMessages.find(m => m.message === 'LIBRARY_RAG_TOGGLE');
-      expect(msg).toBeDefined();
-      expect(msg.contents).toEqual({ enabled: true });
-    });
-  });
-
   describe('uploadLibraryFile (Import file)', () => {
     let originalFetch;
     beforeEach(() => {
@@ -1148,32 +1101,16 @@ describe('library-panel module', () => {
       expect(lib.isCurrentAppKbSaveEligible()).toBe(true);
     });
 
-    it('isCurrentAppKbRetrievalEligible returns false when library_search is false (PF-only and artifact apps)', () => {
-      setApp('SecondOpinionOpenAI', { library_save: false, library_search: false });
-      expect(lib.isCurrentAppKbRetrievalEligible()).toBe(false);
-    });
-
-    it('isCurrentAppKbRetrievalEligible returns true when library_search is true (KB-only apps)', () => {
-      setApp('ChatOpenAI', { library_save: true, library_search: true });
-      expect(lib.isCurrentAppKbRetrievalEligible()).toBe(true);
-    });
-
-    it('updateRagToggleVisibility delegates to applyAppCapabilityClasses with the current app name', () => {
-      // Phase 4: visibility moved from JS-driven `style.display` to a body
-      // class + CSS gate. updateRagToggleVisibility now exists only to fan
-      // the SessionState `app:changed` path into the SSOT entry point in
-      // monadic.js (applyAppCapabilityClasses), which toggles the body
-      // class. The CSS rule `body:not(.app-cap-kb-search) #library-rag-toggle-row`
-      // does the actual hiding.
+    it('updateCapabilityClasses delegates to applyAppCapabilityClasses with the current app name', () => {
       const spy = jest.fn();
       window.applyAppCapabilityClasses = spy;
       try {
         setApp('SecondOpinionOpenAI', { library_search: false });
-        lib.updateRagToggleVisibility();
+        lib.updateCapabilityClasses();
         expect(spy).toHaveBeenLastCalledWith('SecondOpinionOpenAI');
 
         setApp('ChatOpenAI', { library_search: true });
-        lib.updateRagToggleVisibility();
+        lib.updateCapabilityClasses();
         expect(spy).toHaveBeenLastCalledWith('ChatOpenAI');
       } finally {
         delete window.applyAppCapabilityClasses;
@@ -1228,7 +1165,6 @@ describe('library-panel module', () => {
     it('absent flag defaults to eligible (legacy / user-defined custom apps)', () => {
       setApp('CustomLegacyApp', {}); // no library_save / library_search
       expect(lib.isCurrentAppKbSaveEligible()).toBe(true);
-      expect(lib.isCurrentAppKbRetrievalEligible()).toBe(true);
     });
   });
 

@@ -191,25 +191,6 @@ function applyAppCapabilityClasses(appName) {
   const cl = document.body.classList;
   cl.toggle("app-cap-kb-save", isKbSave);
   cl.toggle("app-cap-kb-search", isKbSearch);
-
-  // The Knowledge Base control stays visible on every app; JS owns the
-  // disabled state + tooltip so a control a user expects (KB retrieval toggle)
-  // is shown disabled-with-reason rather than vanishing
-  // on apps that don't support it. The Save button is disabled independently in
-  // updateSaveButtonAvailability(). The switch's state is the one remembered
-  // for the app (library-panel.js).
-  const setControlAvailability = (el, available, reason) => {
-    if (!el) return;
-    el.disabled = !available;
-    if (available) { el.removeAttribute("title"); } else { el.title = reason; }
-  };
-  setControlAvailability(
-    document.getElementById("library-rag-toggle"), isKbSearch,
-    "Knowledge Base retrieval is not available in this app."
-  );
-  if (window.libraryPanel && typeof window.libraryPanel.applyRagForApp === "function") {
-    window.libraryPanel.applyRagForApp(appName);
-  }
 }
 window.applyAppCapabilityClasses = applyAppCapabilityClasses;
 
@@ -518,14 +499,6 @@ document.addEventListener("DOMContentLoaded", function () {
     var indicators = "";
     var websearchCb = $id("websearch");
     if (websearchCb && websearchCb.checked) indicators += '<span class="mc-badge mc-badge--blue me-1">Web Search</span>';
-    // Knowledge Base access indicator: an app with the shared library_search
-    // tool, when the sidebar "Use Knowledge Base for retrieval" toggle is ON
-    // (checked AND enabled — a checked-but-disabled toggle means this app
-    // can't use it).
-    var kbToggle = $id("library-rag-toggle");
-    if (kbToggle && kbToggle.checked && !kbToggle.disabled) {
-      indicators += '<span class="mc-badge mc-badge--green me-1">Knowledge Base</span>';
-    }
     var reasoningEffortSel = $id("reasoning-effort");
     var re = reasoningEffortSel ? reasoningEffortSel.value : "";
     if (reasoningEffortSel && !reasoningEffortSel.disabled && re && re !== "none" && re !== "disabled") {

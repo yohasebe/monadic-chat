@@ -15,6 +15,7 @@ const i18n = require('./i18n');
 // with `app/settings.html`'s build-state badges.
 const installOptions = require('./install_options.config');
 const opReferences = require('./op_references');
+const { onUnlessFalse } = require('./setting_values');
 const keyCheck = require('./key_check');
 const { createRevealHandler, createTrashHandler, showSharedPath, NO_ANSWER } = require('./shared_folder_reveal');
 const { copyAddressItems } = require('./context_menu_copy');
@@ -528,7 +529,7 @@ function closeWebViewWindow() {
 
 function backgroundNoticesEnabled() {
   try {
-    return (loadSettings() || {}).BACKGROUND_REPLY_NOTIFICATIONS !== 'false';
+    return onUnlessFalse((loadSettings() || {}).BACKGROUND_REPLY_NOTIFICATIONS);
   } catch (_) {
     return true;
   }

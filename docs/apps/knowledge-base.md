@@ -8,7 +8,6 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 
 1. **Save**: saves the current conversation to the Knowledge Base.
 2. **Browse**: opens the **Library** tab of the sidebar.
-3. **Use Knowledge Base for retrieval (this session)**: lets the model search the Knowledge Base while answering.
 
 **Ways to add content:**
 
@@ -38,7 +37,6 @@ A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, 
 - **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Library tab can be searched and sorted.
 - **Open on the work screen**: the first button of a row in the Library tab puts the entry on the [work screen](../basic-usage/web-interface.md#work-screen): a PDF as its kept file, Markdown and source code as the kept file's text, other entries (Office documents, saved conversations) as their text. The AI reads it as any other item: what the conversation needs, and the whole when the question needs it (with a model that takes files, a PDF or Office document as it is). If the entry changes or is deleted in the Knowledge Base, the work screen says so.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. The passages it read are put on the [work screen](../basic-usage/web-interface.md#work-screen) and listed under its reply, with how many it cited; a passage it cites opens from its link in the reply. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
-- **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.
+- **Retrieval in chats**: the AI searches the Knowledge Base when you ask it to, when you refer to what you keep there, or when it clearly helps with the question; it does not search on every turn, and it can list what the Knowledge Base holds. The passages it read are put on the [work screen](../basic-usage/web-interface.md#work-screen) and listed under its reply, with how many it cited; a passage it cites opens from its link in the reply. To keep the AI from using the Knowledge Base, turn off **The Library, in chats** under **Sources the AI can use** in the General section of Settings; the change takes effect when Monadic Chat starts again. In Live Conversation the AI searches only while the app's **Search and compute** switch is on.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

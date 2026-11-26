@@ -156,6 +156,9 @@ Monadic Chat の Docker イメージ、コンテナ、ボリューム（Knowledg
 **構文ハイライト テーマ** <br />
 コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`github-light`です。
 
+**AI が使える情報源** <br />
+**書庫（会話の中で）**：オンのとき、頼まれたときや明らかに役立つときに AI が [Knowledge Base](../apps/knowledge-base.md) を参照し、読んだものは作業画面に表示されます。既定はオンです。Monadic Chat を起動し直すと反映されます。
+
 ### システム
 
 ![設定：システム](../assets/images/figures/settings-system.svg)

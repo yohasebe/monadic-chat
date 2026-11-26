@@ -99,23 +99,52 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
   end
 
   describe '.session_enabled?' do
-    it 'is true when the parameter flag is truthy' do
-      session = { parameters: { 'library_rag_enabled' => true } }
-      expect(described_class.session_enabled?(session)).to be true
+    it 'follows the setting: on unless it is "false", whatever the session says' do
+      stub_const('CONFIG', {})
+      expect(described_class.session_enabled?({ parameters: {} })).to be true
+      stub_const('CONFIG', { 'LIBRARY_IN_CHATS' => 'false' })
+      expect(described_class.session_enabled?({ parameters: {} })).to be false
+    end
+  end
+
+  describe '.list_text' do
+    # The summaries as a store gives them, 256 a page in id order, with only
+    # the fields asked for.
+    def library_of(count)
+      points = Array.new(count) do |i|
+        { 'id' => i, 'payload' => { 'conversation_id' => format('c%04d', i), 'title' => "Entry #{i + 1}",
+                                    'content_type' => 'pdf', 'source' => 'import', 'body' => 'x' * 10,
+                                    'created_at' => format('2026-11-01T00:%02d:%02dZ', i / 60 % 60, i % 60) } }
+      end
+      allow(store).to receive(:scroll) do |limit:, offset:, with_payload:, **|
+        start = offset || 0
+        page = points[start, limit].map { |p| p.merge('payload' => p['payload'].slice(*with_payload)) }
+        { points: page, next: start + limit < count ? start + limit : nil }
+      end
     end
 
-    it 'accepts string-keyed parameters too' do
-      session = { 'parameters' => { 'library_rag_enabled' => true } }
-      expect(described_class.session_enabled?(session)).to be true
+    it 'lists a page of titles, kinds, sources and dates, newest first, reading only those fields' do
+      library_of(31)
+      out = described_class.list_text(1)
+      expect(out).to start_with('The Library holds 31 entries; page 1 of 2:')
+      expect(out.lines[2]).to eq("- Entry 31 (pdf, import, 2026-11-01)\n")
+      expect(described_class.list_text(2)).to include('- Entry 1 (pdf, import, 2026-11-01)')
+      expect(store).to have_received(:scroll).with(hash_including(with_payload: Monadic::Library::Manager::CATALOG_FIELDS)).at_least(:once)
     end
 
-    it 'is false when the flag is missing' do
-      session = { parameters: {} }
-      expect(described_class.session_enabled?(session)).to be false
+    it 'counts and pages every entry of a Library past 500' do
+      library_of(501)
+      expect(described_class.list_text(1)).to start_with('The Library holds 501 entries; page 1 of 17:')
+      expect(described_class.list_text(17).lines.count { |l| l.start_with?('- ') }).to eq(21)
+
+      library_of(511)
+      expect(described_class.list_text(18)).to include('page 18 of 18:', '- Entry 1 (')
+      expect(described_class.list_text(19)).to start_with('No page 19: the Library holds 511 entries (18 pages).')
     end
 
-    it 'is false on a nil session (early-boot or unauthenticated)' do
-      expect(described_class.session_enabled?(nil)).to be false
+    it 'says when the Library is empty' do
+      library_of(0)
+      expect(described_class.list_text(1)).to eq('The Library is empty.')
     end
   end
 
@@ -134,10 +163,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
             conversation_language: 'en'
           }
         ])
-      # Inject a session with the per-session RAG toggle ON. Without
-      # this, library_search returns the disabled-toggle message early
-      # and the Retriever stub never runs.
-      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
+      host.instance_variable_set(:@session, { parameters: {} })
     end
 
     it 'invokes Retriever and returns formatted text' do
@@ -148,7 +174,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         conversation_language: 'en'
       }]
       host.instance_variable_set(:@session, {
-        parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' }
+        parameters: { 'app_name' => 'ChatOpenAI' }
       })
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
         .with('how it works', hash_including(top_n: 3))
@@ -178,16 +204,17 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(out).to include('boom')
     end
 
-    it 'short-circuits with the disabled-toggle message when the session flag is OFF' do
-      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => false } })
+    it 'says the Library is turned off, and neither searches nor lists, when the setting is off' do
+      stub_const('CONFIG', { 'LIBRARY_IN_CHATS' => 'false' })
       expect(Monadic::Library::Retriever).not_to receive(:cascade_search)
-      out = host.library_search(query: 'q', workbench: workbench)
-      expect(out).to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)
+      expect(Monadic::Library::Manager).not_to receive(:list_conversations)
+      expect(host.library_search(query: 'q', workbench: workbench)).to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)
+      expect(host.library_list).to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)
     end
 
     it 'falls back to Thread.current[:session] when @session is nil' do
       host.instance_variable_set(:@session, nil)
-      Thread.current[:session] = { parameters: { 'library_rag_enabled' => true } }
+      Thread.current[:session] = { parameters: {} }
       begin
         expect(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
         host.library_search(query: 'q', workbench: workbench)
@@ -199,12 +226,15 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     it 'accepts session: kwarg auto-injected by the vendor dispatcher' do
       # The vendor tool dispatcher inspects the method signature for a
       # :session parameter and auto-injects argument_hash[:session].
-      # Without this kwarg the gate would always read nil even after the
-      # UI toggle has been flipped on. Regression guard.
       host.instance_variable_set(:@session, nil)
-      injected = { parameters: { 'library_rag_enabled' => true } }
+      injected = { parameters: {} }
       expect(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
       host.library_search(query: 'q', session: injected, workbench: workbench)
+    end
+
+    it 'says the Library could not be listed when it cannot be reached, not that it is empty' do
+      allow(Monadic::Library::Manager).to receive(:catalog).and_raise(Monadic::VectorStore::BackendError, 'down')
+      expect(host.library_list).to eq('❌ The Library could not be listed: BackendError')
     end
 
     it 'declares :session in the method signature so dispatchers inject it' do
@@ -217,7 +247,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     let(:host) { Class.new { include MonadicSharedTools::LibrarySearch::Tools }.new }
     let(:words) { Monadic::Utils::Privacy::Words }
     let(:session) do
-      { parameters: { 'library_rag_enabled' => true, 'app_name' => 'ChatOpenAI' } }
+      { parameters: { 'app_name' => 'ChatOpenAI' } }
         .tap { |s| Monadic::Workspace::Chats.start_new!(s) }
     end
 
@@ -247,7 +277,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     end
 
     before do
-      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
+      host.instance_variable_set(:@session, { parameters: {} })
       allow(Monadic::Library::Retriever).to receive(:cascade_search).and_return([hit])
     end
 
@@ -361,7 +391,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     end
 
     before do
-      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
+      host.instance_variable_set(:@session, { parameters: {} })
     end
 
     it 'forwards a content_type filter to Retriever.cascade_search' do

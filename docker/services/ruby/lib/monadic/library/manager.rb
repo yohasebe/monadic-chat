@@ -45,6 +45,25 @@ module Monadic
         rows.sort_by { |r| r[:created_at].to_s }.reverse.first(limit)
       end
 
+      # Every entry as the AI's list of the Library gives it (title,
+      # content_type, source, created_at, conversation_id), newest first, the
+      # same date ordered by id: only those fields are read.
+      CATALOG_FIELDS = %w[conversation_id title content_type source created_at].freeze
+
+      def catalog(store:)
+        rows = []
+        cursor = nil
+        loop do
+          page = store.scroll(collection: VectorStore::Schema::LIBRARY_SUMMARIES, limit: 256, offset: cursor,
+                              with_payload: CATALOG_FIELDS)
+          page[:points].each { |p| rows << summary_row(p['payload'] || {}) }
+          break if page[:next].nil?
+
+          cursor = page[:next]
+        end
+        rows.sort_by { |r| [r[:created_at].to_s, r[:conversation_id].to_s] }.reverse
+      end
+
       # Fetch the full payload of a conversation's summary point. Returns
       # nil when no matching conversation is registered.
       def get_conversation_details(store:, conversation_id:)

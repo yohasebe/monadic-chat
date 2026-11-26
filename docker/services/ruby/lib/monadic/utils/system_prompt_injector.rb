@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'language_config'
+require_relative '../library/in_chats'
 require_relative '../turn_state/keeper'
 require_relative 'tts_marker_vocabulary'
 require_relative 'capability_notes'
@@ -87,34 +88,11 @@ module Monadic
       # How math is written: the page draws these as formulas (markdown-renderer.js).
       MATH_PROMPT = 'Write mathematical expressions in LaTeX: \\( ... \\) within a line, and \\[ ... \\] or $$ ... $$ on a line of their own. A single $ is shown as a dollar sign, not as math.'
 
-      # Library RAG prompt header — injected when the per-session "Use
-      # Knowledge Base" toggle is on. The LLM treats library_search as the
-      # source of truth for topics the user has stored content about, even
-      # when it could answer from training knowledge. A question on a topic
-      # the inventory does not show is answered without a search, so a
-      # reply does not wait for one that cannot help. The directive also pins the citation
-      # format: a reply cites a passage by its mc:read: link.
-      #
-      # The actual injected text is built dynamically by
-      # build_library_rag_prompt so the LLM also sees a category-aware
-      # inventory ("what's currently in the Knowledge Base") plus the
-      # available filter parameters. This lets the LLM make targeted
-      # `library_search` calls instead of blind cross-corpus queries.
-      LIBRARY_RAG_HEADER = <<~PROMPT.strip
-        Knowledge Base RAG is enabled for this session. The user has stored content in the project-wide Knowledge Base; the inventory below shows what is there.
-
-        - Call `library_search` first when the question is about what the user has stored: their documents, notes or earlier conversations, or a topic the inventory below shows is there. This applies even when you believe you already know the answer from your training data.
-        - Answer without searching when the question has nothing to do with the stored content: a general question on a topic the inventory does not show, or a conversational message (greetings, clarifications, formatting requests, etc.).
-        - When `library_search` returns hits, base your answer on the retrieved passages and keep the markdown link `[Title](mc:read:<id>)` of each passage you cite exactly as it appears, so the user can open it.
-        - Fall back to your general knowledge when `library_search` returns no relevant hits.
-        - You may issue multiple `library_search` calls in a single turn with different queries when the user's question spans several topics.
-      PROMPT
-
-      LIBRARY_RAG_FOOTER = <<~PROMPT.strip
-        You may narrow `library_search` with these optional parameters when you have a strong prior about where the answer lives:
-          - `content_type`: one of "conversation", "pdf", "document", "markdown", "code"
-          - `source`: a specific source key from the inventory above (e.g. matching the user's prior corpus or saved chats)
-        Omit them to search the entire Knowledge Base.
+      # What the AI is told of the Library: that it is there, and when to
+      # consult it (not every turn). What it holds is listed on request
+      # (library_list), not here.
+      LIBRARY_PROMPT = <<~PROMPT.strip
+        The user keeps a Library of documents and of earlier conversations kept as documents. Consult it with `library_search` only when the user asks for it or refers to what they keep, or when it would clearly help with this question; `library_list` lists what it holds. The passages you read are shown to the user in the work screen: when you cite one, keep its link `[Title](mc:read:<id>)` as it is.
       PROMPT
 
       # System message injection rules (applied at conversation start)
@@ -163,23 +141,17 @@ module Monadic
         {
           name: :library_rag,
           priority: 70,
+          # An app with the Library's tools, while the setting allows it
+          # (Library::InChats.on?).
           condition: ->(session, _options) {
             params = session&.[](:parameters) || {}
-            toggle = params['library_rag_enabled'] || params[:library_rag_enabled]
-            next false unless toggle == true || toggle.to_s == 'true'
-            # Gate on app capability: the per-session RAG toggle persists across
-            # app changes, so a stale "on" value must not leak the RAG header
-            # into apps that have no library_search tool (e.g. Music Analyst,
-            # image/video generators). Their toggle row is hidden in the UI, so
-            # it must be inert here too — keeping toggle state and behavior
-            # consistent. Capable apps keep the user's preference untouched.
             app_name = params['app_name'] || params[:app_name]
             app = (APPS[app_name] if defined?(APPS) && app_name)
-            !!(app && app.settings && app.settings[:library_search] == true)
+            next false unless app && app.settings && app.settings[:library_search] == true
+
+            Monadic::Library::InChats.on?
           },
-          generator: ->(session, _options) {
-            Monadic::Utils::SystemPromptInjector.build_library_rag_prompt(session)
-          }
+          generator: ->(_session, _options) { LIBRARY_PROMPT }
         },
         {
           # Vocabulary: tell the model about the `${TOKEN}` variables the active
@@ -405,21 +377,6 @@ module Monadic
       ].freeze
 
       class << self
-        # Build the library_rag injection. Combines a static directive
-        # (LIBRARY_RAG_HEADER), a data-driven inventory block summarising
-        # what's currently in the Knowledge Base, and a footer describing
-        # the optional filter parameters. The inventory part is best-effort:
-        # if Library can't be reached (Qdrant down, transient error) we
-        # skip the inventory but still emit the directive so the LLM at
-        # least knows to call `library_search`.
-        def build_library_rag_prompt(session)
-          parts = [LIBRARY_RAG_HEADER]
-          inventory_block = library_inventory_block
-          parts << inventory_block if inventory_block
-          parts << LIBRARY_RAG_FOOTER
-          parts.join("\n\n")
-        end
-
         # A path named in the prompt, as a chat that hides its words sends
         # it: each hidden word as its placeholder, which the tools that read
         # a file put back (Privacy::Words::RESTORED_ARGUMENTS). The path as
@@ -456,42 +413,6 @@ module Monadic
           app = (APPS[app_name] if defined?(APPS) && app_name)
           mode = app&.settings&.[](:work_screen).to_s
           WORK_SCREEN_PROMPTS.key?(mode) ? mode : nil
-        end
-
-        # Render the inventory as plain-text bullet lists. Returns nil when
-        # the Library is empty or the lookup fails — the caller still
-        # injects the directive in that case.
-        def library_inventory_block
-          return nil unless defined?(Monadic::Library::Store)
-
-          store = Monadic::Library::Store.new
-          inv = Monadic::Library::Inventory.summarize(store: store)
-          # Nothing stored: said, so the model does not search for nothing.
-          return "Knowledge Base inventory: nothing is stored yet. Do not call `library_search`." if inv[:total].to_i.zero?
-
-          lines = ["Knowledge Base inventory (currently stored):"]
-          lines << "Total entries: #{inv[:total]}"
-
-          if inv[:by_source] && !inv[:by_source].empty?
-            lines << ''
-            lines << 'By source:'
-            inv[:by_source].each do |src, count|
-              lines << "  - #{src}: #{count} #{count == 1 ? 'entry' : 'entries'}"
-            end
-          end
-
-          if inv[:by_content_type] && !inv[:by_content_type].empty?
-            lines << ''
-            lines << 'By content type:'
-            inv[:by_content_type].each do |ct, count|
-              lines << "  - #{ct}: #{count} #{count == 1 ? 'entry' : 'entries'}"
-            end
-          end
-
-          lines.join("\n")
-        rescue StandardError => e
-          warn "[SystemPromptInjector] library_inventory_block error: #{e.message}" if defined?(CONFIG) && CONFIG['EXTRA_LOGGING']
-          nil
         end
 
         # Shared gate for the two Expressive Speech rules. Returns true when

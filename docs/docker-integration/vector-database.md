@@ -49,7 +49,7 @@ When a file is imported into the Knowledge Base:
 
 ## Who Searches It :id=visibility
 
-The **Library** tab of the sidebar shows every entry, and an app that searches the Knowledge Base searches every entry, whichever app it was saved in. Apps search it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel. Live Conversation searches it through its own **Tools** switch. See the [Knowledge Base](/apps/knowledge-base.md) page.
+The **Library** tab of the sidebar shows every entry, and an app that searches the Knowledge Base searches every entry, whichever app it was saved in. The AI searches it when you ask it to or when it clearly helps, while **Sources the AI can use** in Settings allows it. Live Conversation searches it only while its **Search and compute** switch is on. See the [Knowledge Base](/apps/knowledge-base.md) page.
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 

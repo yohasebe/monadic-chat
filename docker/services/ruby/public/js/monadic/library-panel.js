@@ -16,17 +16,14 @@
 //   window.libraryPanel.send(msg, payload?)    - low-level WS send
 //   window.libraryPanel.requestList()
 //   window.libraryPanel.requestStats()
-//   window.libraryPanel.requestRagState()
 //   window.libraryPanel.openSaveModal()
 //   window.libraryPanel.submitSave()
 //   window.libraryPanel.openBrowseModal()
 //   window.libraryPanel.openDetailModal(conversationId)
-//   window.libraryPanel.setRagToggle(enabled)
 //   window.libraryPanel.handleConversations(data)
 //   window.libraryPanel.handleStats(data)
 //   window.libraryPanel.handleSavedMessage(data)
 //   window.libraryPanel.handleDeletedMessage(data)
-//   window.libraryPanel.handleRagState(data)
 //   window.libraryPanel.handleVisibilityUpdated(data)
 //   window.libraryPanel.formatStats(stats)
 //   window.libraryPanel.relativeTime(iso)
@@ -87,10 +84,6 @@
 
   function requestList() { return send('LIBRARY_LIST'); }
   function requestStats() { return send('LIBRARY_STATS'); }
-  function requestRagState() { return send('LIBRARY_RAG_QUERY'); }
-  function setRagToggle(enabled) {
-    return send('LIBRARY_RAG_TOGGLE', { contents: { enabled: !!enabled } });
-  }
   function requestTitleSuggestion() {
     var msgs = (Array.isArray(window.messages) ? window.messages : []).map(function (m) {
       return { role: m.role, text: m.text };
@@ -102,41 +95,6 @@
     return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } }, { silentDrop: true });
   }
 
-  // The RAG toggle is remembered per app: turning it on in one app does
-  // not turn it on in another, and an app the user never turned it on in
-  // starts with it off. Stored as a list of the apps it is on in.
-  var RAG_APPS_KEY = 'monadic.library.ragApps';
-  function readRagApps() {
-    try {
-      if (typeof window === 'undefined' || !window.localStorage) return [];
-      var list = JSON.parse(window.localStorage.getItem(RAG_APPS_KEY) || '[]');
-      return Array.isArray(list) ? list : [];
-    } catch (e) { return []; }
-  }
-  function ragOnFor(app) {
-    return !!app && readRagApps().indexOf(app) >= 0;
-  }
-  // Put the state remembered for the app into the switch, and tell the
-  // server when it changes. Called for every app change through
-  // applyAppCapabilityClasses (monadic.js), and once at start.
-  function applyRagForApp(app) {
-    var toggle = (typeof document !== 'undefined') ? document.getElementById('library-rag-toggle') : null;
-    if (!toggle) return;
-    var on = ragOnFor(app || currentAppName());
-    if (toggle.checked === on) return;
-    toggle.checked = on;
-    setRagToggle(on);
-    if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
-  }
-  function rememberRag(app, enabled) {
-    if (!app) return;
-    try {
-      if (typeof window === 'undefined' || !window.localStorage) return;
-      var list = readRagApps().filter(function (name) { return name !== app; });
-      if (enabled) list.push(app);
-      window.localStorage.setItem(RAG_APPS_KEY, JSON.stringify(list));
-    } catch (e) { /* private mode / quota — silently ignore */ }
-  }
   function deleteConversation(conversationId) {
     return send('LIBRARY_DELETE', { contents: conversationId });
   }
@@ -811,13 +769,6 @@
     input.value = title;
   }
 
-  function handleRagState(data) {
-    var el = (typeof document !== 'undefined') ? document.getElementById('library-rag-toggle') : null;
-    if (!el) return;
-    var enabled = !!(data && data.enabled);
-    if (el.checked !== enabled) el.checked = enabled;
-  }
-
   function formatStats(stats) {
     if (!stats || typeof stats !== 'object') return '';
     var total = stats.conversations_total || 0;
@@ -1422,14 +1373,6 @@
     return readAppFeatureFlag('library_save');
   }
 
-  // The "Use Knowledge Base for retrieval" toggle is gated on the same
-  // app metadata as the library_search auto-injection. Apps that declare
-  // `library_search false` do not have library_search in their tool list,
-  // so the toggle would be a no-op there — hiding it keeps the UI honest.
-  function isCurrentAppKbRetrievalEligible() {
-    return readAppFeatureFlag('library_search');
-  }
-
   // Generic reader for boolean per-app feature flags. Treats absent
   // (legacy / user-defined custom apps without the flag) as ELIGIBLE so
   // an unknown app does not lose features it had before this gate
@@ -1494,10 +1437,9 @@
   }
 
   // Drive the body capability classes from the SessionState `app:changed`
-  // path. The CSS rule `body:not(.app-cap-kb-search) #library-rag-toggle-row`
-  // then handles row visibility — this function exists only to fan out the
-  // single SSOT entry point (applyAppCapabilityClasses) to one more caller.
-  function updateRagToggleVisibility() {
+  // path: this function fans out the single SSOT entry point
+  // (applyAppCapabilityClasses) to one more caller.
+  function updateCapabilityClasses() {
     if (typeof window === 'undefined') return;
     if (typeof window.applyAppCapabilityClasses === 'function') {
       window.applyAppCapabilityClasses(currentAppName());
@@ -1510,16 +1452,15 @@
     var saveBtn = document.getElementById('library-save');
     if (saveBtn) saveBtn.onclick = openSaveModal;
     updateSaveButtonAvailability();
-    updateRagToggleVisibility();
+    updateCapabilityClasses();
 
     // Re-evaluate visibility whenever the conversation set or current
     // app changes. The Save button further reacts to Privacy state pushes
-    // (PF mutually exclusive with KB save), while the RAG toggle row only
-    // depends on the per-app library_search flag.
+    // (PF mutually exclusive with KB save).
     if (window.SessionState && typeof window.SessionState.on === 'function') {
       ['message:added', 'messages:cleared', 'message:deleted', 'session:reset', 'session:new', 'app:changed']
         .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
-      window.SessionState.on('app:changed', updateRagToggleVisibility);
+      window.SessionState.on('app:changed', updateCapabilityClasses);
     }
     document.addEventListener('wordtable:changed', updateSaveButtonAvailability);
 
@@ -1533,21 +1474,6 @@
 
     var confirmBtn = document.getElementById('library-save-confirm');
     if (confirmBtn) confirmBtn.onclick = submitSave;
-
-    var ragToggle = document.getElementById('library-rag-toggle');
-    if (ragToggle) {
-      ragToggle.onchange = function () {
-        var on = ragToggle.checked;
-        // Remember it for this app, and tell the server so the current
-        // session reflects it immediately.
-        rememberRag(currentAppName(), on);
-        setRagToggle(on);
-        // Refresh the header summary bar so its "Knowledge Base" badge
-        // tracks the toggle immediately.
-        if (typeof window.updateConfigSummary === 'function') window.updateConfigSummary();
-      };
-      applyRagForApp();
-    }
 
     // Browse-modal controls
     var search = document.getElementById('library-browse-search');
@@ -1667,9 +1593,6 @@
     send: send,
     requestList: requestList,
     requestStats: requestStats,
-    requestRagState: requestRagState,
-    setRagToggle: setRagToggle,
-    applyRagForApp: applyRagForApp,
     deleteConversation: deleteConversation,
     openSaveModal: openSaveModal,
     submitSave: submitSave,
@@ -1693,7 +1616,6 @@
     handleDeletedMessage: handleDeletedMessage,
     handleSavedMessage: handleSavedMessage,
     clearCurrentConversation: clearCurrentConversation,
-    handleRagState: handleRagState,
     handleTitleSuggested: handleTitleSuggested,
     handleConversationData: handleConversationData,
     openViewerModal: openViewerModal,
@@ -1704,9 +1626,8 @@
     privacyBadgeHtml: privacyBadgeHtml,
     rowLikelyHasPii: rowLikelyHasPii,
     isCurrentAppKbSaveEligible: isCurrentAppKbSaveEligible,
-    isCurrentAppKbRetrievalEligible: isCurrentAppKbRetrievalEligible,
     updateSaveButtonAvailability: updateSaveButtonAvailability,
-    updateRagToggleVisibility: updateRagToggleVisibility,
+    updateCapabilityClasses: updateCapabilityClasses,
     relativeTime: relativeTime,
     truncate: truncate,
     formatStats: formatStats,

@@ -2285,6 +2285,33 @@ describe('Workbench', () => {
     });
   });
 
+  describe('a document kept in the Library', () => {
+    test('offers it under a document the Library takes, asks for this version, and follows the import', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const followImport = jest.fn(() => Promise.resolve({}));
+      window.libraryPanel = { followImport };
+      try {
+        const doc = item({ id: 'i_m', kind: 'file', artifact_id: undefined, preview: 'text', name: 'notes.md',
+          path: 'c/notes.md', sha256: 'c'.repeat(64), library: true });
+        const pic = item({ id: 'i_q', kind: 'file', artifact_id: undefined, preview: 'image', name: 'b.png',
+          path: 'c/b.png', sha256: 'd'.repeat(64) });
+        view([pic, doc], { selected: 'i_q' });
+        expect(document.querySelector('#workbench-view .workbench-to-library')).toBeNull();
+        window.Workbench.select('i_m');
+        document.querySelector('#workbench-view .workbench-to-library').click();
+        expect(sent.at(-1).payload).toEqual({ message: 'LIBRARY_FROM_WORKBENCH', item_id: 'i_m', sha256: 'c'.repeat(64) });
+        window.Workbench.onToLibrary({ item_id: 'i_m', import_id: 'imp-1' });
+        expect(followImport).toHaveBeenCalledWith('imp-1', 'notes.md');
+        window.setAlert.mockClear();
+        window.Workbench.onToLibrary({ item_id: 'i_m', error: 'hides_words' });
+        expect(window.setAlert).toHaveBeenCalled();
+        expect(followImport).toHaveBeenCalledTimes(1);
+      } finally {
+        delete window.libraryPanel;
+      }
+    });
+  });
+
   describe('the text of a document for the message', () => {
     test('offers it under a document, asks for this version, and puts the answer after the message', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));

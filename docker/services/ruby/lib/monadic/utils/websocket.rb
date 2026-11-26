@@ -281,6 +281,10 @@ module WebSocketHelper
           handle_ws_workbench_sent_image(connection, obj, session)
         when "WORKBENCH_ITEM_TEXT"
           handle_ws_workbench_item_text(connection, obj, session)
+        when "LIBRARY_CONVERSATION_DRAFT"
+          handle_ws_library_conversation_draft(connection, obj, session)
+        when "LIBRARY_FROM_WORKBENCH"
+          handle_ws_library_from_workbench(connection, obj, session)
         when "WORKBENCH_OPEN"
           handle_ws_workbench_open(connection, obj, session)
         when "WORKBENCH_VERSIONS"

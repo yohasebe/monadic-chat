@@ -47,7 +47,7 @@ require_relative '../utils/shared_path_guard'
 # Cap each upload at 100 MiB. Larger files would queue extractor work
 # for an extended time and risk filling the imports/ directory. Override
 # with LIBRARY_IMPORT_MAX_BYTES if a power user needs to bypass the limit.
-LIBRARY_IMPORT_MAX_BYTES = (ENV.fetch('LIBRARY_IMPORT_MAX_BYTES', (100 * 1024 * 1024).to_s)).to_i
+LIBRARY_IMPORT_MAX_BYTES = Monadic::Library::FileImporter::MAX_BYTES
 
 post "/library/import" do
   content_type :json

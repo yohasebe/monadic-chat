@@ -8,6 +8,7 @@ require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
 require_relative 'item_text'
+require_relative '../library/file_importer'
 require_relative '../workspace/chats'
 
 module Monadic
@@ -757,6 +758,8 @@ module Monadic
           render: Monadic::Workspace::SharedFolderPreview.render_for(entry['path']),
           # A document whose text can be taken for the message (ItemText).
           text: ItemText.document?(entry['path']) || nil,
+          # A document the Library takes (Library::DeskImport).
+          library: Monadic::Library::FileImporter.importable?(entry['path']) || nil,
           # A document is named by its title where its file's name is not it.
           title: defined?(Document) ? Document.shown_title(entry['path']) : nil
         }

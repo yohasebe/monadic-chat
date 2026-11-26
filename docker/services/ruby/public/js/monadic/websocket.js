@@ -917,6 +917,16 @@ window.loadedApp = "Chat";
         if (window.Workbench && typeof window.Workbench.onPicture === 'function') window.Workbench.onPicture(data);
         break;
       }
+      case "library_conversation_draft": {
+        if (window.libraryPanel && typeof window.libraryPanel.handleConversationDraft === 'function') {
+          window.libraryPanel.handleConversationDraft(data);
+        }
+        break;
+      }
+      case "library_from_workbench": {
+        if (window.Workbench && typeof window.Workbench.onToLibrary === 'function') window.Workbench.onToLibrary(data);
+        break;
+      }
       case "workbench_item_text": {
         if (window.Workbench && typeof window.Workbench.onItemText === 'function') window.Workbench.onItemText(data);
         break;

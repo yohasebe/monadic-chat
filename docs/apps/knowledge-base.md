@@ -10,10 +10,12 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 2. **Browse**: opens the **Library** tab of the sidebar.
 3. **Use Knowledge Base for retrieval (this session)**: lets the model search the Knowledge Base while answering.
 
-**Two ways to add content:**
+**Ways to add content:**
 
 1. **Save the current chat session**: the **Save** button in the Knowledge Base panel of the sidebar saves the current conversation to the Knowledge Base.
-2. **Import a file**: open the **Library** tab of the sidebar and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
+2. **Keep a document of the work screen**: under a document on the [work screen](../basic-usage/web-interface.md#work-screen) in one of the formats below, **Keep in the Library** imports it as the version shown.
+3. **Keep this conversation as a document**: **Keep this conversation** in the **Library** tab puts the conversation on the work screen as a Markdown document: the title, the app, the model and the date, then each turn under a heading. Files of the conversation are named, not kept; system prompts, thinking and tool records are left out. Check it there, and keep it with **Keep in the Library**.
+4. **Import a file**: open the **Library** tab of the sidebar and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
 
 **Supported import formats:**
 

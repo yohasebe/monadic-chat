@@ -80,6 +80,18 @@ module Monadic
         (MARKDOWN_EXTS + PDF_EXTS + OFFICE_EXTS + Importers::Code::EXTENSION_LANGUAGE.keys).map { |e| ".#{e}" }.uniq
       end
 
+      # The largest file an import takes (LIBRARY_IMPORT_MAX_BYTES, default
+      # 100 MiB): an upload and a document of the work screen alike.
+      MAX_BYTES = ENV.fetch('LIBRARY_IMPORT_MAX_BYTES', (100 * 1024 * 1024).to_s).to_i
+
+      # Whether a file of this name can be imported (the same rule as
+      # build_conversation).
+      def importable?(filename)
+        name = File.basename(filename.to_s)
+        ext = File.extname(name).delete_prefix('.').downcase
+        (MARKDOWN_EXTS + PDF_EXTS + OFFICE_EXTS).include?(ext) || code_extension?(ext, name)
+      end
+
       # ─── Internals ─────────────────────────────────────────────────────
 
       def code_extension?(ext, filename)

@@ -40,6 +40,14 @@ module Monadic
         browser_unavailable pdf_text_unavailable unsupported_kind too_large busy cancelled filtered not_on_screen
         not_selected
       ].freeze
+
+      # The apps that take an audio or a video file on the work screen, named
+      # in the refusal of a look at one.
+      AV_APPS = {
+        'audio' => 'Speech Draft Helper, Music Analyst and Music Tutor',
+        'video' => 'Video Describer'
+      }.freeze
+
       # Bytes of a text file read for scope whole, and characters returned.
       TEXT_WHOLE_BYTES = 1024 * 1024
       TEXT_CHARS = 64_000
@@ -349,6 +357,9 @@ module Monadic
           return seen(item, 'text', file['name'], file['path'], file['sha256'], **native) if native
 
           seen(item, 'text', file['name'], file['path'], file['sha256'], **document_text(board, item, file))
+        when 'audio', 'video'
+          raise Refused.new('unsupported_kind', "a #{file['preview']} file cannot be looked at, and no other tool here " \
+                                                "reads it: tell the user so. #{AV_APPS[file['preview']]} take it.")
         else
           raise Refused.new('unsupported_kind', "a #{file['preview']} file cannot be looked at yet")
         end

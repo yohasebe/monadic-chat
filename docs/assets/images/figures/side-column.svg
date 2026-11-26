@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" role="img" width="460" height="222" viewBox="0 0 460 222" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" role="img" width="492" height="222" viewBox="0 0 492 222" font-family="-apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif">
   <title>Tabs of the side column</title>
   <defs>
 
   </defs>
-  <rect x="0.5" y="0.5" width="459" height="221" rx="12" fill="#eef0f2" stroke="#dadee2"/>
-  <rect x="20" y="34" width="420" height="38" rx="6" fill="#dadee2"/>
+  <rect x="0.5" y="0.5" width="491" height="221" rx="12" fill="#eef0f2" stroke="#dadee2"/>
+  <rect x="20" y="34" width="452" height="38" rx="6" fill="#dadee2"/>
   <text x="56.1" y="58.0" font-size="14" fill="#58616b" text-anchor="middle">Menu</text>
   <circle cx="56.1" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="56.1" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">1</text>
@@ -18,9 +18,12 @@
   <text x="329.7" y="58.0" font-size="14" fill="#58616b" text-anchor="middle">History</text>
   <circle cx="329.7" cy="21.0" r="9" fill="#2a2e33"/>
   <text x="329.7" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">4</text>
-  <rect x="20" y="82" width="420" height="120" rx="6" fill="#ffffff" stroke="#dadee2"/>
-  <rect x="36.0" y="100.0" width="360.0" height="8" rx="4" fill="#dadee2"/>
-  <rect x="36.0" y="116.0" width="280.0" height="8" rx="4" fill="#dadee2"/>
-  <rect x="36.0" y="132.0" width="330.0" height="8" rx="4" fill="#dadee2"/>
-  <rect x="36.0" y="148.0" width="220.0" height="8" rx="4" fill="#dadee2"/>
+  <text x="419.5" y="58.0" font-size="14" fill="#58616b" text-anchor="middle">Library</text>
+  <circle cx="419.5" cy="21.0" r="9" fill="#2a2e33"/>
+  <text x="419.5" y="25.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">5</text>
+  <rect x="20" y="82" width="452" height="120" rx="6" fill="#ffffff" stroke="#dadee2"/>
+  <rect x="36.0" y="100.0" width="392.4" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36.0" y="116.0" width="312.4" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36.0" y="132.0" width="362.4" height="8" rx="4" fill="#dadee2"/>
+  <rect x="36.0" y="148.0" width="252.4" height="8" rx="4" fill="#dadee2"/>
 </svg>

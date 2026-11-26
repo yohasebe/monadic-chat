@@ -91,7 +91,7 @@ The Chat app keeps a context alongside the conversation. Deleting a turn takes b
 ### 4.1 Try Knowledge Base
 
 1. Select **Knowledge Base** from the app menu
-2. Click **Browse** in the Knowledge Base panel, and click **Import file** in the Knowledge Base Browser
+2. Open the **Library** tab of the sidebar, and click **Import file**
 3. Pick a Markdown / PDF / Office (.docx/.xlsx/.pptx) / source-code file
 4. Once the import completes, ask the AI questions about the content (e.g., "summarise the imported document")
 

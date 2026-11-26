@@ -140,8 +140,8 @@ def card_functions():
 def side_tabs():
     """The side column's tabs: [key]."""
     html = read('views', 'index.erb')
-    return [re.search(I18N, element(html, 'button', 'side-tab-%s' % pane)).group(1)
-            for pane in ('settings', 'work', 'files', 'history')]
+    panes = re.findall(r'id="side-tab-([a-z]+)"', html)
+    return [re.search(I18N, element(html, 'button', 'side-tab-%s' % pane)).group(1) for pane in panes]
 
 
 def live_conversation_keys():

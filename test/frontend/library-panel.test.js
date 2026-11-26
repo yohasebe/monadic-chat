@@ -579,16 +579,23 @@ describe('library-panel module', () => {
       expect(typeof document.getElementById('library-save-confirm').onclick).toBe('function');
     });
 
-    it('opening the Browse modal auto-refreshes inventory + stats', () => {
-      // The previous explicit Refresh button is gone — opening Browse
-      // is the implicit refresh trigger. Regression guard: if someone
-      // re-introduces the Refresh button, the auto-fetch on open should
-      // remain so the user always sees a fresh snapshot.
-      const before = sentMessages.length;
-      lib.openBrowseModal();
-      const after = sentMessages.slice(before);
-      expect(after.find(m => m.message === 'LIBRARY_LIST')).toBeDefined();
-      expect(after.find(m => m.message === 'LIBRARY_STATS')).toBeDefined();
+    it('opening the Library refreshes the list and stats, and shows the Library tab of the side column', () => {
+      const layout = { hidden: true, pane: 'work' };
+      window.LayoutController = {
+        isMenuHidden: () => layout.hidden,
+        setMenuHidden: (h) => { layout.hidden = h; },
+        setPane: (p) => { layout.pane = p; }
+      };
+      try {
+        const before = sentMessages.length;
+        lib.openBrowseModal();
+        const after = sentMessages.slice(before);
+        expect(after.find(m => m.message === 'LIBRARY_LIST')).toBeDefined();
+        expect(after.find(m => m.message === 'LIBRARY_STATS')).toBeDefined();
+        expect(layout).toEqual({ hidden: false, pane: 'library' });
+      } finally {
+        delete window.LayoutController;
+      }
     });
   });
 

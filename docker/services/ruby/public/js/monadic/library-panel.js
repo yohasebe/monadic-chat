@@ -4,7 +4,7 @@
 //
 // Two surfaces share the same data cache:
 //   - Sidebar  (#library-recent, 5 most recent rows, compact one-line).
-//   - Browse modal (#libraryBrowseModal, search/filter/sort/paginate).
+//   - The Library tab of the side column (#library-pane, search/sort/paginate).
 // Detail modal (#libraryDetailModal) shows full metadata + actions.
 //
 // All actions are routed through the WebSocket. The cache is populated
@@ -45,7 +45,6 @@
     sortKey: 'created_desc',
     searchTerm: '',
     selectedId: null,       // for detail modal
-    viewerOpenedFromBrowse: false, // re-open Browse after Viewer closes
     // The conversation_id assigned by the server on the most recent
     // Save of the *current* chat session. While this is set, subsequent
     // Saves replace the same KB entry instead of creating a new one.
@@ -615,20 +614,7 @@
     send('LIBRARY_GET_CONVERSATION', { contents: { conversation_id: conversationId } });
 
     var viewer = dialogOf(viewerEl('libraryViewerModal'));
-    if (viewer) {
-      // One dialog at a time: the Viewer opens once Browse has closed, and
-      // Browse opens again when the Viewer closes (see init's mdialog:hidden
-      // listener), back on the row the Viewer was opened from.
-      var browse = dialogOf(document.getElementById('libraryBrowseModal'));
-      if (browse && browse.isOpen) {
-        state.viewerOpenedFromBrowse = true;
-        state.browseRow = document.activeElement && document.activeElement.closest
-          ? document.activeElement.closest('[data-conversation-id]') : null;
-        browse.close('button').then(function () { viewer.open(); });
-      } else {
-        viewer.open();
-      }
-    }
+    if (viewer) viewer.open();
   }
 
   // Backwards-compat alias retained so older call sites and tests still
@@ -670,25 +656,21 @@
     renderViewerMessages(msgs, viewerEl('library-viewer-messages'));
   }
 
-  // ─── Browse modal ────────────────────────────────────────────────────
+  // ─── The Library tab of the side column ─────────────────────────────
 
+  // Opens the Library tab (the side column shown) with a fresh list.
   function openBrowseModal() {
-    // Auto-refresh on open: this replaces the explicit Refresh button on
-    // the sidebar. The user's intent ("show me what's saved right now")
-    // maps 1:1 to opening the Browse modal, so we treat that click as
-    // the implicit refresh trigger and always pull a fresh snapshot.
-    // Fired before the DOM check so the request goes out even if the
-    // modal element is absent (e.g. embedded widget surfaces in tests).
     requestList();
     requestStats();
 
     if (typeof document === 'undefined') return;
-    var modalEl = document.getElementById('libraryBrowseModal');
-    if (!modalEl) return;
     state.page = 0;
     rerenderAll();
-    var browse = dialogOf(modalEl);
-    if (browse) browse.open();
+    var lc = window.LayoutController;
+    if (lc) {
+      if (lc.isMenuHidden()) lc.setMenuHidden(false);
+      lc.setPane('library');
+    }
   }
 
   // ─── WebSocket message handlers ──────────────────────────────────────
@@ -1605,23 +1587,6 @@
       });
     }
 
-    // When the Viewer was opened from Browse, re-open Browse after the
-    // user dismisses the Viewer (ESC, Close button, or backdrop click).
-    // This restores the navigation context the user came from.
-    var viewerModalEl = document.getElementById('libraryViewerModal');
-    if (viewerModalEl) {
-      viewerModalEl.addEventListener('mdialog:hidden', function () {
-        if (!state.viewerOpenedFromBrowse) return;
-        state.viewerOpenedFromBrowse = false;
-        var row = state.browseRow;
-        state.browseRow = null;
-        var browse = dialogOf(document.getElementById('libraryBrowseModal'));
-        if (!browse) return;
-        // Back on the row the Viewer was opened from, if it is still there.
-        browse.open(row && row.isConnected ? row : null);
-        if (row && row.isConnected && typeof row.focus === 'function') row.focus();
-      });
-    }
 
     // Tie the per-session conversation_id binding to the SessionState
     // lifecycle. Reset / new session / app switch all start a different

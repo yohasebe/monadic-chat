@@ -2,18 +2,18 @@
 
 Save chat sessions and import documents into one searchable library.
 
-The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The Knowledge Base browser shows all of it, and every app that searches the Knowledge Base searches all of it.
+The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The **Library** tab of the sidebar shows all of it, and every app that searches the Knowledge Base searches all of it.
 
 ![Knowledge Base panel](../assets/images/figures/knowledge-base.svg)
 
 1. **Save**: saves the current conversation to the Knowledge Base.
-2. **Browse**: opens the Knowledge Base browser.
+2. **Browse**: opens the **Library** tab of the sidebar.
 3. **Use Knowledge Base for retrieval (this session)**: lets the model search the Knowledge Base while answering.
 
 **Two ways to add content:**
 
 1. **Save the current chat session**: the **Save** button in the Knowledge Base panel of the sidebar saves the current conversation to the Knowledge Base.
-2. **Import a file**: open the Knowledge Base browser (**Browse**) and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
+2. **Import a file**: open the **Library** tab of the sidebar and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
 
 **Supported import formats:**
 
@@ -33,7 +33,7 @@ A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, 
 - **Saving again updates the entry**: saving the same chat session again updates its entry instead of creating another one. The dialog then reads "Update Conversation in Knowledge Base", with an **Update** button and a note. The link between the session and the entry ends on Reset, on switching apps, or when the entry is deleted in Browse.
 - **Suggested titles**: when you first save a conversation, the title field is filled in by the current provider's model, based on the conversation. You can type over it. The suggestion is kept, so closing and reopening the dialog does not ask the model again.
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
-- **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched and sorted.
+- **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Library tab can be searched and sorted.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
 - **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. The passages it read are put on the [work screen](../basic-usage/web-interface.md#work-screen) and listed under its reply, with how many it cited; a passage it cites opens from its link in the reply. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
 - **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.

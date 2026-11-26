@@ -10,6 +10,7 @@
   <text x="153.0" y="44.0" font-size="14" fill="#2a2e33" font-weight="600" text-anchor="middle">作業画面</text>
   <text x="239.0" y="44.0" font-size="14" fill="#58616b" text-anchor="middle">ファイル</text>
   <text x="311.0" y="44.0" font-size="14" fill="#58616b" text-anchor="middle">履歴</text>
+  <text x="369.0" y="44.0" font-size="14" fill="#58616b" text-anchor="middle">書庫</text>
   <rect x="20" y="86" width="480" height="38" rx="6" fill="#ffffff" stroke="#dadee2"/>
   <text x="38.0" y="110.0" font-size="13" fill="#58616b">ブラウザー</text>
   <circle cx="70.5" cy="73.0" r="9" fill="#2a2e33"/>

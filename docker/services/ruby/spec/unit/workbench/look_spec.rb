@@ -348,6 +348,14 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       expect(look.run(caller_for(of: rack_like))).to be_a(look::Result)
     end
 
+    it "refuses audio and video, saying no other tool reads them and which apps take them" do
+      wav = "RIFF".b + [36].pack("V") + "WAVEfmt ".b + [16, 1, 1, 8000, 16_000, 2, 16].pack("VvvVVvv") + "data".b + [0].pack("V")
+      write("note.wav", wav)
+      open_file("note.wav")
+      result = look.run(caller_for)
+      expect(result).to include("(unsupported_kind)", "no other tool here reads it: tell the user so", "Speech Draft Helper")
+    end
+
     it "refuses a scope it does not know, and a reply without a caller" do
       expect(look.run(caller_for, scope: "all")).to include("(unsupported_kind)")
       expect(look.run(nil)).to include("(connection_gone)")

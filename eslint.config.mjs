@@ -29,7 +29,7 @@ export default [
 
   // ── Browser JavaScript (main target) ────────────────────────
   {
-    files: ["docker/services/ruby/public/js/monadic/**/*.js"],
+    files: ["docker/services/ruby/public/js/monadic/**/*.js", "docker/services/ruby/public/js/monadic.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "script", // Not ES modules — uses IIFE + window.*
@@ -293,6 +293,7 @@ export default [
       "no-constant-condition": "warn",   // Likely logic errors
       "use-isnan": "error",              // Must use isNaN() for NaN checks
       "valid-typeof": "error",           // Prevent typeof typos
+      "no-unexpected-multiline": "error", // A line starting with ( or [ read as a call on the line above (a statement left without its ;)
       "eqeqeq": ["warn", "smart"],      // Prefer === but allow == null
 
       // ── Code quality (medium value) ──

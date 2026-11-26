@@ -1097,17 +1097,17 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function (e) {
       var yesTarget = e.target.closest(".yesBtn");
       if (yesTarget) {
-        var msgEl = $id("message");
+        const msgEl = $id("message");
         if (msgEl) msgEl.value = "Yes";
-        var sendBtn = $id("send");
+        const sendBtn = $id("send");
         if (sendBtn) sendBtn.click();
         return;
       }
       var noTarget = e.target.closest(".noBtn");
       if (noTarget) {
-        var msgEl = $id("message");
+        const msgEl = $id("message");
         if (msgEl) msgEl.value = "No";
-        var sendBtn = $id("send");
+        const sendBtn = $id("send");
         if (sendBtn) sendBtn.click();
         return;
       }
@@ -2270,8 +2270,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('easy_submit_toggle');
     }
-  })
-
+  });
 
   // Initialize page state based on screen width when document is ready
   (function() {

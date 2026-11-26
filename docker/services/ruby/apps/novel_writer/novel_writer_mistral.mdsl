@@ -132,6 +132,7 @@ app "NovelWriterMistral" do
   display_name "Novel Writer"
 
   features do
+    websearch true
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false

@@ -64,6 +64,7 @@ app "CodingAssistantOllama" do
   display_name "Coding Assistant"
 
   features do
+    websearch true
     work_screen "code"
     easy_submit false
     auto_speech false

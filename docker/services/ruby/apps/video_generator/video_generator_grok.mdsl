@@ -122,6 +122,7 @@ app "VideoGeneratorGrok" do
   TEXT
 
   features do
+    websearch true
     max_tool_rounds 10
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false

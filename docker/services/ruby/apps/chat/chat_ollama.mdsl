@@ -60,7 +60,7 @@ app "ChatOllama" do
   features do
     keep_notes true
     max_tool_rounds 10
-    websearch false
+    websearch true
     easy_submit false
     auto_speech false
     initiate_from_assistant false

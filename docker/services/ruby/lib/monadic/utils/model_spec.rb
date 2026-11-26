@@ -431,10 +431,6 @@ module Monadic
           get_model_property(model_name, "supports_parallel_function_calling") == true
         end
         
-        def get_websearch_fallback(model_name)
-          get_model_property(model_name, "fallback_for_websearch")
-        end
-        
         def get_thinking_constraints(model_name)
           get_model_property(model_name, "thinking_constraints")
         end

@@ -276,6 +276,7 @@ app "CodeInterpreterMistral" do
   TEXT
 
   features do
+    websearch true
     disabled !CONFIG["MISTRAL_API_KEY"]
     easy_submit false
     auto_speech false

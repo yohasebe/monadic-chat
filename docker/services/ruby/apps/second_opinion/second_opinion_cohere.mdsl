@@ -130,7 +130,7 @@ app "SecondOpinionCohere" do
 
   features do
     max_tool_rounds 10
-    websearch false
+    websearch true
     disabled !CONFIG["COHERE_API_KEY"]
     easy_submit false
     auto_speech false

@@ -130,7 +130,6 @@ const FILES = [
   "js/monadic/websocket-handlers.js",
   "js/monadic/verify-render.js",
   "js/monadic/websocket.js",
-  "js/monadic/websearch_tavily_check.js",
   "js/monadic/tts.js",
   "js/monadic/stt-gate.js",
   "js/monadic/thinking-effort-link.js",

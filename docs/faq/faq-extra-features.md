@@ -26,7 +26,7 @@
 - **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when `TAVILY_API_KEY` is configured in `~/monadic/config/env`
 - **URL Content Extraction**: With every provider, **Open URL** at the top of the work screen opens a web page on the work screen or reads its text into the message box (using Selenium)
 
-Web search is turned on and off with the **Web Search** switch. In the Chat app it is on by default for OpenAI, Claude, Gemini and Grok, and off for the other providers.
+Web search is on unless you turn it off in Settings (**General › Sources the AI can use**). The AI searches when you ask for it or current information is needed, in every built-in app but Monadic Help, Wikipedia and Voice Interpreter; with Mistral, Cohere, DeepSeek and Ollama it needs `TAVILY_API_KEY`.
 
 ---
 

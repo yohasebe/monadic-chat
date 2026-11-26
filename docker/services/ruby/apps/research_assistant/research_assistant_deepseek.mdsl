@@ -84,7 +84,7 @@ app "ResearchAssistantDeepSeek" do
 
   features do
     disabled !CONFIG["DEEPSEEK_API_KEY"]
-    websearch !!CONFIG["TAVILY_API_KEY"]
+    websearch true
     temperature 0.0
     easy_submit false
     auto_speech false

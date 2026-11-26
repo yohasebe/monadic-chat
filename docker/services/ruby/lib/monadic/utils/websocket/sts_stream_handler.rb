@@ -6,6 +6,7 @@ require_relative "../error_pattern_detector"
 require_relative "../../workbench/caller"
 require_relative "../../library/readings"
 require_relative "../../library/in_chats"
+require_relative "../../web_search_setting"
 require_relative "../../workbench/look"
 require_relative "../../workbench/made"
 require_relative "../../workbench/draw_tool"
@@ -371,7 +372,9 @@ module WebSocketHelper
       },
       # Available on every provider (one toolset everywhere; there are no
       # xAI/Gemini native search toggles). Requires only the Tavily key.
-      available?: ->(_provider, _session) { !CONFIG["TAVILY_API_KEY"].to_s.empty? },
+      # While the setting allows web search and Tavily has its key (Live
+      # searches through Tavily with every provider).
+      available?: ->(_provider, _session) { Monadic::WebSearchSetting.on? && !CONFIG["TAVILY_API_KEY"].to_s.strip.empty? },
       call: lambda { |args, _session|
         WebSocketHelper.sts_tool_host.new.search_web(query: args["query"].to_s,
                                    max_results: (args["max_results"] || 5).to_i)

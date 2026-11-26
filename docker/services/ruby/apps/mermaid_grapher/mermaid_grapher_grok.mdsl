@@ -39,6 +39,7 @@ app "MermaidGrapherGrok" do
   end
 
   features do
+    websearch true
     disabled !CONFIG["XAI_API_KEY"]
     mermaid true
     easy_submit false

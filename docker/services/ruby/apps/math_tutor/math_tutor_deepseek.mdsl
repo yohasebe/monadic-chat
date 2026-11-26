@@ -13,6 +13,7 @@ app "MathTutorDeepSeek" do
   end
 
   features do
+    websearch true
     disabled !CONFIG["DEEPSEEK_API_KEY"]
     easy_submit false
     auto_speech false

@@ -86,22 +86,7 @@ module Monadic
       #   though Monadic Chat's renderer sanitises output).
       PROMPT = <<~TEXT
 
-        IMPORTANT: You have access to web research tools for retrieving up-to-date information.
-
-        Available functions:
-        - tavily_search(query, n=3): Search the web. Returns relevant results with source URLs.
-        - tavily_fetch(url): Fetch the full content of a specific URL.
-
-        When appropriate, use these tools to ground your answers:
-        - The user asks about current events, recent news, or up-to-date information.
-        - The user asks about specific named entities (people, companies, products, events).
-        - A factual claim needs verification.
-
-        How to use them effectively:
-        - Search queries work best in English even when the user writes in another language.
-        - ALWAYS respond to the user in the language they used. Do not switch to English just because the search results are in English.
-        - Cite sources using HTML anchors: <a href="URL" target="_blank" rel="noopener noreferrer">Title</a>.
-        - Use the information you find — do not fabricate when search can confirm.
+        Web search is available through tavily_search (search the web) and tavily_fetch (read a page). Use them when the user asks you to, or when the answer needs current information or a fact you should check; not for what you can answer as it is, or when the user asks you not to. Search queries work best in English, but always respond to the user in the language they used. When you use what you found, cite the sources as HTML links: <a href="URL" target="_blank" rel="noopener noreferrer">Title</a>.
       TEXT
 
       # Single source of truth for "is Tavily-backed web search active for this

@@ -2701,6 +2701,15 @@ RSpec.describe 'STS function calling' do
       expect(payload.dig(:session, :tools).map { |t| t[:name] }).to eq(%w[look_at_workbench write_section put_on_workbench point_at_workbench draw_on_whiteboard])
     end
 
+    it 'offers no web search while the setting is off, and the other tools still' do
+      stub_const('CONFIG', { 'TAVILY_API_KEY' => 'tvly-x', 'WEB_SEARCH_IN_CHATS' => 'false' })
+      allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)
+      payload = harness.build_sts_session_update_payload(state_for(provider: 'openai', tools_enabled: true))
+      names = payload.dig(:session, :tools).map { |t| t[:name] }
+      expect(names).to include('get_current_time')
+      expect(names).not_to include('search_web')
+    end
+
     it 'openai: injects GA function tools when enabled (search_web included)' do
       stub_const('CONFIG', { 'TAVILY_API_KEY' => 'tvly-x' })
       allow(Monadic::Utils::ContainerDependencies).to receive(:container_running?).and_return(false)

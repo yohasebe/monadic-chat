@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'web_search_setting'
+
 module Monadic
   # The settings one message is answered with: read once from what the
   # message brought, and the same for every request its answer makes (the
@@ -24,12 +26,16 @@ module Monadic
     # The settings of a message as it is accepted: its own, and for what a
     # chat keeps from message to message (the model, and how much of the
     # chat goes with a message) the chat's where the message leaves it out,
-    # as it is at that moment.
+    # as it is at that moment. Whether the AI may search the web is the
+    # server's (WebSearchSetting: the setting and the chat's app), not the
+    # page's.
     def self.accepted(message, kept)
       message ||= {}
+      kept ||= {}
+      app = kept['app_name'].to_s.empty? ? message['app_name'] : kept['app_name']
       of(message.merge(%w[model context_size max_input_tokens].to_h do |key|
-        [key, message[key].to_s.empty? ? (kept || {})[key] : message[key]]
-      end))
+        [key, message[key].to_s.empty? ? kept[key] : message[key]]
+      end)).with(websearch: WebSearchSetting.allowed?(app))
     end
 
     # given: the message as sent (a Hash with String keys), or the
@@ -38,7 +44,7 @@ module Monadic
       given ||= {}
       new(model: text(given["model"]),
           show_thinking: flag(given["show_thinking"]),
-          websearch: flag(given["websearch"]),
+          websearch: WebSearchSetting.on? ? flag(given["websearch"]) : false,
           reasoning_effort: text(given["reasoning_effort"]),
           reasoning_content: text(given["reasoning_content"]),
           thinking_level: text(given["thinking_level"]),

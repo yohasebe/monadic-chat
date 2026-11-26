@@ -39,6 +39,7 @@ app "MermaidGrapherGemini" do
   end
 
   features do
+    websearch true
     disabled !CONFIG["GEMINI_API_KEY"]
     mermaid true
     easy_submit false

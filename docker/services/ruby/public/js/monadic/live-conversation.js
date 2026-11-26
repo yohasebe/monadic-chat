@@ -42,7 +42,7 @@
   // any stylesheet state.
   const HIDDEN_IN_LC = [
     'ai-user-row', 'ai-status-panel', 'auto-speech-form', 'easy-submit-form',
-    'voice-panel', 'websearch-form', 'reasoning-effort-container',
+    'voice-panel', 'reasoning-effort-container',
     'thinking-display-container', 'model_parameters',
     'context-size-col', 'max-tokens-col', 'show-all-models-form'
   ];

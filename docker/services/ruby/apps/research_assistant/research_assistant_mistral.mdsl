@@ -120,7 +120,7 @@ app "ResearchAssistantMistral" do
 
   features do
     disabled !CONFIG["MISTRAL_API_KEY"]
-    websearch !!CONFIG["TAVILY_API_KEY"]
+    websearch true
     temperature 0.0
     reasoning_effort "none"
     easy_submit false

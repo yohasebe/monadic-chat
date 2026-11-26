@@ -51,7 +51,7 @@ Setup is complete at this point — Monadic Chat is working. The rest of this pa
 
 ### 2.3 Try Web Search
 
-1. In the **Monadic Chat Info** panel of the sidebar, turn on **Web Search**
+1. Choose the Chat app (web search is on unless it is turned off in Settings, **General › Sources the AI can use**)
 2. Ask a current question:
 
 ```

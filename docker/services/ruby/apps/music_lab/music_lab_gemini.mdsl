@@ -173,6 +173,7 @@ app "MusicLabGemini" do
   end
 
   features do
+    websearch true
     max_tool_rounds 10
     abc true
   end

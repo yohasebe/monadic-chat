@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 
-// The Web Search toggle goes with a message as the user set it: whether the
-// model can search is decided where the request is made.
+// A message says nothing of web search: whether its answer may search is the
+// server's (the setting and the chat's app).
 const fs = require('fs');
 const path = require('path');
 
@@ -23,13 +23,12 @@ function setParamsBody() {
   return source.slice(open + 1, i - 1);
 }
 
-describe('setParams and the Web Search toggle', () => {
-  // The params of a message, the page holding the given model and toggle.
-  function paramsOf(spec, checked) {
+describe('setParams and web search', () => {
+  // The params of a message, the page holding the given model.
+  function paramsOf(spec) {
     document.body.innerHTML = `
       <select id="apps"><option value="ChatApp" selected>Chat</option></select>
-      <select id="model"><option value="the-model" selected>the-model</option></select>
-      <input type="checkbox" id="websearch" ${checked ? 'checked' : ''}>`;
+      <select id="model"><option value="the-model" selected>the-model</option></select>`;
     const run = new Function(
       '$id', 'apps', 'modelSpec', 'DEFAULT_MAX_OUTPUT_TOKENS', 'DEFAULT_CONTEXT_SIZE', 'DEFAULT_MAX_INPUT_TOKENS',
       'maxInputTokensOf',
@@ -41,15 +40,8 @@ describe('setParams and the Web Search toggle', () => {
                () => 4000);
   }
 
-  it('is on for a model that searches by itself and takes no tools', () => {
-    expect(paramsOf({ supports_web_search: true }, true).websearch).toBe(true);
-  });
-
-  it('is on for a model the page knows nothing of', () => {
-    expect(paramsOf(undefined, true).websearch).toBe(true);
-  });
-
-  it('is off when the toggle is off, whatever the model can do', () => {
-    expect(paramsOf({ tool_capability: true, supports_web_search: true }, false).websearch).toBe(false);
+  it('sends no web search setting with a message, whatever the model can do', () => {
+    expect(paramsOf({ supports_web_search: true, tool_capability: true })).not.toHaveProperty('websearch');
+    expect(paramsOf(undefined)).not.toHaveProperty('websearch');
   });
 });

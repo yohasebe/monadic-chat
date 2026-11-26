@@ -93,12 +93,11 @@ module MonadicSharedTools
       end
       timeout_val = [(timeout || DEFAULT_TIMEOUT), MAX_TIMEOUT].min
 
-      # Resolve websearch: explicit param > session setting > false
-      ws_enabled = if !websearch.nil?
-                     websearch == true || websearch == "true"
-                   else
-                     turn.websearch == true
-                   end
+      # The subtasks search the web only when the call asks for it and the
+      # message may search (the setting and the app, TurnSettings): a search
+      # is sent at once (Tavily's is made before the subtask runs), so it is
+      # never assumed.
+      ws_enabled = turn.websearch == true && [true, "true"].include?(websearch)
       parent_ws_session_id = Thread.current[:websocket_session_id]
       provider_cfg = resolve_provider_config
 

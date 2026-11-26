@@ -104,6 +104,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 | `EXTRACTOR_LANGS` | 書庫の品質パックの OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
 | `LIBRARY_IMPORT_MAX_BYTES` | 書庫が取り込むファイルの最大の大きさ（バイト） | `104857600`（100 MiB） | 数 |
 | `LIBRARY_IN_CHATS` | 会話の中で AI が書庫を参照できるようにする（設定の「一般」の「AI が使える情報源」） | `true` | `true`、`false` |
+| `WEB_SEARCH_IN_CHATS` | 検索するアプリの会話で AI が Web を検索できるようにする（設定の「一般」の「AI が使える情報源」） | `true` | `true`、`false` |
 | `GEMINI_MAX_INLINE_PDF_MB` | Gemini にそのまま送る PDF の最大の大きさ（MB） | `20` | 数 |
 
 > **注意**：Web の画面でコンテキストサイズの設定がオンのときは、保存するメッセージの数もその値で制限されます。

@@ -368,6 +368,7 @@ app "CodeInterpreterGrok" do
   TEXT
 
   features do
+    websearch true
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false

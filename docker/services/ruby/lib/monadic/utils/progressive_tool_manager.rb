@@ -3,6 +3,7 @@
 require "set"
 require_relative "app_names"
 require_relative "../library/in_chats"
+require_relative "../web_search_setting"
 
 module Monadic
   module Utils
@@ -30,25 +31,21 @@ module Monadic
         Monadic::Library::InChats.on?
       end
 
-      # True only when the session has web search explicitly turned off
-      # (false/"false"). A missing value (e.g. headless callers that manage web
-      # search themselves) leaves the tools untouched.
-      #
-      # While a message is answered, it is the message's own setting that
-      # counts: a toggle changed since does not reach its reply.
+      # Whether the search tools stay hidden: unless the setting allows web
+      # search and, while a message is answered, the message's settings say
+      # the AI may search (else the chat's app says it searches). A caller
+      # with no chat (no parameters, e.g. an MCP agent that names its own
+      # tools) is left to the setting.
       def websearch_disabled?(session)
+        return true unless Monadic::WebSearchSetting.on?
+
         params = session.respond_to?(:[]) ? session[:parameters] : nil
         return false unless params.respond_to?(:[])
 
         turn = defined?(Monadic::Workspace::RequestContext) && Monadic::Workspace::RequestContext.current&.settings_for(params)
-        return turn.websearch == false if turn
+        return turn.websearch != true if turn
 
-        value = if params.respond_to?(:key?)
-                  params.key?("websearch") ? params["websearch"] : params[:websearch]
-                else
-                  params["websearch"]
-                end
-        value == false || value == "false"
+        !Monadic::WebSearchSetting.app_allows?(params["app_name"] || params[:app_name])
       end
 
       # The Library's tools are visible exactly while the setting allows them:

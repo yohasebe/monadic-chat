@@ -11,7 +11,7 @@ describe('a setting that is on unless turned off', () => {
   it('is shown and saved by the settings window through the same reading', () => {
     const html = fs.readFileSync(path.join(__dirname, '../../app/settings.html'), 'utf8');
     expect(html).toContain('<script src="./setting_values.js"></script>');
-    for (const [key, id] of [['LIBRARY_IN_CHATS', 'library-in-chats'], ['BACKGROUND_REPLY_NOTIFICATIONS', 'background-reply-notifications']]) {
+    for (const [key, id] of [['LIBRARY_IN_CHATS', 'library-in-chats'], ['WEB_SEARCH_IN_CHATS', 'web-search-in-chats'], ['BACKGROUND_REPLY_NOTIFICATIONS', 'background-reply-notifications']]) {
       expect(html).toContain(`document.getElementById('${id}').checked = window.settingValues.onUnlessFalse(data.${key});`);
       expect(html).toMatch(new RegExp(`${key}: document\\.getElementById\\('${id}'\\)\\.checked`));
     }

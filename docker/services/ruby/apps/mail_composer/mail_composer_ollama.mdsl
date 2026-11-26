@@ -61,7 +61,7 @@ app "MailComposerOllama" do
   features do
     max_tool_rounds 10
     work_screen "drafts"
-    websearch false
+    websearch true
     initiate_from_assistant true
     easy_submit false
     auto_speech false

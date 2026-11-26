@@ -768,14 +768,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
 
     // Use ReasoningMapper to check if provider/model supports reasoning
     if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, model)) {
-      // Get current UI settings for feature constraint checking
-      const websearchCb = $id("websearch");
-      const currentSettings = {
-        web_search: (websearchCb && websearchCb.checked) || false
-      };
-
-      // Get available options for this provider/model
-      const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
+      // Get available options for this provider/model (the server leaves web
+      // search out of a turn whose effort does not go with it)
+      const availableOptions = ReasoningMapper.getAvailableOptions(provider, model);
 
       // Update dropdown options
       if (availableOptions) {
@@ -1054,15 +1049,11 @@ function setParams() {
   }
 
 
-  const websearchEl = $id("websearch");
   const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;
   // The interface language, for what an app writes in the user's own
   // language (Language Practice's advice).
   params["ui_language"] = document.cookie.match(/ui-language=([^;]+)/)?.[1] || "en";
-  // What the user chose: whether the model can search (by itself or with a
-  // tool) is the server's to decide.
-  params["websearch"] = !!(websearchEl && websearchEl.checked);
 
   // Handle reasoning/thinking parameters with provider-specific mapping
   const reasoningEffortEl = $id("reasoning-effort");
@@ -1331,17 +1322,6 @@ function doResetActions(resetToDefaultApp = false) {
   const drModelEl = $id("model");
   const model = drModelEl ? drModelEl.value : null;
 
-  const drWebsearch = $id("websearch");
-  const drWebsearchBadge = $id("websearch-badge");
-  if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-    if (drWebsearch) { drWebsearch.disabled = false; drWebsearch.removeAttribute('title'); }
-    $toggle(drWebsearchBadge, (drWebsearch && drWebsearch.checked));
-  } else {
-    const tt3 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search'
-    if (drWebsearch) { drWebsearch.disabled = true; drWebsearch.setAttribute('title', tt3); }
-    $hide(drWebsearchBadge);
-  }
-
   // Extract provider from app_name parameter
   // Use the final app value after potential reset
   const finalApp = resetToDefaultApp ? (drApps ? drApps.value : null) : currentApp;
@@ -1368,19 +1348,6 @@ function doResetActions(resetToDefaultApp = false) {
         provider = "Ollama";
       }
     }
-  }
-
-  // Check Tavily API availability and update websearch state
-  // (merged from utilities_websearch_patch.js, which formerly wrapped this function)
-  if (window.websearchTavilyCheck) {
-    fetch('/api/environment')
-      .then(response => response.json())
-      .then(data => {
-        window.websearchTavilyCheck.updateWebSearchState(provider, data.has_tavily_key);
-      })
-      .catch(err => {
-        console.error('Failed to fetch environment settings:', err);
-      });
   }
 
   const drModelSelected = $id("model-selected");
@@ -1578,64 +1545,6 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     });
   }
-
-  // Handle checkbox changes for user-controlled capabilities
-  ["mermaid", "websearch"].forEach(id => {
-    const el = $id(id);
-    if (el) {
-      el.addEventListener("change", function() {
-        const rdAppsEl = $id("apps");
-        const selectedApp = rdAppsEl ? rdAppsEl.value : null;
-        if (selectedApp) {
-          updateAppBadges(selectedApp);
-        }
-
-        // Update reasoning_effort options when websearch changes
-        if (this.id === 'websearch' && window.ReasoningMapper) {
-          const modelsEl = $id("models");
-          const model = modelsEl ? modelsEl.value : null;
-          const selectedOpt = modelsEl ? modelsEl.querySelector(":checked") : null;
-          const parentOptgroup = selectedOpt ? selectedOpt.closest("optgroup") : null;
-          const group = parentOptgroup ? parentOptgroup.getAttribute("label") : null;
-          const provider = getProviderFromGroup(group);
-
-          if (model && provider && ReasoningMapper.isSupported(provider, model)) {
-            const wsEl = $id("websearch");
-            const currentSettings = {
-              web_search: (wsEl && wsEl.checked) || false
-            };
-
-            const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
-
-            if (availableOptions) {
-              const dropdown = $id("reasoning-effort");
-              if (dropdown) {
-                const currentValue = dropdown.value;
-
-                // Rebuild options
-                dropdown.innerHTML = '';
-                availableOptions.forEach(option => {
-                  const label = window.ReasoningLabels ?
-                    window.ReasoningLabels.getOptionLabel(provider, option) :
-                    option;
-                  dropdown.insertAdjacentHTML('beforeend', `<option value="${option}">${label}</option>`);
-                });
-
-                // Restore value if still valid, otherwise use first available
-                if (availableOptions.includes(currentValue)) {
-                  dropdown.value = currentValue;
-                } else {
-                  const suggested = ReasoningMapper.getDefaultValue(provider, model);
-                  const newValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
-                  dropdown.value = newValue;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-  });
 });
 
 // updateAppBadges → badge-renderer.js

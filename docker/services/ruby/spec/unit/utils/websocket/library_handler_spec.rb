@@ -184,11 +184,11 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(replies.first).to include('import_id' => 'imp-1', 'status_url' => '/library/import/status/imp-1')
     end
 
-    it 'takes no choice the page makes up, and asks the user to choose when the chat is kept already' do
+    it 'takes no choice the page makes up, and asks the user to choose when the chat is kept already, with the revision of each record to send back' do
       allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
       stub_const('WebSocketHelper::WORKBENCH_LIVE', ->(_tab) { 1 })
       allow(Monadic::Workbench::Board).to receive(:existing).and_return(double('board'))
-      records = [{ conversation_id: 'conv-1', title: 'Tides', created_at: 't0' }]
+      records = [{ conversation_id: 'conv-1', title: 'Tides', created_at: 't0', revision: 'r1' }]
       expect(Monadic::Library::DeskImport).to receive(:start).with(anything, 'i_1', 'a' * 64, app_name: nil, title: nil, choice: nil)
                                                              .and_raise(Monadic::Library::DeskImport::Choose.new(records))
 
@@ -196,7 +196,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
                 { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: {} })
 
       expect(replies.first).to include('error' => 'choose',
-                                       'records' => [{ 'id' => 'conv-1', 'title' => 'Tides', 'created_at' => 't0' }])
+                                       'records' => [{ 'id' => 'conv-1', 'title' => 'Tides', 'created_at' => 't0', 'revision' => 'r1' }])
     end
 
     it 'says the document changed when it is not the version the tab shows' do

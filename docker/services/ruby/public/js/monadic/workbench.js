@@ -927,7 +927,8 @@
   // item at a time, until its answer comes.
   const keeping = new Set();
   function keepInLibrary(item) {
-    if (item.draft) keepDialog(item, null, item.title || String(item.name || '').replace(/\.[^.]+$/, ''));
+    // A blank title is the record's first heading, else its file name (the server's rule).
+    if (item.draft) keepDialog(item, null, '');
     else sendKeep(item, {});
   }
 

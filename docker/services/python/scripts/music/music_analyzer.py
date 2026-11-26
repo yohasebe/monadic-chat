@@ -344,6 +344,47 @@ def estimate_time_signature(y, sr):
         return 4, 4
 
 
+# Formats soundfile does not read: decoded by ffmpeg first.
+FFMPEG_EXTS = {".m4a", ".aac", ".wma"}
+FFMPEG_TIMEOUT = 120
+
+
+def load_audio(file_path, ext):
+    """The audio as mono samples at 22050 Hz, at most MAX_ANALYSIS_DURATION
+    seconds. AAC and WMA are decoded by ffmpeg into WAV in memory (no file
+    is written), then read as any WAV."""
+    if ext not in FFMPEG_EXTS:
+        import librosa
+        return librosa.load(file_path, sr=22050, mono=True, duration=MAX_ANALYSIS_DURATION)
+    import io
+    import subprocess
+    import soundfile
+    done = subprocess.run(
+        ["ffmpeg", "-nostdin", "-v", "error", "-i", file_path, "-t", str(MAX_ANALYSIS_DURATION),
+         "-ac", "1", "-ar", "22050", "-f", "wav", "pipe:1"],
+        capture_output=True, timeout=FFMPEG_TIMEOUT, check=False)
+    if done.returncode != 0 or not done.stdout:
+        raise RuntimeError("ffmpeg could not decode the file")
+    y, sr = soundfile.read(io.BytesIO(done.stdout), dtype="float32")
+    return y, sr
+
+
+def audio_duration(file_path, ext):
+    """The whole length of the audio in seconds (ffprobe for what soundfile
+    does not read)."""
+    if ext not in FFMPEG_EXTS:
+        import librosa
+        return librosa.get_duration(path=file_path)
+    import subprocess
+    done = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", file_path],
+        capture_output=True, text=True, timeout=FFMPEG_TIMEOUT, check=False)
+    try:
+        return float(done.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
 def analyze_midi(params):
     """Analyze a MIDI file using pretty_midi."""
     try:
@@ -619,8 +660,7 @@ def analyze_audio(params):
 
     try:
         # Load audio (truncate if too long)
-        y, sr = librosa.load(file_path, sr=22050, mono=True,
-                             duration=MAX_ANALYSIS_DURATION)
+        y, sr = load_audio(file_path, ext)
         duration = librosa.get_duration(y=y, sr=sr)
     except Exception as e:
         return {"success": False,
@@ -726,7 +766,7 @@ def analyze_audio(params):
     }
 
     # Note if file was truncated
-    original_duration = librosa.get_duration(path=file_path)
+    original_duration = audio_duration(file_path, ext)
     if original_duration > MAX_ANALYSIS_DURATION:
         result["truncated"] = True
         result["original_duration_seconds"] = round(original_duration, 1)

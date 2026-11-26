@@ -35,7 +35,7 @@ A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, 
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
 - **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Browse table can be searched and sorted.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
+- **Retrieval in apps**: turn on **Use Knowledge Base for retrieval (this session)** in the Knowledge Base panel to let the model search the Knowledge Base while answering. The passages it read are put on the [work screen](../basic-usage/web-interface.md#work-screen) and listed under its reply, with how many it cited; a passage it cites opens from its link in the reply. The switch is off by default and is remembered for each app: turning it on in one app does not turn it on in another. Live Conversation uses its own **Search and compute** switch instead.
 - **Knowledge Base badge**: the conversation header shows a green "Knowledge Base" badge while the retrieval switch is on and the session can read from the Knowledge Base.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

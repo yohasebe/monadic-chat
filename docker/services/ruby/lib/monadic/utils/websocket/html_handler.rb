@@ -12,6 +12,7 @@ require_relative '../../turn_state/notes'
 require_relative '../tts_marker_vocabulary'
 require_relative '../../workbench/shown'
 require_relative '../../workbench/edit_inputs'
+require_relative '../../library/readings'
 require_relative '../../workbench/made'
 require_relative '../../workbench/draw'
 require_relative '../../workbench/observation'
@@ -195,6 +196,11 @@ module WebSocketHelper
           # (Workbench::EditInputs), kept as sent.
           edits = request_id && Monadic::Workbench::EditInputs.clean(Monadic::Workbench::EditInputs.seal(request_id))
           new_data[Monadic::Workbench::EditInputs::KEY] = edits if edits
+
+          # What it read from the Library (Library::Readings), with the
+          # excerpts its text cites.
+          readings = request_id && Monadic::Library::Readings.clean(Monadic::Library::Readings.seal(request_id, text: final_text))
+          new_data[Monadic::Library::Readings::KEY] = readings if readings
 
           # The reply finished: what happened on the work screen that its
           # request told the model of is not told again (Observation).

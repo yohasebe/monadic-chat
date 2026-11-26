@@ -6,6 +6,7 @@ require_relative '../../workbench/look/record'
 require_relative '../../workbench/document'
 require_relative '../../workbench/picture'
 require_relative '../../workbench/edit_inputs'
+require_relative '../../library/readings'
 require_relative '../../workbench/item_text'
 require_relative '../../workbench/sent'
 require_relative '../tool_image_utils'
@@ -188,6 +189,19 @@ module WebSocketHelper
     records = Monadic::Workbench::EditInputs.clean(entry[:records])
     turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
     turn[Monadic::Workbench::EditInputs::KEY] = records if turn && records
+  end
+
+  # A reply ended without its message: what it read from the Library is
+  # kept on the user's message of the request, in the session it was read
+  # for, while it is still in that chat.
+  def library_readings_without_reply(request_id)
+    entry = Monadic::Library::Readings.take(request_id)
+    session = entry && entry[:session]
+    return unless session.respond_to?(:[]) && session[Monadic::Workspace::Chats::SESSION_KEY] == entry[:chat_id]
+
+    records = Monadic::Library::Readings.clean(entry[:records])
+    turn = Array(session[:messages]).find { |m| m.is_a?(Hash) && m["role"] == "user" && m["request_id"] == request_id }
+    turn[Monadic::Library::Readings::KEY] = records if turn && records
   end
 
   # A reply ended without its message: what it looked at in the work

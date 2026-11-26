@@ -1624,6 +1624,8 @@
     document.querySelectorAll('.workbench-shown-note').forEach((el) => el.remove());
     document.querySelectorAll('.workbench-picture-note').forEach((el) => el.remove());
     document.querySelectorAll('.workbench-edit-note').forEach((el) => el.remove());
+    readingRecords.clear();
+    document.querySelectorAll('.workbench-reading-note').forEach((el) => el.remove());
     (Array.isArray(messages) ? messages : []).forEach((m) => {
       if (m && m.mid && Array.isArray(m.artifacts)) records.set(m.mid, m.artifacts);
       if (m && m.mid && m.workbench_picture) drawPicture(m.mid, m.workbench_picture);
@@ -1631,6 +1633,7 @@
       if (m && m.mid && Array.isArray(m.workbench_shown)) drawShown(m.mid, m.workbench_shown);
       if (m && m.mid && Array.isArray(m.workbench_looks)) drawLooks(m.mid, m.workbench_looks);
       if (m && m.mid && Array.isArray(m.workbench_edit_inputs)) drawEdits(m.mid, m.workbench_edit_inputs);
+      if (m && m.mid && Array.isArray(m.library_readings)) drawReadings(m.mid, m.library_readings);
     });
   }
 
@@ -3324,6 +3327,84 @@
     });
   }
 
+  // What a reply read from the Library (library_readings), by its message:
+  // one line per search, with its copy on the work screen to open.
+  const readingRecords = new Map();
+
+  function drawReadings(mid, list) {
+    if (!mid) return;
+    const entries = (Array.isArray(list) ? list : []).filter((r) => r && typeof r.id === 'string' && Array.isArray(r.excerpts));
+    if (entries.length === 0) readingRecords.delete(mid);
+    else readingRecords.set(mid, entries);
+    const card = $id(mid);
+    const text = card ? card.querySelector('.card-text') : null;
+    if (!text) return;
+    let el = text.querySelector(':scope > .workbench-reading-note');
+    if (entries.length === 0) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      el = element('div', 'workbench-reading-note small text-secondary mt-2');
+      text.appendChild(el);
+    }
+    el.replaceChildren();
+    entries.forEach((reading) => {
+      const line = element('div', 'workbench-note-line');
+      line.appendChild(element('i', 'fa-solid fa-book-open me-1'));
+      const cited = Array.isArray(reading.cited) ? reading.cited.length : 0;
+      const count = reading.excerpts.length === 0
+        ? t('ui.workbench.libraryNone', 'nothing found')
+        : t('ui.workbench.libraryCount', '{n} passages, {cited} cited')
+          .replace('{n}', String(reading.excerpts.length)).replace('{cited}', String(cited));
+      line.appendChild(document.createTextNode(`${t('ui.workbench.libraryRead', 'Read from the Library')}: `));
+      line.appendChild(element('q', null, String(reading.query || '')));
+      line.appendChild(document.createTextNode(` (${count})`));
+      if (typeof reading.path === 'string') {
+        line.appendChild(document.createTextNode(' '));
+        const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-reading-open');
+        open.type = 'button';
+        open.textContent = t('ui.workbench.open', 'Show in the work screen');
+        open.addEventListener('click', () => openReading(reading));
+        line.appendChild(open);
+      }
+      el.appendChild(line);
+    });
+  }
+
+  // A reading's copy on the work screen: the item, or the file opened again.
+  function openReading(reading) {
+    const item = items().find((i) => i.kind === 'file' && i.path === reading.path);
+    if (item) openItem(item.id);
+    else openFile(reading.path);
+  }
+
+  // An excerpt a reply cites by its link (mc:read:<id>): its reading's copy
+  // on the work screen, or else the entry it was read from.
+  function openExcerpt(excerptId) {
+    for (const list of readingRecords.values()) {
+      for (const reading of list) {
+        const excerpt = reading.excerpts.find((e) => e && e.id === excerptId);
+        if (!excerpt) continue;
+        if (typeof reading.path === 'string') openReading(reading);
+        else if (window.libraryPanel && typeof window.libraryPanel.openViewerModal === 'function' && excerpt.conversation_id) {
+          window.libraryPanel.openViewerModal(excerpt.conversation_id);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', (ev) => {
+      const link = ev.target && typeof ev.target.closest === 'function' ? ev.target.closest('a[href^="mc:read:"]') : null;
+      if (!link) return;
+      ev.preventDefault();
+      openExcerpt(link.getAttribute('href').slice('mc:read:'.length));
+    });
+  }
+
   // What a message records as made (with the message).
   function drawRecord(mid, artifacts) {
     if (!mid || !Array.isArray(artifacts)) return;
@@ -3333,7 +3414,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

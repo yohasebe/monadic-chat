@@ -6,8 +6,14 @@ require 'monadic/shared_tools/library_search'
 
 RSpec.describe MonadicSharedTools::LibrarySearch do
   let(:store) { instance_double(Monadic::Library::Store) }
+  let(:request_id) { "q_#{SecureRandom.hex(8)}" }
+  let(:workbench) do
+    Monadic::Workbench::Caller.new(chat_id: 'chat-1', epoch: 1, request_id: request_id, session: {}, tab: 't', generation: 1)
+  end
 
   before do
+    allow(Monadic::Workbench::Put).to receive(:run).and_return(path: 'conversations/c/workbench/library.md', shown: true)
+    allow(Monadic::Workbench::Channel).to receive(:changed)
     allow(described_class).to receive(:default_store).and_return(store)
     allow(store).to receive(:embeddings)
     allow(store).to receive(:conversation_filter) { |id|
@@ -17,7 +23,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
 
   describe '.format_results' do
     it 'returns a no-result notice when hits is empty' do
-      msg = described_class.format_results('alpha', [])
+      msg = described_class.format_results('alpha', [], described_class.reading_of('alpha', []))
       expect(msg).to include('No matching passages')
       expect(msg).to include('"alpha"')
     end
@@ -39,13 +45,16 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
           conversation_language: 'en'
         }
       ]
-      out = described_class.format_results('q', hits)
+      reading = described_class.reading_of('q', hits)
+      out = described_class.format_results('q', hits, reading)
       expect(out).to include('Found 2 relevant passages')
-      # Citations use markdown links with the in-app `mc:conv:` URL
-      # scheme so frontend click intercept can open the Viewer modal.
-      expect(out).to include('From [My TED Talk](mc:conv:conv-1) (ted-talk)')
+      # Each passage is linked by its excerpt's id (mc:read:), so a reply
+      # cites the very passage it was given.
+      first, second = reading['excerpts'].map { |e| e['id'] }
+      expect(out).to include("From [My TED Talk](mc:read:#{first}) (ted-talk)")
       expect(out).to include('score=0.876')
-      expect(out).to include('From [(untitled)](mc:conv:conv-2) (monadic-chat)')
+      expect(out).to include("From [(untitled)](mc:read:#{second}) (monadic-chat)")
+      expect(out).not_to include('mc:conv:')
       # The trailing instruction tells the LLM to keep the links intact
       # when summarising — required so RAG citations stay clickable.
       expect(out).to match(/keep the markdown links/i)
@@ -58,7 +67,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         start_message_id: 'm', score: 0.5, conversation_title: 't',
         conversation_source: 's', conversation_language: 'en'
       }]
-      out = described_class.format_results('q', hits)
+      out = described_class.format_results('q', hits, described_class.reading_of('q', hits))
       expect(out).to include('…')
       expect(out.lines.find { |l| l.include?('xxx') }.length).to be < 600
     end
@@ -144,7 +153,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
         .with('how it works', hash_including(top_n: 3))
         .and_return(canned)
-      out = host.library_search(query: 'how it works')
+      out = host.library_search(query: 'how it works', workbench: workbench)
       expect(out).to include('Found 1 relevant passage')
       expect(out).to include('returned snippet')
     end
@@ -153,18 +162,18 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
         .with('q', hash_excluding(:app_name))
         .and_return([])
-      host.library_search(query: 'q')
+      host.library_search(query: 'q', workbench: workbench)
     end
 
     it 'clamps top_n into [1, 10]' do
       expect(Monadic::Library::Retriever).to receive(:cascade_search)
         .with(anything, hash_including(top_n: 10))
-      host.library_search(query: 'q', top_n: 99)
+      host.library_search(query: 'q', top_n: 99, workbench: workbench)
     end
 
     it 'returns a graceful error message when Retriever raises' do
       allow(Monadic::Library::Retriever).to receive(:cascade_search).and_raise(StandardError, 'boom')
-      out = host.library_search(query: 'q')
+      out = host.library_search(query: 'q', workbench: workbench)
       expect(out).to start_with('❌ Knowledge Base search failed')
       expect(out).to include('boom')
     end
@@ -172,7 +181,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     it 'short-circuits with the disabled-toggle message when the session flag is OFF' do
       host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => false } })
       expect(Monadic::Library::Retriever).not_to receive(:cascade_search)
-      out = host.library_search(query: 'q')
+      out = host.library_search(query: 'q', workbench: workbench)
       expect(out).to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)
     end
 
@@ -181,7 +190,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       Thread.current[:session] = { parameters: { 'library_rag_enabled' => true } }
       begin
         expect(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
-        host.library_search(query: 'q')
+        host.library_search(query: 'q', workbench: workbench)
       ensure
         Thread.current[:session] = nil
       end
@@ -195,7 +204,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       host.instance_variable_set(:@session, nil)
       injected = { parameters: { 'library_rag_enabled' => true } }
       expect(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
-      host.library_search(query: 'q', session: injected)
+      host.library_search(query: 'q', session: injected, workbench: workbench)
     end
 
     it 'declares :session in the method signature so dispatchers inject it' do
@@ -224,8 +233,81 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     after { words::LOCK.synchronize { words::TABLES.clear } }
 
     it 'gives the passages as saved (they are hidden as the next request is sent)' do
-      out = host.library_search(query: 'notes', session: session)
+      out = host.library_search(query: 'notes', session: session, workbench: workbench)
       expect(out).to include('Ada Lovelace wrote the notes')
+    end
+  end
+
+  describe 'what is read is recorded and shown' do
+    let(:host) { Class.new { include MonadicSharedTools::LibrarySearch::Tools }.new }
+    let(:hit) do
+      { text: "a   passage\nfrom the notes", conversation_id: 'conv-1', turn_idx: 2, speaker_role: 'human',
+        start_message_id: 'm-1', score: 0.9, conversation_title: 'Notes', conversation_source: 'markdown:notes.md',
+        conversation_language: 'en' }
+    end
+
+    before do
+      host.instance_variable_set(:@session, { parameters: { 'library_rag_enabled' => true } })
+      allow(Monadic::Library::Retriever).to receive(:cascade_search).and_return([hit])
+    end
+
+    after { Monadic::Library::Readings.take(request_id) }
+
+    it 'records the excerpts exactly as the model is given them, before giving them' do
+      out = host.library_search(query: 'notes', workbench: workbench)
+      record = Monadic::Library::Readings.take(request_id)[:records].first
+
+      expect(record['query']).to eq('notes')
+      excerpt = record['excerpts'].first
+      expect(excerpt).to include('conversation_id' => 'conv-1', 'title' => 'Notes', 'source' => 'markdown:notes.md',
+                                 'turn' => 2, 'text' => 'a passage from the notes')
+      expect(out).to include("mc:read:#{excerpt['id']}", '> a passage from the notes')
+    end
+
+    it 'puts the excerpts on the work screen and records where' do
+      host.library_search(query: 'notes', workbench: workbench)
+      record = Monadic::Library::Readings.take(request_id)[:records].first
+
+      expect(Monadic::Workbench::Put).to have_received(:run)
+        .with(workbench, name: "library-#{record['id']}.md", content: a_string_including('a passage from the notes'))
+      expect(record['path']).to eq('conversations/c/workbench/library.md')
+    end
+
+    it 'records a search that found nothing, and puts nothing on the work screen' do
+      allow(Monadic::Library::Retriever).to receive(:cascade_search).and_return([])
+      out = host.library_search(query: 'nothing', workbench: workbench)
+
+      expect(out).to include('No matching passages')
+      expect(Monadic::Library::Readings.take(request_id)[:records].first['excerpts']).to eq([])
+      expect(Monadic::Workbench::Put).not_to have_received(:run)
+    end
+
+    it 'keeps the record when the copy cannot be put on the work screen' do
+      allow(Monadic::Workbench::Put).to receive(:run).and_raise(Monadic::Workbench::Put::Refused, 'the chat changed')
+      out = host.library_search(query: 'notes', workbench: workbench)
+
+      expect(out).to include('a passage from the notes')
+      expect(Monadic::Library::Readings.take(request_id)[:records].first).not_to have_key('path')
+    end
+
+    it 'searches nothing for a reply with no chat to record it in' do
+      expect(host.library_search(query: 'notes', workbench: nil)).to eq(described_class::NO_RECORD_MESSAGE)
+      expect(Monadic::Library::Retriever).not_to have_received(:cascade_search)
+    end
+
+    it 'gives the model nothing when the search cannot be recorded (the reply ended)' do
+      Monadic::Library::Readings.take(request_id)
+      out = host.library_search(query: 'notes', workbench: workbench)
+
+      expect(out).to eq(described_class::NO_RECORD_MESSAGE)
+      expect(out).not_to include('passage')
+    end
+
+    it 'takes the workbench from the server, never from the model' do
+      params = MonadicSharedTools::LibrarySearch::Tools.instance_method(:library_search).parameters
+      expect(params.map(&:last)).to include(:workbench)
+      group = MonadicSharedTools::Registry::TOOL_GROUPS[:library_search]
+      expect(group[:tools].first[:parameters].map { |p| p[:name] }).not_to include(:workbench)
     end
   end
 
@@ -287,7 +369,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         expect(opts[:payload_filter]).to eq({ must: [{ key: 'content_type', match: { value: 'pdf' } }] })
         []
       end
-      host.library_search(query: 'q', content_type: 'pdf')
+      host.library_search(query: 'q', content_type: 'pdf', workbench: workbench)
     end
 
     it 'forwards a source filter to Retriever.cascade_search' do
@@ -295,7 +377,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         expect(opts[:payload_filter]).to eq({ must: [{ key: 'source', match: { value: 'monadic-chat' } }] })
         []
       end
-      host.library_search(query: 'q', source: 'monadic-chat')
+      host.library_search(query: 'q', source: 'monadic-chat', workbench: workbench)
     end
 
     it 'omits payload_filter (nil) when neither narrowing param is given' do
@@ -303,7 +385,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
         expect(opts[:payload_filter]).to be_nil
         []
       end
-      host.library_search(query: 'q')
+      host.library_search(query: 'q', workbench: workbench)
     end
   end
 end

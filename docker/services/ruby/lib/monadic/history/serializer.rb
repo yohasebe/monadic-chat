@@ -11,6 +11,7 @@ require_relative '../workbench/picture'
 require_relative '../workbench/selection'
 require_relative '../workbench/look/record'
 require_relative '../workbench/edit_inputs'
+require_relative '../library/readings'
 require_relative '../turn_state/form'
 
 module Monadic
@@ -95,6 +96,9 @@ module Monadic
         # The images of the work screen an image edit sent (their sha256).
         edits = Monadic::Workbench::EditInputs.clean(raw[Monadic::Workbench::EditInputs::KEY] || raw[:workbench_edit_inputs])
         out[Monadic::Workbench::EditInputs::KEY] = edits if edits
+        # What a reply read from the Library (Library::Readings).
+        readings = Monadic::Library::Readings.clean(raw[Monadic::Library::Readings::KEY] || raw[:library_readings])
+        out[Monadic::Library::Readings::KEY] = readings if readings
         # The picture of the work screen a user message was sent with (its
         # reference; the picture is in the chat's workbench folder).
         picture = Monadic::Workbench::Picture.clean(raw['workbench_picture'] || raw[:workbench_picture])

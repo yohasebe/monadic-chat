@@ -207,6 +207,10 @@ function _handleAssistantRole(data, html, moreComing) {
   if (window.Workbench && typeof window.Workbench.drawEdits === 'function' && Array.isArray(data["content"]["workbench_edit_inputs"])) {
     window.Workbench.drawEdits(data["content"]["mid"], data["content"]["workbench_edit_inputs"]);
   }
+  // What it read from the Library.
+  if (window.Workbench && typeof window.Workbench.drawReadings === 'function' && Array.isArray(data["content"]["library_readings"])) {
+    window.Workbench.drawReadings(data["content"]["mid"], data["content"]["library_readings"]);
+  }
 
   if (moreComing) {
     // Keep input disabled and streaming state active

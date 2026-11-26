@@ -21,6 +21,7 @@ require_relative '../../workbench/made'
 require_relative '../../workbench/look/record'
 require_relative '../../workbench/picture'
 require_relative '../../workbench/edit_inputs'
+require_relative '../../library/readings'
 require_relative '../../workbench/sent'
 require_relative '../../turn_state/form'
 require_relative '../progressive_tool_manager'
@@ -283,7 +284,7 @@ module WebSocketHelper
     mid role text app_name type lang html active
     thinking tokens images image
     interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
-    workbench_picture workbench_edit_inputs state_changes
+    workbench_picture workbench_edit_inputs library_readings state_changes
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -313,6 +314,8 @@ module WebSocketHelper
       kept = kept.merge('workbench_picture' => picture) if picture && m['role'] == 'user'
       edits = Monadic::Workbench::EditInputs.clean(kept.delete(Monadic::Workbench::EditInputs::KEY))
       kept = kept.merge(Monadic::Workbench::EditInputs::KEY => edits) if edits
+      readings = Monadic::Library::Readings.clean(kept.delete(Monadic::Library::Readings::KEY))
+      kept = kept.merge(Monadic::Library::Readings::KEY => readings) if readings
       changes = Monadic::TurnState::Form.clean_changes(kept.delete('state_changes') || kept.delete(:state_changes))
       changes ? kept.merge('state_changes' => changes) : kept
     end

@@ -188,7 +188,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(rag).not_to be_nil
         expect(rag[:content]).to include('Knowledge Base RAG is enabled')
         expect(rag[:content]).to include('library_search')
-        expect(rag[:content]).to include('mc:conv:')
+        expect(rag[:content]).to include('mc:read:')
       end
 
       it 'includes library_rag injection when toggle is the string "true"' do

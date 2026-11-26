@@ -1263,9 +1263,9 @@ module MonadicSharedTools
           {
             name: "library_search",
             description: "Search the project-wide Knowledge Base (Library) for passages relevant " \
-                         "to a query. Returns turn-level snippets with conversation citations as " \
-                         "[Title](mc:conv:<id>) markdown links — preserve them verbatim in your " \
-                         "reply so the user can click through to the original conversation. Use " \
+                         "to a query. Returns passages, each linked as [Title](mc:read:<id>) — keep " \
+                         "the link of a passage you cite verbatim in your reply so the user can open " \
+                         "it; the passages are shown to the user in the work screen. Use " \
                          "it for questions about what the user has stored (their documents, notes " \
                          "or earlier conversations), even when you could answer from training " \
                          "knowledge; answer a question on a topic the stored entries do not cover " \

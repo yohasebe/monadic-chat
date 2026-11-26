@@ -2,6 +2,8 @@
 
 require 'monadic/library'
 require_relative '../privacy/outbound'
+require_relative '../../library/conversation_record'
+require_relative '../../library/desk_import'
 
 # WebSocket handlers for the Library (Knowledge Base) panel.
 #
@@ -166,6 +168,49 @@ module WebSocketHelper
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Library] prior version not fully removed: #{e.class}: #{e.message}" }
     true
+  end
+
+  # The chat as a document to keep (Library::ConversationRecord), for the
+  # page to put on the work screen as a draft: kept in the Library only when
+  # the user stores it from there. Not for a chat that hides words.
+  private def handle_ws_library_conversation_draft(connection, _obj, session)
+    reply = { 'type' => 'library_conversation_draft' }
+    if session.respond_to?(:key?) && Monadic::Utils::Privacy::Words.marked?(session)
+      return send_to_client(connection, reply.merge('error' => 'hides_words'))
+    end
+
+    params = session[:parameters] || {}
+    record = Monadic::Library::ConversationRecord.of(session[:messages], app_name: params['app_name'], model: params['model'])
+    return send_to_client(connection, reply.merge('error' => 'empty')) unless record
+
+    send_to_client(connection, reply.merge('name' => record[:name], 'content' => record[:content]))
+  end
+
+  # A document of the work screen kept in the Library (Library::DeskImport),
+  # as the version the tab shows; the page follows the import by its id
+  # (/library/import/status/:id). Not from a chat that hides words.
+  private def handle_ws_library_from_workbench(connection, obj, session)
+    reply = { 'type' => 'library_from_workbench', 'item_id' => obj['item_id'].to_s }
+    if session.respond_to?(:key?) && Monadic::Utils::Privacy::Words.marked?(session)
+      return send_to_client(connection, reply.merge('error' => 'hides_words'))
+    end
+
+    tab, generation = workbench_connection(session).values_at(:tab, :generation)
+    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
+    board = chat_id && WORKBENCH_LIVE.call(tab) == generation && Monadic::Workbench::Board.existing(chat_id)
+    return send_to_client(connection, reply.merge('error' => 'not_allowed')) unless board
+
+    import_id = Monadic::Library::DeskImport.start(board, obj['item_id'].to_s, obj['sha256'].to_s)
+    send_to_client(connection, reply.merge('import_id' => import_id, 'status_url' => "/library/import/status/#{import_id}"))
+  rescue Monadic::Library::DeskImport::Refused => e
+    send_to_client(connection, reply.merge('error' => e.message))
+  rescue Monadic::Workbench::Artifact::Changed
+    send_to_client(connection, reply.merge('error' => 'changed'))
+  rescue Monadic::Workbench::Artifact::Missing, Monadic::Workbench::Artifact::NotAllowed
+    send_to_client(connection, reply.merge('error' => 'missing'))
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Library] Not stored from the work screen: #{e.class}" }
+    send_to_client(connection, reply.merge('error' => 'failed'))
   end
 
   private def handle_ws_library_save(connection, obj, session)

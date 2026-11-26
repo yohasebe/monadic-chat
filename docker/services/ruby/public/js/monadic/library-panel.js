@@ -1238,6 +1238,7 @@
     if (options.title) formData.append('libraryTitle', options.title);
     if (options.license) formData.append('libraryLicense', options.license);
 
+    var following = false;
     setImportPending(true);
     flashAlert(
       "<i class='fas fa-spinner fa-spin'></i> " +
@@ -1271,20 +1272,43 @@
         if (!out.data || !out.data.import_id) {
           throw new Error('Server did not return an import_id');
         }
-        return pollImportStatus(out.data.import_id, function (entry) {
-          flashAlert(
-            "<i class='fas fa-spinner fa-spin'></i> " +
-              escapeHtml(importStageMessage(entry.stage)) +
-              ' (' + escapeHtml(entry.filename || file.name) + ')',
-            'info'
-          );
-        });
+        following = true;
+        return followImport(out.data.import_id, file.name);
       })
+      .catch(function (err) {
+        clearTimeout(postTimer);
+        // followImport has said how it ended; a failure before it is said here.
+        if (!following) {
+          setImportPending(false);
+          var msg = (err && err.message) ? err.message : 'Network error';
+          flashAlert(
+            "<i class='fa-solid fa-triangle-exclamation'></i> " +
+              escapeHtml(t('ui.libImportFailure', 'Failed to import')) + ': ' + escapeHtml(msg),
+            'warning'
+          );
+        }
+        throw err;
+      });
+  }
+
+  // Follows an import (its id) to its end, saying how it goes, and then
+  // shows the Library as it is (an upload, or a document of the work
+  // screen kept in the Library).
+  function followImport(importId, filename) {
+    setImportPending(true);
+    return pollImportStatus(importId, function (entry) {
+      flashAlert(
+        "<i class='fas fa-spinner fa-spin'></i> " +
+          escapeHtml(importStageMessage(entry.stage)) +
+          ' (' + escapeHtml(entry.filename || filename) + ')',
+        'info'
+      );
+    })
       .then(function (entry) {
         setImportPending(false);
         flashAlert(
           "<i class='fa-solid fa-circle-check'></i> " +
-            escapeHtml(t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (entry.filename || file.name)),
+            escapeHtml(t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (entry.filename || filename)),
           'success'
         );
         requestList();
@@ -1292,7 +1316,6 @@
         return entry;
       })
       .catch(function (err) {
-        clearTimeout(postTimer);
         setImportPending(false);
         var msg = (err && err.message) ? err.message : 'Network error';
         flashAlert(
@@ -1302,6 +1325,32 @@
         );
         throw err;
       });
+  }
+
+  // ─── Keeping the conversation ────────────────────────────────────────
+
+  // The chat as a document (the server writes it), put on the work screen
+  // as a draft: the user keeps it in the Library from there.
+  function draftConversation() {
+    send('LIBRARY_CONVERSATION_DRAFT', {});
+  }
+
+  function handleConversationDraft(data) {
+    if (!data || typeof data.content !== 'string' || !data.name) {
+      var reason = data && data.error === 'hides_words'
+        ? t('ui.libDraftHidesWords', 'A chat that hides words cannot be kept in the Library.')
+        : t('ui.libDraftEmpty', 'There is nothing in this conversation to keep yet.');
+      flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(reason), 'warning');
+      return;
+    }
+    var workbench = window.Workbench;
+    if (!workbench || typeof workbench.putFiles !== 'function' || typeof File === 'undefined') return;
+    var file = new File([data.content], data.name, { type: 'text/markdown' });
+    workbench.putFiles([file]);
+    var lc = window.LayoutController;
+    if (lc) lc.setPane('work');
+    flashAlert("<i class='fa-solid fa-circle-info'></i> " +
+      escapeHtml(t('ui.libDraftPut', 'The conversation is on the work screen as a document: keep it in the Library from there.')), 'info');
   }
 
   function triggerImportPicker() {
@@ -1498,6 +1547,8 @@
         renderBrowseTable();
       });
     }
+    var draftBtn = document.getElementById('library-draft-conversation');
+    if (draftBtn) draftBtn.addEventListener('click', draftConversation);
     var sortSel = document.getElementById('library-browse-sort');
     if (sortSel) {
       sortSel.addEventListener('change', function () {
@@ -1613,6 +1664,9 @@
     buildSavePayload: buildSavePayload,
     readModalSelections: readModalSelections,
     uploadLibraryFile: uploadLibraryFile,
+    followImport: followImport,
+    draftConversation: draftConversation,
+    handleConversationDraft: handleConversationDraft,
     triggerImportPicker: triggerImportPicker,
     openRenameEditor: openRenameEditor,
     closeRenameEditor: closeRenameEditor,

@@ -564,6 +564,11 @@
       actions.appendChild(button(t('ui.workbench.itemText', 'Text to the message'), 'btn-secondary workbench-item-text',
         () => askItemText(item)));
     }
+    // A document the Library takes is kept there as this version.
+    if (item.status === 'ok' && item.kind === 'file' && item.library && item.sha256) {
+      actions.appendChild(button(t('ui.workbench.toLibrary', 'Keep in the Library'), 'btn-secondary workbench-to-library',
+        () => keepInLibrary(item)));
+    }
     // An image can be drawn on: a whiteboard with it laid under (as this
     // version of it).
     if (item.status === 'ok' && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
@@ -891,6 +896,31 @@
     }
     const reason = ITEM_TEXT_REASONS[data.error];
     warn(reason ? t(reason[0], reason[1]) : t('ui.workbench.itemTextFailed', 'The text of the document could not be taken.'));
+  }
+
+  // A document of the work screen kept in the Library (as the version the
+  // tab shows); the Library says how the import goes (followImport).
+  function keepInLibrary(item) {
+    if (typeof window.safeWsSend !== 'function') return;
+    window.safeWsSend({ message: 'LIBRARY_FROM_WORKBENCH', item_id: item.id, sha256: item.sha256 });
+    announce(t('ui.workbench.toLibraryWorking', 'Keeping the document in the Library…'));
+  }
+
+  const TO_LIBRARY_REASONS = {
+    hides_words: ['ui.workbench.toLibraryHidesWords', 'A chat that hides words cannot keep documents in the Library.'],
+    changed: ['ui.workbench.toLibraryChanged', 'The document changed; open it again to keep it in the Library.'],
+    not_importable: ['ui.workbench.toLibraryNotImportable', 'The Library does not take this kind of file.'],
+    too_large: ['ui.workbench.toLibraryTooLarge', 'The document is too large for the Library.']
+  };
+  function onToLibrary(data) {
+    if (!data) return;
+    if (data.import_id && window.libraryPanel && typeof window.libraryPanel.followImport === 'function') {
+      const item = items().find((i) => i.id === data.item_id);
+      window.libraryPanel.followImport(data.import_id, item ? item.name : '').catch(() => {});
+      return;
+    }
+    const reason = TO_LIBRARY_REASONS[data.error];
+    warn(reason ? t(reason[0], reason[1]) : t('ui.workbench.toLibraryFailed', 'The document could not be kept in the Library.'));
   }
 
   // The new whiteboards asked for on an image, by request number (a
@@ -3414,7 +3444,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

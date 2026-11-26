@@ -290,6 +290,13 @@ RSpec.describe Monadic::Library::FileImporter do
     end
   end
 
+  describe '.importable?' do
+    it 'takes the files build_conversation takes, by name' do
+      expect(%w[a.md b.PDF c.docx Rakefile d.rb].map { |n| described_class.importable?(n) }).to all(be(true))
+      expect(%w[cat.png song.mp3 page.html noext].map { |n| described_class.importable?(n) }).to all(be(false))
+    end
+  end
+
   describe '.supported_extensions' do
     it 'returns extensions starting with a dot' do
       exts = described_class.supported_extensions

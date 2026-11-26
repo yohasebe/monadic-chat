@@ -345,6 +345,92 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     end
   end
 
+  describe 'LIBRARY_CONVERSATION_DRAFT → library_conversation_draft' do
+    let(:words) { Monadic::Utils::Privacy::Words }
+
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    it 'gives the chat as a document to put on the work screen, keeping nothing' do
+      session = { messages: [{ 'role' => 'user', 'text' => 'Hi there' }, { 'role' => 'assistant', 'text' => 'Hello' }],
+                  parameters: { 'app_name' => 'ChatOpenAI', 'model' => 'gpt-x' } }
+      expect(Monadic::Library::Manager).not_to receive(:import_file)
+
+      host.send(:handle_ws_library_conversation_draft, connection, {}, session)
+
+      msg = replies.first
+      expect(msg['type']).to eq('library_conversation_draft')
+      expect(msg['name']).to match(/\Aconversation-\d{8}-\d{6}\.md\z/)
+      expect(msg['content']).to include('# Hi there', '## User', '## Assistant', 'App: ChatOpenAI')
+    end
+
+    it 'says there is nothing yet for a chat with no turns' do
+      host.send(:handle_ws_library_conversation_draft, connection, {}, { messages: [], parameters: {} })
+
+      expect(replies.first['error']).to eq('empty')
+    end
+
+    it 'gives nothing for a chat that hides words' do
+      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'Hi' }],
+                  parameters: {} }
+      words.start!(session)
+
+      host.send(:handle_ws_library_conversation_draft, connection, {}, session)
+
+      expect(replies.first).to eq('type' => 'library_conversation_draft', 'error' => 'hides_words')
+    end
+  end
+
+  describe 'LIBRARY_FROM_WORKBENCH → library_from_workbench' do
+    let(:words) { Monadic::Utils::Privacy::Words }
+
+    after { words::LOCK.synchronize { words::TABLES.clear } }
+
+    it 'keeps nothing from a chat that hides words' do
+      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
+      words.start!(session)
+      expect(Monadic::Library::DeskImport).not_to receive(:start)
+
+      host.send(:handle_ws_library_from_workbench, connection, { 'item_id' => 'i_1', 'sha256' => 'a' * 64 }, session)
+
+      expect(replies.first['error']).to eq('hides_words')
+    end
+
+    it 'keeps nothing for a tab that is not the live one of the chat' do
+      allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
+      expect(Monadic::Library::DeskImport).not_to receive(:start)
+
+      host.send(:handle_ws_library_from_workbench, connection, { 'item_id' => 'i_1', 'sha256' => 'a' * 64 },
+                { messages: [], parameters: {} })
+
+      expect(replies.first['error']).to eq('not_allowed')
+    end
+
+    it 'starts the import of the version the tab shows and gives its id' do
+      board = double('board')
+      allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
+      stub_const('WebSocketHelper::WORKBENCH_LIVE', ->(_tab) { 1 })
+      allow(Monadic::Workbench::Board).to receive(:existing).with('chat-1').and_return(board)
+      expect(Monadic::Library::DeskImport).to receive(:start).with(board, 'i_1', 'a' * 64).and_return('imp-1')
+
+      host.send(:handle_ws_library_from_workbench, connection, { 'item_id' => 'i_1', 'sha256' => 'a' * 64 },
+                { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: {} })
+
+      expect(replies.first).to include('import_id' => 'imp-1', 'status_url' => '/library/import/status/imp-1')
+    end
+
+    it 'says the document changed when it is not the version the tab shows' do
+      allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
+      stub_const('WebSocketHelper::WORKBENCH_LIVE', ->(_tab) { 1 })
+      allow(Monadic::Workbench::Board).to receive(:existing).and_return(double('board'))
+      allow(Monadic::Library::DeskImport).to receive(:start).and_raise(Monadic::Workbench::Artifact::Changed, 'changed')
+
+      host.send(:handle_ws_library_from_workbench, connection, { 'item_id' => 'i_1', 'sha256' => 'a' * 64 },
+                { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: {} })
+
+      expect(replies.first['error']).to eq('changed')
+    end
+  end
+
   describe 'LIBRARY_GET_CONVERSATION → library_conversation_data' do
     it 'returns the verbatim messages payload on success' do
       record = {

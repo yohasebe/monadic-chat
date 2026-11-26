@@ -599,6 +599,42 @@ describe('library-panel module', () => {
     });
   });
 
+  describe('keeping the conversation', () => {
+    it('asks the server for the chat as a document', () => {
+      const before = sentMessages.length;
+      lib.draftConversation();
+      expect(sentMessages.slice(before).map(m => m.message)).toEqual(['LIBRARY_CONVERSATION_DRAFT']);
+    });
+
+    it('puts the document on the work screen as a file and shows the work screen', () => {
+      const put = [];
+      const layout = {};
+      window.Workbench = { putFiles: (files) => { put.push(...files); } };
+      window.LayoutController = { setPane: (p) => { layout.pane = p; } };
+      try {
+        lib.handleConversationDraft({ name: 'conversation-20260102-030405.md', content: '# Hi\n' });
+        expect(put.map(f => [f.name, f.type])).toEqual([['conversation-20260102-030405.md', 'text/markdown']]);
+        expect(layout.pane).toBe('work');
+      } finally {
+        delete window.Workbench;
+        delete window.LayoutController;
+      }
+    });
+
+    it('puts nothing for a chat that hides words, and says so', () => {
+      const put = [];
+      window.Workbench = { putFiles: (files) => { put.push(...files); } };
+      window.setAlert = jest.fn();
+      try {
+        lib.handleConversationDraft({ error: 'hides_words' });
+        expect(put).toEqual([]);
+        expect(window.setAlert).toHaveBeenCalled();
+      } finally {
+        delete window.Workbench;
+      }
+    });
+  });
+
   describe('relativeTime', () => {
     it('reports recent timestamps in seconds/minutes/hours', () => {
       const now = Date.now();

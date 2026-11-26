@@ -51,6 +51,14 @@ RSpec.describe Monadic::Workbench::ItemText do
     expect(board.snapshot[:items].first[:text]).to be(true)
   end
 
+  it "flags the documents the Library takes, by the Library's own rule" do
+    doc = put("notes.md", "# Notes")
+    picture = put("b.png", "\x89PNG\r\n\x1A\n".b + "y")
+    items = board.snapshot[:items]
+    expect(items.find { |i| i[:id] == doc["id"] }[:library]).to be(true)
+    expect(items.find { |i| i[:id] == picture["id"] }[:library]).to be_nil
+  end
+
   it "gives none for another kind, another version, a file changed while converted, or no text" do
     picture = put("a.png", "\x89PNG\r\n\x1A\n".b + "x")
     expect(board.snapshot[:items].find { |i| i[:id] == picture["id"] }[:text]).to be_nil

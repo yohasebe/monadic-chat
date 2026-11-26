@@ -97,6 +97,11 @@ A file imported through `Manager.import_file` (the import route and the MCP `pat
 
 The working copy in `<data>/library/imports/` is separate: the route deletes it when the import ends.
 
+## From the Work Screen
+
+- `LIBRARY_FROM_WORKBENCH` (`handle_ws_library_from_workbench`) takes `item_id` and `sha256`: `Monadic::Library::DeskImport.start` reads the item's bytes at that version (`Board#file_read`), writes them to `<data>/library/imports/`, and runs `Manager.import_file` in a thread; the reply gives `import_id` and `status_url` (`ImportTracker`, as for an upload). Refused for a chat that hides words (`hides_words`), a tab that is not live (`not_allowed`), a name `FileImporter.importable?` refuses (`not_importable`), a file over `FileImporter::MAX_BYTES` (`too_large`), or another version (`changed`). The work screen offers it for items whose `library` flag (`Board#public_file`) is set.
+- `LIBRARY_CONVERSATION_DRAFT` (`handle_ws_library_conversation_draft`) gives the chat as a Markdown document (`Monadic::Library::ConversationRecord.of`: title, app, model, date, each user and assistant turn under `## User` / `## Assistant` with its own headings set to H4 and under, files named only, what a reply read from the Library) as `name` and `content`; nothing is stored. The page puts it on the work screen as a file (`Workbench.putFiles`). Refused for a chat that hides words.
+
 ## Save
 
 `LIBRARY_SAVE` (`handle_ws_library_save`) takes `messages`, `parameters`, `title`, `license`, `monadic_state` and `conversation_id`. It refuses, before writing anything, when:

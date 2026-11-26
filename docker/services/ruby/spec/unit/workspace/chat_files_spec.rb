@@ -153,6 +153,16 @@ RSpec.describe 'The files of a chat' do
       expect(tools.read_file_from_shared_folder(filepath: 'work/notes.md', workbench: me)[:content]).to eq('chat notes')
     end
 
+    it 'returns no bytes of a file that is not text, and says it reads text only' do
+      File.binwrite(File.join(@data, 'sound.m4a'), "\x00\x00\x00\x20ftypM4A \xFF\xFE\x00".b)
+      File.binwrite(File.join(@data, 'latin1.txt'), "caf\xE9".b)
+      %w[sound.m4a latin1.txt].each do |name|
+        result = tools.read_file_from_shared_folder(filepath: "/monadic/data/#{name}", workbench: me)
+        expect(result).to include(success: false, error: 'Not a text file: this tool reads text files only'), name
+        expect(result).not_to have_key(:content)
+      end
+    end
+
     it "never reads another chat's folder, however it is spelled" do
       [@theirs, "/monadic/data/#{@theirs}", @theirs.upcase, File.join(@data, @theirs)].each do |given|
         result = tools.read_file_from_shared_folder(filepath: given, workbench: me)

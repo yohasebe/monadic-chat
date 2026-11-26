@@ -13,7 +13,15 @@ RSpec.describe Monadic::Utils::SSLConfiguration do
     end
   end
 
-  after { described_class.instance_variable_set(:@params, nil) }
+  # configure! sets the process-wide HTTP defaults; those made here point at
+  # a CA file that is gone after the example, so the suite's are put back.
+  around do |example|
+    defaults = HTTP.default_options
+    example.run
+  ensure
+    HTTP.default_options = defaults
+    described_class.instance_variable_set(:@params, nil)
+  end
 
   it 'leaves OpenSSL\'s own defaults as they are, and keeps its own copy with CRL checks off and the CA file given' do
     before = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS.dup

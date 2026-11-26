@@ -265,8 +265,8 @@
     );
   }
 
-  // Browse-modal row: full table row with two inline icon-only buttons
-  // on the right (details / delete).
+  // Library tab row: full table row with three inline icon-only buttons
+  // on the right (open on the work screen / details / delete).
   // Cheap heuristics for "this row likely contains PII" — used for legacy
   // entries that were saved before pii_status was tracked at save time.
   // Both regexes are deliberately permissive: a false positive (warning
@@ -303,6 +303,7 @@
     var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
     var rel = relativeTime(row.created_at);
     var privacyBadge = privacyBadgeHtml(row);
+    var openLabel = t('ui.libOpenOnWorkScreen', 'Open on the work screen');
     var detailLabel = t('ui.libViewDetails', 'View details');
     var deleteLabel = t('ui.libDelete', 'Delete');
     return (
@@ -318,6 +319,10 @@
       +   '<td class="text-end small">' + turns + '</td>'
       +   '<td class="text-nowrap small text-secondary">' + escapeHtml(rel) + '</td>'
       +   '<td class="text-end text-nowrap">'
+      +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-open" '
+      +       'title="' + escapeHtml(openLabel) + '" aria-label="' + escapeHtml(openLabel) + '">'
+      +       '<i class="fa-solid fa-display"></i>'
+      +     '</button>'
       +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-detail" '
       +       'title="' + escapeHtml(detailLabel) + '" aria-label="' + escapeHtml(detailLabel) + '">'
       +       '<i class="fa-solid fa-circle-info"></i>'
@@ -461,6 +466,13 @@
     if (!scope) return;
     scope.querySelectorAll('tr[data-conversation-id]').forEach(function (tr) {
       var convId = tr.getAttribute('data-conversation-id');
+      var openLink = tr.querySelector('.library-action-open');
+      if (openLink) {
+        openLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (window.Workbench && typeof window.Workbench.openLibrary === 'function') window.Workbench.openLibrary(convId);
+        });
+      }
       var detailLink = tr.querySelector('.library-action-detail');
       if (detailLink) {
         detailLink.addEventListener('click', function (e) {

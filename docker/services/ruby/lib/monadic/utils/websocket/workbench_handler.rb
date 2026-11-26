@@ -256,6 +256,15 @@ module WebSocketHelper
     send_workbench_view(connection, session) unless result['status'] == 'refused'
   end
 
+  # An entry of the Library opened on the work screen by the user.
+  def handle_ws_workbench_open_library(connection, obj, session)
+    result = workbench_timed('open_library') do
+      Monadic::Workbench::Channel.open_library(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
+    end
+    workbench_deliver(connection).call(result)
+    send_workbench_view(connection, session) unless result['status'] == 'refused'
+  end
+
   # The earlier versions of a document's sections (Workbench::Document),
   # for the work screen to list.
   def handle_ws_workbench_versions(connection, obj, session)

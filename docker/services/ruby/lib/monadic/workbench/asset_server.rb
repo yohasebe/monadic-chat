@@ -6,6 +6,7 @@ require_relative 'view_tokens'
 require_relative 'whiteboard'
 require_relative '../workspace/chats'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../library/entry_text'
 
 module Monadic
   module Workbench
@@ -87,6 +88,7 @@ module Monadic
 
       def serve_file(env, view)
         board = Board.existing(view.chat_id) or return plain(404, 'Not found')
+        return serve_library(env, board, view) if board.item(view.item_id)&.fetch('kind', nil) == 'library'
         return serve_render(env, board, view) if view.purpose == :render
         return serve_background(env, board, view) if view.purpose == :background
 
@@ -142,6 +144,34 @@ module Monadic
         plain(413, 'Too large')
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         plain(415, 'Not text')
+      end
+
+      # A Library item's text at the version given, read from the Library
+      # now (Library::EntryText) and served as a text file is shown
+      # (text_view; the board keeps how many lines it is). 409 when the
+      # entry is not that version any more, 410 when it is gone, 415 when
+      # the Library did not keep its whole text; a download is not served.
+      def serve_library(env, board, view)
+        return plain(404, 'Not found') unless view.purpose == :view
+
+        record = board.library_entry(view.item_id, version: view.sha256)
+        entry = Monadic::Library::EntryText.of(record['id'])
+        unless entry[:version] == view.sha256
+          board.mark(view.item_id, sha256: view.sha256, status: 'changed')
+          return plain(409, 'Changed')
+        end
+
+        headers = HEADERS.merge('content-type' => 'text/plain; charset=utf-8')
+        bytes = text_shown(board, view, entry[:text].b, headers)
+        headers['content-length'] = bytes.bytesize.to_s
+        [200, headers, env['REQUEST_METHOD'] == 'HEAD' ? [] : [bytes]]
+      rescue Monadic::Library::EntryText::Missing
+        board.mark(view.item_id, sha256: view.sha256, status: 'missing')
+        plain(410, 'Gone')
+      rescue Monadic::Library::EntryText::Incomplete
+        plain(415, 'Not text')
+      rescue Artifact::Changed, Artifact::NotAllowed
+        plain(409, 'Changed')
       end
 
       # The picture under the whiteboard of the item at the version given:

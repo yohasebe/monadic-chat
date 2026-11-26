@@ -102,6 +102,15 @@ The working copy in `<data>/library/imports/` is separate: the route deletes it 
 - `LIBRARY_FROM_WORKBENCH` (`handle_ws_library_from_workbench`) takes `item_id` and `sha256`: `Monadic::Library::DeskImport.start` reads the item's bytes at that version (`Board#file_read`), writes them to `<data>/library/imports/`, and runs `Manager.import_file` in a thread; the reply gives `import_id` and `status_url` (`ImportTracker`, as for an upload). Refused for a chat that hides words (`hides_words`), a tab that is not live (`not_allowed`), a name `FileImporter.importable?` refuses (`not_importable`), a file over `FileImporter::MAX_BYTES` (`too_large`), or another version (`changed`). The work screen offers it for items whose `library` flag (`Board#public_file`) is set.
 - `LIBRARY_CONVERSATION_DRAFT` (`handle_ws_library_conversation_draft`) gives the chat as a Markdown document (`Monadic::Library::ConversationRecord.of`: title, app, model, date, each user and assistant turn under `## User` / `## Assistant` with its own headings set to H4 and under, files named only, what a reply read from the Library) as `name` and `content`; nothing is stored. The page puts it on the work screen as a file (`Workbench.putFiles`). Refused for a chat that hides words.
 
+## On the Work Screen
+
+An entry opened from the Library tab (`WORKBENCH_OPEN_LIBRARY` → `Workbench::Channel.open_library`) is a board item of kind `library`: `{ 'library' => { 'id', 'title', 'version', 'original' } }` (`Board#add_library`; the same entry at the same version is selected again, not added). Its text is `Monadic::Library::EntryText.of` (each part, under `[User]` / `[Assistant]` for a conversation; the version is the SHA-256 of that text), read when it is shown or looked at:
+
+- `Board#public_item` describes it with `kind: 'library'`, `preview: 'text'`, `version` and `sha256` (the text's version); the observation names it by kind `library` and takes lines in view as for text.
+- `AssetServer#serve_library` serves its text (view tokens only) as a text file is shown and keeps its line count (`note_text`); 409 and the item marked `changed` when the entry's text is another version, 410 and `missing` when it is gone, 415 when the entry did not keep its whole text.
+- `Look` reads it as text (`library_seen`), at the item's version only.
+- File-only operations (drawing, edits, pointing, keeping in the Library) do not take it: the item has no `file`.
+
 ## Save
 
 `LIBRARY_SAVE` (`handle_ws_library_save`) takes `messages`, `parameters`, `title`, `license`, `monadic_state` and `conversation_id`. It refuses, before writing anything, when:

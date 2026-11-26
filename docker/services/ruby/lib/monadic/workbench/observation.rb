@@ -206,7 +206,7 @@ module Monadic
           return [nil, NOTES.include?(note) ? note : 'unknown'] unless reported['range'].is_a?(Hash)
 
           range = case kind
-                  when 'text' then text_range(reported['range'], text)
+                  when 'text', 'library' then text_range(reported['range'], text)
                   when 'pdf' then pdf_range(reported['range'])
                   when 'audio', 'video' then media_range(reported['range'])
                   end

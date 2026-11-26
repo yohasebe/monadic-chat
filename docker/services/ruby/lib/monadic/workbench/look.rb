@@ -13,6 +13,7 @@ require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
 require_relative 'item_text'
+require_relative '../library/entry_text'
 require_relative '../workspace/chats'
 require_relative '../workspace/request_context'
 require_relative '../workspace/shared_folder_preview'
@@ -303,6 +304,8 @@ module Monadic
           return seen(item, 'browser', name, path, nil, **content.except(:name, :path))
         end
 
+        return library_seen(board, selection, scope, item, caller, deadline) if item['library']
+
         file = item['file'] or raise Refused.new('unsupported_kind', 'this item cannot be looked at')
         case file['preview']
         when 'image'
@@ -357,6 +360,29 @@ module Monadic
         raise Refused.new('busy', 'the work screen is reading other files; try again in a moment')
       rescue Monadic::Workspace::SharedFolderPreview::NotText
         raise Refused.new('unsupported_kind', 'the file is not text')
+      end
+
+      # A Library entry on the work screen, as text: read from the Library
+      # now, and only at the version the item was opened at (an entry
+      # deleted, or changed since, is not read). The lines in view, or the
+      # whole, as for a text file.
+      def library_seen(board, selection, scope, item, caller, deadline)
+        record = board.library_entry(item['id'], version: item.dig('library', 'version'))
+        entry = Monadic::Library::EntryText.of(record['id'])
+        unless entry[:version] == record['version']
+          board.mark(item['id'], sha256: record['version'], status: 'changed')
+          raise Refused.new('changed', 'the entry changed in the Library since it was opened; open it again to look at it')
+        end
+
+        lines = scope == 'visible' ? lines_in_view(board, selection, caller, deadline) : nil
+        bytes = entry[:text].b
+        content = lines ? visible_text(bytes, **lines) : whole_text(bytes)
+        seen(item, 'text', entry[:title], nil, entry[:version], **content)
+      rescue Monadic::Library::EntryText::Missing
+        board.mark(item['id'], sha256: item.dig('library', 'version'), status: 'missing')
+        raise Refused.new('missing', 'the entry is no longer in the Library; it was not looked at')
+      rescue Monadic::Library::EntryText::Incomplete
+        raise Refused.new('unsupported_kind', 'the Library did not keep the whole text of this entry')
       end
 
       # An Office document given as it is ({ file: }), or nil when the

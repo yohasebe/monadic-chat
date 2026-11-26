@@ -201,6 +201,10 @@
   }
 
   function statusText(status, item) {
+    if (item && item.kind === 'library') {
+      if (status === 'changed') return t('ui.workbench.libraryChanged', 'This entry changed in the Library after it was opened here: open it again.');
+      if (status === 'missing') return t('ui.workbench.libraryMissing', 'This entry is no longer in the Library.');
+    }
     if (status === 'changed' && item && item.kind === 'file') {
       return t('ui.workbench.fileChanged', 'This file changed in the shared folder after it was opened here.');
     }
@@ -211,7 +215,13 @@
 
   // The items in the row, in the order they came.
   function rowItems() {
-    return items().filter((item) => ['image', 'file', 'browser'].includes(item.kind));
+    return items().filter((item) => ['image', 'file', 'library', 'browser'].includes(item.kind));
+  }
+
+  // An item drawn by what its content is (a file, or an entry of the
+  // Library shown as its text), not by what made it.
+  function previewed(item) {
+    return item.kind === 'file' || item.kind === 'library';
   }
 
   // ---- the pane ------------------------------------------------------
@@ -547,8 +557,13 @@
       show(held, null);
     }
     const line = element('div', 'small text-secondary mt-2');
-    line.appendChild(element('code', null, item.path || item.name || ''));
-    shortenPaths(line);
+    if (item.kind === 'library') {
+      line.appendChild(element('i', 'fa-solid fa-book me-1'));
+      line.appendChild(document.createTextNode(t('ui.workbench.fromLibrary', 'From the Library (its text)')));
+    } else {
+      line.appendChild(element('code', null, item.path || item.name || ''));
+      shortenPaths(line);
+    }
     info.appendChild(line);
     // The buttons under the item, in one row that keeps them apart.
     const actions = element('div', 'workbench-actions');
@@ -898,6 +913,14 @@
     warn(reason ? t(reason[0], reason[1]) : t('ui.workbench.itemTextFailed', 'The text of the document could not be taken.'));
   }
 
+  // An entry of the Library opened on the work screen (its text, as it is
+  // now in the Library).
+  function openLibrary(libraryId) {
+    if (!libraryId || typeof window.safeWsSend !== 'function') return;
+    opening = `library:${libraryId}`;
+    window.safeWsSend({ message: 'WORKBENCH_OPEN_LIBRARY', library_id: String(libraryId) });
+  }
+
   // A document of the work screen kept in the Library (as the version the
   // tab shows); the Library says how the import goes (followImport).
   function keepInLibrary(item) {
@@ -984,7 +1007,7 @@
   // told when getting it fails; resumeAt: where media go on from).
   function body(item, drawn, resumeAt) {
     const url = drawn.url;
-    const kind = item.kind === 'file' ? item.preview : 'image';
+    const kind = previewed(item) ? item.preview : 'image';
     if (kind === 'audio' || kind === 'video') {
       const media = element(kind, `workbench-${kind}`);
       media.controls = true;
@@ -1753,7 +1776,7 @@
     if (!item) return null;
     const version = item.version || item.sha256 || '';
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
-    const kind = item.kind === 'file' ? item.preview : item.kind;
+    const kind = previewed(item) ? item.preview : item.kind;
     const shownNow = paneShown();
     const report = (range, note) => Object.assign({
       item_id: item.id, version: version, range: range, note: note,
@@ -3091,7 +3114,10 @@
     opening = null;
     if (data.status === 'refused') {
       const reason = data.reason === 'busy' ? t('ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.')
-        : data.reason === 'changed' ? t('ui.workbench.changedSinceShown', 'The file changed after it was shown.') : (data.reason || '');
+        : data.reason === 'changed' ? t('ui.workbench.changedSinceShown', 'The file changed after it was shown.')
+          : data.reason === 'missing' && data.library_id ? t('ui.workbench.libraryMissing', 'This entry is no longer in the Library.')
+            : data.reason === 'incomplete' ? t('ui.workbench.libraryIncomplete', 'The Library did not keep the whole text of this entry.')
+              : (data.reason || '');
       warn(`${t('ui.workbench.notOpened', 'The file was not opened in the work screen')}: ${reason}`);
       return;
     }
@@ -3444,7 +3470,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

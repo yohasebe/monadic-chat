@@ -12,6 +12,7 @@ require_relative '../workspace/ids'
 require_relative '../workspace/attachments'
 require_relative '../workspace/ledger'
 require_relative '../workspace/shared_folder_preview'
+require_relative '../library/entry_text'
 require_relative '../turn_state/keeper'
 
 module Monadic
@@ -67,7 +68,7 @@ module Monadic
           # A file the work screen only holds is not shown: no address.
           next if item[:status] != 'ok' || !item[:sha256] || item[:preview] == 'file'
 
-          source = item[:kind] == 'file' ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
+          source = %w[file library].include?(item[:kind]) ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
           assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
           # The picture under a whiteboard (served only for one drawn on one).
           if item[:render] == 'whiteboard'
@@ -131,6 +132,27 @@ module Monadic
         open_refusal(path, e.message)
       rescue FileItem::Busy
         open_refusal(path, 'busy')
+      end
+
+      # An entry of the Library (its id) opened by the user on the board, as
+      # its text is now (Library::EntryText). The answer names the entry.
+      def open_library(obj, session, tab:, generation:, live:)
+        id = obj['library_id'].to_s
+        refuse = ->(reason) { { 'type' => 'workbench_opened', 'library_id' => id, 'status' => 'refused', 'reason' => reason } }
+        return refuse.call('not_allowed') unless live.call(tab) == generation && !id.empty?
+
+        chat_id = chat_id_of(session) or return refuse.call('not_allowed')
+        entry = Monadic::Library::EntryText.of(id)
+        item, added = Board.for(chat_id).add_library(entry: entry, origin: { actor: :user, source: :panel, tab: tab, generation: generation },
+                                                     epoch: Monadic::Workspace::Chats.epoch(chat_id))
+        changed(chat_id)
+        { 'type' => 'workbench_opened', 'library_id' => id, 'item_id' => item['id'], 'added' => added }
+      rescue Monadic::Library::EntryText::Missing
+        refuse.call('missing')
+      rescue Monadic::Library::EntryText::Incomplete
+        refuse.call('incomplete')
+      rescue Board::Refused => e
+        refuse.call(e.message)
       end
 
       # An attachment of this connection's chat (audio or video, or a file the

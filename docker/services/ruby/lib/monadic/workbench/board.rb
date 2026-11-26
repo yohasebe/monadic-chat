@@ -149,7 +149,7 @@ module Monadic
           held = @selected[tab.to_s]
           id = held && held[:generation] == generation && @data['items'].key?(held[:item_id]) ? held[:item_id] : nil
           shown = id && @texts[id]
-          version = id && @data.dig('items', id, 'file', 'sha256')
+          version = id && version_of(@data.dig('items', id))
           [deep_dup(@data), id, shown && shown[:sha256] == version ? shown.slice(:lines, :truncated) : nil]
         end
         return nil unless data
@@ -298,6 +298,43 @@ module Monadic
         end
       end
 
+      # An entry of the Library opened on the board (entry: EntryText.of's
+      # id, title, version and original): the tab of origin selects it. The
+      # same entry at the same version again is selected, not added.
+      # Returns [item, added].
+      def add_library(entry:, origin:, epoch:)
+        record = { 'id' => entry[:id].to_s, 'title' => entry[:title].to_s, 'version' => entry[:version].to_s,
+                   'original' => entry.dig(:original, 'sha256') }.compact
+        change do |data|
+          check_epoch!(epoch)
+          raise Refused, 'not_allowed' if origin[:actor].to_s == 'user' && !live?(origin[:tab], origin[:generation])
+
+          found = data['items'].values.find do |item|
+            item['kind'] == 'library' && item.dig('library', 'id') == record['id'] && item.dig('library', 'version') == record['version']
+          end
+          if found
+            select_for_origin(origin, found['id'])
+            next [deep_dup(found), false]
+          end
+
+          room_for_one!(data)
+          item_id = "i_#{SecureRandom.hex(10)}"
+          data['items'][item_id] = { 'id' => item_id, 'kind' => 'library', 'origin' => kept_origin(origin), 'mid' => nil,
+                                     'library' => record }
+          select_for_origin(origin, item_id)
+          record!(data, { 'kind' => 'placed', 'item_id' => item_id }, origin)
+          [deep_dup(data['items'][item_id]), true]
+        end
+      end
+
+      # The Library item's record at the version given (no Library read).
+      def library_entry(item_id, version:)
+        record = @lock.synchronize { deep_dup(@data.dig('items', item_id, 'library')) } or raise Artifact::NotAllowed, 'no such entry'
+        raise Artifact::Changed, 'the entry changed after it was opened' unless record['version'] == version
+
+        record
+      end
+
       # An item already on the board, brought before the tab of origin (the
       # reply's): it selects it, and the page shows it as it shows an item
       # made for it. Refused at another epoch, or for an item that is not
@@ -332,7 +369,8 @@ module Monadic
       # version sha256: views say so until it is opened again.
       def mark(item_id, sha256:, status:)
         @lock.synchronize do
-          next unless @data.dig('items', item_id, 'file', 'sha256') == sha256
+          item = @data.dig('items', item_id)
+          next unless item && %w[file library].include?(item['kind']) && version_of(item) == sha256
 
           @verdicts[item_id] = { sha256: sha256, status: status }
         end
@@ -342,7 +380,8 @@ module Monadic
       # (truncated: only its beginning), as served.
       def note_text(item_id, sha256:, lines:, truncated:)
         @lock.synchronize do
-          next unless @data.dig('items', item_id, 'file', 'sha256') == sha256
+          item = @data.dig('items', item_id)
+          next unless item && %w[file library].include?(item['kind']) && version_of(item) == sha256
 
           @texts[item_id] = { sha256: sha256, lines: lines, truncated: truncated }
         end
@@ -616,6 +655,7 @@ module Monadic
       def take_off!(data, item, removed_by)
         # Its kind and name from the record (no file is read under the lock).
         entry = item['file'] || item['artifact'] || {}
+        entry = { 'name' => item.dig('library', 'title') } if item['kind'] == 'library'
         kind = item['kind'] == 'file' ? entry['preview'].to_s : item['kind'].to_s
         actor = SYSTEM_REMOVALS.include?(removed_by) ? 'system' : 'user'
         record!(data, { 'kind' => 'removed', 'item_id' => item['id'], 'item_kind' => kind,
@@ -678,7 +718,10 @@ module Monadic
       # What an operation's token names of the item: the sha256 of an image
       # or a file, the instance of a browser.
       def version_of(item)
-        item['kind'] == 'browser' ? "browser:#{item.dig('browser', 'instance')}" : content_of(item)&.dig('sha256')
+        return "browser:#{item.dig('browser', 'instance')}" if item['kind'] == 'browser'
+        return item.dig('library', 'version') if item['kind'] == 'library'
+
+        content_of(item)&.dig('sha256')
       end
 
       # open while the chat's browser is this item's, closed after.
@@ -726,6 +769,13 @@ module Monadic
 
       def public_item(item)
         return public_file(item) if item['kind'] == 'file'
+        if item['kind'] == 'library'
+          entry = item['library']
+          return { id: item['id'], kind: 'library', actor: item.dig('origin', 'actor'), mid: item['mid'],
+                   name: entry['title'], library_id: entry['id'], version: entry['version'], sha256: entry['version'],
+                   preview: 'text',
+                   original: entry['original'] ? true : nil, status: library_status(item) }.compact
+        end
         if item['kind'] == 'browser'
           return { id: item['id'], kind: 'browser', actor: item.dig('origin', 'actor'), mid: item['mid'],
                    instance: item.dig('browser', 'instance'), version: version_of(item), status: browser_status(item) }
@@ -739,6 +789,13 @@ module Monadic
           derived_from: entry['derived_from'], version: entry['sha256'],
           status: entry['id'] ? Artifact.status(entry['id'], chat_id: @chat_id).to_s : 'missing'
         }
+      end
+
+      # What a use found (mark) for this version, else ok: the Library is
+      # read when the item is shown or looked at, not for every view.
+      def library_status(item)
+        verdict = @verdicts[item['id']]
+        verdict && verdict[:sha256] == item.dig('library', 'version') ? verdict[:status] : 'ok'
       end
 
       # What a use found (mark) for this version, or what the file's stat says.

@@ -287,6 +287,8 @@ module WebSocketHelper
           handle_ws_library_from_workbench(connection, obj, session)
         when "WORKBENCH_OPEN"
           handle_ws_workbench_open(connection, obj, session)
+        when "WORKBENCH_OPEN_LIBRARY"
+          handle_ws_workbench_open_library(connection, obj, session)
         when "WORKBENCH_VERSIONS"
           handle_ws_workbench_versions(connection, obj, session)
         when "WORKBENCH_OPEN_ATTACHMENT"

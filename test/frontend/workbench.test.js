@@ -2285,6 +2285,19 @@ describe('Workbench', () => {
     });
   });
 
+  describe('an entry of the Library on the work screen', () => {
+    test('is listed as an item, says it is from the Library, and is opened by its id', () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      const entry = item({ id: 'i_l', kind: 'library', artifact_id: undefined, preview: 'text', name: 'Tides',
+        library_id: 'conv-1', sha256: 'b'.repeat(64), version: 'b'.repeat(64), path: undefined });
+      view([entry], { selected: 'i_l' });
+      expect(document.querySelector('#workbench-view').textContent).toContain('From the Library (its text)');
+      expect(document.querySelector('#workbench-view .workbench-to-library')).toBeNull();
+      window.Workbench.openLibrary('conv-2');
+      expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_OPEN_LIBRARY', library_id: 'conv-2' });
+    });
+  });
+
   describe('a document kept in the Library', () => {
     test('offers it under a document the Library takes, asks for this version, and follows the import', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));

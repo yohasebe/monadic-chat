@@ -674,6 +674,21 @@ describe('library-panel module', () => {
   });
 
   describe('browseRowMarkup', () => {
+    it('opens the entry on the work screen from its row', () => {
+      const opened = [];
+      window.Workbench = { openLibrary: (id) => opened.push(id) };
+      document.body.innerHTML = '<table><tbody id="library-browse-tbody"></tbody></table>';
+      try {
+        lib.handleConversations({ content: [{ conversation_id: 'conv-9', title: 'T', turns_count: 1,
+          created_at: new Date().toISOString() }] });
+        document.querySelector('#library-browse-tbody .library-action-open').click();
+        expect(opened).toEqual(['conv-9']);
+      } finally {
+        delete window.Workbench;
+        document.body.innerHTML = '';
+      }
+    });
+
     it('uses 2 inline icon buttons instead of a dropdown menu', () => {
       const html = lib.browseRowMarkup({
         conversation_id: 'X', title: 'T', scope_app: 'ChatOpenAI',

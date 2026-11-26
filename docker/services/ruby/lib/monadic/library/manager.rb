@@ -5,6 +5,8 @@ require_relative 'store'
 require_relative 'hierarchical'
 require_relative 'retriever'
 require_relative 'importers'
+require_relative 'file_importer'
+require_relative 'originals'
 
 module Monadic
   module Library
@@ -153,8 +155,13 @@ module Monadic
         true
       end
 
+      # Deletes the entry, and then the kept file it was made from when no
+      # other entry names it (Originals.remove_if_unused).
       def delete_conversation(store:, conversation_id:)
+        sha256 = store.original_of(conversation_id)&.dig('sha256')
         store.delete_conversation(conversation_id)
+        Originals.remove_if_unused(sha256) { |s| store.original_refs(s) } if sha256
+        true
       end
 
       # ─── Import + ingest ───────────────────────────────────────────────
@@ -171,6 +178,28 @@ module Monadic
           importer: importer.name.split('::').last,
           counts: counts
         }
+      end
+
+      # Imports a file (FileImporter): its bytes are kept (Originals) and
+      # named on the entry as 'original'. When the import fails, the kept
+      # file goes again unless another entry or import has it. on_stage is
+      # called with :extracting and :embedding_storing.
+      def import_file(store:, path:, filename:, options: {}, scope_app: Store::SCOPE_GLOBAL, on_stage: nil)
+        kept = Originals.keep(path)
+        imported = false
+        begin
+          on_stage&.call(:extracting)
+          conversation = FileImporter.build_conversation(path: path, filename: filename, options: options)
+          on_stage&.call(:embedding_storing)
+          original = { 'sha256' => kept[:sha256], 'filename' => File.basename(filename.to_s),
+                       'extension' => File.extname(filename.to_s).delete_prefix('.').downcase, 'bytes' => kept[:bytes] }
+          counts = Hierarchical.ingest(conversation, store: store, scope_app: scope_app, original: original)
+          imported = true
+          { conversation_id: conversation['conversation_id'], counts: counts, original: original }
+        ensure
+          Originals.release(kept[:sha256])
+          Originals.remove_if_unused(kept[:sha256]) { |s| store.original_refs(s) } unless imported
+        end
       end
 
       def import_conversation(store:, conversation:, scope_app: Store::SCOPE_GLOBAL)

@@ -118,6 +118,22 @@ module Monadic
         true
       end
 
+      # Number of entries made from the kept file of this SHA-256.
+      def original_refs(sha256)
+        bootstrap_collections!
+        @store.count(
+          collection: Schema::LIBRARY_SUMMARIES,
+          filter: { must: [{ key: 'original.sha256', match: { value: sha256.to_s } }] },
+          exact: true
+        )
+      end
+
+      # The kept file an entry was made from (its summary's 'original'), or nil.
+      def original_of(conversation_id)
+        page = scroll(collection: Schema::LIBRARY_SUMMARIES, filter: conversation_filter(conversation_id), limit: 1)
+        page[:points].first&.dig('payload', 'original')
+      end
+
       # Number of registered conversations. Pass app_name to count only
       # entries this app would see (its own + Global); pass nil for the
       # total.

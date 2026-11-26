@@ -2,6 +2,8 @@
 
 require 'spec_helper'
 require 'monadic/library'
+require 'digest'
+require 'tmpdir'
 
 RSpec.describe Monadic::Library::Manager do
   let(:store) { instance_double(Monadic::Library::Store) }
@@ -140,7 +142,85 @@ RSpec.describe Monadic::Library::Manager do
 
   describe '.delete_conversation' do
     it 'forwards to Store#delete_conversation' do
+      allow(store).to receive(:original_of).with('abc').and_return(nil)
       expect(described_class.delete_conversation(store: store, conversation_id: 'abc')).to be true
+    end
+
+    it 'then removes the kept file when no other entry names it' do
+      sha256 = 'a' * 64
+      allow(store).to receive(:original_of).with('abc').and_return('sha256' => sha256)
+      allow(store).to receive(:original_refs).with(sha256).and_return(0)
+      expect(store).to receive(:delete_conversation).with('abc').ordered
+      expect(Monadic::Library::Originals).to receive(:remove_if_unused).with(sha256).ordered.and_call_original
+      allow(File).to receive(:file?).and_call_original
+
+      described_class.delete_conversation(store: store, conversation_id: 'abc')
+    end
+  end
+
+  describe '.import_file' do
+    let(:root) { Dir.mktmpdir('library-') }
+    let(:upload) do
+      path = File.join(root, 'upload.md')
+      File.write(path, "# Notes\n\nSome text.\n")
+      path
+    end
+    let(:sha256) { Digest::SHA256.file(upload).hexdigest }
+
+    before do
+      allow(Monadic::Utils::Environment).to receive(:library_path).and_return(File.join(root, 'library'))
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return(root)
+      Monadic::Library::Originals.instance_variable_set(:@held, Hash.new(0))
+      allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }
+    end
+
+    after { FileUtils.rm_rf(root) }
+
+    it 'keeps the file and names it on the entry as its original' do
+      payloads = []
+      allow(store).to receive(:upsert_points) { |collection:, points:| payloads.concat(points.map { |pt| [collection, pt[:payload]] }) }
+      stages = []
+
+      result = described_class.import_file(store: store, path: upload, filename: 'Notes.MD', on_stage: ->(s) { stages << s })
+
+      original = { 'sha256' => sha256, 'filename' => 'Notes.MD', 'extension' => 'md', 'bytes' => File.size(upload) }
+      expect(result[:original]).to eq(original)
+      summary = payloads.find { |c, _| c == Monadic::VectorStore::Schema::LIBRARY_SUMMARIES }.last
+      expect(summary['original']).to eq(original)
+      expect(Monadic::Library::Originals.read(sha256)).to eq(File.binread(upload))
+      expect(Monadic::Library::Originals.held?(sha256)).to be false
+      expect(stages).to eq(%i[extracting embedding_storing])
+    end
+
+    it 'removes the kept file again when the import fails and nothing else names it' do
+      allow(store).to receive(:upsert_points).and_raise(Monadic::VectorStore::BackendError, 'down')
+      allow(store).to receive(:delete_point_ids)
+      allow(store).to receive(:original_refs).with(sha256).and_return(0)
+
+      expect { described_class.import_file(store: store, path: upload, filename: 'upload.md') }
+        .to raise_error(Monadic::VectorStore::BackendError)
+      expect { Monadic::Library::Originals.read(sha256) }.to raise_error(Monadic::Library::Originals::Missing)
+    end
+
+    it 'keeps the file when the import fails while another import holds the same bytes' do
+      allow(store).to receive(:upsert_points).and_raise(Monadic::VectorStore::BackendError, 'down')
+      allow(store).to receive(:delete_point_ids)
+      allow(store).to receive(:original_refs).and_return(0)
+      Monadic::Library::Originals.keep(upload)
+
+      expect { described_class.import_file(store: store, path: upload, filename: 'upload.md') }
+        .to raise_error(Monadic::VectorStore::BackendError)
+      expect(Monadic::Library::Originals.read(sha256)).to eq(File.binread(upload))
+    end
+
+    it 'keeps the file when the import fails and the entries cannot be counted' do
+      allow(store).to receive(:upsert_points).and_raise(Monadic::VectorStore::BackendError, 'down')
+      allow(store).to receive(:delete_point_ids)
+      allow(store).to receive(:original_refs).and_raise(Monadic::VectorStore::BackendError, 'down')
+
+      expect { described_class.import_file(store: store, path: upload, filename: 'upload.md') }
+        .to raise_error(Monadic::VectorStore::BackendError)
+      expect(Monadic::Library::Originals.read(sha256)).to eq(File.binread(upload))
     end
   end
 

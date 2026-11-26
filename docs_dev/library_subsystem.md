@@ -84,11 +84,23 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 1. Rejects the upload when its size cannot be read or exceeds `LIBRARY_IMPORT_MAX_BYTES` (default 100 MiB).
 2. Writes it to `<data>/library/imports/<epoch>_<hex>_<filename>`. The worker thread deletes the file when the import ends, whether it succeeds or fails (`ensure`); a failure before the worker starts deletes it in the route.
 3. Registers an `ImportTracker` entry and returns `202` with `import_id` and `status_url`.
-4. A background thread runs `FileImporter.build_conversation` and `Manager.import_conversation`. A Python extractor that runs past `FileImporter::EXTRACT_TIMEOUT` (600 s, as long as the extractor service is given) is stopped and the import ends in `error`.
+4. A background thread runs `Manager.import_file` (`FileImporter.build_conversation`, then `Hierarchical.ingest` with the kept original; see [Originals](#originals)). A Python extractor that runs past `FileImporter::EXTRACT_TIMEOUT` (600 s, as long as the extractor service is given) is stopped and the import ends in `error`.
 
 `Hierarchical.ingest` writes the summary, then the turns. When a step fails after some points were written, it deletes those points by id and raises; if that deletion fails too, it is logged and the points stay. A summary is readable before its turns are written.
 
 `GET /library/import/status/:id` returns the stage: `queued` → `extracting` → `embedding_storing` → `done` or `error`. `ImportTracker` is in memory; finished entries are removed one hour after they finish. The panel polls from 800 ms up to 5 s between requests and gives up after 30 minutes.
+
+## Originals
+
+A file imported through `Manager.import_file` (the import route and the MCP `path` input) is kept by `Monadic::Library::Originals` (`lib/monadic/library/originals.rb`) in `<library_path>/originals/<sha256>` (`Environment.library_path`: `/monadic/library` in the container, `~/monadic/library` on the host; folder 0700, files 0600). Only the Ruby service mounts it (`docker/services/ruby/compose.yml`); `monadic.sh` `ensure_state_dir` creates it. The same bytes are kept once.
+
+- `keep(path)` writes the file beside its target, checks the SHA-256, renames it into place, and holds it for the import; a kept file of that name with other bytes raises `Changed`. `release` ends the hold.
+- The summary point carries `original`: `sha256`, `filename`, `extension`, `bytes`. Text imports and saved conversations have none.
+- `remove_if_unused(sha256) { count }` removes the file only when no import holds it and the count (`Store#original_refs`, summaries whose `original.sha256` matches) is 0; a count that fails keeps it. Keep, release and remove_if_unused run under one lock.
+- An import that fails removes its file the same way; `Manager.delete_conversation` reads the entry's `original` (`Store#original_of`), deletes the entry, then calls `remove_if_unused`.
+- `read(sha256)` returns the bytes after checking them: `Missing` when the file is gone or is a link, `Changed` when the bytes differ.
+
+The working copy in `<data>/library/imports/` is separate: the route deletes it when the import ends.
 
 ## Save
 

@@ -61,6 +61,12 @@ module Monadic
         resolve_path('/monadic/state')
       end
 
+      # The Knowledge Base's own files (Library::Originals). Outside the
+      # shared folder, mounted by this server only.
+      def library_path
+        resolve_path('/monadic/library')
+      end
+
       def scripts_path
         File.join(data_path, 'scripts')
       end

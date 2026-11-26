@@ -93,7 +93,8 @@ post "/library/import" do
 
   # Persist the upload under the shared volume so the python container
   # can read it via the same `/monadic/data` mount. The copy is used only
-  # while this import runs and is deleted when it ends, however it ends.
+  # while this import runs and is deleted when it ends, however it ends;
+  # the file itself is kept in the Library's own folder (Originals).
   data_root = Monadic::Utils::Environment.data_path
   imports_dir = File.join(data_root, 'library', 'imports')
   Monadic::Utils::SharedPathGuard.mkdir_p!(imports_dir)
@@ -125,15 +126,9 @@ post "/library/import" do
     Thread.new do
       Thread.current.report_on_exception = false
       begin
-        Monadic::Library::ImportTracker.update(import_id, stage: 'extracting')
-        conversation = Monadic::Library::FileImporter.build_conversation(
-          path: dest_path, filename: filename, options: options
-        )
-
-        Monadic::Library::ImportTracker.update(import_id, stage: 'embedding_storing')
-        store = Monadic::Library::Store.new
-        result = Monadic::Library::Manager.import_conversation(
-          store: store, conversation: conversation, scope_app: scope_app
+        result = Monadic::Library::Manager.import_file(
+          store: Monadic::Library::Store.new, path: dest_path, filename: filename, options: options,
+          scope_app: scope_app, on_stage: ->(stage) { Monadic::Library::ImportTracker.update(import_id, stage: stage.to_s) }
         )
 
         Monadic::Library::ImportTracker.update(
@@ -142,6 +137,11 @@ post "/library/import" do
           finished_at: Time.now,
           conversation_id: result[:conversation_id],
           counts: result[:counts].each_with_object({}) { |(k, v), h| h[k.to_s] = v }
+        )
+      rescue Monadic::Library::Originals::Changed
+        Monadic::Library::ImportTracker.update(
+          import_id, stage: 'error', finished_at: Time.now,
+          error: 'A file with the same content in the Knowledge Base was changed; it was not replaced.'
         )
       rescue Monadic::Library::FileImporter::UnsupportedFormatError => e
         Monadic::Library::ImportTracker.update(

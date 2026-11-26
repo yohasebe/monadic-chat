@@ -2364,19 +2364,19 @@ module Monadic
 
         text = (arguments["text"] || arguments[:text]).to_s
         path = (arguments["path"] || arguments[:path]).to_s
-        conversation, source =
+        global = Monadic::Library::Store::SCOPE_GLOBAL
+        result, source =
           if !text.empty?
-            [Monadic::Library::Importers::Markdown.import(text, title: title), "text"]
+            conversation = Monadic::Library::Importers::Markdown.import(text, title: title)
+            [Monadic::Library::Manager.import_conversation(store: kb_store, conversation: conversation, scope_app: global), "text"]
           elsif !path.empty?
             path = resolve_shared_path(path, extensions: Monadic::Library::FileImporter.supported_extensions)
-            [Monadic::Library::FileImporter.build_conversation(path: path, options: { title: title }), path]
+            [Monadic::Library::Manager.import_file(store: kb_store, path: path, filename: File.basename(path),
+                                                   options: { title: title }, scope_app: global), path]
           else
             raise ArgumentError, "provide either `text` or `path`"
           end
 
-        result = Monadic::Library::Manager.import_conversation(
-          store: kb_store, conversation: conversation, scope_app: Monadic::Library::Store::SCOPE_GLOBAL
-        )
         { conversation_id: result[:conversation_id], title: title, source: source, counts: result[:counts] }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
         kb_unavailable(arguments, e)

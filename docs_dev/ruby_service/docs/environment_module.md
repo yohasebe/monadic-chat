@@ -16,6 +16,7 @@
 | `env_path` | `/monadic/config/env` | `~/monadic/config/env` |
 | `data_path`, `shared_volume` | `/monadic/data` | `~/monadic/data` |
 | `state_path` | `/monadic/state` | `~/monadic/state` |
+| `library_path` | `/monadic/library` | `~/monadic/library` |
 | `scripts_path`, `apps_path`, `helpers_path` | `data_path` + `scripts`, `apps`, `helpers` | same, under `~/monadic/data` |
 | `log_path` | `/monadic/log` | `~/monadic/log` |
 | `command_log_file`, `extra_log_file`, `jupyter_log_file` | `command.log`, `extra.log`, `jupyter.log` in `log_path` | same |

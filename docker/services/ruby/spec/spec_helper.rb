@@ -256,6 +256,16 @@ RSpec.configure do |config|
   end
   config.after(:suite) { FileUtils.rm_rf(spec_state) }
 
+  # No example reaches the Knowledge Base's files of the computer running the
+  # specs (~/monadic/library), integration and E2E ones included: the folder
+  # is one of this run's own. A spec that stubs library_path itself uses its
+  # own folder instead.
+  spec_library = Dir.mktmpdir('monadic-spec-library')
+  config.before(:each) do
+    allow(Monadic::Utils::Environment).to receive(:library_path).and_return(spec_library)
+  end
+  config.after(:suite) { FileUtils.rm_rf(spec_library) }
+
   # Start the Docker services for integration and E2E tests, only when the
   # run asks for it: a plain run of spec/unit also selects a few tagged
   # examples, and must not start the user's containers.

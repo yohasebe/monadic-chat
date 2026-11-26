@@ -570,15 +570,19 @@ EOF
   fi
 }
 
-# The Ruby container bind-mounts ~/monadic/state. Create it here, owned by
-# the user: left to Docker, a missing source is created as root on Linux and
-# the server run from the host could not write its ledger there.
+# The Ruby container bind-mounts ~/monadic/state and ~/monadic/library.
+# Create them here, owned by the user: left to Docker, a missing source is
+# created as root on Linux and the server run from the host could not write
+# its ledger or the Knowledge Base's files there.
 ensure_state_dir() {
-  if in_container; then
-    mkdir -p "/monadic/state"
-  else
-    mkdir -p "${HOME_DIR}/monadic/state" && chmod 700 "${HOME_DIR}/monadic/state"
-  fi
+  local dir
+  for dir in state library; do
+    if in_container; then
+      mkdir -p "/monadic/${dir}"
+    else
+      mkdir -p "${HOME_DIR}/monadic/${dir}" && chmod 700 "${HOME_DIR}/monadic/${dir}"
+    fi
+  done
 }
 
 # Function to ensure data directory exists

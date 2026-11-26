@@ -19,6 +19,7 @@ module MonadicSharedTools
     CHAT_FILES = Monadic::Workspace::ChatFiles
 
     class HardLinked < StandardError; end
+    class NotText < StandardError; end
 
     # Read a file: one of this chat's (work/, inputs/, ...) or one the user
     # put in the shared folder outside conversations/. No link is followed
@@ -32,6 +33,10 @@ module MonadicSharedTools
 
         [f.read.force_encoding("UTF-8"), f.stat]
       end
+      # Bytes that are not text (audio, images, archives) are not returned:
+      # they cannot be sent to the model as a tool's result.
+      raise NotText unless content.valid_encoding? && !content.include?("\0")
+
       {
         success: true,
         filepath: place.relative,
@@ -48,6 +53,8 @@ module MonadicSharedTools
       { success: false, error: e.message, filepath: filepath }
     rescue HardLinked
       { success: false, error: "A file with more than one name (a hard link) is not read", filepath: filepath }
+    rescue NotText
+      { success: false, error: "Not a text file: this tool reads text files only", filepath: filepath }
     rescue Monadic::Utils::SharedPathGuard::InvalidPath, Errno::ENOENT, Errno::EISDIR, Errno::ENOTDIR
       { success: false, error: "File not found", filepath: filepath }
     rescue Errno::EACCES

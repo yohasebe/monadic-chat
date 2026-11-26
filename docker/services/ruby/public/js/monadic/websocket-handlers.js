@@ -340,7 +340,7 @@ function handleTokenVerification(data) {
 function handleErrorMessage(data) {
   if (data && data.type === 'error') {
     // First enable all basic controls
-    ['send', 'clear', 'image-file', 'voice'].forEach(id => {
+    ['send', 'clear', 'voice'].forEach(id => {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -590,7 +590,7 @@ function handleHtmlMessage(data, createCardFunc) {
         msgEl.value = '';
         msgEl.disabled = false;
       }
-      ['send', 'clear', 'image-file', 'voice'].forEach(id => {
+      ['send', 'clear', 'voice'].forEach(id => {
         const el = $id(id);
         if (el) el.disabled = false;
       });
@@ -855,7 +855,7 @@ function restoreInput() {
   }
 
   // Re-enable all controls - include AI user button explicitly
-  ['send', 'clear', 'image-file', 'voice', 'ai_user'].forEach(id => {
+  ['send', 'clear', 'voice', 'ai_user'].forEach(id => {
     const el = $id(id);
     if (el) el.disabled = false;
   });

@@ -1300,12 +1300,6 @@ function resetEvent(_event, resetToDefaultApp = false) {
 
 // Function to handle the actual reset logic
 function doResetActions(resetToDefaultApp = false) {
-  // Attached images and videos belong to the chat being reset; cleared only
-  // now that the reset is confirmed (cancelling the dialog keeps them).
-  const imageUsed = $id("image-used");
-  if (imageUsed) imageUsed.innerHTML = '';
-  images = [];
-  if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
   // An AI User suggestion still being written is for the chat being reset.
   if (window.WsAIUserHandler && typeof window.WsAIUserHandler.abandonAIUser === 'function') {
     window.WsAIUserHandler.abandonAIUser();
@@ -1549,9 +1543,6 @@ function doResetActions(resetToDefaultApp = false) {
   const drModelParameters = $id("model_parameters");
   $show(drModelParameters);
 
-  const drImageFile = $id("image-file");
-  $show(drImageFile);
-
   if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
   const noDataText = getTranslation('ui.noDataAvailable', 'No data available');
@@ -1562,13 +1553,6 @@ function doResetActions(resetToDefaultApp = false) {
   stop_apps_trigger = true;
   $dispatch(drApps, "change");
 
-  // Use UI utilities module if available, otherwise fallback
-  const drModelVal = drModelEl ? drModelEl.value : null;
-  if (window.uiUtils && window.uiUtils.adjustImageUploadButton) {
-    window.uiUtils.adjustImageUploadButton(drModelVal);
-  } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-    window.shims.uiUtils.adjustImageUploadButton(drModelVal);
-  }
   adjustScrollButtons();
 
   if (ws) {

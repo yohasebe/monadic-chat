@@ -283,7 +283,7 @@ function _handleFinalAssistantMessage(data) {
     msgEl.disabled = false;
   }
   // Re-enable all input controls
-  ["send", "clear", "image-file", "voice", "select-role"].forEach(function(id) {
+  ["send", "clear", "voice", "select-role"].forEach(function(id) {
     const el = $id(id);
     if (el) el.disabled = false;
   });

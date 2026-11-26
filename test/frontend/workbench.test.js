@@ -1818,6 +1818,16 @@ describe('Workbench', () => {
 
     const opened = () => sent.filter((x) => x.payload.message === 'WORKBENCH_OPEN_ATTACHMENT').map((x) => x.payload.attachment_id);
 
+    test('is put from the files a message was sent with (its data), as one from the computer is', async () => {
+      window.Workbench.putDataFiles([
+        { title: 'shot.png', type: 'image/png', data: 'data:image/png;base64,iVBORw0KGgo=' },
+        { title: 'linked.pdf', type: 'application/pdf', data: 'https://example.com/linked.pdf' }
+      ]);
+      await flush();
+      expect(posted).toEqual([{ url: '/attachments', purpose: 'workbench', name: 'shot.png' }]);
+      expect(opened()).toEqual(['a_shotpng']);
+    });
+
     test('is saved for the work screen and opened as an item, from the button', async () => {
       const input = document.getElementById('workbench-put-input');
       Object.defineProperty(input, 'files', { value: [file('paper.pdf')], configurable: true });

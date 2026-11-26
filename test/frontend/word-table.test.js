@@ -595,17 +595,17 @@ describe('word table', () => {
     expect(error.textContent).toBe('table_unavailable');
   });
 
-  it('says once for a chat that images and voice are not hidden', () => {
+  it('says once for a chat that voice is not hidden', () => {
     document.getElementById('voice').click();
     expect(global.setAlert).not.toHaveBeenCalled();
 
     wt.handleTable(table({ marked: true }));
     document.getElementById('voice').click();
-    document.getElementById('image-file').click();
+    document.getElementById('voice').click();
     expect(global.setAlert).toHaveBeenCalledTimes(1);
 
     wt.handleTable(table({ chat: 'c2', marked: true }));
-    document.getElementById('image-file').click();
+    document.getElementById('voice').click();
     expect(global.setAlert).toHaveBeenCalledTimes(2);
   });
 

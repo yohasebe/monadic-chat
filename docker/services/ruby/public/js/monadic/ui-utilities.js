@@ -182,73 +182,6 @@ function cleanupAllTooltips() {
 }
 
 /**
- * Adjusts image upload button availability based on selected model and app settings
- * @param {string} selectedModel - The currently selected AI model
- */
-function adjustImageUploadButton(selectedModel) {
-  if (!modelSpec || !selectedModel) return;
-
-  const modelData = modelSpec[selectedModel];
-  const imageFileElement = $id('image-file');
-  const appsElement = $id('apps');
-  const currentApp = appsElement ? appsElement.value : null;
-
-  // Check if current app is an image generation app using the common function
-  const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
-  const allowPdfInImageApp = currentApp === "ImageGeneratorGemini";
-
-  // Show button if model has vision capability OR if it's an image generation app
-  if ((modelData && modelData.vision_capability) || isImageGenerationApp) {
-    // Enable the button
-    if (imageFileElement) imageFileElement.disabled = false;
-
-    // Check if the model's provider supports PDF/File Inputs using the common functions
-    const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
-    const isFileInputsEnabled = window.isFileInputsSupportedForModel ? window.isFileInputsSupportedForModel(selectedModel) : false;
-
-    // Button text labels
-    const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
-    const imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
-    const fileText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.file') : 'File';
-
-    if (imageFileElement) {
-      if (isImageGenerationApp && !allowPdfInImageApp) {
-        imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
-      } else if (isImageGenerationApp && allowPdfInImageApp) {
-        imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
-      } else if (isFileInputsEnabled) {
-        imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.file">' + fileText + '</span>';
-      } else if (isPdfEnabled) {
-        imageFileElement.innerHTML = '<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>';
-      } else {
-        imageFileElement.innerHTML = '<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>';
-      }
-    }
-
-    // Also update the file input's accept attribute
-    const imageFileInput = $id('imageFile');
-    if (imageFileInput) {
-      if (isFileInputsEnabled && !isImageGenerationApp) {
-        imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
-      } else if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
-        imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp');
-      } else {
-        imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
-      }
-    }
-
-    if (imageFileElement) {
-      $show(imageFileElement);
-    }
-  } else {
-    if (imageFileElement) {
-      imageFileElement.disabled = true;
-      $hide(imageFileElement);
-    }
-  }
-}
-
-/**
  * Simulates an Escape key press to close any browser dialogs like search
  */
 function simulateEscapeKey() {
@@ -382,7 +315,6 @@ window.uiUtils = {
   setupTooltips,
   showCardTooltipsOnHover,
   cleanupAllTooltips,
-  adjustImageUploadButton,
   simulateEscapeKey,
   setupSearchCloseHandlers
 };

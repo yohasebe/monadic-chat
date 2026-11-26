@@ -22,8 +22,6 @@ function handleError(data) {
     const pending = window.pendingSend;
     const busyMsgEl = $id("message");
     if (busyMsgEl && pending) busyMsgEl.value = pending.text;
-    if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
-    if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
     window.pendingSend = null;
     setAlert(getTranslation('ui.messages.answerStillRunning', 'The previous answer is still running. Send again when it has finished, or stop it first.'), 'warning');
     return;
@@ -120,7 +118,7 @@ function handleError(data) {
     handled = wsHandlers.handleErrorMessage(translatedData);
   } else {
     // Fallback to inline handling
-    ["send", "clear", "image-file", "voice", "ai_user"].forEach(function(id) {
+    ["send", "clear", "voice", "ai_user"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });
@@ -176,8 +174,6 @@ function handleError(data) {
       const pending = window.pendingSend;
       const errMsgEl = $id("message");
       if (errMsgEl) errMsgEl.value = pending ? pending.text : (params["message"] || '');
-      if (pending && typeof window.restoreImages === 'function') window.restoreImages(pending.images);
-      if (pending && typeof window.restoreVideoAttachments === 'function') window.restoreVideoAttachments(pending.attachments);
       // A sample keeps its role, so the retry is not sent as a user message.
       const errRoleEl = $id("select-role");
       if (pending && pending.role && errRoleEl && errRoleEl.value !== pending.role) {
@@ -265,7 +261,7 @@ function handleCancel(data) {
     }
 
     // Re-enable all the UI elements
-    ["send", "clear", "image-file", "voice", "ai_user", "select-role"].forEach(function(id) {
+    ["send", "clear", "voice", "ai_user", "select-role"].forEach(function(id) {
       const el = $id(id);
       if (el) el.disabled = false;
     });

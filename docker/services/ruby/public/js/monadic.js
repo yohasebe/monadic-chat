@@ -1013,7 +1013,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setAlert(alertMessage, "warning");
 
         // Disable UI elements manually here to ensure they're disabled even if websocket events fail
-        ["message", "send", "clear", "image-file", "voice", "select-role"].forEach(function(id) {
+        ["message", "send", "clear", "voice", "select-role"].forEach(function(id) {
           var el = $id(id);
           if (el) el.disabled = true;
         });
@@ -1779,12 +1779,6 @@ document.addEventListener("DOMContentLoaded", function () {
     } else {
       { const el = $id("model-selected"); if (el) el.textContent = `${provider} (${selectedModel})`; }
     }
-    // Use UI utilities module if available, otherwise fallback
-    if (uiUtils && uiUtils.adjustImageUploadButton) {
-      uiUtils.adjustImageUploadButton(selectedModel);
-    } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-      window.shims.uiUtils.adjustImageUploadButton(selectedModel);
-    }
 
     if (typeof params === 'object') {
       params["model"] = selectedModel;
@@ -1878,11 +1872,6 @@ document.addEventListener("DOMContentLoaded", function () {
         try { window.messages = []; } catch (_) { console.warn("[Session] Failed to clear messages:", _); }
       }
 
-      // Clear images and mask data from previous app
-      if (typeof window.clearAllImages === 'function') {
-        window.clearAllImages();
-      }
-
       // Clear the discourse area
       { const el = $id("discourse"); if (el) el.innerHTML = ""; }
 
@@ -1939,11 +1928,6 @@ document.addEventListener("DOMContentLoaded", function () {
       window.SessionState.clearMessages();
     } else {
       try { window.messages = []; } catch (_) { console.warn("[Session] Failed to clear messages on reset:", _); }
-    }
-
-    // Clear images and mask data from previous app
-    if (typeof window.clearAllImages === 'function') {
-      window.clearAllImages();
     }
 
     // Clear user interaction flag (for app change confirmation)
@@ -2152,7 +2136,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (typeof window.applyAppCapabilityClasses === "function") window.applyAppCapabilityClasses(appValue);
 
-    // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
     let model;
     // Never mutate apps[appValue].group here; app definitions are authoritative.
@@ -2228,12 +2211,6 @@ document.addEventListener("DOMContentLoaded", function () {
       } else {
         $dispatch($id("model"), "change");
       }
-      // Use UI utilities module if available, otherwise fallback
-      if (uiUtils && uiUtils.adjustImageUploadButton) {
-        uiUtils.adjustImageUploadButton(model);
-      } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-        window.shims.uiUtils.adjustImageUploadButton(model);
-      }
 
     } else if (!apps[appValue]["model"] || apps[appValue]["model"].length === 0) {
       // Models not available - show placeholder instead of hiding the row
@@ -2265,12 +2242,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       $show($id("model_and_file"));
       $show($id("model_parameters"));
-      // Use UI utilities module if available, otherwise fallback
-      if (uiUtils && uiUtils.adjustImageUploadButton) {
-        uiUtils.adjustImageUploadButton(model);
-      } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-        window.shims.uiUtils.adjustImageUploadButton(model);
-      }
     }
 
     if (apps[appValue]["context_size"]) {
@@ -2644,7 +2615,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      document.querySelectorAll("#send, #clear, #image-file, #voice").forEach(function(_el) { _el.disabled = false; });
+      document.querySelectorAll("#send, #clear, #voice").forEach(function(_el) { _el.disabled = false; });
       { const el = $id("message"); if (el) el.disabled = false; }
       { const el = $id("select-role"); if (el) el.disabled = false; }
       $hide($id("monadic-spinner"));
@@ -2768,7 +2739,7 @@ document.addEventListener("DOMContentLoaded", function () {
       webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
     { const el = $id("message"); if (el) el.setAttribute("placeholder", placeholderText); }
     { const el = $id("message"); if (el) el.disabled = false; }
-    document.querySelectorAll("#send, #clear, #image-file, #voice").forEach(function(_el) { _el.disabled = false; });
+    document.querySelectorAll("#send, #clear, #voice").forEach(function(_el) { _el.disabled = false; });
     { const el = $id("ai_user_provider"); if (el) el.disabled = false; }
     { const el = $id("ai_user"); if (el) el.disabled = false; }
     { const el = $id("select-role"); if (el) el.disabled = false; }
@@ -2797,11 +2768,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
     }
-    // A message of attached files only (video or audio, images or PDFs) is
-    // sent too.
-    const hasAttachment = (typeof window.hasVideoAttachments === 'function' && window.hasVideoAttachments()) ||
-      (typeof images !== 'undefined' && Array.isArray(images) && images.length > 0);
-    if (message.value === "" && !hasAttachment) {
+    if (message.value === "") {
       return;
     }
     // Words decided on just now are taken before the message goes.
@@ -2819,21 +2786,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
-    // The text as typed. Attached files go as structure: the server checks
-    // them, tells the model about them, and lets the answer's tools take
-    // only these (and those of earlier messages).
+    // The text as typed. Files go on the work screen, not with the message.
     const typedText = ($id("message") || {}).value;
     const userMessageText = typedText || '';
     params["message"] = userMessageText;
-    const attachmentRefs = typeof window.videoAttachmentRefs === 'function' ? window.videoAttachmentRefs() : [];
-    if (attachmentRefs.length) params["attachments"] = attachmentRefs;
     // What to give back for another try if the message is not accepted or
-    // fails: the typed text, the attachment cards, and the images and PDFs.
+    // fails: the typed text and its role.
     window.pendingSend = {
       text: typedText || '',
-      role: ($id("select-role") || {}).value || 'user',
-      attachments: typeof window.snapshotVideoAttachments === 'function' ? window.snapshotVideoAttachments() : [],
-      images: typeof window.snapshotImages === 'function' ? window.snapshotImages() : []
+      role: ($id("select-role") || {}).value || 'user'
     };
 
     // Mark that user has interacted with this tab (for app change confirmation)
@@ -2877,8 +2838,6 @@ document.addEventListener("DOMContentLoaded", function () {
       reconnect_websocket(ws, function (_ws) {
         const role = ($id("select-role") || {}).value.split("-")[1];
         const msg_object = { message: "SAMPLE", content: userMessageText, role: role }
-        // Attached files go with a user sample too, so later messages can use them.
-        if (attachmentRefs.length) msg_object.attachments = attachmentRefs;
         // SAMPLE appends a fresh-mid turn to session[:messages] so a
         // queued replay would create a duplicate sample message.
         // Non-idempotent → default fail-fast.
@@ -2893,8 +2852,6 @@ document.addEventListener("DOMContentLoaded", function () {
         { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
         { const el = $id("select-role"); if (el) { el.value = "user"; $dispatch(el, "change"); } }
         { const el = document.querySelector("#role-icon i"); if (el) { el.classList.remove("fa-robot", "fa-bars"); el.classList.add("fa-face-smile"); } }
-        // The attached videos went with the sample message.
-        if (typeof window.clearVideoAttachments === 'function') window.clearVideoAttachments();
       });
     } else {
       // What the work screen shows, and the part of it the user points at,
@@ -2906,15 +2863,10 @@ document.addEventListener("DOMContentLoaded", function () {
       // The AI's mark is for the reply it came with: the next message takes it away.
       if (window.Workbench && typeof window.Workbench.clearAiPoint === 'function') window.Workbench.clearAiPoint();
       reconnect_websocket(ws, function (_ws) {
-        // Create a copy of the current images array to preserve the state
-        let currentImages = [...images];
-
-        // Set the images parameter for the request
-        if (currentImages.length > 0) {
-          params.images = currentImages;
-        } else {
-          params.images = [];
-        }
+        // A message carries no images of its own (they go on the work
+        // screen): the empty list replaces any the server kept from an
+        // earlier message.
+        params.images = [];
 
         // The user-chat send. params carries no explicit `message`
         // field, so the server case-statement falls through to
@@ -2933,24 +2885,17 @@ document.addEventListener("DOMContentLoaded", function () {
         if (selection) extra.workbench_selection = selection.data;
         const outgoing = Object.keys(extra).length > 0 ? Object.assign({}, params, extra) : params;
         const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
-        // Not sent: the text, images and attachments stay for the retry.
+        // Not sent: the text stays for the retry.
         if (!(sendResult && sendResult.sent)) {
           restoreAfterUnsentMessage();
           return;
         }
         if (picture) picture.sent();
         if (selection) selection.sent();
-        if (typeof window.clearVideoAttachments === 'function') {
-          window.clearVideoAttachments();
-        }
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }
         { const el = $id("message"); if (el) { el.style.height = "96px"; el.value = ""; } }
-
-        // Clear all images including PDFs after sending
-        images = [];
-        updateFileDisplay(images);
       });
     }
     // The role goes back to "user" only once the message has been sent (in
@@ -3551,18 +3496,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update RTL/LTR for message display based on conversation language
     updateRTLInterface(params["conversation_language"]);
     
-    // Refresh the image/file attach button so its label follows the new
-    // language. The real updater is adjustImageUploadButton (the old
-    // checkAndUpdateImageButtonVisibility name was never defined, so this was
-    // a silent no-op).
-    {
-      const _model = ($id("model") || {}).value;
-      const _uiUtils = (window.shims && window.shims.uiUtils) || window.uiUtils;
-      if (_uiUtils && typeof _uiUtils.adjustImageUploadButton === 'function') {
-        _uiUtils.adjustImageUploadButton(_model);
-      }
-    }
-
     // UPDATE_LANGUAGE is idempotent (added to the wrapper's default
     // set in H7.7) — auto-queue on a transient WS outage and replay
     // on reconnect produces the same end state. silentDrop because
@@ -4219,12 +4152,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     setCookieValues();
     updateExpressiveSpeechIndicator();
-    // Use UI utilities module if available, otherwise fallback
-    if (uiUtils && uiUtils.adjustImageUploadButton) {
-      uiUtils.adjustImageUploadButton(($id("model") || {}).value);
-    } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
-      window.shims.uiUtils.adjustImageUploadButton(($id("model") || {}).value);
-    }
     $show($id("monadic-spinner"));
     
     // Event handlers for the message deletion confirmation dialog. What it

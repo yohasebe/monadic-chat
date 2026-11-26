@@ -712,7 +712,6 @@
             </div>
             <div class="workbench-drop-hint" aria-hidden="true" data-i18n="ui.workbench.dropHere">Drop to put it on the work screen</div>
             <%# The workbench's items: the browser and the images offered (workbench.js). %>
-            <div id="workbench-drafts" class="workbench-drafts mb-2" aria-label="To send" data-i18n-aria-label="ui.workbench.toSend" hidden></div>
             <div id="workbench-items" class="workbench-items mb-2" role="tablist" aria-label="Work screen items" data-i18n-aria-label="ui.workbench.items" hidden></div>
             </div>
             <%# The notes the app keeps after a reply: being updated, or waiting (workbench.js). %>
@@ -1035,7 +1034,6 @@
                     <textarea id="message" class="form-control form-control-sm textarea-resizable" style="margin-bottom: var(--message-textarea-margin-bottom);" rows="4" placeholder="Type your message . . ." aria-label="Message input" data-i18n-aria-label="ui.messageAriaLabel" data-i18n-placeholder="ui.messagePlaceholder"></textarea>
                     <div id="message-partial-overlay" class="form-control form-control-sm message-partial-overlay" aria-hidden="true"></div>
                   </div>
-                  <div class="textbox-caption" id="image-used"></div>
                   <div id="image-base64"></div>
                 </div>
               </div>
@@ -1043,7 +1041,6 @@
               <div class="row mt-1 mb-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap message-tools">
-                    <button id="image-file" class="btn btn-sm btn-warning me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="anonymize" type="button" class="btn btn-sm btn-warning me-2" title="Find names in the message and choose what to hide" data-i18n-title="ui.wordTable.hint"><i class="fas fa-user-secret"></i> <span data-i18n="ui.wordTable.button">Anonymize</span></button>
                     <%# Hidden where the browser cannot record (monadic.js). %>
                     <span id="voice-input-row" class="voice-input">
@@ -1512,33 +1509,6 @@
       </div>
     </dialog>
 
-    <dialog class="mdialog" id="imageModal" aria-labelledby="imageModalLabel">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> <span data-i18n="ui.modals.selectFile">Select File</span></h5>
-            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
-            <input class="form-control form-control-sm" id="imageFile" type="file" name="imageFile" accept=".pdf,.jpg,.jpeg,.png,.gif">
-            <div id="url-input-section" style="display: none;">
-              <hr class="my-2">
-              <label for="imageUrlInput" class="form-label" data-i18n="ui.modals.fileUrlLabel">Or enter file URL</label>
-              <div class="input-group input-group-sm">
-                <input type="url" class="form-control" id="imageUrlInput" placeholder="https://...">
-                <button class="btn btn-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
-              </div>
-            </div>
-            <div id="select_image_error" class="size-error text-warning mt-2"></div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
-            <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
-          </div>
-        </div>
-      </div>
-    </dialog>
     <%# An image of the work screen, shown larger (workbench.js). %>
     <dialog class="mdialog workbench-zoom" id="workbenchZoom" aria-label="Image" data-i18n-aria-label="ui.workbench.enlarged">
       <div class="modal-dialog modal-dialog-centered workbench-zoom-dialog">

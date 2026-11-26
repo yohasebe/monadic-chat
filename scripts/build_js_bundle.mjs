@@ -135,7 +135,6 @@ const FILES = [
   "js/monadic/stt-gate.js",
   "js/monadic/thinking-effort-link.js",
   "js/monadic/recording.js",
-  "js/monadic/select_image.js",
   "js/syntax-theme-handler.js",
   "js/i18n/translations.js",
   "js/monadic/help-database.js",

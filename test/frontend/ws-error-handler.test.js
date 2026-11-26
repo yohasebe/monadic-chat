@@ -143,18 +143,12 @@ describe('ws-error-handler', () => {
       expect(global.setInputFocus).toHaveBeenCalled();
     });
 
-    it('gives back the typed text and the attachments of the message, not the lines added for the model', () => {
+    it('gives back the typed text of the message, not the lines added for the model', () => {
       window.params = { message: 'look\n\nAttached video: a.mp4 (attachment_id: a_1)' };
-      window.pendingSend = { text: 'look', attachments: [{ attachment_id: 'a_1', name: 'a.mp4' }], images: [{ title: 'shot.png' }] };
-      window.restoreVideoAttachments = jest.fn();
-      window.restoreImages = jest.fn();
+      window.pendingSend = { text: 'look' };
       handlers.handleError({ content: 'error' });
       expect(document.getElementById('message').value).toBe('look');
-      expect(window.restoreImages).toHaveBeenCalledWith([{ title: 'shot.png' }]);
-      delete window.restoreImages;
-      expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_1', name: 'a.mp4' }]);
       expect(window.pendingSend).toBeNull();
-      delete window.restoreVideoAttachments;
     });
 
     it('gives a refused sample back with its role, and stops its time limit', () => {
@@ -163,7 +157,7 @@ describe('ws-error-handler', () => {
       role.value = 'user';
       const changed = jest.fn();
       role.addEventListener('change', changed);
-      window.pendingSend = { text: 'I am Bob', role: 'sample-assistant', attachments: [], images: [] };
+      window.pendingSend = { text: 'I am Bob', role: 'sample-assistant' };
       const timedOut = jest.fn();
       window.currentSampleTimeout = setTimeout(timedOut, 10);
       handlers.handleError({ content: 'Nothing was sent.', not_accepted: true });
@@ -189,21 +183,16 @@ describe('ws-error-handler', () => {
       discourse.innerHTML = '<div class="card" id="m-running"><span class="user-color">User</span></div>';
       document.getElementById('temp-card').style.display = '';
       window.streamingResponse = true;
-      window.pendingSend = { text: 'and this', attachments: [{ attachment_id: 'a_2', name: 'b.mp4' }], images: [{ title: 'shot.png' }] };
-      window.restoreVideoAttachments = jest.fn();
-      window.restoreImages = jest.fn();
+      window.pendingSend = { text: 'and this' };
       handlers.handleError({ content: 'answer_still_running', not_accepted: true, busy: true });
       expect(document.getElementById('message').value).toBe('and this');
-      expect(window.restoreImages).toHaveBeenCalledWith([{ title: 'shot.png' }]);
-      expect(window.restoreVideoAttachments).toHaveBeenCalledWith([{ attachment_id: 'a_2', name: 'b.mp4' }]);
       expect(window.pendingSend).toBeNull();
       expect(global.setAlert).toHaveBeenCalledWith(expect.stringContaining('still running'), 'warning');
       expect(window.streamingResponse).toBe(true);
       expect(document.getElementById('temp-card').style.display).toBe('');
       expect(global.deleteMessage).not.toHaveBeenCalled();
       expect(global.WorkflowViewer.setStage).not.toHaveBeenCalled();
-      delete window.restoreVideoAttachments;
-      delete window.restoreImages;
+
       discourse.innerHTML = '';
     });
 

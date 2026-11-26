@@ -577,7 +577,7 @@ window.loadedApp = "Chat";
       const sendBtnEl = $id("send");
       if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
-        ["send", "clear", "image-file", "voice", "ai_user"].forEach(function(id) {
+        ["send", "clear", "voice", "ai_user"].forEach(function(id) {
           const el = $id(id);
           if (el) el.disabled = false;
         });

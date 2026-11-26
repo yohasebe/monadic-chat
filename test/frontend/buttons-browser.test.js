@@ -29,7 +29,7 @@ const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05);
 };
 
-const TOOLS = ['image-file', 'anonymize', 'voice'];
+const TOOLS = ['anonymize', 'voice'];
 const FOOTER = ['save-settings-btn', 'close-settings-btn'];
 const RUNNING = ['start', 'stop', 'restart', 'browser'];
 const OTHERS = ['sharedfolder', 'settings', 'exit'];
@@ -150,8 +150,8 @@ describe('The shared buttons in a browser', () => {
     [r.web, r.webDark].forEach((theme) => {
       TOOLS.forEach((id) => expect(contrast(theme[id].fg, theme[id].bg)).toBeGreaterThanOrEqual(4.5));
     });
-    expect(r.webHover).not.toBe(r.webDark['image-file'].bg);
-    expect(luminance(r.webHover)).toBeLessThan(luminance(r.webDark['image-file'].bg));
+    expect(r.webHover).not.toBe(r.webDark.anonymize.bg);
+    expect(luminance(r.webHover)).toBeLessThan(luminance(r.webDark.anonymize.bg));
   });
 
   test('the keyboard focus shows a ring, and a disabled button is made lighter once', () => {

@@ -461,17 +461,13 @@ function attachEventListeners(card) {
           }
         }
 
-        // If message has images, restore them
-        if (currentMessage.images && Array.isArray(currentMessage.images) && currentMessage.images.length > 0) {
-          images = images.filter(img => img.type === 'application/pdf');
-
-          // A mask kept with a message of an older chat is not put back
-          // with its images.
-          currentMessage.images
-            .filter((imageData) => !(imageData.is_mask || (imageData.title && imageData.title.startsWith("mask__"))))
-            .forEach((imageData) => { images.push({ ...imageData }); });
-
-          updateFileDisplay(images);
+        // The files the message was sent with (images, PDFs) go on the
+        // work screen, where the AI looks at them; a mask kept with a
+        // message of an older chat does not.
+        if (currentMessage.images && Array.isArray(currentMessage.images) && currentMessage.images.length > 0 &&
+            window.Workbench && typeof window.Workbench.putDataFiles === 'function') {
+          window.Workbench.putDataFiles(currentMessage.images
+            .filter((imageData) => !(imageData.is_mask || (imageData.title && imageData.title.startsWith("mask__")))));
         }
 
         if (messageInput) messageInput.focus();

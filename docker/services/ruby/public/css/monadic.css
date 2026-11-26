@@ -5008,15 +5008,8 @@ small, .small,
   background-color: var(--bdg-red-bg);
   color: var(--bdg-red-fg);
 }
-/* What the next message carries: a chip per file under the message box,
-   and the same files above the work screen's items. A chip's name shows the
-   file on the work screen. */
-.attachment-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin: 0 var(--spacing-xs) var(--spacing-xs) 0;
-}
+/* A file a message of an earlier chat was sent with, listed on its card:
+   its name shows the file on the work screen. */
 .attachment-chip-name {
   padding: 2px 6px;
   border: 0;
@@ -5028,10 +5021,6 @@ small, .small,
   justify-content: flex-start;
 }
 .attachment-chip-name:hover { background-color: var(--bg-hover, #e9ecef); }
-.workbench-drafts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-xs); }
-.workbench-drafts-label { color: var(--text-secondary); margin-right: var(--spacing-xs); }
-.workbench-draft { cursor: pointer; border-style: solid; }
-.workbench-draft[aria-pressed="true"] { border-color: var(--color-link); }
 #discourse .pdf-preview { cursor: pointer; }
 
 /* The buttons under the message box keep a gap when they wrap. */

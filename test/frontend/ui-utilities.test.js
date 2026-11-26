@@ -169,38 +169,4 @@ describe('UI Utilities', () => {
     });
   });
 
-  describe('adjustImageUploadButton', () => {
-    global.modelSpec = {
-      'gpt-4.1': { vision_capability: true },
-      'gpt-3.5-turbo': { vision_capability: false }
-    };
-
-    it('should enable image upload button for models with vision capability', () => {
-      var imageBtn = document.getElementById('image-file');
-
-      uiUtils.adjustImageUploadButton('gpt-4.1');
-
-      expect(imageBtn.disabled).toBe(false);
-      expect(imageBtn.innerHTML).toContain('Image');
-      expect(imageBtn.style.display).not.toBe('none');
-    });
-
-    it('should disable image upload button for models without vision capability', () => {
-      var imageBtn = document.getElementById('image-file');
-
-      uiUtils.adjustImageUploadButton('gpt-3.5-turbo');
-
-      expect(imageBtn.disabled).toBe(true);
-      expect(imageBtn.style.display).toBe('none');
-    });
-
-    it('should handle undefined modelSpec gracefully', () => {
-      const originalModelSpec = global.modelSpec;
-      global.modelSpec = undefined;
-
-      expect(() => uiUtils.adjustImageUploadButton('gpt-4.1')).not.toThrow();
-
-      global.modelSpec = originalModelSpec;
-    });
-  });
 });

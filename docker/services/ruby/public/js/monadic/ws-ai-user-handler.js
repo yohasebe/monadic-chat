@@ -35,7 +35,7 @@ function isCurrent(data) {
   return !!(data && currentRequest && data.request_id === currentRequest);
 }
 
-const LOCKED_IDS = ["message", "send", "clear", "image-file", "voice", "ai_user", "select-role"];
+const LOCKED_IDS = ["message", "send", "clear", "voice", "ai_user", "select-role"];
 
 function unlockControls() {
   $id('cancel_query').style.setProperty('display', 'none', 'important');

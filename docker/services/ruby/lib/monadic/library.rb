@@ -3,8 +3,8 @@
 # Convenience entry point for the Library subsystem. Pulls in the schema
 # validator, format-version constant, and the Qdrant-backed Store facade.
 #
-# Library is the unified Knowledge Base across all Monadic Chat apps: one
-# shelf, every entry seen from every app.
+# The Library is one shelf for all Monadic Chat apps: every entry is seen
+# from every app.
 
 require_relative 'library/version'
 require_relative 'library/schema'

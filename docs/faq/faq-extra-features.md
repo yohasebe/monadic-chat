@@ -44,4 +44,4 @@ Web search is turned on and off with the **Web Search** switch. In the Chat app 
 
 ##### Q: What can I access through MCP? :id=mcp-tools
 
-**A**: The MCP server (Monadic Conduit) exposes a small, stable set of capability tools in the `monadic_*` namespace rather than every individual app tool. These cover model queries, a local knowledge base, audio/image/video analysis, code generation, audio/image/video/music generation, and a bounded agent, plus background-job control for long-running work. Tools that call a provider are gated by a token budget. See [MCP Integration](/advanced-topics/mcp-integration.md) for the full list.
+**A**: The MCP server (Monadic Conduit) exposes a small, stable set of capability tools in the `monadic_*` namespace rather than every individual app tool. These cover model queries, a local Library, audio/image/video analysis, code generation, audio/image/video/music generation, and a bounded agent, plus background-job control for long-running work. Tools that call a provider are gated by a token budget. See [MCP Integration](/advanced-topics/mcp-integration.md) for the full list.

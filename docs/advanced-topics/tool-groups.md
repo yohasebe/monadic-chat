@@ -10,7 +10,7 @@ The app's description area shows the tool groups as badges, in up to three rows:
 
 - **Tools (Always)**: groups whose tools are sent to the model from the start
 - **Tools (Conditional)**: groups that stay hidden until the model asks for them with `request_tool`
-- **Capabilities**: features of the app, such as web search or the Knowledge Base
+- **Capabilities**: features of the app, such as web search or the Library
 
 Each badge has the group's icon and name. Hover over a badge to see its description and the number of tools. A conditional group whose requirements are not met is not shown.
 
@@ -148,12 +148,12 @@ The search tools of this group return results through Tavily. A provider's own w
 **Apps using this**: Code Interpreter, Research Assistant, Speech Draft Helper
 
 #### Library Search (1 tool)
-**Requires**: the Knowledge Base (Qdrant and embeddings containers)
+**Requires**: the Library (Qdrant and embeddings containers)
 
-- Search the Knowledge Base for passages relevant to a query
+- Search the Library for passages relevant to a query
 - Returns passages with citations that link back to the conversation or document
 
-**Apps using this**: Added to the apps that can search the Knowledge Base; used when the Knowledge Base retrieval switch is on for the session
+**Apps using this**: Added to the apps that can search the Library; used while **Sources the AI can use** in Settings allows it
 
 Groups that need a capability the provider lacks (image, video or audio input) are not added to apps on that provider.
 

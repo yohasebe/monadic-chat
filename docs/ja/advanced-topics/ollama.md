@@ -62,7 +62,7 @@ Monadic Chat は、Ollama の `/api/show` からモデルごとの能力を読�
 | 能力 | 使えるようになること |
 |------|----------------------|
 | **vision** | 画像の入力。画像のボタンは、この能力を持つモデルのときだけ表示されます。 |
-| **tools** | ツールの呼び出し。Web 検索、Knowledge Base の検索、Chat の会話の記録、Language Practice の Practice notes、Coding Assistant・Mail Composer のツールの機能です。 |
+| **tools** | ツールの呼び出し。Web 検索、書庫の検索、Chat の会話の記録、Language Practice の Practice notes、Coding Assistant・Mail Composer のツールの機能です。 |
 | **thinking** | 推論の出力。思考のパネルに表示されます。**思考過程を表示** で、オンとオフを切り替えます。 |
 
 構造化出力（JSON スキーマに沿った生成）は、どのモデルでも使えます。
@@ -79,7 +79,7 @@ ollama show <model-name>
 
 ## ツールを呼び出せないモデル
 
-選んだモデルが `tools` の能力を持たないときは、サイドバーに黄色の **No tool calling** の表示が出ます。Monadic Chat はそのモデルにツールを送りません。Web 検索、Knowledge Base の検索、Chat の会話の記録、Language Practice の Practice notes、Coding Assistant・Mail Composer のツールの機能は使えません。ふつうの会話には問題なく使えます。
+選んだモデルが `tools` の能力を持たないときは、サイドバーに黄色の **No tool calling** の表示が出ます。Monadic Chat はそのモデルにツールを送りません。Web 検索、書庫の検索、Chat の会話の記録、Language Practice の Practice notes、Coding Assistant・Mail Composer のツールの機能は使えません。ふつうの会話には問題なく使えます。
 
 ## 使えるアプリ
 

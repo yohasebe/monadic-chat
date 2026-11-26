@@ -391,6 +391,6 @@ end
 
 ## MCP Integration
 
-Monadic Chat has an MCP (Model Context Protocol) server called Monadic Conduit. It publishes a fixed set of tools in the `monadic_*` namespace (queries, Knowledge Base, media analysis and generation, and others) and does not publish the tools of each app. There is nothing MCP-specific to do when you create an app.
+Monadic Chat has an MCP (Model Context Protocol) server called Monadic Conduit. It publishes a fixed set of tools in the `monadic_*` namespace (queries, Library, media analysis and generation, and others) and does not publish the tools of each app. There is nothing MCP-specific to do when you create an app.
 
 See [MCP Integration](/advanced-topics/mcp-integration.md) for the server setup, the tools, and client configuration.

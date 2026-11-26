@@ -361,7 +361,7 @@
   function confirmAndDelete(convId) {
     var row = state.allRows.find(function (r) { return r.conversation_id === convId; });
     var label = (row && row.title) ? row.title : convId;
-    var prompt = t('ui.libDeleteConfirm', 'Permanently delete "{title}" from the Knowledge Base?')
+    var prompt = t('ui.libDeleteConfirm', 'Permanently delete "{title}" from the Library?')
       .replace('{title}', label);
     var ok = window.confirm ? window.confirm(prompt) : true;
     if (ok) deleteConversation(convId);
@@ -735,7 +735,7 @@
   function importStageMessage(stage) {
     var key = IMPORT_STAGE_LABELS[stage];
     if (!key) {
-      return t('ui.libImportingMessage', 'Importing file into Knowledge Base...');
+      return t('ui.libImportingMessage', 'Importing file into the Library...');
     }
     var fallback = {
       libImportStageQueued: 'Queued for import…',
@@ -826,7 +826,7 @@
     setImportPending(true);
     flashAlert(
       "<i class='fas fa-spinner fa-spin'></i> " +
-        escapeHtml(t('ui.libImportingMessage', 'Importing file into Knowledge Base...')),
+        escapeHtml(t('ui.libImportingMessage', 'Importing file into the Library...')),
       'info'
     );
 
@@ -892,10 +892,10 @@
         setImportPending(false);
         if (entry.leftover) {
           flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libUpdatePartial',
-            'Updated the Knowledge Base entry, but part of the earlier version could not be removed and may still appear.')), 'warning');
+            'Updated the Library entry, but part of the earlier version could not be removed and may still appear.')), 'warning');
         } else {
-          var done = entry.updated ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
-            : t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (entry.filename || filename);
+          var done = entry.updated ? t('ui.libUpdateSuccess', 'Updated existing Library entry.')
+            : t('ui.libImportSuccess', 'Imported to the Library') + ': ' + (entry.filename || filename);
           flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(done), 'success');
         }
         requestList();

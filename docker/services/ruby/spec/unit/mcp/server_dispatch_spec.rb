@@ -98,7 +98,7 @@ RSpec.describe Monadic::MCP::Server do
       expect(names).to contain_exactly(
         "monadic_status", "monadic_list_models", "monadic_query",
         "monadic_parallel_query", "monadic_second_opinion", "monadic_confidence",
-        "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
+        "monadic_search_library", "monadic_list_library", "monadic_import_library",
         "monadic_analyze_image", "monadic_transcribe_audio",
         "monadic_analyze_audio", "monadic_analyze_video",
         "monadic_speak", "monadic_generate_code", "monadic_generate_image",

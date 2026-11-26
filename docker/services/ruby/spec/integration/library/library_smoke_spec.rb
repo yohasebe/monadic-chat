@@ -56,7 +56,7 @@ RSpec.describe 'Library subsystem integration smoke', :integration do
     conv_id
   end
 
-  it 'cascade_search finds every entry (the Knowledge Base is one shelf)' do
+  it 'cascade_search finds every entry (the Library is one shelf)' do
     body = "Discussion of the cosmic microwave background and CMB anisotropy spectrum #{@suffix}"
     first_id  = ingest(label: 'first', body: body)
     second_id = ingest(label: 'second', body: body)

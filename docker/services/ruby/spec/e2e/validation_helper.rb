@@ -124,7 +124,7 @@ module ValidationHelper
     system_patterns.any? { |pattern| response.match?(pattern) }
   end
   
-  # Flexible validation for vector-search-driven retrieval (Knowledge Base etc.)
+  # Flexible validation for vector-search-driven retrieval (Library etc.)
   def pdf_search_attempted?(response)
     # Accept if the AI tried to search, even if it failed
     attempted_tool_use?(response) ||

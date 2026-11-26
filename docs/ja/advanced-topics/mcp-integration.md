@@ -2,7 +2,7 @@
 
 ## 概要
 
-Monadic Chat は **Monadic Conduit** と呼ばれる Model Context Protocol (MCP) サーバーを提供します。これにより、MCP 対応クライアントやエージェント型 CLI ツールから、Monadic Chat の能力（マルチプロバイダーのモデルアクセス、ローカルナレッジベース、音声・画像・動画の解析、音声・画像・動画・音楽の生成）を、標準的な JSON-RPC 2.0 インターフェイス経由で利用できます。
+Monadic Chat は **Monadic Conduit** と呼ばれる Model Context Protocol (MCP) サーバーを提供します。これにより、MCP 対応クライアントやエージェント型 CLI ツールから、Monadic Chat の能力（マルチプロバイダーのモデルアクセス、ローカル書庫、音声・画像・動画の解析、音声・画像・動画・音楽の生成）を、標準的な JSON-RPC 2.0 インターフェイス経由で利用できます。
 
 Conduit は `monadic_*` 名前空間に、小さく安定したケイパビリティツール群を公開します。各アプリの個別ツールを再公開するのではなく、再利用可能な構成要素を提供し、オーケストレーションは呼び出し側クライアントに委ねます。Conduit はユーザー自身の API キーを使い、ローカルで動作し、データを手元に保持します。プロバイダーのトークンを消費するツールはすべてトークン予算でゲートされます。
 
@@ -51,17 +51,17 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 - `monadic_list_models` — プロバイダー・モデルとその能力（コンテキスト長、ビジョン、ツール利用など）
 
 **クエリ**
-- `monadic_query` — 単一プロバイダーへの文脈付きクエリ（ナレッジベースグラウンディングとプライバシーマスキングを任意で利用可能）
+- `monadic_query` — 単一プロバイダーへの文脈付きクエリ（書庫グラウンディングとプライバシーマスキングを任意で利用可能）
 - `monadic_parallel_query` — **生成**: 同一プロンプトを複数プロバイダーへ並列送信し、独立した複数の回答を比較
 - `monadic_second_opinion` — **採点**: 既にある回答を 1 つ以上のプロバイダーに採点（1〜10）・批評させて検証
 - `monadic_confidence` — **合意による信頼度評価**: 質問を複数の異なるプロバイダーへ送り、独立した回答がどれだけ一致するかを判定。信頼度（high/medium/low）、一致点と相違点、推奨アクション（trust/verify/escalate）を返す
 
-**ナレッジベース**（Web の画面と同じ [Knowledge Base](../apps/knowledge-base.md)）
-- `monadic_search_kb` — Knowledge Base に対する意味検索
-- `monadic_list_kb` — Knowledge Base の項目の一覧
-- `monadic_import_kb` — テキスト、または共有フォルダのファイル（PDF、Markdown、Word、Excel、PowerPoint、ソースコード）を項目として取り込み
+**書庫**（Web の画面と同じ [書庫](../apps/knowledge-base.md)）
+- `monadic_search_library` — 書庫に対する意味検索
+- `monadic_list_library` — 書庫の項目の一覧
+- `monadic_import_library` — テキスト、または共有フォルダのファイル（PDF、Markdown、Word、Excel、PowerPoint、ソースコード）を項目として取り込み
 
-これらの道具は、すべての項目を読みます。チャットの道具 `monadic_query`・`monadic_parallel_query`・`monadic_confidence` は、`knowledge_base` 引数を渡したとき（値は `all` など何でもかまいません）だけ Knowledge Base を使い、すべての項目を探します。検索は手元で行い、見つかった文章を質問と一緒にプロバイダーへ送ります。引数を渡さなければ、Knowledge Base のものは何も送りません。
+これらの道具は、すべての項目を読みます。チャットの道具 `monadic_query`・`monadic_parallel_query`・`monadic_confidence` は、`library` 引数を渡したとき（値は `all` など何でもかまいません）だけ書庫を使い、すべての項目を探します。検索は手元で行い、見つかった文章を質問と一緒にプロバイダーへ送ります。引数を渡さなければ、書庫のものは何も送りません。
 
 **解析（入力）**
 - `monadic_analyze_image` — 画像の説明・質問応答
@@ -132,7 +132,7 @@ Conduit は以下の `monadic_*` ツールを公開します。各ツールの�
 
 ## コスト制御
 
-プロバイダーを呼び出すツールは、Conduit が管理する共有予算に対してトークンを消費します。プラットフォームは呼び出しの**前**に推定コストを確保し、予算を超える場合は呼び出しを拒否します。これにより、暴走したクライアントを信頼せずに停止できます。残予算は `monadic_status` で報告され、各消費系ツールの結果にも含まれます。上限は `CONDUIT_TOKEN_BUDGET` で設定し、サーバー再起動時にリセットされます。ナレッジベース系ツールはローカルの埋め込みモデルを使うため、予算ゲートの対象外です。
+プロバイダーを呼び出すツールは、Conduit が管理する共有予算に対してトークンを消費します。プラットフォームは呼び出しの**前**に推定コストを確保し、予算を超える場合は呼び出しを拒否します。これにより、暴走したクライアントを信頼せずに停止できます。残予算は `monadic_status` で報告され、各消費系ツールの結果にも含まれます。上限は `CONDUIT_TOKEN_BUDGET` で設定し、サーバー再起動時にリセットされます。書庫系ツールはローカルの埋め込みモデルを使うため、予算ゲートの対象外です。
 
 `monadic_agent` ツールは、トークン予算に加えてツール呼び出し回数の上限と実時間（wall-clock）の上限（既定300秒、`CONDUIT_AGENT_WALL_CLOCK` で設定可能）でも制限されるため、1回のエージェント実行が無限にループしたり停止したりすることはありません。
 
@@ -224,7 +224,7 @@ puts client.call_method("tools/list")
 ## 既知の制限事項
 
 - MCP の `resources` および `prompts` メソッドは未実装です。
-- ナレッジベース系ツールは Qdrant と embeddings コンテナを必要とします。
+- 書庫系ツールは Qdrant と embeddings コンテナを必要とします。
 - `monadic_analyze_video` はフレーム抽出のため Python コンテナを必要とします。
 - 生成・解析系ツールは、該当プロバイダーの API キーを必要とします。
 - `monadic_analyze_image`、`monadic_transcribe_audio`、`monadic_analyze_video`、`monadic_generate_code` には `provider` の指定が必要です。リクエスト（ファイルがあればそれも）は指定したプロバイダーにだけ送られ、キーのある別のプロバイダーが自動で選ばれることはありません。

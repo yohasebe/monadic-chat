@@ -125,7 +125,7 @@ module WebSocketHelper
   # Slims to display-relevant fields only: drops `budget`/usage and trims long
   # panel answers, so persistence doesn't bloat the session unbounded. The
   # KB-save path strips "verify" so a persisted verdict never pollutes the
-  # Knowledge Base (verify is meta-commentary about an answer, not knowledge).
+  # Library (verify is meta-commentary about an answer, not knowledge).
   def persist_verify_result(rack_session, mid, result)
     msgs = rack_session && rack_session[:messages]
     return unless msgs.is_a?(Array)

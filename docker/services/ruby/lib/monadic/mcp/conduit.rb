@@ -77,9 +77,18 @@ module Monadic
 
       # Public: invoke a Conduit tool. Returns a Ruby Hash (structured result);
       # the MCP server wraps it as both text and structuredContent.
+      # Arguments given new names: a call with the old one is refused, so
+      # that it is not answered as if the argument had been left out.
+      RENAMED_ARGUMENTS = { "knowledge_base" => "library" }.freeze
+
       def call(name, arguments = {})
         tool = registry.find { |t| t[:name] == name }
         raise "Unknown Conduit tool: #{name}" unless tool
+
+        renamed = RENAMED_ARGUMENTS.find do |old, new|
+          (arguments || {}).key?(old) && tool.dig(:input_schema, :properties)&.key?(new.to_sym)
+        end
+        raise ArgumentError, "`#{renamed[0]}` is now `#{renamed[1]}`" if renamed
 
         # What a tool makes goes under mcp/ (no chat to keep it in).
         Monadic::Workbench::ChatOutput.outside("mcp") { send(tool[:handler], arguments || {}) }
@@ -182,9 +191,9 @@ module Monadic
                   type: "number",
                   description: "Optional sampling temperature (ignored by models that reject it)."
                 },
-                knowledge_base: {
+                library: {
                   type: "string",
-                  description: "Optional. Ground the answer in the Knowledge Base (any value, e.g. 'all', " \
+                  description: "Optional. Ground the answer in the Library (any value, e.g. 'all', " \
                                "searches every entry). The latest user message is the query; the search runs " \
                                "locally, and the passages found are sent to the provider with the question."
                 },
@@ -280,9 +289,9 @@ module Monadic
                   type: "number",
                   description: "Optional sampling temperature applied to every provider."
                 },
-                knowledge_base: {
+                library: {
                   type: "string",
-                  description: "Optional. Ground the answer in the Knowledge Base (any value, e.g. 'all', " \
+                  description: "Optional. Ground the answer in the Library (any value, e.g. 'all', " \
                                "searches every entry). The latest user message is the query; the search runs " \
                                "locally, and the passages found are sent to the provider with the question."
                 },
@@ -423,9 +432,9 @@ module Monadic
                                "(none/low/medium/high/xhigh; varies by model). Ignored otherwise."
                 },
                 temperature: { type: "number", description: "Optional sampling temperature for the panel." },
-                knowledge_base: {
+                library: {
                   type: "string",
-                  description: "Optional. Ground the answer in the Knowledge Base (any value, e.g. 'all', " \
+                  description: "Optional. Ground the answer in the Library (any value, e.g. 'all', " \
                                "searches every entry). The latest user message is the query; the search runs " \
                                "locally, and the passages found are sent to the provider with the question."
                 },
@@ -440,9 +449,9 @@ module Monadic
             handler: :handle_confidence
           },
           {
-            name: "monadic_search_kb",
-            description: "Semantic search over the Knowledge Base (the Library the web " \
-                         "interface saves conversations and imported documents to; Qdrant + " \
+            name: "monadic_search_library",
+            description: "Semantic search over the Library (the documents and conversations kept " \
+                         "in the web interface and imported here; Qdrant + " \
                          "multilingual-e5 embeddings). Returns the most relevant passages with " \
                          "their entry titles. Runs entirely on your machine (no provider API, no " \
                          "token cost).",
@@ -458,23 +467,23 @@ module Monadic
               required: ["query"],
               additionalProperties: false
             },
-            handler: :handle_search_kb
+            handler: :handle_search_library
           },
           {
-            name: "monadic_list_kb",
-            description: "List the entries of the Knowledge Base, newest first.",
+            name: "monadic_list_library",
+            description: "List the entries of the Library, newest first.",
             input_schema: {
               type: "object",
               properties: {
               },
               additionalProperties: false
             },
-            handler: :handle_list_kb
+            handler: :handle_list_library
           },
           {
-            name: "monadic_import_kb",
-            description: "Import a document into the Knowledge Base as a Global entry, so every " \
-                         "app that searches the Knowledge Base can find it. Provide `text` " \
+            name: "monadic_import_library",
+            description: "Import a document into the Library, so every app that searches the " \
+                         "Library can find it. Provide `text` " \
                          "(Markdown or plain text) or `path` to a file in the shared folder " \
                          "(PDF, Markdown, Word, Excel, PowerPoint or source code). Embeddings " \
                          "are computed locally — no provider token cost. Synchronous.",
@@ -494,7 +503,7 @@ module Monadic
               required: ["title"],
               additionalProperties: false
             },
-            handler: :handle_import_kb
+            handler: :handle_import_library
           },
           {
             name: "monadic_analyze_image",
@@ -924,7 +933,7 @@ module Monadic
           model: (arguments["model"] || arguments[:model]),
           max_output: (arguments["max_tokens"] || arguments[:max_tokens]),
           temperature: (arguments["temperature"] || arguments[:temperature]),
-          knowledge_base: (arguments["knowledge_base"] || arguments[:knowledge_base]),
+          library: (arguments["library"] || arguments[:library]),
           privacy: (arguments["privacy"] || arguments[:privacy]),
           reasoning_effort: (arguments["reasoning_effort"] || arguments[:reasoning_effort])
         )
@@ -948,7 +957,7 @@ module Monadic
         system = (arguments["system"] || arguments[:system]).to_s
         max_output = arguments["max_tokens"] || arguments[:max_tokens]
         temperature ||= arguments["temperature"] || arguments[:temperature]
-        knowledge_base = arguments["knowledge_base"] || arguments[:knowledge_base]
+        library = arguments["library"] || arguments[:library]
         privacy = arguments["privacy"] || arguments[:privacy]
         reasoning_effort = arguments["reasoning_effort"] || arguments[:reasoning_effort]
 
@@ -956,7 +965,7 @@ module Monadic
           execute_query(
             provider: target[:provider], messages: messages, system: system,
             model: target[:model], max_output: max_output, temperature: temperature,
-            knowledge_base: knowledge_base, privacy: privacy, reasoning_effort: reasoning_effort
+            library: library, privacy: privacy, reasoning_effort: reasoning_effort
           )
         end
 
@@ -2310,12 +2319,12 @@ module Monadic
         text.is_a?(String) && text.start_with?("ERROR:")
       end
 
-      # ---- Knowledge Base (the Library the web interface saves to) --------
+      # ---- The Library (what the web interface keeps) ---------------------
 
       KB_MAX_TOP_N = 50
-      KB_LIST_LIMIT = 500
+      LIBRARY_LIST_LIMIT = 500
 
-      def handle_search_kb(arguments)
+      def handle_search_library(arguments)
         query = (arguments["query"] || arguments[:query]).to_s
         raise ArgumentError, "query is required" if query.empty?
 
@@ -2323,7 +2332,7 @@ module Monadic
         top_n = 5 if top_n <= 0
         top_n = KB_MAX_TOP_N if top_n > KB_MAX_TOP_N
         hits = Monadic::Library::Retriever.cascade_search(
-          query, store: kb_store, top_n: top_n
+          query, store: library_store, top_n: top_n
         )
         results = hits.map do |h|
           { title: h[:conversation_title], conversation_id: h[:conversation_id],
@@ -2331,19 +2340,19 @@ module Monadic
         end
         { count: results.size, results: results }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-        kb_unavailable(arguments, e)
+        library_unavailable(arguments, e)
       end
 
-      def handle_list_kb(arguments)
+      def handle_list_library(arguments)
         entries = Monadic::Library::Manager.list_conversations(
-          store: kb_store, limit: KB_LIST_LIMIT
+          store: library_store, limit: LIBRARY_LIST_LIMIT
         )
         { count: entries.size, entries: entries }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-        kb_unavailable(arguments, e)
+        library_unavailable(arguments, e)
       end
 
-      def handle_import_kb(arguments)
+      def handle_import_library(arguments)
         title = (arguments["title"] || arguments[:title]).to_s
         raise ArgumentError, "title is required" if title.empty?
 
@@ -2352,10 +2361,10 @@ module Monadic
         result, source =
           if !text.empty?
             conversation = Monadic::Library::Importers::Markdown.import(text, title: title)
-            [Monadic::Library::Manager.import_conversation(store: kb_store, conversation: conversation), "text"]
+            [Monadic::Library::Manager.import_conversation(store: library_store, conversation: conversation), "text"]
           elsif !path.empty?
             path = resolve_shared_path(path, extensions: Monadic::Library::FileImporter.supported_extensions)
-            [Monadic::Library::Manager.import_file(store: kb_store, path: path, filename: File.basename(path),
+            [Monadic::Library::Manager.import_file(store: library_store, path: path, filename: File.basename(path),
                                                    options: { title: title }), path]
           else
             raise ArgumentError, "provide either `text` or `path`"
@@ -2363,25 +2372,25 @@ module Monadic
 
         { conversation_id: result[:conversation_id], title: title, source: source, counts: result[:counts] }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
-        kb_unavailable(arguments, e)
+        library_unavailable(arguments, e)
       end
 
-      # ---- Knowledge Base helpers ----------------------------------------
+      # ---- Library helpers -----------------------------------------------
 
-      def kb_store
+      def library_store
         Monadic::Library::Store.new
       end
 
-      def kb_unavailable(arguments, error)
+      def library_unavailable(arguments, error)
         { success: false,
-          error: "❌ Knowledge Base unavailable: #{error.message} (is qdrant/embeddings running?)" }
+          error: "❌ Library unavailable: #{error.message} (is qdrant/embeddings running?)" }
       end
 
       # ---- Query helpers --------------------------------------------------
 
       # Shared single-provider execution used by both monadic_query and the
       # parallel fan-out. Builds a headless per-provider host (Provider
-      # Independence), optionally grounds the query in a local KB and/or masks
+      # Independence), optionally grounds the query in the Library and/or masks
       # PII (the Conduit differentiators), gates spend through CostGuard, and
       # returns a normalized result hash.
       # True when a model can spend hidden reasoning/thinking tokens that do not
@@ -2399,7 +2408,7 @@ module Monadic
 
       def execute_query(provider:, messages:, system: "", model: nil,
                         max_output: nil, temperature: nil,
-                        knowledge_base: nil, privacy: nil, reasoning_effort: nil)
+                        library: nil, privacy: nil, reasoning_effort: nil)
         model = model.to_s.strip
         model = nil if model.empty?
         model ||= default_chat_model_for(provider)
@@ -2414,25 +2423,24 @@ module Monadic
                 "(unknown provider or helper not loaded)"
         end
 
-        # (1) KB grounding — retrieve relevant context for the latest user turn.
+        # (1) Library grounding — retrieve relevant context for the latest user turn.
         grounded = false
-        kb_context = ""
-        kb = knowledge_base.to_s.strip
-        unless kb.empty?
+        library_context = ""
+        unless library.to_s.strip.empty?
           begin
-            kb_context, grounded = retrieve_kb_context(messages, { "knowledge_base" => kb })
+            library_context, grounded = retrieve_library_context(messages)
           rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
             return { provider: provider, model: model, success: false,
-                     error: "❌ Knowledge Base unavailable: #{e.message} (grounding requested)" }
+                     error: "❌ Library unavailable: #{e.message} (grounding requested)" }
           end
         end
 
-        # Fold the explicit system prompt and any KB context into the user turn.
+        # Fold the explicit system prompt and any Library context into the user turn.
         # send_query does NOT uniformly honor a top-level system across providers
         # (OpenAI-family read a system-role message; Claude rejects one and reads
         # options["system"]). Folding into the user message is the one delivery
         # that works for every provider without provider-specific branching.
-        preamble = [system.to_s, kb_context].reject { |s| s.to_s.empty? }.join("\n\n")
+        preamble = [system.to_s, library_context].reject { |s| s.to_s.empty? }.join("\n\n")
         send_messages = apply_preamble(messages, preamble)
         # Called for a chat in the Web UI (Verify's panel and judge run in the
         # chat's thread): no word the user marked in that chat may go out.
@@ -2557,28 +2565,28 @@ module Monadic
                  error: "❌ Budget exceeded: #{e.message}" }
       end
 
-      # ---- KB grounding + Privacy helpers --------------------------------
+      # ---- Library grounding + Privacy helpers ---------------------------
 
-      KB_GROUNDING_TOP_N = 4
+      LIBRARY_GROUNDING_TOP_N = 4
 
       # PII-focused default mask set (excludes LOCATION/DATE_TIME by design).
       DEFAULT_PRIVACY_MASK_TYPES = %i[person email phone credit_card ip iban us_ssn].freeze
 
-      # Search the KB with the latest user turn. Returns [context_block, grounded?].
-      def retrieve_kb_context(messages, arguments)
+      # Search the Library with the latest user turn. Returns [context_block, grounded?].
+      def retrieve_library_context(messages)
         user_text = messages.reverse.find { |m| m["role"].to_s == "user" }&.dig("content").to_s
         return ["", false] if user_text.empty?
 
         hits = Monadic::Library::Retriever.cascade_search(
-          user_text, store: kb_store, top_n: KB_GROUNDING_TOP_N
+          user_text, store: library_store, top_n: LIBRARY_GROUNDING_TOP_N
         )
         context = hits.map { |h| (h[:text] || h["text"]).to_s }.reject(&:empty?).join("\n\n")
         return ["", false] if context.empty?
 
-        ["Relevant context from the knowledge base (use it if helpful):\n#{context}", true]
+        ["Relevant context from the Library (use it if helpful):\n#{context}", true]
       end
 
-      # Fold a preamble (system instructions + KB context) into the latest user
+      # Fold a preamble (system instructions + Library context) into the latest user
       # message so it reaches every provider uniformly (see execute_query note).
       def apply_preamble(messages, preamble)
         return messages if preamble.to_s.empty?

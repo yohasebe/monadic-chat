@@ -44,9 +44,9 @@
 | Document Generator | | ✅ | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | |
 
-## アプリと Knowledge Base :id=kb-by-app
+## アプリと書庫 :id=kb-by-app
 
-会話は文書として Knowledge Base に収められ、アプリは Knowledge Base を検索できます。AI が検索するのは、頼まれたときや明らかに役立つときで、ターンごとには検索しません。設定の「一般」の **AI が使える情報源** でオフにできます。Live Conversation は、アプリの **検索と計算** のスイッチがオンの間だけ検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に収めたものを見るには、サイドバーの **書庫** のタブを開きます。
+会話は文書として書庫に収められ、アプリは書庫を検索できます。AI が検索するのは、頼まれたときや明らかに役立つときで、ターンごとには検索しません。設定の「一般」の **AI が使える情報源** でオフにできます。Live Conversation は、アプリの **検索と計算** のスイッチがオンの間だけ検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。書庫に収めたものを見るには、サイドバーの **書庫** のタブを開きます。
 
 
 ## プロバイダー機能概要 :id=provider-capabilities
@@ -124,9 +124,9 @@ Mermaid.js、Draw.io、RSyntaxTree、LaTeX/TikZ を使って自然言語の説�
 - Web Insight
 - Video Describer
 
-### Knowledge Base
+### 書庫 :id=knowledge-base
 
-保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。どのアプリもすべてのエントリを検索します。詳細は[Knowledge Base](../apps/knowledge-base.md)を参照してください。
+保存した会話とインポートしたドキュメント（PDF、Office、Markdown、ソースコード）をプロジェクト全体で共有するライブラリです。どのアプリもすべてのエントリを検索します。詳細は[書庫](../apps/knowledge-base.md)を参照してください。
 
 ### コーディング・ノートブックアプリ
 

@@ -120,11 +120,11 @@ end
 
 - 各プロバイダー、ElevenLabs、Tavily の API キー
 - UI言語、ブラウザモード、ログイン時に起動、メニューバーモード、裏で届いた返事を通知
-- 会話の中で AI が Knowledge Base を使えるか（AI が使える情報源）
+- 会話の中で AI が書庫を使えるか（AI が使える情報源）
 - 追加ログ
 - TTS の辞書のファイルと、自動音声の大きさの上限
 - MCP サーバーとそのポート
-- [インストールオプション](./advanced-configuration.md#install-options)（伏せる名前を探す言語、Knowledge Base 品質パックを含む）
+- [インストールオプション](./advanced-configuration.md#install-options)（伏せる名前を探す言語、書庫の品質パックを含む）
 
 設定は `~/monadic/config/env` に保存され、セッションをまたいで保たれます。
 

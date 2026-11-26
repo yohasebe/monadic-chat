@@ -348,7 +348,7 @@ module Monadic
         # The arguments of a tool a model called that are given to the tool
         # with the chat's words put back: what the tool reads on this machine
         # (a file or folder of the shared folder, a file shown on the work
-        # screen, the Knowledge Base it searches, whose passages keep the
+        # screen, the Library it searches, whose passages keep the
         # words as saved). Every other argument stays as the model wrote it,
         # placeholders and all: what a tool writes, sends, searches for
         # elsewhere, runs or draws.

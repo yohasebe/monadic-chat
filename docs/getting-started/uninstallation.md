@@ -12,19 +12,19 @@ The basic steps to uninstall Monadic Chat are as follows:
 
 ### **macOS**
 
-1. Choose `Remove Images/Containers/Data` in the File menu (the Monadic Chat menu). This deletes Monadic Chat's Docker containers, images and volumes (the Knowledge Base data), listed below. Your files in `~/monadic` are kept.
+1. Choose `Remove Images/Containers/Data` in the File menu (the Monadic Chat menu). This deletes Monadic Chat's Docker containers, images and volumes (the Library data), listed below. Your files in `~/monadic` are kept.
 2. Exit Monadic Chat.
 3. Open the `Applications` folder in Finder and drag Monadic Chat to the trash.
 
 ### **Windows**
 
-1. Choose `Remove Images/Containers/Data` in the File menu. This deletes Monadic Chat's Docker containers, images and volumes (the Knowledge Base data), listed below. Your files in `~/monadic` are kept.
+1. Choose `Remove Images/Containers/Data` in the File menu. This deletes Monadic Chat's Docker containers, images and volumes (the Library data), listed below. Your files in `~/monadic` are kept.
 2. Exit Monadic Chat.
 3. Uninstall Monadic Chat in Windows Settings, under Apps.
 
 ### **Linux**
 
-1. Choose `Remove Images/Containers/Data` in the File menu. This deletes Monadic Chat's Docker containers, images and volumes (the Knowledge Base data), listed below. Your files in `~/monadic` are kept.
+1. Choose `Remove Images/Containers/Data` in the File menu. This deletes Monadic Chat's Docker containers, images and volumes (the Library data), listed below. Your files in `~/monadic` are kept.
 2. Exit Monadic Chat.
 3. Delete the AppImage file you downloaded.
 
@@ -74,7 +74,7 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `monadic-chat-qdrant-container`
 - `monadic-chat-embeddings-container`
 - `monadic-chat-privacy-container` (present unless you set `PRIVACY_FILTER=false`)
-- `monadic-chat-extractor-container` (only present if the Knowledge Base Quality Pack is installed)
+- `monadic-chat-extractor-container` (only present if the Library Quality Pack is installed)
 
 #### Images
 
@@ -84,7 +84,7 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `ghcr.io/yohasebe/monadic-qdrant`
 - `ghcr.io/yohasebe/monadic-selenium`
 - `ghcr.io/yohasebe/monadic-privacy` (unless `PRIVACY_FILTER=false`)
-- `ghcr.io/yohasebe/monadic-extractor` (only if Knowledge Base Quality Pack is installed)
+- `ghcr.io/yohasebe/monadic-extractor` (only if Library Quality Pack is installed)
 - `ghcr.io/yohasebe/monadic-python` (downloaded as a build cache for the Python container)
 
 #### Volumes

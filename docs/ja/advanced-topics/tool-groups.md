@@ -10,7 +10,7 @@
 
 - **Tools (Always)**：最初からツールがモデルに送られるグループ
 - **Tools (Conditional)**：モデルが `request_tool` で求めるまで隠れているグループ
-- **Capabilities**：Web 検索や Knowledge Base など、アプリの機能
+- **Capabilities**：Web 検索や書庫など、アプリの機能
 
 バッジには、グループのアイコンと名前が表示されます。バッジにポインターを重ねると、説明とツールの数が表示されます。条件を満たしていない `conditional` のグループは表示されません。
 
@@ -148,12 +148,12 @@ Selenium のコンテナは Monadic Chat とともに起動します。グルー
 **使っているアプリ**：Code Interpreter、Research Assistant、Speech Draft Helper
 
 #### Library Search（1 ツール）
-**必要なもの**：Knowledge Base（Qdrant と embeddings のコンテナ）
+**必要なもの**：書庫（Qdrant と embeddings のコンテナ）
 
-- 問い合わせに関係する部分を Knowledge Base から探す
+- 問い合わせに関係する部分を書庫から探す
 - もとの会話や文書へのリンクの付いた引用とともに、該当する部分を返す
 
-**使っているアプリ**：Knowledge Base を検索できるアプリに加わります。セッションで Knowledge Base の検索のスイッチがオンのときに使われます
+**使っているアプリ**：書庫を検索できるアプリに加わります。設定の **AI が使える情報源** が許している間に使われます
 
 プロバイダーにない能力（画像、動画、音声の入力）が要るグループは、そのプロバイダーのアプリには加わりません。
 

@@ -34,12 +34,12 @@ Help search is opt-in: starting or rebuilding Monadic Chat does not install or r
 
 When the bundled data is newer than the installed data, the panel offers an update. Use its update button to replace the installed help data; the installed help stays searchable until the replacement begins. When the version of the installed data cannot be verified, the panel asks you to reinstall.
 
-The install, update, reinstall, and retry buttons start their operation without a confirmation dialog. Help search is unavailable during replacement. **Knowledge Base and conversation library data are preserved.** If installation fails, check the displayed reason and use the panel to try again.
+The install, update, reinstall, and retry buttons start their operation without a confirmation dialog. Help search is unavailable during replacement. **The Library and the chat history are left as they are.** If installation fails, check the displayed reason and use the panel to try again.
 
 ### Common Questions :id=common-questions
 
 - "How do I generate graphs?" → Will suggest Math Tutor or Mermaid Grapher apps
-- "How can I work with PDFs?" → Will explain how to import the PDF into the Knowledge Base
+- "How can I work with PDFs?" → Will explain how to keep the PDF in the Library
 - "What voice features are available?" → Will describe Voice Chat and speech synthesis options
 
 ## Building the Help Database :id=building-help-database
@@ -70,7 +70,7 @@ The build pipeline starts the embeddings container if it is not already running,
 
 ### Storage :id=storage
 
-Help data is stored locally in Qdrant, separately from Knowledge Base and conversation library data. The index covers both complete documents and their text fragments so searches can return relevant sections. Updating help data replaces only the help index.
+Help data is stored locally in Qdrant, separately from the Library and the chat history. The index covers both complete documents and their text fragments so searches can return relevant sections. Updating help data replaces only the help index.
 
 ### Build-Time Pipeline :id=build-time-pipeline
 

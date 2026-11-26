@@ -467,9 +467,8 @@ function hashSimilarity(h1, h2) {
 
 document.addEventListener("DOMContentLoaded", function () {
 
-  // Wire the Library (Knowledge Base) sidebar panel — Save / Refresh
-  // buttons + Save modal confirm. Initial inventory fetch is triggered
-  // from ws.onopen since the panel state mirrors the server.
+  // Wire the Library tab (search, import, keep this conversation). The list
+  // is fetched from ws.onopen, since the tab shows the server's list.
   try { if (window.libraryPanel && typeof window.libraryPanel.init === 'function') window.libraryPanel.init(); } catch (e) { console.warn('[Library] init failed:', e); }
 
   // ── Collapsible Settings Header helpers ─────────────────

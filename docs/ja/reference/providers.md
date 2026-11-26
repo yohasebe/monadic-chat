@@ -51,4 +51,4 @@ Web UIでは、Modelドロップダウンには既定で厳選されたリスト
 ## ローカル・オフラインの選択肢
 
 - **Ollama**を使うと、オープンウェイトのモデルを完全に手元のマシン上で実行できます。[Ollamaの利用](/ja/advanced-topics/ollama.md)を参照してください。
-- **Knowledge Base**（ドキュメントの取り込みとRAG）は、ローカルのQdrantベクトルデータベースとローカルの埋め込み推論を使用します。ドキュメントの取り込みと検索にプロバイダーのAPIキーは不要です。[Knowledge Base](/ja/apps/knowledge-base.md)と[ベクトルデータベース](/ja/docker-integration/vector-database.md)を参照してください。
+- **書庫**（ドキュメントの取り込みとRAG）は、ローカルのQdrantベクトルデータベースとローカルの埋め込み推論を使用します。ドキュメントの取り込みと検索にプロバイダーのAPIキーは不要です。[書庫](/ja/apps/knowledge-base.md)と[ベクトルデータベース](/ja/docker-integration/vector-database.md)を参照してください。

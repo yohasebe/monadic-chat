@@ -63,10 +63,10 @@
   <text x="260.7" y="724.7" font-size="13" fill="#2a2e33">Portuguese (pt)</text>
   <rect x="240.7" y="737.0" width="14" height="14" rx="3" fill="#ffffff" stroke="#ced4da"/>
   <text x="260.7" y="748.7" font-size="13" fill="#2a2e33">Chinese (zh)</text>
-  <text x="240.7" y="783.0" font-size="13" fill="#2a2e33" font-weight="600">Knowledge Base Quality Pack (Docling)</text>
+  <text x="240.7" y="783.0" font-size="13" fill="#2a2e33" font-weight="600">Library Quality Pack (Docling)</text>
   <rect x="240.7" y="794.0" width="288.0" height="8" rx="4" fill="#dadee2"/>
   <rect x="240.7" y="813.0" width="14" height="14" rx="3" fill="#ffffff" stroke="#ced4da"/>
-  <text x="260.7" y="824.7" font-size="13" fill="#2a2e33">Install Knowledge Base Quality Pack</text>
+  <text x="260.7" y="824.7" font-size="13" fill="#2a2e33">Install Library Quality Pack</text>
   <rect x="240.7" y="837.0" width="14" height="14" rx="3" fill="#ffffff" stroke="#ced4da"/>
   <text x="260.7" y="848.7" font-size="13" fill="#2a2e33">English (en) — always installed</text>
   <rect x="240.7" y="861.0" width="14" height="14" rx="3" fill="#ffffff" stroke="#ced4da"/>

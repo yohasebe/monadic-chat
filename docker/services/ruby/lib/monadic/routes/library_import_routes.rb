@@ -1,6 +1,6 @@
 # frozen_string_literal: false
 
-# Knowledge Base file-import routes.
+# Library file-import routes.
 #
 # POST /library/import — receives a Markdown / Code / PDF / Office file
 # upload and queues it for ingestion into the Library as a single
@@ -133,7 +133,7 @@ post "/library/import" do
       rescue Monadic::Library::Originals::Changed
         Monadic::Library::ImportTracker.update(
           import_id, stage: 'error', finished_at: Time.now,
-          error: 'A file with the same content in the Knowledge Base was changed; it was not replaced.'
+          error: 'A file with the same content in the Library was changed; it was not replaced.'
         )
       rescue Monadic::Library::FileImporter::UnsupportedFormatError => e
         Monadic::Library::ImportTracker.update(

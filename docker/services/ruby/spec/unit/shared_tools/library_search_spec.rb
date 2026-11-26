@@ -200,7 +200,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     it 'returns a graceful error message when Retriever raises' do
       allow(Monadic::Library::Retriever).to receive(:cascade_search).and_raise(StandardError, 'boom')
       out = host.library_search(query: 'q', workbench: workbench)
-      expect(out).to start_with('❌ Knowledge Base search failed')
+      expect(out).to start_with('❌ Library search failed')
       expect(out).to include('boom')
     end
 

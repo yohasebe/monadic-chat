@@ -256,7 +256,7 @@ RSpec.configure do |config|
   end
   config.after(:suite) { FileUtils.rm_rf(spec_state) }
 
-  # No example reaches the Knowledge Base's files of the computer running the
+  # No example reaches the Library's files of the computer running the
   # specs (~/monadic/library), integration and E2E ones included: the folder
   # is one of this run's own. A spec that stubs library_path itself uses its
   # own folder instead.

@@ -55,7 +55,7 @@ const PYTHON_OPTIONS = Object.freeze([
 const PRIVACY_LANG_BASE = Object.freeze(['en']);
 const PRIVACY_LANG_OPTIONAL = Object.freeze(['de', 'es', 'fr', 'it', 'ja', 'nl', 'pt', 'zh']);
 
-// Extractor (Knowledge Base Quality Pack) OCR language codes. English
+// Extractor (Library Quality Pack) OCR language codes. English
 // is the foundational layer (Latin alphabet appears in nearly every
 // document regardless of dominant language) and is pinned `checked
 // disabled`. The others are opt-in once the master toggle is on.

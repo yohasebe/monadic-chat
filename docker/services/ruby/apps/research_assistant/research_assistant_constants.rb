@@ -3,10 +3,10 @@ module ResearchAssistant
 
   DESCRIPTION = {
     "en" => <<~TEXT,
-      Research assistant that searches the web and reads your documents, and answers with citations. Documents imported into the Knowledge Base can be searched when Knowledge Base retrieval is on. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      Research assistant that searches the web and reads your documents, and answers with citations. It can also consult what you keep in the Library. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "ja" => <<~TEXT,
-      ウェブを検索し、手元の文書を読んで、引用付きで答えるリサーチアシスタント。ナレッジベースに取り込んだ文書は、ナレッジベース検索をオンにすると検索できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+      ウェブを検索し、手元の文書を読んで、引用付きで答えるリサーチアシスタント。書庫に収めた資料も参照できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     "zh" => <<~TEXT,
       搜索网络、阅读您的文档并给出带引用回答的研究助手。开启知识库检索后，可以检索导入知识库的文档。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=research-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>

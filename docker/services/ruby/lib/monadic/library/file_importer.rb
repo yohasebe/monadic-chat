@@ -20,7 +20,7 @@ module Monadic
     #   - reads the file (Markdown / Code) directly OR runs the Python
     #     extractor (subprocess inside the python container, OR HTTP to
     #     the extractor_service container when the user has installed
-    #     the Knowledge Base Quality Pack)
+    #     the Library Quality Pack)
     #   - returns a monadic-conversation v1 hash ready for
     #     Manager.import_conversation
     #
@@ -124,7 +124,7 @@ module Monadic
                         if extractor_opted_in?
                           Monadic::Utils::DegradationNotifier.report(
                             component: "extractor",
-                            message: "Knowledge Base Quality Pack is enabled but the extractor service is unreachable; importing #{filename} with the basic pdfplumber path (no OCR, no layout analysis).",
+                            message: "Library Quality Pack is enabled but the extractor service is unreachable; importing #{filename} with the basic pdfplumber path (no OCR, no layout analysis).",
                             severity: :warning
                           )
                         end

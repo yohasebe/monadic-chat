@@ -2664,7 +2664,7 @@ module GeminiHelper
       # Preserve this round's reasoning across the tool round(s). Gemini streams
       # its thinking summary BEFORE the tool call, but the final message is built
       # in the post-tool round, so accumulate here to keep the persistent Thinking
-      # panel after tool use (e.g. Knowledge Base / library search). Mirrors the
+      # panel after tool use (e.g. a Library search). Mirrors the
       # Grok/DeepSeek session-reasoning pattern.
       if thinking_parts.any?
         prior = session[:gemini_thinking].to_s
@@ -2822,7 +2822,7 @@ module GeminiHelper
       # via renderThinkingBlock). The live-streamed fragments are replaced by this
       # final panel, so there is no duplicate display. Merge reasoning accumulated
       # across earlier tool rounds (session[:gemini_thinking]) with this round's
-      # own thinking so the panel survives tool use (Knowledge Base / tools).
+      # own thinking so the panel survives tool use (Library search, other tools).
       own_thinking = thinking_parts.join("")
       accumulated_thinking = session[:gemini_thinking].to_s
       merged_thinking = [accumulated_thinking, own_thinking].reject { |s| s.strip.empty? }.join("\n\n")

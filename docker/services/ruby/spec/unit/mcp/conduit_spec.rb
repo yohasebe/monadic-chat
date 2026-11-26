@@ -32,7 +32,7 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(names).to contain_exactly(
         "monadic_status", "monadic_list_models", "monadic_query",
         "monadic_parallel_query", "monadic_second_opinion", "monadic_confidence",
-        "monadic_search_kb", "monadic_list_kb", "monadic_import_kb",
+        "monadic_search_library", "monadic_list_library", "monadic_import_library",
         "monadic_analyze_image", "monadic_transcribe_audio",
         "monadic_analyze_audio", "monadic_analyze_video",
         "monadic_speak", "monadic_generate_code", "monadic_generate_image",
@@ -62,9 +62,9 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(described_class.tool?("monadic_query")).to be true
       expect(described_class.tool?("monadic_parallel_query")).to be true
       expect(described_class.tool?("monadic_second_opinion")).to be true
-      expect(described_class.tool?("monadic_search_kb")).to be true
-      expect(described_class.tool?("monadic_list_kb")).to be true
-      expect(described_class.tool?("monadic_import_kb")).to be true
+      expect(described_class.tool?("monadic_search_library")).to be true
+      expect(described_class.tool?("monadic_list_library")).to be true
+      expect(described_class.tool?("monadic_import_library")).to be true
       expect(described_class.tool?("monadic_analyze_image")).to be true
       expect(described_class.tool?("monadic_transcribe_audio")).to be true
       expect(described_class.tool?("monadic_analyze_audio")).to be true
@@ -882,85 +882,85 @@ RSpec.describe Monadic::MCP::Conduit do
     end
   end
 
-  describe "knowledge base tools" do
+  describe "Library tools" do
     let(:store) { double("LibraryStore") }
     let(:retriever) { Monadic::Library::Retriever }
     let(:manager) { Monadic::Library::Manager }
 
-    before { allow(described_class).to receive(:kb_store).and_return(store) }
+    before { allow(described_class).to receive(:library_store).and_return(store) }
 
-    describe "monadic_search_kb" do
+    describe "monadic_search_library" do
       it "searches every entry by default and returns passages with their titles" do
         expect(retriever).to receive(:cascade_search).with("neural nets", store: store, top_n: 5)
           .and_return([{ text: "chunk A", score: 0.9, conversation_id: "c1", conversation_title: "Paper",
                          conversation_source: "pdf" }])
-        result = described_class.call("monadic_search_kb", { "query" => "neural nets" })
+        result = described_class.call("monadic_search_library", { "query" => "neural nets" })
         expect(result[:count]).to eq(1)
         expect(result[:results].first).to include(text: "chunk A", title: "Paper", conversation_id: "c1")
       end
 
       it "takes top_n" do
         expect(retriever).to receive(:cascade_search).with("q", store: store, top_n: 3).and_return([])
-        described_class.call("monadic_search_kb", { "query" => "q", "top_n" => 3 })
+        described_class.call("monadic_search_library", { "query" => "q", "top_n" => 3 })
       end
 
       it "requires a query" do
-        expect { described_class.call("monadic_search_kb", {}) }
+        expect { described_class.call("monadic_search_library", {}) }
           .to raise_error(ArgumentError, /query is required/)
       end
 
       it "returns a structured error when the vector store is down" do
         allow(retriever).to receive(:cascade_search)
           .and_raise(Monadic::VectorStore::BackendError.new("connection refused"))
-        result = described_class.call("monadic_search_kb", { "query" => "q" })
+        result = described_class.call("monadic_search_library", { "query" => "q" })
         expect(result[:success]).to be false
-        expect(result[:error]).to match(/Knowledge Base unavailable/)
+        expect(result[:error]).to match(/Library unavailable/)
       end
 
       it "returns the same structured error when the embeddings service is down" do
         allow(retriever).to receive(:cascade_search)
           .and_raise(Monadic::Embeddings::ClientError.new("embeddings unreachable"))
-        result = described_class.call("monadic_search_kb", { "query" => "q" })
+        result = described_class.call("monadic_search_library", { "query" => "q" })
         expect(result[:success]).to be false
-        expect(result[:error]).to match(/Knowledge Base unavailable/)
+        expect(result[:error]).to match(/Library unavailable/)
       end
     end
 
-    describe "monadic_list_kb" do
+    describe "monadic_list_library" do
       it "lists every entry" do
         expect(manager).to receive(:list_conversations).with(store: store, limit: 500)
           .and_return([{ conversation_id: "c1", title: "Paper" }])
-        result = described_class.call("monadic_list_kb", {})
+        result = described_class.call("monadic_list_library", {})
         expect(result[:count]).to eq(1)
         expect(result[:entries].first[:title]).to eq("Paper")
       end
     end
 
-    describe "monadic_import_kb" do
+    describe "monadic_import_library" do
       it "imports text as an entry with the title" do
         expect(manager).to receive(:import_conversation) do |store:, conversation:|
           expect(conversation.dig("conversation_metadata", "title")).to eq("Notes")
           { conversation_id: "c-123", counts: { summaries: 1 } }
         end
-        result = described_class.call("monadic_import_kb", {
+        result = described_class.call("monadic_import_library", {
           "title" => "Notes", "text" => "line one\n\nline two"
         })
         expect(result).to include(conversation_id: "c-123", title: "Notes", source: "text")
       end
 
       it "requires a title" do
-        expect { described_class.call("monadic_import_kb", { "text" => "x" }) }
+        expect { described_class.call("monadic_import_library", { "text" => "x" }) }
           .to raise_error(ArgumentError, /title is required/)
       end
 
       it "requires text or path" do
-        expect { described_class.call("monadic_import_kb", { "title" => "T" }) }
+        expect { described_class.call("monadic_import_library", { "title" => "T" }) }
           .to raise_error(ArgumentError, /text.*or.*path/)
       end
 
       it "rejects a path outside the shared folder" do
         expect(manager).not_to receive(:import_conversation)
-        expect { described_class.call("monadic_import_kb", { "title" => "T", "path" => "/etc/hosts.md" }) }
+        expect { described_class.call("monadic_import_library", { "title" => "T", "path" => "/etc/hosts.md" }) }
           .to raise_error(StandardError)
       end
     end
@@ -1947,7 +1947,7 @@ RSpec.describe Monadic::MCP::Conduit do
     end
   end
 
-  describe "monadic_query grounding (knowledge_base)" do
+  describe "monadic_query grounding (library)" do
     let(:host) { double("host") }
     let(:store) { double("store") }
 
@@ -1955,7 +1955,7 @@ RSpec.describe Monadic::MCP::Conduit do
       Monadic::MCP::CostGuard.reset!
       allow(described_class).to receive(:provider_host).and_return(host)
       allow(described_class).to receive(:default_chat_model_for).and_return("m")
-      allow(described_class).to receive(:kb_store).and_return(store)
+      allow(described_class).to receive(:library_store).and_return(store)
     end
 
     after { Monadic::MCP::CostGuard.reset! }
@@ -1968,7 +1968,7 @@ RSpec.describe Monadic::MCP::Conduit do
       allow(host).to receive(:send_query) { |body, **| captured = body; "answer" }
 
       result = described_class.call("monadic_query", {
-        "provider" => "openai", "message" => "explain X", "knowledge_base" => "kb1"
+        "provider" => "openai", "message" => "explain X", "library" => "all"
       })
 
       # Context is folded into the user turn (uniform cross-provider delivery).
@@ -1979,15 +1979,29 @@ RSpec.describe Monadic::MCP::Conduit do
       expect(result[:success]).to be true
     end
 
-    it "fails closed when the KB is unavailable" do
+    it "refuses the argument's old name instead of answering without the Library" do
+      %w[monadic_query monadic_parallel_query monadic_confidence].each do |tool|
+        expect { described_class.call(tool, { "provider" => "openai", "message" => "q", "knowledge_base" => "all" }) }
+          .to raise_error(ArgumentError, "`knowledge_base` is now `library`")
+      end
+    end
+
+    it "offers the Library tools by their names only" do
+      names = described_class.registry.map { |t| t[:name] }
+      expect(names).to include("monadic_search_library", "monadic_list_library", "monadic_import_library")
+      expect(names.grep(/_kb\z/)).to be_empty
+      expect { described_class.call("monadic_search_kb", { "query" => "q" }) }.to raise_error(/Unknown Conduit tool/)
+    end
+
+    it "fails closed when the Library is unavailable" do
       allow(Monadic::Library::Retriever).to receive(:cascade_search)
         .and_raise(Monadic::VectorStore::BackendError.new("connection refused"))
       expect(host).not_to receive(:send_query)
       result = described_class.call("monadic_query", {
-        "provider" => "openai", "message" => "q", "knowledge_base" => "kb1"
+        "provider" => "openai", "message" => "q", "library" => "all"
       })
       expect(result[:success]).to be false
-      expect(result[:error]).to match(/Knowledge Base unavailable/)
+      expect(result[:error]).to match(/Library unavailable/)
     end
   end
 

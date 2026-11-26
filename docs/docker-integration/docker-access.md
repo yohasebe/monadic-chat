@@ -40,7 +40,7 @@ This list shows the standard containers; see [Basic Architecture](basic-architec
   docker exec -it monadic-chat-privacy-container bash
   ```
 
-- **Extractor Container** (`monadic-chat-extractor-container`): document extraction for the Knowledge Base Quality Pack (present only when installed)
+- **Extractor Container** (`monadic-chat-extractor-container`): document extraction for the Library Quality Pack (present only when installed)
   ```shell
   docker exec -it monadic-chat-extractor-container bash
   ```

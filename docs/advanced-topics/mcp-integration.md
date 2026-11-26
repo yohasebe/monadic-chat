@@ -2,7 +2,7 @@
 
 ## Overview
 
-Monadic Chat exposes a Model Context Protocol (MCP) server called **Monadic Conduit**. It lets MCP-compatible clients and agentic CLI tools use Monadic Chat's capabilities — multi-provider model access, a local knowledge base, audio/image/video analysis, and audio/image/video/music generation — over a standard JSON-RPC 2.0 interface.
+Monadic Chat exposes a Model Context Protocol (MCP) server called **Monadic Conduit**. It lets MCP-compatible clients and agentic CLI tools use Monadic Chat's capabilities — multi-provider model access, a local Library, audio/image/video analysis, and audio/image/video/music generation — over a standard JSON-RPC 2.0 interface.
 
 Conduit publishes a small, stable set of capability tools in the `monadic_*` namespace. Instead of re-exposing every app's individual tools, it provides reusable building blocks and leaves orchestration to the calling client. Conduit uses your own API keys, runs locally, and keeps your data on your machine. Every tool that spends provider tokens is gated by a token budget.
 
@@ -51,17 +51,17 @@ Conduit exposes the following `monadic_*` tools. Each tool's full input schema i
 - `monadic_list_models` — providers, models, and their capabilities (context window, vision, tool use, etc.)
 
 **Query**
-- `monadic_query` — a single-provider, context-aware query, with optional knowledge-base grounding and privacy masking
+- `monadic_query` — a single-provider, context-aware query, with optional Library grounding and privacy masking
 - `monadic_parallel_query` — **generate**: the same prompt sent to several providers concurrently to compare fresh, independent answers
 - `monadic_second_opinion` — **grade**: ask one or more providers to score (1–10) and critique a response you already have
 - `monadic_confidence` — **assess by agreement**: fan a question out to several distinct providers and judge how much their independent answers agree, returning a confidence level (high/medium/low), the points of agreement and disagreement, and a recommendation (trust/verify/escalate)
 
-**Knowledge Base** (the same [Knowledge Base](../apps/knowledge-base.md) the web interface uses)
-- `monadic_search_kb` — semantic search over the Knowledge Base
-- `monadic_list_kb` — list the entries of the Knowledge Base
-- `monadic_import_kb` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as an entry
+**Library** (the same [Library](../apps/knowledge-base.md) the web interface uses)
+- `monadic_search_library` — semantic search over the Library
+- `monadic_list_library` — list the entries of the Library
+- `monadic_import_library` — import text, or a file in the shared folder (PDF, Markdown, Word, Excel, PowerPoint, source code), as an entry
 
-These tools read every entry. The chat tools `monadic_query`, `monadic_parallel_query` and `monadic_confidence` use the Knowledge Base only when their `knowledge_base` argument is given (any value, such as `all`); it searches every entry. They search on your computer and send the passages found to the provider with the question; without the argument, nothing from the Knowledge Base is sent.
+These tools read every entry. The chat tools `monadic_query`, `monadic_parallel_query` and `monadic_confidence` use the Library only when their `library` argument is given (any value, such as `all`); it searches every entry. They search on your computer and send the passages found to the provider with the question; without the argument, nothing from the Library is sent.
 
 **Analysis (input)**
 - `monadic_analyze_image` — describe or answer questions about an image
@@ -132,7 +132,7 @@ A tool result is returned as both human-readable `content` text and a machine-re
 
 ## Cost Control
 
-Tools that call a provider spend tokens against a shared budget enforced by Conduit. The platform reserves the estimated cost **before** the call and refuses it if the budget would be exceeded, so a runaway client is stopped rather than trusted. The remaining budget is reported by `monadic_status` and included in each spending tool's result. The ceiling is configured with `CONDUIT_TOKEN_BUDGET` and resets when the server restarts. Knowledge-base tools use a local embeddings model and are not budget-gated.
+Tools that call a provider spend tokens against a shared budget enforced by Conduit. The platform reserves the estimated cost **before** the call and refuses it if the budget would be exceeded, so a runaway client is stopped rather than trusted. The remaining budget is reported by `monadic_status` and included in each spending tool's result. The ceiling is configured with `CONDUIT_TOKEN_BUDGET` and resets when the server restarts. Library tools use a local embeddings model and are not budget-gated.
 
 The `monadic_agent` tool is additionally bounded by a tool-call cap and a wall-clock limit (default 300 seconds, configurable with `CONDUIT_AGENT_WALL_CLOCK`) on top of the token budget, so a single agent run cannot loop or stall indefinitely.
 
@@ -224,7 +224,7 @@ A tool that fails in a way it handles (a missing file, a refused budget, a provi
 ## Known Limitations
 
 - The `resources` and `prompts` MCP methods are not implemented.
-- Knowledge-base tools require the Qdrant and embeddings containers.
+- Library tools require the Qdrant and embeddings containers.
 - `monadic_analyze_video` requires the Python container for frame extraction.
 - Generation and analysis tools require an API key for the relevant provider.
 - `monadic_analyze_image`, `monadic_transcribe_audio`, `monadic_analyze_video`, and `monadic_generate_code` require a `provider` argument. The request, and the file if there is one, is sent only to that provider; there is no automatic choice of another provider that has a key.

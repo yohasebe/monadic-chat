@@ -354,7 +354,7 @@ RSpec.describe 'Tool input boundaries' do
       end
     end
 
-    { handle_analyze_image: '.png', handle_transcribe_audio: '.mp3', handle_import_kb: '.pdf' }.each do |method, extension|
+    { handle_analyze_image: '.png', handle_transcribe_audio: '.mp3', handle_import_library: '.pdf' }.each do |method, extension|
       it "#{method}: rejects external files before invoking agents or import" do
         expect(conduit).not_to receive(:agent_host)
         expect(conduit).not_to receive(:extract_pdf_chunks)
@@ -382,11 +382,11 @@ RSpec.describe 'Tool input boundaries' do
       expect(Monadic::Library::Manager).to receive(:import_file)
         .with(hash_including(path: pdf, filename: 'file name.pdf', options: { title: 'test' }))
         .and_return({ conversation_id: 'c1', counts: {} })
-      allow(conduit).to receive(:kb_store).and_return(double('store'))
-      expect(conduit.handle_import_kb('path' => '日本語 folder/file name.pdf', 'title' => 'test')[:conversation_id]).to eq('c1')
+      allow(conduit).to receive(:library_store).and_return(double('store'))
+      expect(conduit.handle_import_library('path' => '日本語 folder/file name.pdf', 'title' => 'test')[:conversation_id]).to eq('c1')
       fixture('cwd.pdf', root: @outside)
       Dir.chdir(@outside) do
-        expect { conduit.handle_import_kb('path' => 'cwd.pdf', 'title' => 'test') }.to raise_error(ArgumentError)
+        expect { conduit.handle_import_library('path' => 'cwd.pdf', 'title' => 'test') }.to raise_error(ArgumentError)
       end
     end
   end

@@ -83,14 +83,14 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 - **💬 Advanced Conversation Management**: Edit, export/import, and track conversation history with structured context
 - **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization, plus continuous speech-to-speech conversation (Live Conversation) over the OpenAI, xAI Grok, and Google Gemini realtime APIs
 - **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
-- **📄 PDF Knowledge Base**: Store and query documents locally with Qdrant + on-device embeddings — no API key required
+- **📄 Library**: Keep documents and conversations, and query them locally with Qdrant + on-device embeddings — no API key required
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, and Grok
 - **🔒 Anonymization**: Choose the words (such as names) a chat replaces with placeholders in the text it sends to AI providers; replies come back with the words put back. Names are found locally with Microsoft Presidio + spaCy in 9 languages. Images, voice and the chat history are not anonymized. See [Anonymization](https://yohasebe.github.io/monadic-chat/#/advanced-topics/anonymization).
 - **🔄 Automatic Updates**: In-app notifications and seamless update downloads
 
 ### Featured Applications
 
-Chat · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · Knowledge Base · Image Generator · Music Generator · Language Practice
+Chat · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Live Conversation · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · Library · Image Generator · Music Generator · Language Practice
 
 📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps)
 

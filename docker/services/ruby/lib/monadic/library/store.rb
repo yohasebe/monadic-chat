@@ -56,7 +56,7 @@ module Monadic
         @store.upsert_points(collection: collection, points: points)
       end
 
-      # Search a Library collection: every entry (the Knowledge Base is one
+      # Search a Library collection: every entry (the Library is one
       # shelf; scope_app is written but not searched by).
       def search(collection:, vector:, filter: nil, limit: 5)
         ensure_library_collection!(collection)

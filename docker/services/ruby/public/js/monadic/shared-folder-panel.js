@@ -140,7 +140,7 @@
     projects: ['projects', 'AutoForge projects'],
     transcriptions: ['transcriptions', 'Transcriptions'],
     documents: ['documents', 'Documents'],
-    library_sources: ['librarySources', 'Knowledge Base imports'],
+    library_sources: ['librarySources', 'Library imports'],
     protected: ['protected', 'Kept by Monadic Chat'],
     other: ['other', 'Other']
   };

@@ -8,7 +8,7 @@ abstract: >-
   Monadic Chat is a locally hosted web application for building and running
   AI chatbots that operate across multiple LLM providers within a reproducible,
   Docker-isolated Linux environment. It supports tool use, code execution, a
-  local PDF/document knowledge base, voice interaction, image/video/audio
+  local document library, voice interaction, image/video/audio
   analysis and generation, structured (monadic) conversation context, and
   AI-to-AI conversations, making it usable both as an application platform and
   as a framework for language research and education.

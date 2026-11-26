@@ -3842,7 +3842,7 @@ function computePendingContainerBuilds(imageStatus = null) {
   if (truthy(env.EXTRACTOR_SERVICE) && notBuilt('extractor', snapshots.extractor_service)) {
     result.push({
       container: 'extractor_service',
-      label: 'Knowledge Base Quality Pack',
+      label: 'Library Quality Pack',
       changed: null,
       buildCommand: 'build_extractor_container',
       minutes: '5–10'

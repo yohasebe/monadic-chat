@@ -62,7 +62,7 @@ Monadic Chat reads each model's capabilities from Ollama's `/api/show` endpoint 
 | Capability | What it enables |
 |------------|-----------------|
 | **vision** | Image input. The image button appears only for these models. |
-| **tools** | Tool calling: web search, Knowledge Base search, the conversation records of Chat, the Practice notes of Language Practice, and the tool features of Coding Assistant and Mail Composer. |
+| **tools** | Tool calling: web search, Library search, the conversation records of Chat, the Practice notes of Language Practice, and the tool features of Coding Assistant and Mail Composer. |
 | **thinking** | Reasoning output, shown in the thinking panel. The Show Thinking toggle turns it on and off. |
 
 Structured output (generation constrained by a JSON schema) works with every model.
@@ -79,7 +79,7 @@ When `/api/show` gives no answer for a model, Monadic Chat guesses from the mode
 
 ## Models Without Tool Calling
 
-When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Monadic Chat sends that model no tools: web search, Knowledge Base search, the conversation records of Chat, the Practice notes of Language Practice and the tool features of Coding Assistant and Mail Composer do not work with it. For plain conversation, such a model works without problems.
+When the selected model does not have the `tools` capability, the sidebar shows a yellow **No tool calling** indicator. Monadic Chat sends that model no tools: web search, Library search, the conversation records of Chat, the Practice notes of Language Practice and the tool features of Coding Assistant and Mail Composer do not work with it. For plain conversation, such a model works without problems.
 
 ## Available Apps
 

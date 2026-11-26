@@ -1,4 +1,4 @@
-# Extractor Service (Knowledge Base Quality Pack)
+# Extractor Service (Library Quality Pack)
 
 `extractor_service` (`docker/services/extractor/`) extracts PDFs for Library imports with Docling 2.x and RapidOCR, including scanned pages, reading order and tables. It is optional; without it, PDFs are extracted by `library_pdf_extractor.py` (pdfplumber) in the Python container. Office files always go through `library_office_extractor.py` in the Python container.
 
@@ -57,7 +57,7 @@ Saving these settings runs `monadic.sh refresh-service extractor`, which recreat
 - `ensure-service extractor`: pulls the image if it is missing, then starts the container. Prints `EXTRACTOR_DISABLED`, `EXTRACTOR_NOT_BUILT`, `STARTED` or `ALREADY_RUNNING`.
 - `refresh-service extractor`: prints `REFRESHED` or `NOT_RUNNING`.
 
-**Actions → Install Options → Knowledge Base Quality Pack** sets `EXTRACTOR_SERVICE=true` in `~/monadic/config/env`.
+**Actions → Install Options → Library Quality Pack** sets `EXTRACTOR_SERVICE=true` in `~/monadic/config/env`.
 
 ## Ruby Side
 

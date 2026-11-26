@@ -170,7 +170,7 @@ module MonadicDSL
     if search_value && !save_value
       raise ConfigurationError,
             "App '#{state.name}': library_search=true requires library_save=true. " \
-            "Retrieving from a Knowledge Base entries this app cannot save to is " \
+            "Searching a Library this app cannot keep its chats in is " \
             "self-contradictory. Either set library_save true or set library_search false."
     end
 
@@ -191,7 +191,7 @@ module MonadicDSL
     state.settings[:library_search] == true
   end
 
-  # True when the app should expose the Knowledge Base "Save" button.
+  # True when the app keeps its chats in the Library.
   # Thin wrapper over the capability flag for symmetry.
   def self.library_save_eligible?(state)
     state.settings[:library_save] == true
@@ -483,7 +483,7 @@ module MonadicDSL
     # Anonymize button. It is accepted so an app that has one still loads.
     def privacy(*)
       warn "[DSL] App '#{@state.name}': `privacy do` has no effect and can be removed. " \
-           "The Knowledge Base stays available in this app unless it declares " \
+           "The Library stays available in this app unless it declares " \
            "`library_save false` and `library_search false` in its features."
     end
 

@@ -68,7 +68,7 @@ Build the containers you defined (see [Adding Docker Containers](../advanced-top
 Download the image of the container (`monadic-chat-privacy-container`) that finds names for [Anonymization](../advanced-topics/anonymization.md). Available unless `PRIVACY_FILTER=false` is set.
 
 **Build Extractor Container** <br />
-Download the image of the container (`monadic-chat-extractor-container`) used by the Knowledge Base Quality Pack. Available when the Quality Pack is installed.
+Download the image of the container (`monadic-chat-extractor-container`) used by the Library Quality Pack. Available when the Quality Pack is installed.
 
 **Open JupyterLab** <br />
 Open JupyterLab ([http://localhost:8889](http://localhost:8889)) in your browser, starting it first when it is not running. See [JupyterLab Integration](../docker-integration/jupyterlab.md) for details.
@@ -77,10 +77,10 @@ Open JupyterLab ([http://localhost:8889](http://localhost:8889)) in your browser
 Stop JupyterLab.
 
 **Import Document DB** <br />
-Import the entire Document DB (conversations saved to the Knowledge Base, PDFs, and other Knowledge Base entries) from a previously exported file in the shared folder. The chat history is not part of the Document DB and is not changed. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time). With a wrong passphrase or a damaged file nothing is imported, and the current database stays as it is.
+Import the entire Document DB (conversations saved to the Library, PDFs, and other Library entries) from a previously exported file in the shared folder. The chat history is not part of the Document DB and is not changed. A confirmation dialog warns that importing replaces the current database (**Replace and Import**). The accepted filenames are `monadic-qdrant.tar.gz` (plain) or `monadic-qdrant.tar.gz.enc` (encrypted, prompts for the passphrase used at export time). With a wrong passphrase or a damaged file nothing is imported, and the current database stays as it is.
 
 **Export Document DB** <br />
-Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase of at least 8 characters, encrypts the file with AES-256-GCM and writes `monadic-qdrant.tar.gz.enc`; the passphrase cannot be recovered) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Knowledge Base and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine.
+Export the entire Document DB to the shared folder. A confirmation dialog offers two choices: **Encrypt and Export** (default — prompts for a passphrase of at least 8 characters, encrypts the file with AES-256-GCM and writes `monadic-qdrant.tar.gz.enc`; the passphrase cannot be recovered) or **Export Plain** (writes `monadic-qdrant.tar.gz` unencrypted, with a strong warning that every conversation saved to the Library and every PDF travels in cleartext). The export does not include the [chat history](web-interface.md#chat-history-panel). Use the encrypted form for any export that may leave your machine.
 
 ### Open Menu
 
@@ -131,7 +131,7 @@ Shows information about the application version.
 Checks for application updates. When an update is available, a dialog offers **Download & Install**. When the download completes, choose **Restart Now** to install it, or **Later**.
 
 **Remove Images/Containers/Data** <br />
-Removes Monadic Chat's Docker images, containers and volumes (the Knowledge Base data). Your files in `~/monadic` are kept.
+Removes Monadic Chat's Docker images, containers and volumes (the Library data). Your files in `~/monadic` are kept.
 
 **How to Uninstall** <br />
 Opens the online documentation with complete uninstallation instructions for your operating system.
@@ -157,7 +157,7 @@ Select the browser to use when opening Monadic Chat from the console. "Internal 
 Select the theme for code syntax highlighting. The default is `github-light`.
 
 **Sources the AI can use** <br />
-**The Library, in chats**: when on, the AI consults the [Knowledge Base](../apps/knowledge-base.md) when you ask for it or it clearly helps, and what it reads is shown on the work screen. On by default. The change takes effect when Monadic Chat starts again.
+**The Library, in chats**: when on, the AI consults the [Library](../apps/knowledge-base.md) when you ask for it or it clearly helps, and what it reads is shown on the work screen. On by default. The change takes effect when Monadic Chat starts again.
 
 ### System
 
@@ -230,7 +230,7 @@ Select optional packages to be installed in the Python container: LaTeX, Python 
 The same panel holds two more groups:
 
 - **Name Finder — Additional Languages**: languages besides English for finding names to hide (German, Spanish, French, Italian, Japanese, Dutch, Portuguese, Chinese). A change takes effect on save, without a rebuild.
-- **Knowledge Base Quality Pack (Docling)**: install the extractor container for higher-quality document import, with its OCR languages (English, Japanese, Chinese, Korean). See [Knowledge Base](../apps/knowledge-base.md).
+- **Library Quality Pack (Docling)**: install the extractor container for higher-quality document import, with its OCR languages (English, Japanese, Chinese, Korean). See [Library](../apps/knowledge-base.md).
 
 ### Actions
 

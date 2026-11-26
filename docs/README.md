@@ -43,7 +43,7 @@ Detailed documentation for each of the built-in applications.
 *   [Music Generator](/apps/music-generator.md)
 *   [Diagram & Visualization Apps](/apps/diagram-apps.md)
 *   [Web & Media Analysis Apps](/apps/analysis-apps.md)
-*   [Knowledge Base](/apps/knowledge-base.md)
+*   [Library](/apps/knowledge-base.md)
 *   [Coding & Notebook Apps](/apps/coding-apps.md)
 *   [Music Tutor & Music Analyst](/apps/music-apps.md)
 *   [Auto Forge](/apps/auto_forge.md)

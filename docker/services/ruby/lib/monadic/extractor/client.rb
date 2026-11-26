@@ -7,7 +7,7 @@ require_relative 'endpoint'
 
 module Monadic
   module Extractor
-    # HTTP client for the extractor_service (Knowledge Base Quality Pack).
+    # HTTP client for the extractor_service (Library Quality Pack).
     # Wraps the FastAPI surface (/v1/health, /v1/info, /v1/extract) into a
     # small Ruby API. Stateless: every request is independent; the server
     # owns the Docling DocumentConverter singleton.

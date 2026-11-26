@@ -39,7 +39,7 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 ### Python コンテナ（`monadic-chat-python-container`） :id=python-container
 アプリのための Python のコード、コマンドラインのツール、JupyterLab を動かします。
 - **ポート**：8889（JupyterLab）
-- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Concept Visualizer、Mermaid Grapher、Web Insight、Auto Forge、Knowledge Base のファイルの取り込み
+- **使うアプリ**：Code Interpreter、Jupyter Notebook、Research Assistant、Math Tutor、Video Describer、Concept Visualizer、Mermaid Grapher、Web Insight、Auto Forge、書庫のファイルの取り込み
 - 追加のコンポーネント（LaTeX、Python のライブラリ、ImageMagick）は **アクション → インストールオプション** で加えます。[Python コンテナ](python-container.md)を参照してください。
 
 ### Selenium コンテナ（`monadic-chat-selenium-container`） :id=selenium-container
@@ -48,16 +48,16 @@ Monadic Chat のサーバーと Web 画面を動かします。どのアプリ�
 - **使うアプリ**：Web Insight、Research Assistant、Auto Forge、Mermaid Grapher
 
 ### Qdrant コンテナ（`monadic-chat-qdrant-container`） :id=qdrant-container
-ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。Knowledge Base とヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
+ベクトルデータベース [Qdrant](https://qdrant.tech) を動かします。書庫とヘルプのデータを保存します。[ベクトルデータベース](vector-database.md)を参照してください。
 
 ### Embeddings コンテナ（`monadic-chat-embeddings-container`） :id=embeddings-container
-Knowledge Base とヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
+書庫とヘルプの検索のために、`intfloat/multilingual-e5-base` モデルでテキストをベクトルに変換します。CPU で動き、API キーは要りません。
 
 ### Privacy コンテナ（`monadic-chat-privacy-container`） :id=privacy-container
 [匿名化](../advanced-topics/anonymization.md)のために名前を見つけます。匿名化は、選んだ語を、会話が送る文の中でプレースホルダーに置き換えます。ローカルで動き、API キーは要りません。
 
 ### Extractor コンテナ（`monadic-chat-extractor-container`） :id=extractor-container
-Knowledge Base 品質パックをインストールしたときだけあります（**アクション → インストールオプション → Knowledge Base 品質パックをインストール**）。Knowledge Base にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
+書庫の品質パックをインストールしたときだけあります（**アクション → インストールオプション → 書庫の品質パックをインストール**）。書庫にファイルを取り込むとき、[Docling](https://github.com/docling-project/docling) で PDF からテキストを取り出します（レイアウトの解析と OCR を含みます）。このコンテナが無いときは、PDF からのテキストの抽出を Python コンテナで行います。このとき OCR は行わないので、スキャンした画像だけの PDF からはテキストを取り出せません。
 
 ## アプリごとに必要なコンテナ :id=container-requirements
 
@@ -77,14 +77,14 @@ Knowledge Base 品質パックをインストールしたときだけありま�
 - コードの実行（Code Interpreter、Jupyter Notebook）
 - LaTeX による図（Concept Visualizer）
 - 動画の分析（Video Describer）
-- Knowledge Base へのファイルの取り込み（PDF と Office のファイル）
+- 書庫へのファイルの取り込み（PDF と Office のファイル）
 
 **Selenium コンテナ**：
 - Web ページを開く、スクリーンショットを撮る（Web Insight、Research Assistant、Auto Forge）
 - 図のプレビュー（Mermaid Grapher）
 
 **Qdrant と Embeddings のコンテナ**：
-- Knowledge Base
+- 書庫
 - Monadic Chat Help
 
 ?> 独自のコンテナを加える方法は、[Docker コンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
@@ -101,7 +101,7 @@ Monadic Chat は、ローカルの LLM として [Ollama](https://ollama.com) �
 
 ### コンテナの起動 :id=container-dependencies
 - Start を押すと、Ruby、Python、Selenium、Qdrant、Embeddings、Privacy のコンテナが起動します。Extractor コンテナは、インストールしてあれば起動します
-- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。Knowledge Base とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat情報パネルの **ヘルプデータ** からインストールしたヘルプのデータも要ります
+- Web 画面は Ruby コンテナの準備ができるとすぐに開きます。書庫とヘルプの検索は、Qdrant と Embeddings の起動が終わると使えます（初回の起動は、埋め込みのモデルを読み込むので時間がかかります）。ヘルプの検索には、Monadic Chat情報パネルの **ヘルプデータ** からインストールしたヘルプのデータも要ります
 - アプリに必要なコンテナが止まっていれば、そのアプリを選んだときに Monadic Chat が起動し直します
 
 ### 共有するデータのボリューム :id=shared-volumes

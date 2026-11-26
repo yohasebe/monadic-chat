@@ -774,11 +774,11 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.installExtractorTitle" data-container="extractor_service">Knowledge Base Quality Pack (Docling)</label>
+              <label data-i18n="settings.labels.installExtractorTitle" data-container="extractor_service">Library Quality Pack (Docling)</label>
               <small class="text-muted" data-i18n="settings.labels.installExtractorDesc">Layout-aware PDF extraction with OCR, table structure, and multilingual support. Adds a separate ~3 GB container; Library imports use it when installed.</small>
               <div class="checkbox-row" style="margin-top: 8px;">
                 <input type="checkbox" id="install-extractor-service">
-                <label for="install-extractor-service" data-i18n="settings.labels.installExtractorEnable">Install Knowledge Base Quality Pack</label>
+                <label for="install-extractor-service" data-i18n="settings.labels.installExtractorEnable">Install Library Quality Pack</label>
               </div>
               <div id="extractor-langs-extra" style="margin-top: 8px; padding-left: 20px;">
                 <small class="text-muted" data-i18n="settings.labels.installExtractorLangsLabel">OCR languages (RapidOCR; default covers East Asian + English)</small>
@@ -1007,7 +1007,7 @@
         });
       }
 
-      // ─── Extractor Service (Knowledge Base Quality Pack) helpers ───
+      // ─── Extractor Service (Library Quality Pack) helpers ───
       // RapidOCR-supported languages exposed in the UI. English is included
       // by default whenever the pack is installed.
       const EXTRACTOR_OCR_LANGS = ['en', 'ja', 'zh', 'ko'];

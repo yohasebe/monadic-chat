@@ -1251,30 +1251,6 @@
               </div>
               <div class="form-text small text-secondary" data-i18n="ui.libTitleHint">If left blank, the app name is used as the title.</div>
             </div>
-            <div class="mb-2">
-              <span class="form-label" data-i18n="ui.libScopeLabel">Scope</span>
-              <div class="form-check mt-1">
-                <input class="form-check-input" type="radio" name="librarySaveScope" id="library-scope-app" value="app" checked>
-                <label class="form-check-label" for="library-scope-app">
-                  <strong>
-                    <span data-i18n="ui.libScopeAppOnlyLabel">App-only</span>
-                    <span id="library-scope-app-name" class="text-secondary"></span>
-                  </strong>
-                  <span class="text-secondary small d-block" data-i18n="ui.libScopeAppOnlyDesc">Only retrievable from this same app + provider.</span>
-                </label>
-              </div>
-              <div class="form-check mt-1">
-                <input class="form-check-input" type="radio" name="librarySaveScope" id="library-scope-global" value="Global">
-                <label class="form-check-label" for="library-scope-global">
-                  <strong data-i18n="ui.libScopeGlobalLabel">Global</strong>
-                  <span class="text-secondary small d-block" data-i18n="ui.libScopeGlobalDesc">Retrievable from every app via library_search.</span>
-                </label>
-              </div>
-              <div id="library-scope-global-warning" class="alert alert-warning py-2 px-3 small mt-2" style="display:none;">
-                <i class="fas fa-circle-exclamation"></i>
-                <span data-i18n="ui.libScopeGlobalWarning">Global entries are searchable from every app in this Monadic Chat install. Anyone with access to this machine — including future apps you have not yet picked — can retrieve this content via library_search. Prefer App-only unless the conversation is intentionally shared.</span>
-              </div>
-            </div>
             <div id="library-save-update-note" class="alert alert-warning py-2 px-3 small mt-2" style="display:none;">
               <i class="fas fa-arrows-rotate"></i>
               <span data-i18n="ui.libUpdateNote">This will replace the previous saved version of this conversation.</span>
@@ -1302,12 +1278,6 @@
               </button>
               <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
               <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." aria-label="Library search" data-i18n-aria-label="ui.librarySearchAriaLabel" data-i18n-placeholder="ui.libBrowsePlaceholder">
-              <select class="form-select form-select-sm" id="library-browse-scope" style="max-width: 200px;" aria-label="Library scope filter" data-i18n-aria-label="ui.libraryScopeAriaLabel">
-                <option value="all" data-i18n="ui.libBrowseAllScopes">All scopes</option>
-                <!-- Additional <option> entries are populated dynamically
-                     from the current row set so the user can filter by
-                     any specific app scope or "Global". -->
-              </select>
               <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;" aria-label="Library sort order" data-i18n-aria-label="ui.librarySortAriaLabel">
                 <option value="created_desc" data-i18n="ui.libSortNewest">Newest first</option>
                 <option value="created_asc" data-i18n="ui.libSortOldest">Oldest first</option>
@@ -1328,7 +1298,6 @@
                   <tr>
                     <th class="small text-secondary fw-normal text-center" style="width: 40px;" data-i18n="ui.libColType" title="Content type" data-i18n-title="ui.libColTypeTooltip">Type</th>
                     <th class="small text-secondary fw-normal" data-i18n="ui.libColTitle">Title</th>
-                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColScope">Scope</th>
                     <th class="small text-secondary fw-normal text-nowrap text-end" data-i18n="ui.libColTurns">Turns</th>
                     <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColCreated">Saved</th>
                     <th></th>
@@ -1381,10 +1350,6 @@
             <div>
               <button type="button" class="btn btn-sm btn-danger me-1" id="library-viewer-delete">
                 <i class="fa-regular fa-trash-can"></i> <span data-i18n="ui.libDelete">Delete</span>
-              </button>
-              <button type="button" class="btn btn-sm btn-secondary" id="library-viewer-toggle-scope">
-                <i class="fa-solid fa-arrows-rotate"></i>
-                <span id="library-viewer-toggle-label" data-i18n="ui.libMakeGlobal">Make Global</span>
               </button>
             </div>
             <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.libClose">Close</button>

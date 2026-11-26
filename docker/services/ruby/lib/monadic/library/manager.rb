@@ -14,28 +14,22 @@ module Monadic
     # app's tools. These methods sit on top of Store / Hierarchical /
     # Retriever / Importers and expose conversation-level concepts.
     #
-    # Scoping model (2026-05): every conversation carries a `scope_app`
-    # payload field whose value is either an app class name (e.g.
-    # "ChatOpenAI", "JupyterNotebookGrok") or the literal string
-    # "Global". library_search filters by the requesting app's class
-    # name plus "Global"; the KB UI surfaces below pass `app_name: nil`
-    # so they see the full inventory regardless of scope.
+    # The Knowledge Base is one shelf: every read sees every entry.
+    # Points carry `scope_app` (new entries "Global"; entries of earlier
+    # versions may name an app), which nothing reads by.
     module Manager
       module_function
 
       # ─── List / inspect ────────────────────────────────────────────────
 
       # Enumerate conversations registered in the summaries collection,
-      # most recently created first. Pass app_name to restrict to entries
-      # this app would see (its own + Global); pass nil for the full
-      # inventory used by the KB UI.
-      def list_conversations(store:, app_name: nil, limit: 100)
+      # most recently created first.
+      def list_conversations(store:, limit: 100)
         rows = []
         cursor = nil
         loop do
           page = store.scroll(
             collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-            filter: store.scope_filter(app_name),
             limit: 256, offset: cursor
           )
           page[:points].each { |p|
@@ -53,13 +47,10 @@ module Monadic
 
       # Fetch the full payload of a conversation's summary point. Returns
       # nil when no matching conversation is registered.
-      def get_conversation_details(store:, conversation_id:, app_name: nil)
+      def get_conversation_details(store:, conversation_id:)
         page = store.scroll(
           collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-          filter: store.combine_filters(
-            store.scope_filter(app_name),
-            store.conversation_filter(conversation_id)
-          ),
+          filter: store.conversation_filter(conversation_id),
           limit: 1
         )
         return nil if page[:points].empty?
@@ -67,13 +58,10 @@ module Monadic
       end
 
       # Fetch verbatim messages + metadata for the Conversation Viewer.
-      def get_conversation_messages(store:, conversation_id:, app_name: nil)
+      def get_conversation_messages(store:, conversation_id:)
         page = store.scroll(
           collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-          filter: store.combine_filters(
-            store.scope_filter(app_name),
-            store.conversation_filter(conversation_id)
-          ),
+          filter: store.conversation_filter(conversation_id),
           limit: 1
         )
         return nil if page[:points].empty?
@@ -83,7 +71,6 @@ module Monadic
           title: payload['title'],
           source: payload['source'],
           language: payload['language'],
-          scope_app: Monadic::Utils::AppNames.current(payload['scope_app']),
           turns_count: payload['turns_count'],
           messages_count: payload['messages_count'],
           created_at: payload['created_at'],
@@ -93,50 +80,12 @@ module Monadic
         }
       end
 
-      # Aggregate counts. Returns total + a per-scope breakdown (one
-      # count per distinct scope_app value, including "Global"). Useful
-      # for the KB stats line and for letting the Browse modal render an
-      # accurate filter dropdown.
+      # The number of entries.
       def library_stats(store:)
-        total = store.conversation_count
-        by_scope = Hash.new(0)
-        cursor = nil
-        loop do
-          page = store.scroll(
-            collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-            filter: nil,
-            limit: 256, offset: cursor
-          )
-          page[:points].each do |p|
-            scope = Monadic::Utils::AppNames.current((p['payload'] || {})['scope_app'].to_s)
-            scope = Store::SCOPE_GLOBAL if scope.empty?
-            by_scope[scope] += 1
-          end
-          break if page[:next].nil?
-          cursor = page[:next]
-        end
-        {
-          conversations_total: total,
-          conversations_by_scope: by_scope
-        }
+        { conversations_total: store.conversation_count }
       end
 
       # ─── Mutate ────────────────────────────────────────────────────────
-
-      # Change a conversation's scope_app across every Library
-      # collection. Implemented as scroll + upsert because Qdrant has no
-      # native partial-payload-update.
-      def update_scope_app(store:, conversation_id:, scope_app:)
-        normalized = scope_app.to_s.strip
-        if normalized.empty?
-          raise ArgumentError, "scope_app must be a non-empty string (an app class name or 'Global')"
-        end
-
-        VectorStore::Schema::LIBRARY_COLLECTIONS.each do |collection|
-          rewrite_payload_field(store, collection, conversation_id, 'scope_app', normalized)
-        end
-        true
-      end
 
       MAX_TITLE_LENGTH = 200
 
@@ -166,13 +115,13 @@ module Monadic
 
       # ─── Import + ingest ───────────────────────────────────────────────
 
-      def import_from_text(store:, input:, options: {}, scope_app: Store::SCOPE_GLOBAL)
+      def import_from_text(store:, input:, options: {})
         parsed = parse_input(input)
         importer = Importers.detect(parsed)
         raise ArgumentError, 'Could not detect a known conversation format' unless importer
 
         conversation = importer.import(parsed, options)
-        counts = Hierarchical.ingest(conversation, store: store, scope_app: scope_app)
+        counts = Hierarchical.ingest(conversation, store: store)
         {
           conversation_id: conversation['conversation_id'],
           importer: importer.name.split('::').last,
@@ -184,7 +133,7 @@ module Monadic
       # named on the entry as 'original'. When the import fails, the kept
       # file goes again unless another entry or import has it. on_stage is
       # called with :extracting and :embedding_storing.
-      def import_file(store:, path:, filename:, options: {}, scope_app: Store::SCOPE_GLOBAL, on_stage: nil)
+      def import_file(store:, path:, filename:, options: {}, on_stage: nil)
         kept = Originals.keep(path)
         imported = false
         begin
@@ -193,7 +142,7 @@ module Monadic
           on_stage&.call(:embedding_storing)
           original = { 'sha256' => kept[:sha256], 'filename' => File.basename(filename.to_s),
                        'extension' => File.extname(filename.to_s).delete_prefix('.').downcase, 'bytes' => kept[:bytes] }
-          counts = Hierarchical.ingest(conversation, store: store, scope_app: scope_app, original: original)
+          counts = Hierarchical.ingest(conversation, store: store, original: original)
           imported = true
           { conversation_id: conversation['conversation_id'], counts: counts, original: original }
         ensure
@@ -202,8 +151,8 @@ module Monadic
         end
       end
 
-      def import_conversation(store:, conversation:, scope_app: Store::SCOPE_GLOBAL)
-        counts = Hierarchical.ingest(conversation, store: store, scope_app: scope_app)
+      def import_conversation(store:, conversation:)
+        counts = Hierarchical.ingest(conversation, store: store)
         {
           conversation_id: conversation['conversation_id'],
           counts: counts
@@ -220,7 +169,6 @@ module Monadic
           source: payload['source'],
           language: payload['language'],
           license: payload['license'],
-          scope_app: Monadic::Utils::AppNames.current(payload['scope_app']),
           messages_count: payload['messages_count'],
           turns_count: payload['turns_count'],
           duration_seconds: payload['duration_seconds'],
@@ -230,8 +178,8 @@ module Monadic
       end
 
       # Rewrite a single payload field across every point matching the
-      # given conversation_id in `collection`. Used by update_scope_app
-      # (every collection) and update_title (summaries only). Setting
+      # given conversation_id in `collection`. Used by update_title
+      # (summaries only). Setting
       # `limit:` caps how many points to scroll per page; for summaries
       # there is exactly one point so 1 is enough.
       def rewrite_payload_field(store, collection, conversation_id, key, value, limit: 256)

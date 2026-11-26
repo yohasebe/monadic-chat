@@ -891,27 +891,17 @@ RSpec.describe Monadic::MCP::Conduit do
 
     describe "monadic_search_kb" do
       it "searches every entry by default and returns passages with their titles" do
-        expect(retriever).to receive(:cascade_search).with("neural nets", store: store, app_name: nil, top_n: 5)
+        expect(retriever).to receive(:cascade_search).with("neural nets", store: store, top_n: 5)
           .and_return([{ text: "chunk A", score: 0.9, conversation_id: "c1", conversation_title: "Paper",
                          conversation_source: "pdf" }])
         result = described_class.call("monadic_search_kb", { "query" => "neural nets" })
-        expect(result[:knowledge_base]).to eq("all")
         expect(result[:count]).to eq(1)
         expect(result[:results].first).to include(text: "chunk A", title: "Paper", conversation_id: "c1")
       end
 
-      it "searches one app's entries and the Global ones when it names the app" do
-        expect(retriever).to receive(:cascade_search).with("q", store: store, app_name: "ChatOpenAI", top_n: 3)
-          .and_return([])
-        result = described_class.call("monadic_search_kb", {
-          "query" => "q", "knowledge_base" => "ChatOpenAI", "top_n" => 3
-        })
-        expect(result[:knowledge_base]).to eq("ChatOpenAI")
-      end
-
-      it "takes 'all' as every entry" do
-        expect(retriever).to receive(:cascade_search).with("q", store: store, app_name: nil, top_n: 5).and_return([])
-        described_class.call("monadic_search_kb", { "query" => "q", "knowledge_base" => "All" })
+      it "takes top_n" do
+        expect(retriever).to receive(:cascade_search).with("q", store: store, top_n: 3).and_return([])
+        described_class.call("monadic_search_kb", { "query" => "q", "top_n" => 3 })
       end
 
       it "requires a query" do
@@ -937,20 +927,18 @@ RSpec.describe Monadic::MCP::Conduit do
     end
 
     describe "monadic_list_kb" do
-      it "lists the entries the scope sees" do
-        expect(manager).to receive(:list_conversations).with(store: store, app_name: "ChatOpenAI", limit: 500)
+      it "lists every entry" do
+        expect(manager).to receive(:list_conversations).with(store: store, limit: 500)
           .and_return([{ conversation_id: "c1", title: "Paper" }])
-        result = described_class.call("monadic_list_kb", { "knowledge_base" => "ChatOpenAI" })
-        expect(result[:knowledge_base]).to eq("ChatOpenAI")
+        result = described_class.call("monadic_list_kb", {})
         expect(result[:count]).to eq(1)
         expect(result[:entries].first[:title]).to eq("Paper")
       end
     end
 
     describe "monadic_import_kb" do
-      it "imports text as a Global entry with the title" do
-        expect(manager).to receive(:import_conversation) do |store:, conversation:, scope_app:|
-          expect(scope_app).to eq(Monadic::Library::Store::SCOPE_GLOBAL)
+      it "imports text as an entry with the title" do
+        expect(manager).to receive(:import_conversation) do |store:, conversation:|
           expect(conversation.dig("conversation_metadata", "title")).to eq("Notes")
           { conversation_id: "c-123", counts: { summaries: 1 } }
         end
@@ -1974,7 +1962,7 @@ RSpec.describe Monadic::MCP::Conduit do
 
     it "injects KB context into the system prompt and flags grounded" do
       allow(Monadic::Library::Retriever).to receive(:cascade_search)
-        .with("explain X", store: store, app_name: "kb1", top_n: 4)
+        .with("explain X", store: store, top_n: 4)
         .and_return([{ text: "X is a documented thing" }])
       captured = nil
       allow(host).to receive(:send_query) { |body, **| captured = body; "answer" }

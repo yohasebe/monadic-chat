@@ -4,7 +4,7 @@ The Library is the store behind the Knowledge Base. Saved conversations and impo
 
 Front ends:
 
-- **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename, scope, delete and the "Use Knowledge Base" toggle, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
+- **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename, delete and the "Use Knowledge Base" toggle, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
 - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): retrieval from inside a chat turn.
 - **MCP server** (`lib/monadic/mcp/conduit.rb`): search, list and import for MCP clients; see [MCP Server](#mcp-server).
 
@@ -28,18 +28,13 @@ Point ids are random UUIDs. `conversation_id` in the payload links an entry's su
 
 `conversation_id`, `scope_app`, `turn_idx`, `speaker_id`, `speaker_role`, `text`, `start_message_id`, `end_message_id`, `start_offset_seconds`, `end_offset_seconds`, `message_count`.
 
-## Scope
+## One Shelf
 
-Every entry has a `scope_app`: an app class name (e.g. `ChatOpenAI`) or `Global`.
-
-- Retrieval (`library_search`, the RAG inventory) filters on `scope_app` ∈ {the requesting app's `app_name`, `Global`}. Provider variants are different apps.
-- The Knowledge Base UI (list, details, counts) sees every entry.
-- Defaults: Save uses the scope the UI sends, otherwise the current `app_name`, otherwise `Global`. File import uses `libraryScopeApp`, otherwise `Global`. `Manager.import_from_text` defaults to `Global`.
-- `Manager.update_scope_app` rewrites `scope_app` on every point of the entry in all Library collections (scroll + upsert with vectors).
+Every read (`library_search`, the RAG inventory, the Knowledge Base UI, MCP) sees every entry. `Hierarchical.ingest` writes `scope_app` = `Global` on every point; entries of earlier versions may carry an app's class name there. Nothing filters on it.
 
 ## Ingestion
 
-All paths end in `Monadic::Library::Hierarchical.ingest(conversation, store:, scope_app:)`, which segments the conversation into turns, embeds the summary text and the turns as passages, and upserts them. The input is a `monadic-conversation` v1 hash (`schema/monadic-conversation-v1.json`, validator `Monadic::Library::Schema`).
+All paths end in `Monadic::Library::Hierarchical.ingest(conversation, store:, original:)`, which segments the conversation into turns, embeds the summary text and the turns as passages, and upserts them. The input is a `monadic-conversation` v1 hash (`schema/monadic-conversation-v1.json`, validator `Monadic::Library::Schema`).
 
 ### Turn Segmentation
 
@@ -50,7 +45,7 @@ All paths end in `Monadic::Library::Hierarchical.ingest(conversation, store:, sc
 
 ### Conversation Importers
 
-`Manager.import_from_text(store:, input:, options:, scope_app:)` parses a JSON string if possible and picks the first importer in `Importers::REGISTRY` whose `can_import?` accepts the input:
+`Manager.import_from_text(store:, input:, options:)` parses a JSON string if possible and picks the first importer in `Importers::REGISTRY` whose `can_import?` accepts the input:
 
 1. `MonadicChatExport` (`parameters` + `messages`; source `monadic-chat`)
 2. `GeminiContents`
@@ -79,7 +74,7 @@ PDFs go to the extractor service (`/v1/extract`, layout analysis and OCR) when `
 
 ### Import Route
 
-`POST /library/import` (`lib/monadic/routes/library_import_routes.rb`), form fields `libraryFile`, `libraryTitle`, `libraryLicense`, `libraryScopeApp`:
+`POST /library/import` (`lib/monadic/routes/library_import_routes.rb`), form fields `libraryFile`, `libraryTitle`, `libraryLicense`:
 
 1. Rejects the upload when its size cannot be read or exceeds `LIBRARY_IMPORT_MAX_BYTES` (default 100 MiB).
 2. Writes it to `<data>/library/imports/<epoch>_<hex>_<filename>`. The worker thread deletes the file when the import ends, whether it succeeds or fails (`ensure`); a failure before the worker starts deletes it in the route.
@@ -104,7 +99,7 @@ The working copy in `<data>/library/imports/` is separate: the route deletes it 
 
 ## Save
 
-`LIBRARY_SAVE` (`handle_ws_library_save`) takes `messages`, `parameters`, `title`, `license`, `monadic_state`, `scope_app` and `conversation_id`. It refuses, before writing anything, when:
+`LIBRARY_SAVE` (`handle_ws_library_save`) takes `messages`, `parameters`, `title`, `license`, `monadic_state` and `conversation_id`. It refuses, before writing anything, when:
 
 - the session has a Privacy pipeline or `_privacy_session_enabled`;
 - `messages` is empty;
@@ -117,7 +112,7 @@ The working copy in `<data>/library/imports/` is separate: the route deletes it 
 
 `Manager.list_conversations` (behind `LIBRARY_LIST`) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
 
-Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_SET_SCOPE`, `LIBRARY_DELETE`, `LIBRARY_RAG_TOGGLE`, `LIBRARY_RAG_QUERY`.
+Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_DELETE`, `LIBRARY_RAG_TOGGLE`, `LIBRARY_RAG_QUERY`.
 
 ## App Capabilities
 
@@ -146,9 +141,8 @@ The `library_rag` rule in `SystemPromptInjector` (priority 70) applies when the 
 
 `library_search(query:, top_n: 3, content_type: nil, source: nil, session:)`:
 
-1. Reads `app_name` from the session for the scope filter; a session without one searches the `Global` entries only.
-2. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
-3. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
+1. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
+2. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
 
 In a chat with a word table, the result is hidden with the rest of the request when it is sent (`hide_words_in_request!`).
 
@@ -159,22 +153,22 @@ The tool group counts as available when the embeddings service answers its healt
 `Monadic::Library::Retriever.cascade_search`:
 
 1. Embeds the query (`embed_query`).
-2. Searches `library_summaries` with the scope filter and the extra filter, top 20.
-3. For each summary hit, searches `library_turns` for that `conversation_id` with the scope filter, top 3. The extra filter is not applied here because turns do not carry `source` or `content_type`.
+2. Searches `library_summaries` with the extra filter, top 20.
+3. For each summary hit, searches `library_turns` for that `conversation_id`, top 3. The extra filter is not applied here because turns do not carry `source` or `content_type`.
 4. Sorts all turn hits by score and returns the top `top_n`, each with the entry's title, source and language.
 
 The frontend opens the Conversation Viewer when an `mc:conv:` link is clicked.
 
 ## MCP Server
 
-The MCP server's `monadic_search_kb`, `monadic_list_kb` and `monadic_import_kb` (`lib/monadic/mcp/conduit.rb`) use the same store: search through `Retriever.cascade_search`, the list through `Manager.list_conversations`, and import through `Importers::Markdown` (text) or `FileImporter` (a file in the shared folder) and `Manager.import_conversation`, always into the Global scope. Their `knowledge_base` argument, and that of the chat tools' grounding, is the `app_name` passed to the scope filter; empty or `all` passes nil (every entry).
+The MCP server's `monadic_search_kb`, `monadic_list_kb` and `monadic_import_kb` (`lib/monadic/mcp/conduit.rb`) use the same store: search through `Retriever.cascade_search`, the list through `Manager.list_conversations`, and import through `Importers::Markdown` and `Manager.import_conversation` (text) or `Manager.import_file` (a file in the shared folder). The chat tools ground their answer in the Knowledge Base when `knowledge_base` is given (any value).
 
 ## Files
 
 ```
 lib/monadic/library/
-  store.rb             # Qdrant facade: collections, scope_filter, delete_conversation
-  manager.rb           # list / details / stats / rename / scope / delete / import
+  store.rb             # Qdrant facade: collections, filters, delete_conversation
+  manager.rb           # list / details / stats / rename / delete / import
   importers.rb         # conversation importer registry
   importers/           # one module per format
   file_importer.rb     # extension dispatch, Python extractors, extractor service

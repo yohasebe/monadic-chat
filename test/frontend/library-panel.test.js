@@ -43,39 +43,6 @@ describe('library-panel module', () => {
     });
   });
 
-  describe('scopeBadge', () => {
-    it('renders Global as the green badge with label "Global"', () => {
-      const html = lib.scopeBadge('Global');
-      expect(html).toContain('mc-badge--green');
-      expect(html).toContain('Global');
-    });
-    it('renders an app-class scope as a muted badge with the formatted name', () => {
-      const html = lib.scopeBadge('ChatOpenAI');
-      expect(html).toContain('mc-badge--grey');
-      expect(html).toContain('Chat (OpenAI)');
-    });
-    it('treats nil/empty as Global', () => {
-      expect(lib.scopeBadge(undefined)).toContain('Global');
-      expect(lib.scopeBadge('')).toContain('Global');
-    });
-  });
-
-  describe('formatScopeApp', () => {
-    it('returns Global for the literal sentinel', () => {
-      expect(lib.formatScopeApp('Global')).toBe('Global');
-    });
-    it('splits ChatOpenAI into "Chat (OpenAI)"', () => {
-      expect(lib.formatScopeApp('ChatOpenAI')).toBe('Chat (OpenAI)');
-    });
-    it('splits multi-word app names with provider suffix', () => {
-      expect(lib.formatScopeApp('JupyterNotebookGrok')).toBe('Jupyter Notebook (Grok)');
-      expect(lib.formatScopeApp('KnowledgeBaseDeepSeek')).toBe('Knowledge Base (DeepSeek)');
-    });
-    it('passes through scopes without a known provider suffix', () => {
-      expect(lib.formatScopeApp('CustomThing')).toBe('CustomThing');
-    });
-  });
-
   describe('send', () => {
     it('routes LIBRARY_LIST through window.safeWsSend and reports success', () => {
       const ok = lib.send('LIBRARY_LIST');
@@ -122,7 +89,7 @@ describe('library-panel module', () => {
       expect(container.textContent).toContain('Knowledge Base is empty');
     });
 
-    it('renders compact one-line rows with title, vis dot, turns, relative time', () => {
+    it('renders compact one-line rows with title, turns, relative time', () => {
       const rows = [
         {
           conversation_id: 'A', title: 'Alpha Talk', source: 'ted-talk',
@@ -182,17 +149,7 @@ describe('library-panel module', () => {
   });
 
   describe('formatStats', () => {
-    it('renders a single-line summary with per-scope counts (Global first)', () => {
-      const out = lib.formatStats({
-        conversations_total: 5,
-        conversations_by_scope: { Global: 2, ChatOpenAI: 2, KnowledgeBaseClaude: 1 }
-      });
-      expect(out).toBe(
-        'Knowledge Base: 5 total — Global 2, Chat (OpenAI) 2, Knowledge Base (Claude) 1'
-      );
-    });
-
-    it('renders a bare total when no per-scope data is present', () => {
+    it('renders the total', () => {
       const out = lib.formatStats({ conversations_total: 7 });
       expect(out).toBe('Knowledge Base: 7 total');
     });
@@ -445,21 +402,9 @@ describe('library-panel module', () => {
   describe('readModalSelections', () => {
     afterEach(() => { document.body.innerHTML = ''; });
 
-    it('returns title text and chosen scope', () => {
-      document.body.innerHTML = `
-        <input id="library-save-title" value="My Conversation">
-        <input type="radio" name="librarySaveScope" value="app">
-        <input type="radio" name="librarySaveScope" value="Global" checked>
-      `;
-      // Privacy Filter and KB save are mutually exclusive at the app
-      // level; the Save button is hidden in PF apps so anonymize / pf
-      // gating no longer flows through readModalSelections.
-      expect(lib.readModalSelections()).toEqual({ title: 'My Conversation', scopeApp: 'Global' });
-    });
-
-    it('defaults to "app" when no radio is checked', () => {
-      document.body.innerHTML = '<input id="library-save-title" value="">';
-      expect(lib.readModalSelections()).toEqual({ title: '', scopeApp: 'app' });
+    it('returns the title text', () => {
+      document.body.innerHTML = '<input id="library-save-title" value="My Conversation">';
+      expect(lib.readModalSelections()).toEqual({ title: 'My Conversation' });
     });
   });
 
@@ -484,11 +429,9 @@ describe('library-panel module', () => {
     });
 
     it('builds payload with replaced system prompt and skips the leading session system message', () => {
-      const payload = lib.buildSavePayload({ title: '  Demo  ', scopeApp: 'app' });
+      const payload = lib.buildSavePayload({ title: '  Demo  ' });
       expect(payload.parameters.app_name).toBe('ChatOpenAI');
       expect(payload.parameters.initiate_from_assistant).toBeUndefined();
-      // The "app" sentinel means "let the server scope to params.app_name".
-      // We omit scope_app from the payload so it stays implicit.
       expect(payload.scope_app).toBeUndefined();
       expect(payload.title).toBe('Demo');
       expect(payload.messages.length).toBe(3);
@@ -498,14 +441,13 @@ describe('library-panel module', () => {
       expect(payload.messages[2]).toMatchObject({ role: 'assistant', text: 'Hello!', thinking: 'reasoning text' });
     });
 
-    it('forwards an explicit Global scope into the payload', () => {
-      const payload = lib.buildSavePayload({ scopeApp: 'Global', monadicState: { foo: 1 } });
+    it('carries the monadic state', () => {
+      const payload = lib.buildSavePayload({ monadicState: { foo: 1 } });
       expect(payload.monadic_state).toEqual({ foo: 1 });
-      expect(payload.scope_app).toBe('Global');
     });
 
     it('omits an empty title from the payload', () => {
-      const payload = lib.buildSavePayload({ title: '   ', scopeApp: 'app' });
+      const payload = lib.buildSavePayload({ title: '   ' });
       expect(payload.title).toBeUndefined();
     });
   });
@@ -543,12 +485,9 @@ describe('library-panel module', () => {
 
     it('writes the formatted stats line into #library-stats-info', () => {
       document.body.innerHTML = '<div id="library-stats-info"></div>';
-      lib.handleStats({ content: {
-        conversations_total: 4,
-        conversations_by_scope: { Global: 1, ChatOpenAI: 3 }
-      }});
+      lib.handleStats({ content: { conversations_total: 4 } });
       expect(document.getElementById('library-stats-info').textContent)
-        .toBe('Knowledge Base: 4 total — Global 1, Chat (OpenAI) 3');
+        .toBe('Knowledge Base: 4 total');
     });
 
     it('refreshes list and stats after a successful save', () => {
@@ -668,13 +607,13 @@ describe('library-panel module', () => {
   });
 
   describe('compactRowMarkup', () => {
-    it('produces a one-line row with vis dot, truncated title, turns and time', () => {
+    it('produces a one-line row with truncated title, turns and time', () => {
       const html = lib.compactRowMarkup({
         conversation_id: 'X', title: 'Hello world', scope_app: 'Global',
         turns_count: 7, created_at: new Date().toISOString()
       });
       expect(html).toContain('library-row-compact');
-      expect(html).toContain('library-scope-dot');
+      expect(html).not.toContain('library-scope-dot');
       expect(html).toContain('Hello world');
       expect(html).toContain('7T');
       // No inline delete button in compact row — actions live in browse modal.
@@ -692,19 +631,19 @@ describe('library-panel module', () => {
   });
 
   describe('browseRowMarkup', () => {
-    it('uses 3 inline icon buttons instead of a dropdown menu', () => {
+    it('uses 2 inline icon buttons instead of a dropdown menu', () => {
       const html = lib.browseRowMarkup({
         conversation_id: 'X', title: 'T', scope_app: 'ChatOpenAI',
         turns_count: 3, source: 'monadic-chat', language: 'en',
         created_at: new Date().toISOString()
       }, 0);
-      // Inline buttons: detail / toggle / delete must all be plain
+      // Inline buttons: detail / delete must both be plain
       // <button> elements wired by class — no dropdown wrapper or
       // dropdown-menu list exists in the wide modal.
       expect(html).not.toContain('dropdown-menu');
       expect(html).not.toContain('data-bs-toggle="dropdown"');
       expect(html).toMatch(/<button[^>]+class="[^"]*library-action-detail/);
-      expect(html).toMatch(/<button[^>]+class="[^"]*library-action-toggle/);
+      expect(html).not.toContain('library-action-toggle');
       expect(html).toMatch(/<button[^>]+class="[^"]*library-action-delete/);
     });
 
@@ -732,25 +671,6 @@ describe('library-panel module', () => {
       expect(lib.typeIconHtml('audio')).toContain('fa-file-audio');
     });
 
-    it('flips the toggle target scope based on the current value', () => {
-      var prevParams = window.params;
-      window.params = { app_name: 'ChatClaude' };
-      try {
-        var appOnlyRow = lib.browseRowMarkup({
-          conversation_id: 'A', title: 'A', scope_app: 'ChatOpenAI', turns_count: 1,
-          created_at: new Date().toISOString()
-        }, 0);
-        expect(appOnlyRow).toContain('data-next-scope="Global"');
-
-        var globalRow = lib.browseRowMarkup({
-          conversation_id: 'B', title: 'B', scope_app: 'Global', turns_count: 1,
-          created_at: new Date().toISOString()
-        }, 1);
-        expect(globalRow).toContain('data-next-scope="ChatClaude"');
-      } finally {
-        window.params = prevParams;
-      }
-    });
   });
 
   describe('applyFilters / browse pagination', () => {
@@ -766,14 +686,8 @@ describe('library-panel module', () => {
       }));
     }
 
-    it('applyFilters narrows by scope and search term', () => {
+    it('applyFilters narrows by search term', () => {
       lib._state.allRows = seedRows(20);
-      lib._state.scopeFilter = 'Global';
-      lib._state.searchTerm = '';
-      lib.applyFilters();
-      expect(lib._state.filteredRows.every(r => r.scope_app === 'Global')).toBe(true);
-
-      lib._state.scopeFilter = 'all';
       lib._state.searchTerm = 'talk 1'; // matches Talk 1, 10..19
       lib.applyFilters();
       expect(lib._state.filteredRows.length).toBe(11);
@@ -782,7 +696,6 @@ describe('library-panel module', () => {
     it('applyFilters sorts by created_desc by default', () => {
       lib._state.allRows = seedRows(5);
       lib._state.searchTerm = '';
-      lib._state.scopeFilter = 'all';
       lib._state.sortKey = 'created_desc';
       lib.applyFilters();
       const titles = lib._state.filteredRows.map(r => r.title);
@@ -797,7 +710,6 @@ describe('library-panel module', () => {
         { conversation_id: 'b', title: 'Apple',  turns_count: 9, created_at: '2026-01-02' },
         { conversation_id: 'c', title: 'Cherry', turns_count: 1, created_at: '2026-01-03' }
       ];
-      lib._state.scopeFilter = 'all';
       lib._state.searchTerm = '';
 
       lib._state.sortKey = 'title_asc';
@@ -813,42 +725,9 @@ describe('library-panel module', () => {
       lib._state.allRows = seedRows(60);
       lib._state.pageSize = 20;
       lib._state.page = 2;  // last page (40-59)
-      lib._state.scopeFilter = 'Global';  // now ~15 rows → 1 page
-      lib._state.searchTerm = '';
+      lib._state.searchTerm = 'talk 5';  // Talk 5, 50..59 → 1 page
       lib.applyFilters();
       expect(lib._state.page).toBe(0);
-    });
-  });
-
-  describe('handleScopeUpdated', () => {
-    afterEach(() => { document.body.innerHTML = ''; });
-
-    it('updates the cached row scope_app on success and triggers stats refresh', () => {
-      document.body.innerHTML = '<div id="library-recent"></div>'
-        + '<span id="library-total-badge"></span>';
-      lib.handleConversations({ content: [
-        { conversation_id: 'X', title: 'T', scope_app: 'ChatOpenAI',
-          turns_count: 1, created_at: new Date().toISOString() }
-      ] });
-      const before = sentMessages.length;
-      lib.handleScopeUpdated({ res: 'success', conversation_id: 'X', scope_app: 'Global' });
-      expect(lib._state.allRows.find(r => r.conversation_id === 'X').scope_app).toBe('Global');
-      expect(sentMessages.slice(before).some(m => m.message === 'LIBRARY_STATS')).toBe(true);
-    });
-
-    it('does not mutate cache on failure', () => {
-      lib._state.allRows = [{ conversation_id: 'X', scope_app: 'ChatOpenAI' }];
-      lib.handleScopeUpdated({ res: 'failure', conversation_id: 'X', content: 'qdrant down' });
-      expect(lib._state.allRows[0].scope_app).toBe('ChatOpenAI');
-    });
-  });
-
-  describe('setScopeApp / browse action menu', () => {
-    it('setScopeApp sends LIBRARY_SET_SCOPE with conversation_id+scope_app', () => {
-      lib.setScopeApp('conv-9', 'Global');
-      const msg = sentMessages.find(m => m.message === 'LIBRARY_SET_SCOPE');
-      expect(msg).toBeDefined();
-      expect(msg.contents).toEqual({ conversation_id: 'conv-9', scope_app: 'Global' });
     });
   });
 
@@ -1070,13 +949,13 @@ describe('library-panel module', () => {
         });
       });
       const file = new File(['stub'], 'paper.pdf', { type: 'application/pdf' });
-      const out = await lib.uploadLibraryFile(file, { title: 'Paper', scopeApp: 'Global' });
+      const out = await lib.uploadLibraryFile(file, { title: 'Paper' });
       expect(captured.url).toBe('/library/import');
       expect(captured.opts.method).toBe('POST');
       expect(captured.opts.body instanceof FormData).toBe(true);
       expect(captured.opts.body.get('libraryFile')).toBe(file);
       expect(captured.opts.body.get('libraryTitle')).toBe('Paper');
-      expect(captured.opts.body.get('libraryScopeApp')).toBe('Global');
+      expect(captured.opts.body.get('libraryScopeApp')).toBeNull();
       // The final resolved value is the terminal status payload.
       expect(out.stage).toBe('done');
       expect(out.conversation_id).toBe('c1');

@@ -184,9 +184,8 @@ module Monadic
                 },
                 knowledge_base: {
                   type: "string",
-                  description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
-                               "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
-                               "Global ones. The latest user message is the query; the search runs " \
+                  description: "Optional. Ground the answer in the Knowledge Base (any value, e.g. 'all', " \
+                               "searches every entry). The latest user message is the query; the search runs " \
                                "locally, and the passages found are sent to the provider with the question."
                 },
                 privacy: {
@@ -283,9 +282,8 @@ module Monadic
                 },
                 knowledge_base: {
                   type: "string",
-                  description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
-                               "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
-                               "Global ones. The latest user message is the query; the search runs " \
+                  description: "Optional. Ground the answer in the Knowledge Base (any value, e.g. 'all', " \
+                               "searches every entry). The latest user message is the query; the search runs " \
                                "locally, and the passages found are sent to the provider with the question."
                 },
                 privacy: {
@@ -427,9 +425,8 @@ module Monadic
                 temperature: { type: "number", description: "Optional sampling temperature for the panel." },
                 knowledge_base: {
                   type: "string",
-                  description: "Optional. Ground the answer in the Knowledge Base: 'all' searches every " \
-                               "entry, an app name (e.g. ChatOpenAI) searches that app's entries and the " \
-                               "Global ones. The latest user message is the query; the search runs " \
+                  description: "Optional. Ground the answer in the Knowledge Base (any value, e.g. 'all', " \
+                               "searches every entry). The latest user message is the query; the search runs " \
                                "locally, and the passages found are sent to the provider with the question."
                 },
                 privacy: {
@@ -453,11 +450,6 @@ module Monadic
               type: "object",
               properties: {
                 query: { type: "string", description: "The text to search for." },
-                knowledge_base: {
-                  type: "string",
-                  description: "Whose entries: 'all' (default) or an app name (e.g. ChatOpenAI) " \
-                               "for that app's entries and the Global ones."
-                },
                 top_n: {
                   type: "integer",
                   description: "Number of results to return (1-50, default 5)."
@@ -474,11 +466,6 @@ module Monadic
             input_schema: {
               type: "object",
               properties: {
-                knowledge_base: {
-                  type: "string",
-                  description: "Whose entries: 'all' (default) or an app name (e.g. ChatOpenAI) " \
-                               "for that app's entries and the Global ones."
-                }
               },
               additionalProperties: false
             },
@@ -2336,43 +2323,40 @@ module Monadic
         top_n = 5 if top_n <= 0
         top_n = KB_MAX_TOP_N if top_n > KB_MAX_TOP_N
         hits = Monadic::Library::Retriever.cascade_search(
-          query, store: kb_store, app_name: kb_scope(arguments), top_n: top_n
+          query, store: kb_store, top_n: top_n
         )
         results = hits.map do |h|
           { title: h[:conversation_title], conversation_id: h[:conversation_id],
             source: h[:conversation_source], text: h[:text], score: h[:score] }
         end
-        { knowledge_base: kb_label(arguments), count: results.size, results: results }
+        { count: results.size, results: results }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
         kb_unavailable(arguments, e)
       end
 
       def handle_list_kb(arguments)
         entries = Monadic::Library::Manager.list_conversations(
-          store: kb_store, app_name: kb_scope(arguments), limit: KB_LIST_LIMIT
+          store: kb_store, limit: KB_LIST_LIMIT
         )
-        { knowledge_base: kb_label(arguments), count: entries.size, entries: entries }
+        { count: entries.size, entries: entries }
       rescue Monadic::VectorStore::BackendError, Monadic::Embeddings::ClientError => e
         kb_unavailable(arguments, e)
       end
 
-      # Imports into the Global scope, so every app that searches the
-      # Knowledge Base can find the entry.
       def handle_import_kb(arguments)
         title = (arguments["title"] || arguments[:title]).to_s
         raise ArgumentError, "title is required" if title.empty?
 
         text = (arguments["text"] || arguments[:text]).to_s
         path = (arguments["path"] || arguments[:path]).to_s
-        global = Monadic::Library::Store::SCOPE_GLOBAL
         result, source =
           if !text.empty?
             conversation = Monadic::Library::Importers::Markdown.import(text, title: title)
-            [Monadic::Library::Manager.import_conversation(store: kb_store, conversation: conversation, scope_app: global), "text"]
+            [Monadic::Library::Manager.import_conversation(store: kb_store, conversation: conversation), "text"]
           elsif !path.empty?
             path = resolve_shared_path(path, extensions: Monadic::Library::FileImporter.supported_extensions)
             [Monadic::Library::Manager.import_file(store: kb_store, path: path, filename: File.basename(path),
-                                                   options: { title: title }, scope_app: global), path]
+                                                   options: { title: title }), path]
           else
             raise ArgumentError, "provide either `text` or `path`"
           end
@@ -2384,23 +2368,12 @@ module Monadic
 
       # ---- Knowledge Base helpers ----------------------------------------
 
-      # The app whose entries (and the Global ones) a call reads; nil reads
-      # every entry ('all' or no value).
-      def kb_scope(arguments)
-        value = (arguments["knowledge_base"] || arguments[:knowledge_base]).to_s.strip
-        value.empty? || value.casecmp?("all") ? nil : value
-      end
-
-      def kb_label(arguments)
-        kb_scope(arguments) || "all"
-      end
-
       def kb_store
         Monadic::Library::Store.new
       end
 
       def kb_unavailable(arguments, error)
-        { knowledge_base: kb_label(arguments), success: false,
+        { success: false,
           error: "❌ Knowledge Base unavailable: #{error.message} (is qdrant/embeddings running?)" }
       end
 
@@ -2597,7 +2570,7 @@ module Monadic
         return ["", false] if user_text.empty?
 
         hits = Monadic::Library::Retriever.cascade_search(
-          user_text, store: kb_store, app_name: kb_scope(arguments), top_n: KB_GROUNDING_TOP_N
+          user_text, store: kb_store, top_n: KB_GROUNDING_TOP_N
         )
         context = hits.map { |h| (h[:text] || h["text"]).to_s }.reject(&:empty?).join("\n\n")
         return ["", false] if context.empty?

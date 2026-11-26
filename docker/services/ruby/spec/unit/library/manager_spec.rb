@@ -14,17 +14,8 @@ RSpec.describe Monadic::Library::Manager do
     allow(store).to receive(:bootstrap_collections!)
     allow(store).to receive(:upsert_points)
     allow(store).to receive(:delete_conversation).and_return(true)
-    allow(store).to receive(:scope_filter) { |app|
-      s = app.to_s.strip
-      next nil if s.empty?
-      { must: [{ key: 'scope_app', match: { any: [s, 'Global'] } }] }
-    }
     allow(store).to receive(:conversation_filter) { |id|
       { must: [{ key: 'conversation_id', match: { value: id.to_s } }] }
-    }
-    allow(store).to receive(:combine_filters) { |*fs|
-      m = fs.compact.flat_map { |f| Array(f[:must]) }
-      m.empty? ? nil : { must: m }
     }
     allow(store).to receive(:conversation_count).and_return(0)
   end
@@ -83,16 +74,13 @@ RSpec.describe Monadic::Library::Manager do
       expect(rows.map { |r| r[:conversation_id] }).to contain_exactly('a', 'b')
     end
 
-    it 'narrows to entries the requesting app can see when app_name is given' do
-      expect(store).to receive(:scroll).with(
-        hash_including(filter: hash_including(must: include(hash_including(key: 'scope_app'))))
-      ).and_return(points: [summary_point('A')], next: nil)
-      described_class.list_conversations(store: store, app_name: 'ChatOpenAI')
-    end
-
-    it 'omits the scope filter when app_name is nil (KB UI behaviour)' do
-      expect(store).to receive(:scroll).with(hash_including(filter: nil)).and_return(points: [], next: nil)
-      described_class.list_conversations(store: store, app_name: nil)
+    it 'lists every entry, whatever app it was saved in' do
+      expect(store).to receive(:scroll).with(hash_excluding(:filter)).and_return(
+        points: [summary_point('A', 'scope_app' => 'ChatOpenAI'), summary_point('B')], next: nil
+      )
+      rows = described_class.list_conversations(store: store)
+      expect(rows.map { |r| r[:conversation_id] }).to contain_exactly('A', 'B')
+      expect(rows.first).not_to have_key(:scope_app)
     end
   end
 
@@ -107,36 +95,13 @@ RSpec.describe Monadic::Library::Manager do
       row = described_class.get_conversation_details(store: store, conversation_id: 'A')
       expect(row[:conversation_id]).to eq('A')
       expect(row[:title]).to eq('Conv A')
-      expect(row[:scope_app]).to eq('Global')
     end
   end
 
   describe '.library_stats' do
-    it 'reports total + a per-scope breakdown' do
+    it 'reports the number of entries' do
       allow(store).to receive(:conversation_count).with(no_args).and_return(4)
-      allow(store).to receive(:scroll).and_return(
-        { points: [
-            summary_point('a', 'scope_app' => 'Global'),
-            summary_point('b', 'scope_app' => 'ChatOpenAI'),
-            summary_point('c', 'scope_app' => 'ChatOpenAI'),
-            summary_point('d', 'scope_app' => 'KnowledgeBaseClaude')
-          ],
-          next: nil }
-      )
-      stats = described_class.library_stats(store: store)
-      expect(stats[:conversations_total]).to eq(4)
-      expect(stats[:conversations_by_scope]).to eq(
-        'Global' => 1, 'ChatOpenAI' => 2, 'KnowledgeBaseClaude' => 1
-      )
-    end
-
-    it 'falls back to "Global" when scope_app is missing on legacy points' do
-      allow(store).to receive(:conversation_count).with(no_args).and_return(1)
-      allow(store).to receive(:scroll).and_return(
-        { points: [{ 'payload' => { 'conversation_id' => 'x' } }], next: nil }
-      )
-      stats = described_class.library_stats(store: store)
-      expect(stats[:conversations_by_scope]).to eq('Global' => 1)
+      expect(described_class.library_stats(store: store)).to eq(conversations_total: 4)
     end
   end
 
@@ -221,31 +186,6 @@ RSpec.describe Monadic::Library::Manager do
       expect { described_class.import_file(store: store, path: upload, filename: 'upload.md') }
         .to raise_error(Monadic::VectorStore::BackendError)
       expect(Monadic::Library::Originals.read(sha256)).to eq(File.binread(upload))
-    end
-  end
-
-  describe '.update_scope_app' do
-    let(:scoped_pt) { summary_point('flip-me', 'scope_app' => 'ChatOpenAI') }
-
-    before do
-      allow(store).to receive(:scroll).and_return({ points: [scoped_pt], next: nil })
-    end
-
-    it 'rewrites scope_app on every Library collection' do
-      expect(store).to receive(:upsert_points)
-        .at_least(:once) do |args|
-          expect(args[:points].first[:payload]['scope_app']).to eq('Global')
-        end
-      result = described_class.update_scope_app(
-        store: store, conversation_id: 'flip-me', scope_app: 'Global'
-      )
-      expect(result).to be true
-    end
-
-    it 'rejects a blank scope_app value' do
-      expect {
-        described_class.update_scope_app(store: store, conversation_id: 'flip-me', scope_app: '   ')
-      }.to raise_error(ArgumentError, /scope_app must be a non-empty string/)
     end
   end
 
@@ -350,16 +290,13 @@ RSpec.describe Monadic::Library::Manager do
       expect(result[:counts][:turns]).to be > 0
     end
 
-    it 'forwards scope_app to Hierarchical.ingest' do
+    it 'writes every point as Global' do
       conv = Monadic::Library::Importers::Markdown.import(
         "# Section\n\nbody body body. " * 10, filename: 'notes.md'
       )
-      described_class.import_conversation(
-        store: store, conversation: conv, scope_app: 'ChatOpenAI'
-      )
+      described_class.import_conversation(store: store, conversation: conv)
       expect(store).to have_received(:upsert_points).at_least(:once) do |args|
-        payload = args[:points].first[:payload]
-        expect(payload['scope_app']).to eq('ChatOpenAI')
+        expect(args[:points].map { |pt| pt[:payload]['scope_app'] }.uniq).to eq(['Global'])
       end
     end
   end

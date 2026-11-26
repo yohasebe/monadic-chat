@@ -1163,12 +1163,6 @@ window.loadedApp = "Chat";
         }
         break;
       }
-      case "library_scope_updated": {
-        if (window.libraryPanel && typeof window.libraryPanel.handleScopeUpdated === 'function') {
-          window.libraryPanel.handleScopeUpdated(data);
-        }
-        break;
-      }
       case "library_renamed": {
         if (window.libraryPanel && typeof window.libraryPanel.handleRenamedMessage === 'function') {
           window.libraryPanel.handleRenamedMessage(data);

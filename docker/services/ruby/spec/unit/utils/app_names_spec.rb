@@ -84,12 +84,6 @@ RSpec.describe Monadic::Utils::AppNames do
     end
   end
 
-  it "searches the knowledge base entries of a former app with the current app's" do
-    store = Monadic::Library::Store.allocate
-    names = store.scope_filter("ChatGemini")[:must].first[:match][:any]
-    expect(names).to eq(%w[ChatGemini ChatPlusGemini Global])
-  end
-
   it "takes the tools a former app had unlocked as the current app's" do
     session = {}
     Monadic::Utils::ProgressiveToolManager.import_unlocked(session, { "ChatPlusGrok" => ["web_search"] })

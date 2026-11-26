@@ -39,11 +39,10 @@
 
   var state = {
     allRows: [],            // last received full inventory
-    filteredRows: [],       // after applying search/scope filter
+    filteredRows: [],       // after applying the search
     page: 0,                // 0-indexed page in browse modal
     pageSize: 50,
     sortKey: 'created_desc',
-    scopeFilter: 'all',     // 'all' | 'Global' | a literal app class name
     searchTerm: '',
     selectedId: null,       // for detail modal
     viewerOpenedFromBrowse: false, // re-open Browse after Viewer closes
@@ -139,11 +138,6 @@
       window.localStorage.setItem(RAG_APPS_KEY, JSON.stringify(list));
     } catch (e) { /* private mode / quota — silently ignore */ }
   }
-  function setScopeApp(conversationId, scopeApp) {
-    return send('LIBRARY_SET_SCOPE', {
-      contents: { conversation_id: conversationId, scope_app: scopeApp }
-    });
-  }
   function deleteConversation(conversationId) {
     return send('LIBRARY_DELETE', { contents: conversationId });
   }
@@ -167,65 +161,6 @@
   // null/undefined → "", escapes & < > " '.
   function escapeHtml(value) {
     return window.escapeHtml(value == null ? '' : value);
-  }
-
-  // Provider class-suffixes used to split app class names back into a
-  // pretty "Base (Provider)" pair. Order is irrelevant since the suffix
-  // set is disjoint.
-  var SCOPE_PROVIDERS = ['OpenAI', 'Claude', 'Gemini', 'Grok', 'Cohere',
-                          'Mistral', 'DeepSeek', 'Ollama'];
-
-  // Convert a scope_app payload value into the human-friendly label used
-  // by every UI surface. "Global" stays as-is. "ChatOpenAI" splits into
-  // "Chat (OpenAI)". "JupyterNotebookGrok" splits into
-  // "Jupyter Notebook (Grok)". Unknown shapes pass through verbatim.
-  function formatScopeApp(scopeApp) {
-    if (!scopeApp) return 'Global';
-    if (scopeApp === 'Global') return 'Global';
-    for (var i = 0; i < SCOPE_PROVIDERS.length; i++) {
-      var p = SCOPE_PROVIDERS[i];
-      if (scopeApp.length > p.length &&
-          scopeApp.slice(scopeApp.length - p.length) === p) {
-        var base = scopeApp.slice(0, scopeApp.length - p.length);
-        var pretty = base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-        return pretty + ' (' + p + ')';
-      }
-    }
-    return scopeApp;
-  }
-
-  function scopeBadge(scopeApp) {
-    var label = formatScopeApp(scopeApp);
-    // "Global" stays the soft-green pill (cross-app reach is the
-    // expansive case); per-app scopes use the muted secondary pill.
-    var cls = label === 'Global'
-      ? 'mc-badge mc-badge--green'
-      : 'mc-badge mc-badge--grey';
-    return '<span class="' + cls + '">' + escapeHtml(label) + '</span>';
-  }
-
-  // Compute "what scope should clicking the toggle button switch to"
-  // based on the row's current scope_app and the active app from
-  // window.params. Updates the data-next-scope attribute and the visible
-  // label so the user sees the action that will happen, not the
-  // current state.
-  function applyScopeToggleState(row, toggleBtn, toggleLabel) {
-    if (!toggleBtn) return;
-    var current = row.scope_app || 'Global';
-    var nextScope, label;
-    if (current === 'Global') {
-      var currentApp = (typeof window.params === 'object' && window.params && window.params.app_name) || '';
-      nextScope = currentApp;
-      label = currentApp
-        ? t('ui.libMakeAppOnly', 'Make app-only ({app})').replace('{app}', formatScopeApp(currentApp))
-        : t('ui.libMakeAppOnlyDisabled', 'Switch to an app to scope this entry');
-    } else {
-      nextScope = 'Global';
-      label = t('ui.libMakeGlobal', 'Make Global');
-    }
-    toggleBtn.setAttribute('data-next-scope', nextScope);
-    toggleBtn.disabled = (nextScope === '');
-    if (toggleLabel) toggleLabel.textContent = label;
   }
 
   // Map a content_type token to a FontAwesome icon class plus a colour
@@ -278,17 +213,6 @@
       + 'title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '"></i>';
   }
 
-  // Compact colored dot used in sidebar rows where horizontal space is
-  // tight. "Global" entries glow green, app-scoped entries get a muted
-  // grey dot. The tooltip carries the formatted scope label.
-  function scopeDot(scopeApp) {
-    var label = formatScopeApp(scopeApp);
-    var color = label === 'Global' ? '#198754' : '#6c757d';
-    return '<span class="library-scope-dot d-inline-block rounded-circle me-1" '
-      + 'style="width: 8px; height: 8px; background:' + color + ';" '
-      + 'title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '"></span>';
-  }
-
   // Truncate to a given length with an ellipsis. Used so long titles do
   // not push the action menu offscreen on narrow sidebars.
   function truncate(text, max) {
@@ -322,7 +246,7 @@
 
   // ─── Compact row markup (used in sidebar AND browse modal table) ─────
 
-  // Sidebar markup: 1-line. Title + scope dot + turns + relative time.
+  // Sidebar markup: 1-line. Title + turns + relative time.
   // No inline action button — sidebar is read-only; for actions the user
   // opens Browse modal.
   function compactRowMarkup(row) {
@@ -336,17 +260,14 @@
       '<div class="library-row-compact d-flex align-items-center py-1 small border-bottom" '
         + 'data-conversation-id="' + escapeHtml(fullId) + '" '
         + 'title="' + escapeHtml(tooltip) + '">'
-      +   scopeDot(row.scope_app)
       +   '<span class="flex-grow-1 text-truncate me-2">' + escapeHtml(truncate(title, 40)) + '</span>'
       +   '<span class="text-secondary text-nowrap">' + turns + 'T · ' + escapeHtml(rel) + '</span>'
       + '</div>'
     );
   }
 
-  // Browse-modal row: full table row with three inline icon-only buttons
-  // on the right (details / toggle scope / delete). Shows the scope badge
-  // ("Chat (OpenAI)" / "Global" / etc.) so the user can see at a glance
-  // which app the entry belongs to.
+  // Browse-modal row: full table row with two inline icon-only buttons
+  // on the right (details / delete).
   // Cheap heuristics for "this row likely contains PII" — used for legacy
   // entries that were saved before pii_status was tracked at save time.
   // Both regexes are deliberately permissive: a false positive (warning
@@ -383,28 +304,8 @@
     var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
     var rel = relativeTime(row.created_at);
     var privacyBadge = privacyBadgeHtml(row);
-    // Toggle flips between Global and the app's literal class name. We
-    // need the app's class name (whatever the entry was last scoped to,
-    // or whatever app is currently active). Falling back via the row
-    // payload covers normal flow; the toggle is hidden for legacy
-    // entries with no recognisable app class.
-    var currentScope = row.scope_app || 'Global';
-    var nextScope, toggleLabel;
-    if (currentScope === 'Global') {
-      // Flipping to app-only requires a target app. Use the most recent
-      // app the user touched (window.params.app_name) when available.
-      var currentApp = (typeof window.params === 'object' && window.params && window.params.app_name) || null;
-      nextScope = currentApp || '';
-      toggleLabel = currentApp
-        ? t('ui.libMakeAppOnly', 'Make app-only ({app})').replace('{app}', formatScopeApp(currentApp))
-        : t('ui.libMakeAppOnlyDisabled', 'Switch to an app to scope this entry');
-    } else {
-      nextScope = 'Global';
-      toggleLabel = t('ui.libMakeGlobal', 'Make Global');
-    }
     var detailLabel = t('ui.libViewDetails', 'View details');
     var deleteLabel = t('ui.libDelete', 'Delete');
-    var toggleDisabled = (nextScope === '') ? 'disabled' : '';
     return (
       '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
       +   '<td class="text-center">' + typeIconHtml(row.content_type, row.topics) + '</td>'
@@ -415,18 +316,12 @@
       +     '</div>'
       +     '<div class="text-secondary small text-truncate" style="max-width: 380px;">' + escapeHtml(row.source || '') + (row.language ? ' · ' + escapeHtml(row.language) : '') + '</div>'
       +   '</td>'
-      +   '<td>' + scopeBadge(row.scope_app) + '</td>'
       +   '<td class="text-end small">' + turns + '</td>'
       +   '<td class="text-nowrap small text-secondary">' + escapeHtml(rel) + '</td>'
       +   '<td class="text-end text-nowrap">'
       +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-detail" '
       +       'title="' + escapeHtml(detailLabel) + '" aria-label="' + escapeHtml(detailLabel) + '">'
       +       '<i class="fa-solid fa-circle-info"></i>'
-      +     '</button>'
-      +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-toggle" ' + toggleDisabled + ' '
-      +       'data-next-scope="' + escapeHtml(nextScope) + '" '
-      +       'title="' + escapeHtml(toggleLabel) + '" aria-label="' + escapeHtml(toggleLabel) + '">'
-      +       '<i class="fa-solid fa-arrows-rotate"></i>'
       +     '</button>'
       +     '<button type="button" class="btn btn-sm btn-danger library-action-delete" '
       +       'title="' + escapeHtml(deleteLabel) + '" aria-label="' + escapeHtml(deleteLabel) + '">'
@@ -441,9 +336,6 @@
 
   function applyFilters() {
     var rows = (state.allRows || []).slice();
-    if (state.scopeFilter && state.scopeFilter !== 'all') {
-      rows = rows.filter(function (r) { return (r.scope_app || 'Global') === state.scopeFilter; });
-    }
     var q = (state.searchTerm || '').trim().toLowerCase();
     if (q.length > 0) {
       rows = rows.filter(function (r) {
@@ -561,45 +453,7 @@
     applyFilters();
     renderSidebarRecent();
     renderTotalBadge();
-    renderScopeFilterOptions();
     renderBrowseTable();
-  }
-
-  // Refresh the Browse modal's scope filter <select> so it offers one
-  // option per distinct scope_app currently in the table, sorted with
-  // "Global" first. Preserves the active selection when possible.
-  function renderScopeFilterOptions() {
-    if (typeof document === 'undefined') return;
-    var select = document.getElementById('library-browse-scope');
-    if (!select) return;
-
-    var scopes = {};
-    (state.allRows || []).forEach(function (r) {
-      var s = r.scope_app || 'Global';
-      scopes[s] = true;
-    });
-    var sorted = Object.keys(scopes).sort(function (a, b) {
-      if (a === 'Global') return -1;
-      if (b === 'Global') return 1;
-      return a.localeCompare(b);
-    });
-
-    var current = state.scopeFilter || 'all';
-    var html = '<option value="all">' +
-      escapeHtml(t('ui.libBrowseAllScopes', 'All scopes')) + '</option>';
-    sorted.forEach(function (s) {
-      var sel = (s === current) ? ' selected' : '';
-      html += '<option value="' + escapeHtml(s) + '"' + sel + '>' +
-              escapeHtml(formatScopeApp(s)) + '</option>';
-    });
-    // Restore the "all" selection after replacing innerHTML.
-    select.innerHTML = html;
-    if (current !== 'all' && !scopes[current]) {
-      // The previously selected scope is no longer in the row set
-      // (e.g., the only entry in that scope was deleted). Reset to all.
-      state.scopeFilter = 'all';
-    }
-    select.value = state.scopeFilter;
   }
 
   // ─── Browse-row action wiring ────────────────────────────────────────
@@ -613,15 +467,6 @@
         detailLink.addEventListener('click', function (e) {
           e.preventDefault();
           openDetailModal(convId);
-        });
-      }
-      var toggleLink = tr.querySelector('.library-action-toggle');
-      if (toggleLink && !toggleLink.disabled) {
-        toggleLink.addEventListener('click', function (e) {
-          e.preventDefault();
-          var nextScope = toggleLink.getAttribute('data-next-scope') || 'Global';
-          if (!nextScope) return; // disabled when there's no current app context
-          setScopeApp(convId, nextScope);
         });
       }
       var deleteLink = tr.querySelector('.library-action-delete');
@@ -646,7 +491,7 @@
   // ─── Conversation Viewer modal ───────────────────────────────────────
 
   // Viewer subsumes the old "detail" modal: it shows metadata, actions
-  // (delete / toggle scope), and verbatim messages all in one surface.
+  // (delete), and verbatim messages all in one surface.
   // This keeps the user from juggling two modals when reading a
   // conversation and acting on it.
 
@@ -661,8 +506,7 @@
     if (typeof row.turns_count === 'number') bits.push(row.turns_count + 'T');
     if (typeof row.messages_count === 'number') bits.push(row.messages_count + ' msgs');
     if (row.created_at) bits.push(escapeHtml(relativeTime(row.created_at)));
-    return bits.join(' · ')
-      + ' <span class="ms-2">' + scopeBadge(row.scope_app) + '</span>';
+    return bits.join(' · ');
   }
 
   // Render an array of monadic-conversation v1 messages into the viewer
@@ -762,12 +606,6 @@
     if (emptyEl) emptyEl.style.display = 'none';
     var messagesEl = viewerEl('library-viewer-messages');
     if (messagesEl) messagesEl.innerHTML = '';
-
-    var toggleBtn = viewerEl('library-viewer-toggle-scope');
-    var toggleLabel = viewerEl('library-viewer-toggle-label');
-    if (row && toggleBtn) {
-      applyScopeToggleState(row, toggleBtn, toggleLabel);
-    }
 
     setViewerLoading(true);
 
@@ -986,63 +824,10 @@
     if (el.checked !== enabled) el.checked = enabled;
   }
 
-  function handleScopeUpdated(data) {
-    if (!data) return;
-    if (data.res === 'success') {
-      var convId = data.conversation_id;
-      var scopeApp = data.scope_app;
-      state.allRows.forEach(function (r) {
-        if (r.conversation_id === convId) r.scope_app = scopeApp;
-      });
-      rerenderAll();
-      // Refresh stats so per-scope counters update.
-      requestStats();
-      // If the Viewer is showing this conversation, refresh metadata
-      // + toggle-button label in place. No re-fetch needed.
-      if (state.selectedId === convId) {
-        var row = state.allRows.find(function (r) { return r.conversation_id === convId; });
-        if (row) {
-          var metaEl = viewerEl('library-viewer-meta');
-          if (metaEl) metaEl.innerHTML = viewerMetaLine(row);
-          var toggleBtn = viewerEl('library-viewer-toggle-scope');
-          var toggleLabel = viewerEl('library-viewer-toggle-label');
-          applyScopeToggleState(row, toggleBtn, toggleLabel);
-        }
-      }
-      flashAlert(
-        "<i class='fa-solid fa-circle-check'></i> " + escapeHtml(t('ui.libScopeUpdated', 'Scope updated.')),
-        'success'
-      );
-    } else {
-      flashAlert(
-        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(data.content || 'Update failed'),
-        'warning'
-      );
-    }
-  }
-
   function formatStats(stats) {
     if (!stats || typeof stats !== 'object') return '';
     var total = stats.conversations_total || 0;
-    var byScope = stats.conversations_by_scope || {};
-    // Render the per-scope breakdown as a compact "Global=N, App=M"
-    // tail. Sorted with Global first so the cross-app pool is the
-    // user's first read.
-    var scopes = Object.keys(byScope);
-    var withGlobalFirst = scopes.sort(function (a, b) {
-      if (a === 'Global') return -1;
-      if (b === 'Global') return 1;
-      return a.localeCompare(b);
-    });
-    var parts = withGlobalFirst.map(function (s) {
-      return formatScopeApp(s) + ' ' + byScope[s];
-    });
-    if (parts.length === 0) return 'Knowledge Base: ' + total + ' total';
-    // Use an em dash separator instead of wrapping the breakdown in
-    // outer parens — formatScopeApp("ChatOpenAI") already injects its
-    // own parens for the provider, and a second pair around the list
-    // produces a confusing "( ... ( ... ) ... )" reading.
-    return 'Knowledge Base: ' + total + ' total — ' + parts.join(', ');
+    return 'Knowledge Base: ' + total + ' total';
   }
 
   // ─── Save modal helpers (unchanged from prior iteration) ─────────────
@@ -1057,7 +842,6 @@
     var btn = document.getElementById('library-save-confirm');
     var cancelBtns = document.querySelectorAll('#librarySaveModal [data-dialog-close]');
     var titleInput = document.getElementById('library-save-title');
-    var radios = document.querySelectorAll('input[name="librarySaveScope"]');
     if (btn) {
       btn.disabled = !!pending;
       if (pending) {
@@ -1070,7 +854,6 @@
     }
     cancelBtns.forEach(function (b) { b.disabled = !!pending; });
     if (titleInput) titleInput.disabled = !!pending;
-    radios.forEach(function (r) { r.disabled = !!pending; });
   }
 
   function flashAlert(html, severity) {
@@ -1159,41 +942,6 @@
         requestTitleSuggestion();
       }
     }
-    // Default the radio to "App-only" and inject the active app's
-    // formatted label so the user sees which app the conversation is
-    // about to be scoped to.
-    var appOnlyRadio = document.getElementById('library-scope-app');
-    if (appOnlyRadio) appOnlyRadio.checked = true;
-    var appNameEl = document.getElementById('library-scope-app-name');
-    if (appNameEl) {
-      var appName = currentAppName();
-      // Use ": Chat (OpenAI)" rather than " (Chat (OpenAI))" because
-      // formatScopeApp itself returns parentheses around the provider —
-      // wrapping the whole thing in another set of parens looks like
-      // unbalanced punctuation to a casual reader.
-      appNameEl.textContent = appName ? ': ' + formatScopeApp(appName) : '';
-    }
-
-    // Live-update the Global-scope warning. The default radio is
-    // "App-only" so the warning is hidden initially; flipping the radio
-    // to Global makes it visible. Listener is attached once per modal
-    // open via a data flag so reopen doesn't accumulate handlers.
-    var globalWarn = document.getElementById('library-scope-global-warning');
-    var scopeRadios = document.querySelectorAll('input[name="librarySaveScope"]');
-    function syncGlobalWarning() {
-      if (!globalWarn) return;
-      var checked = document.querySelector('input[name="librarySaveScope"]:checked');
-      var isGlobal = checked && checked.value === 'Global';
-      globalWarn.style.display = isGlobal ? '' : 'none';
-    }
-    scopeRadios.forEach(function (r) {
-      if (!r.dataset.scopeWarningWired) {
-        r.addEventListener('change', syncGlobalWarning);
-        r.dataset.scopeWarningWired = '1';
-      }
-    });
-    syncGlobalWarning();
-
     // Update mode: when this session has already been saved, swap the
     // dialog's title + confirm button + show a warning banner so the
     // user understands the next click will replace, not duplicate.
@@ -1247,13 +995,6 @@
       messages: msgs,
       parameters: params
     };
-    // scope_app is set explicitly when the user picked "Global". When
-    // the user keeps the default "App-only" radio, we omit scope_app
-    // and let the server fall back to params.app_name (the currently
-    // active app's class name).
-    if (opts.scopeApp && opts.scopeApp !== 'app') {
-      payload.scope_app = opts.scopeApp;
-    }
     if (opts.title && String(opts.title).trim().length > 0) {
       payload.title = String(opts.title).trim();
     }
@@ -1275,9 +1016,7 @@
   function readModalSelections() {
     var titleEl = document.getElementById('library-save-title');
     var title = (titleEl && titleEl.value) ? titleEl.value : '';
-    var scopeEl = document.querySelector('input[name="librarySaveScope"]:checked');
-    var scope = (scopeEl && scopeEl.value) ? scopeEl.value : 'app';
-    return { title: title, scopeApp: scope };
+    return { title: title };
   }
 
   function submitSave() {
@@ -1299,7 +1038,7 @@
 
     var afterState = function (state2) {
       var payload = buildSavePayload({
-        title: sel.title, scopeApp: sel.scopeApp, monadicState: state2
+        title: sel.title, monadicState: state2
       });
       var ok = send('LIBRARY_SAVE', { contents: payload });
       if (!ok) {
@@ -1515,7 +1254,6 @@
     var formData = new FormData();
     formData.append('libraryFile', file);
     if (options.title) formData.append('libraryTitle', options.title);
-    if (options.scopeApp) formData.append('libraryScopeApp', options.scopeApp);
     if (options.license) formData.append('libraryLicense', options.license);
 
     setImportPending(true);
@@ -1778,15 +1516,6 @@
         renderBrowseTable();
       });
     }
-    var scopeFilter = document.getElementById('library-browse-scope');
-    if (scopeFilter) {
-      scopeFilter.addEventListener('change', function () {
-        state.scopeFilter = scopeFilter.value || 'all';
-        state.page = 0;
-        applyFilters();
-        renderBrowseTable();
-      });
-    }
     var sortSel = document.getElementById('library-browse-sort');
     if (sortSel) {
       sortSel.addEventListener('change', function () {
@@ -1837,20 +1566,13 @@
       }
     });
 
-    // Viewer-modal action buttons (delete / toggle scope)
+    // Viewer-modal action button (delete)
     var viewerDelete = document.getElementById('library-viewer-delete');
     if (viewerDelete) viewerDelete.onclick = function () {
       if (state.selectedId) {
         confirmAndDelete(state.selectedId);
         closeViewerModalIfOpen();
       }
-    };
-    var viewerToggle = document.getElementById('library-viewer-toggle-scope');
-    if (viewerToggle) viewerToggle.onclick = function () {
-      if (!state.selectedId) return;
-      var nextScope = viewerToggle.getAttribute('data-next-scope');
-      if (!nextScope) return; // disabled when there's no current app context
-      setScopeApp(state.selectedId, nextScope);
     };
 
     var renameBtn = document.getElementById('library-viewer-rename');
@@ -1920,7 +1642,6 @@
     requestRagState: requestRagState,
     setRagToggle: setRagToggle,
     applyRagForApp: applyRagForApp,
-    setScopeApp: setScopeApp,
     deleteConversation: deleteConversation,
     openSaveModal: openSaveModal,
     submitSave: submitSave,
@@ -1943,7 +1664,6 @@
     clearCurrentConversation: clearCurrentConversation,
     handleRagState: handleRagState,
     handleTitleSuggested: handleTitleSuggested,
-    handleScopeUpdated: handleScopeUpdated,
     handleConversationData: handleConversationData,
     openViewerModal: openViewerModal,
     renderViewerMessages: renderViewerMessages,
@@ -1960,9 +1680,6 @@
     truncate: truncate,
     formatStats: formatStats,
     escapeHtml: escapeHtml,
-    scopeBadge: scopeBadge,
-    scopeDot: scopeDot,
-    formatScopeApp: formatScopeApp,
     typeIconHtml: typeIconHtml,
     _state: state
   };

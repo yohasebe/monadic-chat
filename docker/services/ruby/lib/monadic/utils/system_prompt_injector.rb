@@ -415,13 +415,7 @@ module Monadic
         # least knows to call `library_search`.
         def build_library_rag_prompt(session)
           parts = [LIBRARY_RAG_HEADER]
-          # Match exactly what library_search would return: scope to the
-          # requesting app's class plus "Global". Otherwise the LLM is
-          # told about entries it can never retrieve.
-          params = (session && (session[:parameters] || session['parameters'])) || {}
-          app_name = (params['app_name'] || params[:app_name]).to_s.strip
-          app_name = nil if app_name.empty?
-          inventory_block = library_inventory_block(app_name)
+          inventory_block = library_inventory_block
           parts << inventory_block if inventory_block
           parts << LIBRARY_RAG_FOOTER
           parts.join("\n\n")
@@ -468,11 +462,11 @@ module Monadic
         # Render the inventory as plain-text bullet lists. Returns nil when
         # the Library is empty or the lookup fails — the caller still
         # injects the directive in that case.
-        def library_inventory_block(app_name = nil)
+        def library_inventory_block
           return nil unless defined?(Monadic::Library::Store)
 
           store = Monadic::Library::Store.new
-          inv = Monadic::Library::Inventory.summarize(store: store, app_name: app_name)
+          inv = Monadic::Library::Inventory.summarize(store: store)
           # Nothing stored: said, so the model does not search for nothing.
           return "Knowledge Base inventory: nothing is stored yet. Do not call `library_search`." if inv[:total].to_i.zero?
 

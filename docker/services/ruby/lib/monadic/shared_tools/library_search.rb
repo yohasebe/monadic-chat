@@ -5,11 +5,8 @@
 # Exposes the project-wide Knowledge Base (Library) as a retrieval tool
 # that any app can import via `imported_tool_groups [:library_search]`.
 #
-# Scope is per-app. The Retriever filters on `scope_app IN
-# [current_app, "Global"]`, so an entry saved while ChatOpenAI was active
-# is not visible to ChatClaude — provider variants are separate scopes.
-# The "Global" sentinel opts an entry in to cross-app retrieval. The user
-# also has to flip the per-session RAG toggle in the Knowledge Base
+# Every app searches every entry (the Knowledge Base is one shelf). The
+# user also has to flip the per-session RAG toggle in the Knowledge Base
 # sidebar before this tool will run at all (default OFF).
 #
 # Available tools:
@@ -88,24 +85,12 @@ module MonadicSharedTools
           return MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE
         end
 
-        # Resolve the requesting app's class name from the session so the
-        # cascade can filter on `scope_app IN [app_name, "Global"]`.
-        # Conversations saved while another app was active are
-        # intentionally invisible here — provider variants are separate
-        # scopes ("ChatOpenAI" cannot see "ChatClaude" entries) and
-        # shareable knowledge artifacts use the literal "Global" sentinel
-        # to opt in to cross-app retrieval.
-        # A session without an app name searches the Global entries only,
-        # never every app's.
-        app_name = MonadicSharedTools::LibrarySearch.resolve_app_name(resolved_session) ||
-                   Monadic::Library::Store::SCOPE_GLOBAL
-
         store = MonadicSharedTools::LibrarySearch.default_store
         payload_filter = MonadicSharedTools::LibrarySearch.build_payload_filter(
           content_type: content_type, source: source
         )
         hits = Monadic::Library::Retriever.cascade_search(
-          query, store: store, app_name: app_name,
+          query, store: store,
           top_n: top_n.to_i.clamp(1, 10),
           payload_filter: payload_filter
         )
@@ -136,15 +121,6 @@ module MonadicSharedTools
     # Default Store factory. Tests can stub this to inject a fake store.
     def default_store
       Monadic::Library::Store.new
-    end
-
-    # Pull the requesting app's class name out of the session params.
-    # Returns nil when the session is missing or app_name is empty.
-    def resolve_app_name(session)
-      params = (session && (session[:parameters] || session['parameters'])) || {}
-      v = params['app_name'] || params[:app_name]
-      v = v.to_s.strip
-      v.empty? ? nil : v
     end
 
     # Format Retriever hits as a compact, citation-ready text block.

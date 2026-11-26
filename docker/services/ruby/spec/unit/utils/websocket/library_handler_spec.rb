@@ -44,7 +44,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
           turns_count: 4, messages_count: 4, created_at: '2026-04-29T10:00:00Z' }
       ]
       allow(Monadic::Library::Manager).to receive(:list_conversations)
-        .with(hash_including(app_name: nil))
+        .with(hash_excluding(:app_name))
         .and_return(rows)
 
       host.send(:handle_ws_library_list, connection, {}, {})
@@ -107,25 +107,27 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       }
     end
 
-    it 'ingests via Manager.import_from_text and reports success with the app_name as the default scope' do
-      expect(Monadic::Library::Manager).to receive(:import_from_text)
-        .with(hash_including(store: store, scope_app: 'ChatOpenAI'))
-        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 2 })
+    it 'ingests via Manager.import_from_text and reports success' do
+      expect(Monadic::Library::Manager).to receive(:import_from_text) do |args|
+        expect(args[:store]).to eq(store)
+        expect(args).not_to have_key(:scope_app)
+        { conversation_id: 'conv-9', counts: { summary: 1, turns: 2 } }
+      end
 
       host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
       msg = replies.first
       expect(msg['type']).to eq('library_saved')
       expect(msg['res']).to eq('success')
       expect(msg['conversation_id']).to eq('conv-9')
-      expect(msg['scope_app']).to eq('ChatOpenAI')
+      expect(msg).not_to have_key('scope_app')
       expect(msg['counts']).to eq('summary' => 1, 'turns' => 2)
     end
 
-    it 'honours an explicit scope_app from the payload over the app_name fallback' do
+    it 'ignores a scope_app sent by an earlier page' do
       expect(Monadic::Library::Manager).to receive(:import_from_text) do |args|
         expect(args[:options][:title]).to eq('Demo')
         expect(args[:options]).not_to have_key(:license)
-        expect(args[:scope_app]).to eq('Global')
+        expect(args).not_to have_key(:scope_app)
         { conversation_id: 'conv-X', counts: { summary: 1, turns: 0 } }
       end
 
@@ -352,7 +354,7 @@ RSpec.describe 'WebSocketHelper Library handlers' do
         skipped_reason: nil
       }
       expect(Monadic::Library::Manager).to receive(:get_conversation_messages)
-        .with(hash_including(store: store, conversation_id: 'conv-y', app_name: nil))
+        .with(store: store, conversation_id: 'conv-y')
         .and_return(record)
       host.send(:handle_ws_library_get_conversation, connection,
                 { 'contents' => { 'conversation_id' => 'conv-y' } }, {})
@@ -395,46 +397,6 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       msg = replies.first
       expect(msg['res']).to eq('failure')
       expect(msg['content']).to eq('qdrant down')
-    end
-  end
-
-  describe 'LIBRARY_SET_SCOPE → library_scope_updated' do
-    it 'forwards to Manager.update_scope_app and confirms success' do
-      expect(Monadic::Library::Manager).to receive(:update_scope_app)
-        .with(store: store, conversation_id: 'conv-x', scope_app: 'Global').and_return(true)
-      host.send(:handle_ws_library_set_scope, connection,
-                { 'contents' => { 'conversation_id' => 'conv-x', 'scope_app' => 'Global' } }, {})
-      msg = replies.first
-      expect(msg['type']).to eq('library_scope_updated')
-      expect(msg['res']).to eq('success')
-      expect(msg['conversation_id']).to eq('conv-x')
-      expect(msg['scope_app']).to eq('Global')
-    end
-
-    it 'rejects payloads missing conversation_id' do
-      host.send(:handle_ws_library_set_scope, connection,
-                { 'contents' => { 'scope_app' => 'Global' } }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/Missing conversation_id/)
-    end
-
-    it 'rejects empty scope_app values' do
-      host.send(:handle_ws_library_set_scope, connection,
-                { 'contents' => { 'conversation_id' => 'c', 'scope_app' => '   ' } }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/scope_app must not be empty/)
-    end
-
-    it 'reports failure when Manager raises' do
-      allow(Monadic::Library::Manager).to receive(:update_scope_app).and_raise('qdrant down')
-      host.send(:handle_ws_library_set_scope, connection,
-                { 'contents' => { 'conversation_id' => 'c', 'scope_app' => 'ChatOpenAI' } }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to eq('qdrant down')
-      expect(msg['conversation_id']).to eq('c')
     end
   end
 

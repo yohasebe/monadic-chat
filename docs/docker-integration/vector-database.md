@@ -53,7 +53,7 @@ The **Library** tab of the sidebar shows every entry, and an app that searches t
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 
-1. Click **Save** in the Knowledge Base panel to save the current conversation, or click **Import file** in the **Library** tab of the sidebar
+1. In the **Library** tab of the sidebar, click **Keep this conversation** to put the current conversation on the work screen as a document to keep, or **Import file**
 2. Monadic Chat extracts, splits, embeds, and stores the content, as described [above](#technical-implementation)
 3. Ask questions about the content in an app that searches the Knowledge Base, as described under [Who Searches It](#visibility)
 4. Monadic Chat finds the most relevant sections, first by document and then by section

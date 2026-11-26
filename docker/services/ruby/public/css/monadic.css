@@ -5132,17 +5132,11 @@ small, .small,
 .privacy-strength-bar.score-3 #privacy-strength-fill { width: 75%; background-color: #20c997; }
 .privacy-strength-bar.score-4 #privacy-strength-fill { width: 100%; background-color: #198754; }
 
-/* App-capability gate (MDSL SSOT).
-   Body classes (app-cap-kb-save / app-cap-kb-search) are set by
-   applyAppCapabilityClasses() in monadic.js from per-app MDSL flags
-   (library_save, library_search).
-
-   The Knowledge Base panel stays VISIBLE on every
-   app. JS owns the disabled state + tooltip (applyAppCapabilityClasses for the
-   KB retrieval toggle, updateSaveButtonAvailability for the Save button), so
-   a control a user expects is shown disabled-with-reason rather than vanishing
-   where it isn't supported.
-   The classes remain available for any app-aware styling. */
+/* App-capability gate (MDSL SSOT). The body class app-cap-kb-save is set by
+   applyAppCapabilityClasses() in monadic.js from the app's MDSL flag
+   library_save: an app that does not keep its chats offers no record of
+   the chat (the server refuses one too). */
+body:not(.app-cap-kb-save) #library-draft-conversation { display: none; }
 
 /* --- Confidence-via-agreement (Verify button) --------------------------- */
 .verify-bar {

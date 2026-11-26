@@ -131,7 +131,7 @@ Browse [all available apps and provider capabilities](../basic-usage/basic-apps.
 
 ## Tips for Success
 
-1. **Save your conversations**: Use **Export** in the Session Controls panel to save a chat as a JSON file, or **Save** in the Knowledge Base panel to store it in the Knowledge Base. The exported file carries the app's parameter settings as well, so importing it restores them
+1. **Save your conversations**: Use **Export** in the Session Controls panel to save a chat as a JSON file, or **Keep this conversation** in the **Library** tab to keep it in the Knowledge Base as a document. The exported file carries the app's parameter settings as well, so importing it restores them
 2. **Check the logs**: If something goes wrong, the console shows what happened
 3. **Run the same task on different providers**: Most apps exist in several provider variants, so the same prompt can be compared side by side — see [Comparing Providers](../reference/providers.md#comparing-providers)
 

@@ -69,15 +69,18 @@ RSpec.describe "A chat's words with the session a real chat has" do
     expect(given).to be(session)
   end
 
-  it "refuses to save a chat with a word table to the Knowledge Base" do
+  it "keeps nothing of a chat with a word table in the Knowledge Base" do
     replies = []
     host = Class.new { include WebSocketHelper }.new
     host.define_singleton_method(:send_to_client) { |_conn, payload| replies << payload }
     session = real_session(Monadic::Workspace::Chats::SESSION_KEY => "chat-1")
     Monadic::Utils::Privacy::Words.start!(session)
-    host.send(:handle_ws_library_save, nil, { "contents" => { "messages" => [] } }, session)
-    expect(replies.first).to include("type" => "library_saved", "res" => "failure")
-    expect(replies.first["content"]).to include("hides words")
+    expect(Monadic::Library::ConversationRecord).not_to receive(:of)
+    expect(Monadic::Library::DeskImport).not_to receive(:start)
+    host.send(:handle_ws_library_conversation_draft, nil, {}, session)
+    host.send(:handle_ws_library_from_workbench, nil, { "item_id" => "i_1", "sha256" => "a" * 64 }, session)
+    expect(replies.map { |r| [r["type"], r["error"]] })
+      .to eq([%w[library_conversation_draft hides_words], %w[library_from_workbench hides_words]])
   end
 
   it "stops further tool calls after parallel second opinions" do
@@ -107,14 +110,10 @@ RSpec.describe "A chat's words with the session a real chat has" do
           expect(result[:comments]).to include("not requested")
         end
 
-        it "suggests no title for the Knowledge Base" do
-          replies = []
-          host = Class.new { include WebSocketHelper }.new
-          host.define_singleton_method(:send_to_client) { |_conn, payload| replies << payload }
-          expect(Monadic::Library::TitleSuggester).not_to receive(:suggest)
-          host.send(:handle_ws_library_suggest_title, nil, { "contents" => { "messages" => [{ "role" => "user", "text" => "Hi" }] } },
-                    session)
-          expect(replies.first).to include("type" => "library_title_suggested", "res" => "failure")
+        it "puts no record of the chat on the work screen to keep in the Library" do
+          expect(Monadic::Library::ConversationRecord).not_to receive(:of)
+          expect { Monadic::Library::ConversationDraft.put(session, tab: "t", generation: 1, live: ->(_t) { 1 }) }
+            .to raise_error(Monadic::Library::ConversationDraft::Refused)
         end
 
         it "makes no speech" do

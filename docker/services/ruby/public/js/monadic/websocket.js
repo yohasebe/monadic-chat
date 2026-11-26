@@ -317,7 +317,6 @@ window.loadedApp = "Chat";
     // visible across all apps, so we fire this for every session.
     if (window.libraryPanel) {
       try { window.libraryPanel.requestList(); } catch (_) {}
-      try { window.libraryPanel.requestStats(); } catch (_) {}
     }
 
     // Detect browser/device capabilities for audio handling
@@ -1132,21 +1131,9 @@ window.loadedApp = "Chat";
         }
         break;
       }
-      case "library_stats": {
-        if (window.libraryPanel && typeof window.libraryPanel.handleStats === 'function') {
-          window.libraryPanel.handleStats(data);
-        }
-        break;
-      }
       case "library_deleted": {
         if (window.libraryPanel && typeof window.libraryPanel.handleDeletedMessage === 'function') {
           window.libraryPanel.handleDeletedMessage(data);
-        }
-        break;
-      }
-      case "library_saved": {
-        if (window.libraryPanel && typeof window.libraryPanel.handleSavedMessage === 'function') {
-          window.libraryPanel.handleSavedMessage(data);
         }
         break;
       }
@@ -1157,12 +1144,6 @@ window.loadedApp = "Chat";
         if (typeof window.WorkflowViewer !== 'undefined' &&
             typeof window.WorkflowViewer.reloadCurrent === 'function') {
           window.WorkflowViewer.reloadCurrent();
-        }
-        break;
-      }
-      case "library_title_suggested": {
-        if (window.libraryPanel && typeof window.libraryPanel.handleTitleSuggested === 'function') {
-          window.libraryPanel.handleTitleSuggested(data);
         }
         break;
       }

@@ -158,14 +158,13 @@ function getProviderFromGroup(group) {
 // Make the function available globally
 window.getProviderFromGroup = getProviderFromGroup;
 
-// Reflect per-app capabilities onto body classes for CSS-driven visibility
-// (MDSL SSOT, Phase 4). The CSS rules in `monadic.css` (search for
-// "App-capability declarative visibility gate") consume these classes:
-//   app-cap-kb-save  — app allows saving conversations to the Knowledge Base
-//   app-cap-kb-search — app allows the LLM to call library_search
-// Defaults: KB save / KB search ON — preserving legacy behavior for
-// custom or older apps that haven't declared the flags. Only an explicit
-// false / "false" disables, matching `CAPABILITY_DEFAULTS` on the Ruby side.
+// Reflect per-app capabilities onto body classes for app-aware styling
+// (MDSL SSOT):
+//   app-cap-kb-save — the app keeps its conversations in the Library
+//                     (monadic.css hides the record button otherwise)
+// Default ON for custom or older apps that haven't declared the flag. Only an
+// explicit false / "false" disables, matching `CAPABILITY_DEFAULTS` on the
+// Ruby side.
 //
 // This function is the single visibility SSOT — it's called from every
 // path where the active app might change (initial load, dropdown change,
@@ -185,12 +184,8 @@ function applyAppCapabilityClasses(appName) {
   // entry point safe to call without coordination.
   if (!settings) return;
 
-  const isKbSave   = settings.library_save !== false && settings.library_save !== "false";
-  const isKbSearch = settings.library_search !== false && settings.library_search !== "false";
-
-  const cl = document.body.classList;
-  cl.toggle("app-cap-kb-save", isKbSave);
-  cl.toggle("app-cap-kb-search", isKbSearch);
+  const isKbSave = settings.library_save !== false && settings.library_save !== "false";
+  document.body.classList.toggle("app-cap-kb-save", isKbSave);
 }
 window.applyAppCapabilityClasses = applyAppCapabilityClasses;
 

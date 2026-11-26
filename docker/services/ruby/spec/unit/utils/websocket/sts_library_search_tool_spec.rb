@@ -31,7 +31,7 @@ RSpec.describe "Live Conversation's Library tools" do
       expect(WebSocketHelper::STS_TOOLS.fetch(name)[:available?].call('openai', session)).to be false
     end
     expect(Monadic::Library::Retriever).not_to receive(:cascade_search)
-    expect(Monadic::Library::Manager).not_to receive(:catalog)
+    expect(Monadic::Library::Manager).not_to receive(:list_conversations)
     expect(entry[:call].call({ 'query' => 'q' }, session, {})).to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)
     expect(WebSocketHelper::STS_TOOLS.fetch('library_list')[:call].call({}, session, {}))
       .to eq(MonadicSharedTools::LibrarySearch::DISABLED_MESSAGE)

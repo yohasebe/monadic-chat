@@ -128,7 +128,7 @@ module MonadicSharedTools
     # each entry's title, kind, source and date, as a text block.
     def list_text(page)
       page = [page.to_i, 1].max
-      rows = Monadic::Library::Manager.catalog(store: default_store)
+      rows = Monadic::Library::Manager.list_conversations(store: default_store, limit: nil)
       return 'The Library is empty.' if rows.empty?
 
       pages = (rows.size + LIST_PAGE - 1) / LIST_PAGE

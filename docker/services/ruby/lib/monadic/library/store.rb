@@ -86,7 +86,8 @@ module Monadic
           ids = []
           offset = nil
           loop do
-            page = scroll(collection: name, filter: conversation_filter(conversation_id), limit: 256, offset: offset)
+            page = scroll(collection: name, filter: conversation_filter(conversation_id), limit: 256, offset: offset,
+                          with_payload: false)
             ids.concat(page[:points].map { |p| p['id'] })
             offset = page[:next]
             break if offset.nil?
@@ -124,10 +125,33 @@ module Monadic
         page[:points].first&.dig('payload', 'original')
       end
 
-      # Number of registered conversations.
-      def conversation_count
-        bootstrap_collections!
-        @store.count(collection: Schema::LIBRARY_SUMMARIES, exact: true)
+      # The entries made from a chat's conversation record (source_chat_id),
+      # newest first: [{ conversation_id:, title:, created_at:, revision: }].
+      def records_from_chat(source_chat_id)
+        rows = []
+        offset = nil
+        loop do
+          page = scroll(collection: Schema::LIBRARY_SUMMARIES, limit: 256, offset: offset,
+                        filter: { must: [{ key: 'source_chat_id', match: { value: source_chat_id.to_s } }] },
+                        with_payload: %w[conversation_id title created_at revision])
+          rows.concat(page[:points].map do |point|
+            payload = point['payload'] || {}
+            { conversation_id: payload['conversation_id'], title: payload['title'], created_at: payload['created_at'],
+              revision: payload['revision'] || payload['created_at'] }
+          end)
+          offset = page[:next]
+          break if offset.nil?
+        end
+        rows.sort_by { |row| [row[:created_at].to_s, row[:conversation_id].to_s] }.reverse
+      end
+
+      # The version of an entry (its summary's revision; created_at for an
+      # entry made before entries had one), or nil when it is not there.
+      def revision_of(conversation_id)
+        page = scroll(collection: Schema::LIBRARY_SUMMARIES, filter: conversation_filter(conversation_id), limit: 1,
+                      with_payload: %w[revision created_at])
+        payload = page[:points].first&.dig('payload')
+        payload && (payload['revision'] || payload['created_at']).to_s
       end
 
       def scroll(collection:, filter: nil, limit: 256, offset: nil, with_vectors: false, with_payload: true)

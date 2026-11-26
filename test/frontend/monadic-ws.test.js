@@ -92,7 +92,7 @@ describe('safeWsSend', () => {
   test('null ws + idempotent → queued AND triggers reconnect', () => {
     window.ws = null;
 
-    const result = safeWsSend({ message: 'LIBRARY_SAVE', contents: { x: 1 } });
+    const result = safeWsSend({ message: 'LIBRARY_LIST', contents: { x: 1 } });
 
     expect(result).toMatchObject({ sent: false, queued: true, state: 'NULL' });
     expect(window.connect_websocket).toHaveBeenCalledTimes(1);
@@ -234,7 +234,9 @@ describe('safeWsSend', () => {
 
   test('isIdempotent surface for callers', () => {
     expect(MonadicWs.isIdempotent('RESET')).toBe(true);
-    expect(MonadicWs.isIdempotent('LIBRARY_SAVE')).toBe(true);
+    expect(MonadicWs.isIdempotent('LIBRARY_LIST')).toBe(true);
+    // Puts a record on the work screen: sent again, it would put a second.
+    expect(MonadicWs.isIdempotent('LIBRARY_CONVERSATION_DRAFT')).toBe(false);
     expect(MonadicWs.isIdempotent('LIBRARY_RENAME')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_GET_CONVERSATION')).toBe(true);
     expect(MonadicWs.isIdempotent('EDIT')).toBe(true);

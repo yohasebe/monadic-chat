@@ -17,7 +17,6 @@ RSpec.describe Monadic::Library::Manager do
     allow(store).to receive(:conversation_filter) { |id|
       { must: [{ key: 'conversation_id', match: { value: id.to_s } }] }
     }
-    allow(store).to receive(:conversation_count).and_return(0)
   end
 
   def summary_point(conv_id, payload_extras = {})
@@ -98,13 +97,6 @@ RSpec.describe Monadic::Library::Manager do
     end
   end
 
-  describe '.library_stats' do
-    it 'reports the number of entries' do
-      allow(store).to receive(:conversation_count).with(no_args).and_return(4)
-      expect(described_class.library_stats(store: store)).to eq(conversations_total: 4)
-    end
-  end
-
   describe '.delete_conversation' do
     it 'forwards to Store#delete_conversation' do
       allow(store).to receive(:original_of).with('abc').and_return(nil)
@@ -155,6 +147,77 @@ RSpec.describe Monadic::Library::Manager do
       expect(Monadic::Library::Originals.read(sha256)).to eq(File.binread(upload))
       expect(Monadic::Library::Originals.held?(sha256)).to be false
       expect(stages).to eq(%i[extracting embedding_storing])
+    end
+
+    describe '.replace_file' do
+      let(:prior) { { 'library_summaries' => ['old-s'], 'library_turns' => %w[old-t1 old-t2] } }
+      let(:events) { [] }
+
+      before do
+        allow(store).to receive(:point_ids).with('conv-1').and_return(prior)
+        allow(store).to receive(:original_of).with('conv-1').and_return('sha256' => 'f' * 64)
+        allow(store).to receive(:upsert_points) { |collection:, points:| events << [:write, collection, points.first[:payload]['conversation_id']] }
+        allow(store).to receive(:delete_point_ids) { |ids| events << [:delete, ids] }
+        allow(store).to receive(:original_refs).and_return(0)
+        allow(store).to receive(:revision_of).with('conv-1').and_return('rev-1')
+      end
+
+      it "writes the new version under the entry's id, then deletes the earlier one's points and kept file" do
+        allow(Monadic::Library::Originals).to receive(:remove_if_unused).and_call_original
+
+        result = described_class.replace_file(store: store, conversation_id: 'conv-1', revision: 'rev-1', path: upload, filename: 'notes.md',
+                                              options: { title: 'Notes' })
+
+        expect(result).to include(conversation_id: 'conv-1', updated: true, leftover: false)
+        writes = events.select { |e| e.first == :write }
+        expect(writes).not_to be_empty
+        expect(writes.map(&:last).uniq).to eq(['conv-1'])
+        expect(events.last).to eq([:delete, prior])
+        expect(Monadic::Library::Originals).to have_received(:remove_if_unused).with('f' * 64)
+      end
+
+      it 'keeps the earlier version when the new one cannot be written' do
+        allow(store).to receive(:upsert_points).and_raise(Monadic::VectorStore::BackendError, 'down')
+
+        expect { described_class.replace_file(store: store, conversation_id: 'conv-1', revision: 'rev-1', path: upload, filename: 'notes.md') }
+          .to raise_error(Monadic::VectorStore::BackendError)
+        expect(events.none? { |e| e == [:delete, prior] }).to be true
+      end
+
+      it 'writes nothing when the entry is no longer at the revision chosen, or is gone' do
+        allow(store).to receive(:revision_of).with('conv-1').and_return('rev-2', nil)
+
+        2.times do
+          expect { described_class.replace_file(store: store, conversation_id: 'conv-1', revision: 'rev-1', path: upload, filename: 'notes.md') }
+            .to raise_error(described_class::Changed)
+        end
+        expect(events).to be_empty
+      end
+
+      it 'runs one change of an entry at a time' do
+        order = []
+        allow(store).to receive(:revision_of) do
+          order << :check
+          sleep 0.05
+          'rev-1'
+        end
+        allow(store).to receive(:delete_point_ids) { order << :done }
+        threads = Array.new(2) do
+          Thread.new do
+            described_class.replace_file(store: store, conversation_id: 'conv-1', revision: 'rev-1', path: upload, filename: 'notes.md')
+          end
+        end
+        threads.each(&:join)
+        expect(order).to eq(%i[check done check done])
+      end
+
+      it 'says some of the earlier version may be left when its points cannot all be deleted' do
+        allow(store).to receive(:delete_point_ids).with(prior).and_raise(Monadic::VectorStore::BackendError, 'down')
+
+        result = described_class.replace_file(store: store, conversation_id: 'conv-1', revision: 'rev-1', path: upload, filename: 'notes.md')
+
+        expect(result).to include(updated: true, leftover: true)
+      end
     end
 
     it 'removes the kept file again when the import fails and nothing else names it' do
@@ -227,51 +290,6 @@ RSpec.describe Monadic::Library::Manager do
           title: 'X' * (described_class::MAX_TITLE_LENGTH + 1)
         )
       }.to raise_error(ArgumentError, /characters or fewer/)
-    end
-  end
-
-  describe '.import_from_text' do
-    let(:plain_text_input) do
-      "Alice: Hello, Bob.\nBob: Hi Alice.\n"
-    end
-
-    before do
-      allow(embeddings).to receive(:embed_passages) { |texts| texts.map { Array.new(768, 0.1) } }
-      allow(store).to receive(:upsert_points)
-    end
-
-    it 'auto-detects PlainText, ingests, and returns counts' do
-      result = described_class.import_from_text(
-        store: store, input: plain_text_input, options: { license: 'CC-BY-4.0' }
-      )
-      expect(result[:importer]).to eq('PlainText')
-      expect(result[:counts][:turns]).to be > 0
-      expect(result[:conversation_id]).not_to be_nil
-    end
-
-    it 'parses JSON input as ChatML when system role is present' do
-      json_input = JSON.dump([
-        { 'role' => 'system', 'content' => 'Be brief.' },
-        { 'role' => 'user', 'content' => 'hi' },
-        { 'role' => 'assistant', 'content' => 'hello' }
-      ])
-      result = described_class.import_from_text(store: store, input: json_input)
-      expect(result[:importer]).to eq('ChatML')
-    end
-
-    it 'parses bare user/assistant JSON as AnthropicMessages' do
-      json_input = JSON.dump([
-        { 'role' => 'user', 'content' => 'hi' },
-        { 'role' => 'assistant', 'content' => 'hello' }
-      ])
-      result = described_class.import_from_text(store: store, input: json_input)
-      expect(result[:importer]).to eq('AnthropicMessages')
-    end
-
-    it 'raises for unrecognised input' do
-      expect {
-        described_class.import_from_text(store: store, input: '???random???')
-      }.to raise_error(ArgumentError, /known conversation format/)
     end
   end
 

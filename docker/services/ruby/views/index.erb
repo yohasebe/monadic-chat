@@ -407,25 +407,6 @@
             </div><!-- end #ai-status-panel-body -->
           </div>
 
-          <div id="library-panel" class="mb-3 rounded shaded-panel overflow-hidden">
-            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="library-panel-body" aria-expanded="true">
-              <span class="text" data-i18n="ui.knowledgeBase"><i class="fas fa-book"></i> Knowledge Base</span>
-              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
-            </h5>
-            <div id="library-panel-body" class="collapse show px-3 pb-3">
-              <div class="d-flex gap-2 mt-2">
-                <button id="library-save" type="button" class="btn btn-sm btn-warning" title="Save current conversation to Knowledge Base" data-i18n-title="ui.libSaveCurrent"><i class="fas fa-bookmark"></i> <span data-i18n="ui.libSaveShort">Save</span></button>
-                <!-- Browse is intentionally always enabled — it opens the global
-                     Knowledge Base browser which is read-only and not bound to
-                     the current app. Even on artifact apps and Privacy-Filter
-                     apps where Save is disabled, the user can still consult
-                     entries previously saved from other apps. -->
-                <button id="library-browse" type="button" class="btn btn-sm btn-secondary" title="Browse all saved conversations" data-i18n-title="ui.libBrowseAll"><i class="fa-solid fa-table-list"></i> <span data-i18n="ui.libBrowseAllShort">Browse</span></button>
-              </div>
-              <div class="mt-2 small text-secondary" id="library-stats-info"></div>
-            </div><!-- end #library-panel-body -->
-          </div>
-
           <div id="control-panel" class="mb-3 rounded shaded-panel overflow-hidden">
             <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" tabindex="0" data-disclosure aria-controls="control-panel-body" aria-expanded="true">
               <span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-sliders"></i> Session Controls</span>
@@ -1263,45 +1244,35 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="resetSaveAndConfirm" class="btn btn-sm btn-primary" style="display:none;"><i class="fas fa-bookmark"></i> <span data-i18n="ui.modals.saveToKnowledgeBase">Save to Knowledge Base</span></button>
             <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-dialog-initial data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
     </dialog>
 
-    <!-- Modal: Save current conversation to Library -->
-    <dialog class="mdialog" id="librarySaveModal" aria-labelledby="librarySaveModalLabel">
+    <!-- Dialog: keeping a record of the conversation in the Library (its
+         title, and, when a record of the chat is kept already, update it or
+         keep this one besides) -->
+    <dialog class="mdialog" id="libraryKeepChoice" aria-labelledby="libraryKeepChoiceLabel">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="librarySaveModalLabel"><i class="fas fa-bookmark"></i> <span id="library-save-modal-title-text" data-i18n="ui.libSaveModalTitle">Save Conversation to Knowledge Base</span></h5>
+            <h5 class="modal-title" id="libraryKeepChoiceLabel"><i class="fas fa-book"></i> <span data-i18n="ui.libKeepDialogTitle">Keep in the Library</span></h5>
             <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div class="mb-3">
-              <label for="library-save-title" class="form-label" data-i18n="ui.libTitleLabel">Title (optional)</label>
-              <div class="position-relative">
-                <input type="text" class="form-control" id="library-save-title" maxlength="200" placeholder="" style="padding-right: 2.25rem;">
-                <!-- Wrap the spinner in a span that owns the centering
-                     transform. Putting translate-middle-y on the icon
-                     itself collides with fa-spin's rotation transform
-                     (the keyframes overwrite translateY(-50%) and the
-                     glyph stops appearing to spin). -->
-                <span id="library-save-title-spinner" class="position-absolute" style="right: 0.75rem; top: 50%; transform: translateY(-50%); display: none;" aria-hidden="true">
-                  <i class="fas fa-spinner fa-spin text-secondary"></i>
-                </span>
-              </div>
-              <div class="form-text small text-secondary" data-i18n="ui.libTitleHint">If left blank, the app name is used as the title.</div>
-            </div>
-            <div id="library-save-update-note" class="alert alert-warning py-2 px-3 small mt-2" style="display:none;">
-              <i class="fas fa-arrows-rotate"></i>
-              <span data-i18n="ui.libUpdateNote">This will replace the previous saved version of this conversation.</span>
+            <label for="library-keep-title" class="form-label" data-i18n="ui.libKeepTitleLabel">Title</label>
+            <input type="text" id="library-keep-title" class="form-control form-control-sm mb-3" maxlength="200" data-dialog-initial>
+            <div id="library-keep-records" hidden>
+              <p data-i18n="ui.libKeepChoiceText">A record of this conversation is kept already. Update it with this one, or keep this one as another document?</p>
+              <label for="library-keep-target" class="form-label" data-i18n="ui.libKeepChoiceTarget">Record to update</label>
+              <select id="library-keep-target" class="form-select form-select-sm"></select>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-dialog-close data-i18n="ui.cancel">Cancel</button>
-            <button type="button" id="library-save-confirm" class="btn btn-sm btn-primary"><i class="fas fa-bookmark"></i> <span id="library-save-confirm-text" data-i18n="ui.libSaveButton">Save</span></button>
+            <button type="button" id="library-keep-new" class="btn btn-sm btn-primary">Keep</button>
+            <button type="button" id="library-keep-update" class="btn btn-sm btn-primary" data-i18n="ui.libKeepChoiceUpdate" hidden>Update this document</button>
           </div>
         </div>
       </div>

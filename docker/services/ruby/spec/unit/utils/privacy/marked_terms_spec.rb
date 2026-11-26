@@ -601,19 +601,6 @@ RSpec.describe 'Words a chat hides' do
       img = { 'data' => 'data:application/pdf;base64,QUJD', 'title' => 'SecretName.pdf', 'type' => 'application/pdf' }
       expect(helper.resolve_file_id_for_input(marked('SecretName'), img)).to be_nil
     end
-
-    it 'asks for no title when the request holds a marked word' do
-      require_relative '../../../../lib/monadic/library/title_suggester'
-      suggester = Monadic::Library::TitleSuggester
-      app = double('app')
-      allow(app).to receive(:send_query)
-      allow(suggester).to receive_messages(derive_provider: 'openai', api_key_present?: true, find_chat_app: ['ChatOpenAI', app])
-      allow(SystemDefaults).to receive(:get_default_model).and_return('test-model')
-      title = suggester.suggest(messages: [{ 'role' => 'user', 'text' => 'Hello' }], app_name: 'ChatOpenAI',
-                                session: marked('concise'))
-      expect(app).not_to have_received(:send_query)
-      expect(title).to be_nil
-    end
   end
 
   describe 'speech as the TTS service receives it, and the parallel panel' do

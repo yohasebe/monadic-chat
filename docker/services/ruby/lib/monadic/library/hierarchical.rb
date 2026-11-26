@@ -118,13 +118,18 @@ module Monadic
           'messages_count' => messages.size,
           'turns_count' => turns.size,
           'created_at' => Time.now.utc.iso8601,
+          # A new value on every write and rename: the version of the entry
+          # a choice was made on (Manager.replace_file).
+          'revision' => SecureRandom.hex(8),
           # Verbatim messages + participants for the Conversation Viewer
           # modal. Other consumers (search, retrieval) ignore these
           # fields. Skipped silently when over SUMMARY_MESSAGES_MAX_BYTES.
           'messages' => messages_payload,
           'participants' => participants,
           'messages_skipped_reason' => messages_skipped_reason,
-          'original' => original
+          'original' => original,
+          # The chat a conversation record was made from (ConversationDraft).
+          'source_chat_id' => meta['source_chat_id']
         }
         payload.compact
       end

@@ -237,7 +237,10 @@ module Monadic
       # version, as read now, is refused ('changed') and not added.
       # event: what the change was, for an item already there (a
       # whiteboard's edit: its counts); a new item is told as placed.
-      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil, event: nil, attachment_id: nil)
+      # draft: what a conversation record put by the server says of itself
+      # ({ 'source_chat_id' => … }, Library::ConversationDraft); kept on the
+      # item, so it stays when the file is edited.
+      def add_file(path:, origin:, epoch:, wait: FileItem::READ_WAIT, sha256: nil, event: nil, attachment_id: nil, draft: nil)
         entry = FileItem.entry_for(path, wait: wait)
         raise Refused, 'changed' if sha256 && entry['sha256'] != sha256
 
@@ -256,6 +259,7 @@ module Monadic
             kept = found.dig('file', 'attachment_id')
             entry['attachment_id'] ||= kept if kept && found.dig('file', 'sha256') == entry['sha256']
             found['file'] = entry
+            found['draft'] = stringify(draft) if draft
             @verdicts.delete(found['id'])
             @texts.delete(found['id'])
             select_for_origin(origin, found['id'])
@@ -266,7 +270,7 @@ module Monadic
           room_for_one!(data)
           item_id = "i_#{SecureRandom.hex(10)}"
           data['items'][item_id] = { 'id' => item_id, 'kind' => 'file', 'origin' => kept_origin(origin), 'mid' => nil,
-                                     'file' => entry }
+                                     'file' => entry, 'draft' => (stringify(draft) if draft) }.compact
           select_for_origin(origin, item_id)
           record!(data, { 'kind' => 'placed', 'item_id' => item_id }, origin)
           [deep_dup(data['items'][item_id]), true]
@@ -821,7 +825,9 @@ module Monadic
           # A document the Library takes (Library::DeskImport).
           library: Monadic::Library::FileImporter.importable?(entry['path']) || nil,
           # A document is named by its title where its file's name is not it.
-          title: defined?(Document) ? Document.shown_title(entry['path']) : nil
+          title: defined?(Document) ? Document.shown_title(entry['path']) : nil,
+          # A record of a conversation, to keep in the Library as one.
+          draft: item['draft'] ? true : nil
         }
       end
 

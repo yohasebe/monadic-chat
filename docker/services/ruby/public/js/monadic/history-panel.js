@@ -546,7 +546,7 @@
     hideOpening();
   }
 
-  const api = { onMessage: onMessage, refreshSoon: refreshSoon, connectionOpened: connectionOpened };
+  const api = { onMessage: onMessage, refreshSoon: refreshSoon, connectionOpened: connectionOpened, resume: resume };
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = Object.assign({ displayName: displayName, formatTime: formatTime }, api);
   }

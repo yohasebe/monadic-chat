@@ -132,9 +132,6 @@ Links to the homepage and GitHub, the current version, the **Conversation Langua
 **AI Assistant & AI User**<br />
 The models in use for the assistant and for the AI User feature, and the statistics of the current session (message and token counts).
 
-**Knowledge Base**<br />
-**Save** the current conversation to the Knowledge Base and **Browse** it. Whether the AI may use the Knowledge Base in chats is set in Settings. See [Knowledge Base](../apps/knowledge-base.md).
-
 **Session Controls**<br />
 - **Reset**: Clear the current conversation and reset parameters to defaults while keeping your app selection. To also clear the page's stored data and return to the initial app selection, use **Reset All** in the internal browser
 - **Import**: Load conversation data from a JSON file. If the saved session uses a deprecated model that has a successor, the successor is used and a notification is shown
@@ -259,7 +256,7 @@ The **History** tab lists the kept chats, the latest activity first, and is show
 
 ## Library Tab :id=library-tab
 
-The **Library** tab lists what the [Knowledge Base](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry on the work screen (a PDF as it is, other entries as their text; the AI can read it there as any item of the work screen), shows its details, or deletes it. **Import file** adds a document. What the tab lists is not told to the AI.
+The **Library** tab lists what the [Knowledge Base](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry on the work screen (a PDF as it is, other entries as their text; the AI can read it there as any item of the work screen), shows its details, opens the chat a conversation record was made from (while that chat is in the history), or deletes it. **Import file** adds a document, and **Keep this conversation** puts the current conversation on the work screen as a document to keep. What the tab lists is not told to the AI.
 
 ## Files Tab :id=shared-folder-panel
 

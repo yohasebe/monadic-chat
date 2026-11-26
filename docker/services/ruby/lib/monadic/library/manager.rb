@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'securerandom'
 require_relative 'store'
 require_relative 'hierarchical'
 require_relative 'retriever'
@@ -18,50 +19,41 @@ module Monadic
     # Points carry `scope_app` (new entries "Global"; entries of earlier
     # versions may name an app), which nothing reads by.
     module Manager
+      class Changed < StandardError; end
+
+      # Changes of one entry (an update, a rename, a delete) run one at a
+      # time: the entry's id picks one of these locks.
+      ENTRY_LOCKS = Array.new(64) { Mutex.new }.freeze
+
       module_function
+
+      def with_entry(conversation_id, &)
+        ENTRY_LOCKS[conversation_id.to_s.hash % ENTRY_LOCKS.size].synchronize(&)
+      end
 
       # ─── List / inspect ────────────────────────────────────────────────
 
-      # Enumerate conversations registered in the summaries collection,
-      # most recently created first.
+      # The fields of an entry's row (summary_row): read without the
+      # messages and the rest of the summary.
+      ROW_FIELDS = %w[conversation_id content_type title source language license messages_count turns_count
+                      duration_seconds topics created_at source_chat_id].freeze
+
+      # The entries of the summaries collection, newest first (the same date
+      # ordered by id), limit of them (nil: all). Qdrant pages in id order,
+      # not by date: every page is read before sorting.
       def list_conversations(store:, limit: 100)
         rows = []
         cursor = nil
         loop do
-          page = store.scroll(
-            collection: VectorStore::Schema::LIBRARY_SUMMARIES,
-            limit: 256, offset: cursor
-          )
-          page[:points].each { |p|
-            payload = p['payload'] || {}
-            rows << summary_row(payload)
-          }
-          # Qdrant pages in id order, not by date: the newest entries can be on
-          # any page, so every page is read before sorting.
-          break if page[:next].nil?
-
-          cursor = page[:next]
-        end
-        rows.sort_by { |r| r[:created_at].to_s }.reverse.first(limit)
-      end
-
-      # Every entry as the AI's list of the Library gives it (title,
-      # content_type, source, created_at, conversation_id), newest first, the
-      # same date ordered by id: only those fields are read.
-      CATALOG_FIELDS = %w[conversation_id title content_type source created_at].freeze
-
-      def catalog(store:)
-        rows = []
-        cursor = nil
-        loop do
           page = store.scroll(collection: VectorStore::Schema::LIBRARY_SUMMARIES, limit: 256, offset: cursor,
-                              with_payload: CATALOG_FIELDS)
+                              with_payload: ROW_FIELDS)
           page[:points].each { |p| rows << summary_row(p['payload'] || {}) }
           break if page[:next].nil?
 
           cursor = page[:next]
         end
-        rows.sort_by { |r| [r[:created_at].to_s, r[:conversation_id].to_s] }.reverse
+        rows = rows.sort_by { |r| [r[:created_at].to_s, r[:conversation_id].to_s] }.reverse
+        limit ? rows.first(limit) : rows
       end
 
       # Fetch the full payload of a conversation's summary point. Returns
@@ -99,11 +91,6 @@ module Monadic
         }
       end
 
-      # The number of entries.
-      def library_stats(store:)
-        { conversations_total: store.conversation_count }
-      end
-
       # ─── Mutate ────────────────────────────────────────────────────────
 
       MAX_TITLE_LENGTH = 200
@@ -117,36 +104,25 @@ module Monadic
           raise ArgumentError, "title must be #{MAX_TITLE_LENGTH} characters or fewer"
         end
 
-        rewrite_payload_field(store, VectorStore::Schema::LIBRARY_SUMMARIES,
-                              conversation_id, 'title', normalized,
-                              limit: 1)
+        with_entry(conversation_id) do
+          rewrite_payload_fields(store, VectorStore::Schema::LIBRARY_SUMMARIES, conversation_id,
+                                 { 'title' => normalized, 'revision' => SecureRandom.hex(8) }, limit: 1)
+        end
         true
       end
 
       # Deletes the entry, and then the kept file it was made from when no
       # other entry names it (Originals.remove_if_unused).
       def delete_conversation(store:, conversation_id:)
-        sha256 = store.original_of(conversation_id)&.dig('sha256')
-        store.delete_conversation(conversation_id)
-        Originals.remove_if_unused(sha256) { |s| store.original_refs(s) } if sha256
+        with_entry(conversation_id) do
+          sha256 = store.original_of(conversation_id)&.dig('sha256')
+          store.delete_conversation(conversation_id)
+          Originals.remove_if_unused(sha256) { |s| store.original_refs(s) } if sha256
+        end
         true
       end
 
       # ─── Import + ingest ───────────────────────────────────────────────
-
-      def import_from_text(store:, input:, options: {})
-        parsed = parse_input(input)
-        importer = Importers.detect(parsed)
-        raise ArgumentError, 'Could not detect a known conversation format' unless importer
-
-        conversation = importer.import(parsed, options)
-        counts = Hierarchical.ingest(conversation, store: store)
-        {
-          conversation_id: conversation['conversation_id'],
-          importer: importer.name.split('::').last,
-          counts: counts
-        }
-      end
 
       # Imports a file (FileImporter): its bytes are kept (Originals) and
       # named on the entry as 'original'. When the import fails, the kept
@@ -167,6 +143,34 @@ module Monadic
         ensure
           Originals.release(kept[:sha256])
           Originals.remove_if_unused(kept[:sha256]) { |s| store.original_refs(s) } unless imported
+        end
+      end
+
+      # A new version of an entry (conversation_id) from a file, while the
+      # entry is still at revision (the version the user chose; Changed
+      # otherwise, also when it is gone): written under the same id first,
+      # then the earlier version's points are deleted by id, and its kept
+      # file goes unless another entry has it. A failed import leaves the
+      # entry as it was. leftover: some points of the earlier version could
+      # not be deleted.
+      def replace_file(store:, conversation_id:, revision:, path:, filename:, options: {}, on_stage: nil)
+        with_entry(conversation_id) do
+          raise Changed, 'the entry changed' unless store.revision_of(conversation_id) == revision.to_s
+
+          prior = store.point_ids(conversation_id)
+          prior_sha = store.original_of(conversation_id)&.dig('sha256')
+          result = import_file(store: store, path: path, filename: filename,
+                               options: options.merge(conversation_id: conversation_id), on_stage: on_stage)
+          leftover = begin
+            store.delete_point_ids(prior)
+            false
+          rescue StandardError
+            true
+          end
+          if prior_sha && prior_sha != result.dig(:original, 'sha256')
+            Originals.remove_if_unused(prior_sha) { |s| store.original_refs(s) }
+          end
+          result.merge(updated: true, leftover: leftover)
         end
       end
 
@@ -192,7 +196,8 @@ module Monadic
           turns_count: payload['turns_count'],
           duration_seconds: payload['duration_seconds'],
           topics: payload['topics'],
-          created_at: payload['created_at']
+          created_at: payload['created_at'],
+          source_chat_id: payload['source_chat_id']
         }.compact
       end
 
@@ -201,7 +206,7 @@ module Monadic
       # (summaries only). Setting
       # `limit:` caps how many points to scroll per page; for summaries
       # there is exactly one point so 1 is enough.
-      def rewrite_payload_field(store, collection, conversation_id, key, value, limit: 256)
+      def rewrite_payload_fields(store, collection, conversation_id, fields, limit: 256)
         cursor = nil
         loop do
           page = store.scroll(
@@ -212,22 +217,12 @@ module Monadic
           )
           break if page[:points].empty?
           patched = page[:points].map { |p|
-            payload = (p['payload'] || {}).merge(key => value)
+            payload = (p['payload'] || {}).merge(fields)
             { id: p['id'], vector: p['vector'], payload: payload }
           }
           store.upsert_points(collection: collection, points: patched)
           break if page[:next].nil?
           cursor = page[:next]
-        end
-      end
-
-      def parse_input(input)
-        return input unless input.is_a?(String)
-        return input if input.strip.empty?
-        begin
-          JSON.parse(input)
-        rescue JSON::ParserError
-          input
         end
       end
     end

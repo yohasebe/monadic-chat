@@ -99,11 +99,7 @@ module ClaudeHelper
 
   WEBSEARCH_PROMPT = <<~TEXT
 
-    Always ensure that your answers are comprehensive, accurate, and support the user's research needs with relevant citations, examples, and reference data when possible. The integration of web search is a key advantage, allowing you to retrieve up-to-date information and provide contextually rich responses.
-
-    Please provide detailed and informative responses to the user's queries, ensuring that the information is accurate, relevant, and well-supported by reliable sources. For that purpose, use as much information from  the web search results as possible to provide the user with the most up-to-date and relevant information.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs of the information you retrieve from the web. This will allow the user to explore the sources further. Here is an example of how to format a link: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+    Web search is available. Search when the user asks you to, or when the answer needs current information or a fact you should check; do not search for what you can answer as it is, or when the user asks you not to. When you use what you found, cite the sources as HTML links: `<a href="URL" target="_blank" rel="noopener noreferrer">Title</a>`.
   TEXT
 
 

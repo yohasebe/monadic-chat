@@ -155,18 +155,7 @@ module OpenAIHelper
 
   WEBSEARCH_PROMPT = <<~TEXT
 
-    Web search is enabled for this conversation. You should proactively use web search whenever:
-    - The user asks about current events, news, or recent information
-    - The user asks about specific people, companies, organizations, or entities
-    - The user asks questions that would benefit from up-to-date or factual information
-    - You need to verify facts or get the latest information about something
-    - The user asks "who is" or similar questions about people or entities
-    
-    You don't need to ask permission to search - just search when it would be helpful. The web search happens automatically when you need it.
-
-    Always ensure that your answers are comprehensive, accurate, and support the user's needs with relevant citations. When you find information through web search, provide detailed and informative responses.
-
-    **Important**: Please use HTML link tags with the `target="_blank"` and `rel="noopener noreferrer"` attributes to provide links to the source URLs. Example: `<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Example</a>`
+    Web search is available. Search when the user asks you to, or when the answer needs current information or a fact you should check; do not search for what you can answer as it is, or when the user asks you not to. When you use what you found, cite the sources as HTML links: `<a href="URL" target="_blank" rel="noopener noreferrer">Title</a>`.
   TEXT
   
 

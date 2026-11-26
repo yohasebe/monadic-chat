@@ -13,7 +13,7 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 **Two ways to add content:**
 
 1. **Save the current chat session**: the **Save** button in the Knowledge Base panel of the sidebar saves the current conversation to the Knowledge Base.
-2. **Import a file**: open the Knowledge Base browser (**Browse**) and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename.
+2. **Import a file**: open the Knowledge Base browser (**Browse**) and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
 
 **Supported import formats:**
 

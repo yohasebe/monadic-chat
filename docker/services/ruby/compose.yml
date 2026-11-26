@@ -56,6 +56,10 @@ services:
       # The workspace ledger. Only this container mounts it: code running in
       # the Python container can write the shared folder, not this record.
       - ~/monadic/state:/monadic/state
+      # The Knowledge Base's own files. Only this container mounts it, so
+      # they are reached through the Knowledge Base, never by code a model
+      # writes in another container.
+      - ~/monadic/library:/monadic/library
     # Memory-only mount for values the desktop app reads from 1Password on
     # the host (config/env entries written as op:// references). They are
     # streamed in through `docker exec -i` stdin and never touch the

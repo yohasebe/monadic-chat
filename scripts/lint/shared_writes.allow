@@ -5,7 +5,7 @@
 # program cannot replace).
 #
 # One entry per line: path | text the line contains | where it writes | why
-# where: state, log, config, system-temp, shared-root, build-time, test-only
+# where: state, library, log, config, system-temp, shared-root, build-time, test-only
 docker/services/ruby/lib/monadic.rb | FileUtils.mkdir_p(Monadic::Utils::Environment.log_path) | log | the log folder at startup
 docker/services/ruby/lib/monadic/shell.rb | File.open(log_path | log | command log
 docker/services/ruby/lib/monadic/workspace/artifacts.rb | Dir.mkdir(root, 0o700) | state | folder of kept artifacts (state folder)
@@ -79,4 +79,9 @@ docker/services/ruby/lib/monadic/workbench/picture.rb | File.open(temp, File::WR
 docker/services/ruby/lib/monadic/workbench/picture.rb | File.rename(temp, path) | state | puts a picture of the work screen in place (state folder)
 docker/services/ruby/lib/monadic/workbench/picture.rb | FileUtils.rm_f(temp) | state | a picture's temporary file that could not be put in place (state folder)
 docker/services/ruby/lib/monadic/workbench/retention.rb | FileUtils.rm_rf(dir) | state | removes a chat's workbench folder when the chat is removed or not kept (state folder)
+docker/services/ruby/lib/monadic/library/originals.rb | File.delete(target) if File.file?(target) && !File.symlink?(target) | library | removes a kept original no import holds and no entry names (Library folder, outside the shared folder)
+docker/services/ruby/lib/monadic/library/originals.rb | FileUtils.mkdir_p(dir, mode: 0o700) | library | the folder of kept originals (Library folder)
+docker/services/ruby/lib/monadic/library/originals.rb | File.open(part, File::WRONLY | library | an original being kept, made new beside its target (Library folder)
+docker/services/ruby/lib/monadic/library/originals.rb | File.rename(part, target) | library | puts a checked original in place (Library folder)
+docker/services/ruby/lib/monadic/library/originals.rb | File.delete(part) if File.exist?(part) | library | removes the part file a keep left (Library folder)
 docker/services/ruby/apps/syntax_tree/syntax_tree_tools.rb | File.write(input, notation) | system-temp | the notation given to RSyntaxTree, in a work folder of its own (Dir.mktmpdir)

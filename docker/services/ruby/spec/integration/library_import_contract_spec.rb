@@ -83,22 +83,17 @@ RSpec.describe '/library/import contract', :integration do
   end
 
   describe 'happy path' do
-    it 'returns 202 with import_id + status_url, and dispatches through FileImporter + Manager' do
+    it 'returns 202 with import_id + status_url, and dispatches through Manager.import_file' do
       file = Rack::Test::UploadedFile.new(
         StringIO.new('# Hello'), 'text/markdown', original_filename: 'hello.md'
       )
-
-      expect(Monadic::Library::FileImporter)
-        .to receive(:build_conversation)
-        .with(hash_including(filename: 'hello.md'))
-        .and_return(fake_conversation)
 
       fake_store = instance_double(Monadic::Library::Store)
       allow(Monadic::Library::Store).to receive(:new).and_return(fake_store)
 
       expect(Monadic::Library::Manager)
-        .to receive(:import_conversation)
-        .with(hash_including(store: fake_store, conversation: fake_conversation))
+        .to receive(:import_file)
+        .with(hash_including(store: fake_store, filename: 'hello.md'))
         .and_return(import_result)
 
       post '/library/import', { 'libraryFile' => file }
@@ -121,11 +116,10 @@ RSpec.describe '/library/import contract', :integration do
         StringIO.new('# Hello'), 'text/markdown', original_filename: 'hello.md'
       )
 
-      allow(Monadic::Library::FileImporter).to receive(:build_conversation).and_return(fake_conversation)
       allow(Monadic::Library::Store).to receive(:new).and_return(instance_double(Monadic::Library::Store))
 
       expect(Monadic::Library::Manager)
-        .to receive(:import_conversation)
+        .to receive(:import_file)
         .with(hash_including(scope_app: 'ChatOpenAI'))
         .and_return(import_result)
 

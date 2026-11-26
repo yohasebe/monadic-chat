@@ -34,11 +34,14 @@ module Monadic
       #   is stored on every produced point and used by library_search to
       #   decide whether the requesting app may see the conversation.
       # @param levels [Array<Symbol>] subset of DEFAULT_LEVELS
+      # @param original [Hash, nil] the kept file the entry was made from
+      #   (Manager.import_file), on the summary as 'original'
       # @return [Hash] counts of upserted points per level
       def ingest(conversation,
                  store:,
                  scope_app: Store::SCOPE_GLOBAL,
-                 levels: DEFAULT_LEVELS)
+                 levels: DEFAULT_LEVELS,
+                 original: nil)
         validate_inputs!(conversation, scope_app)
         embeddings = store.embeddings
         conv_id = conversation['conversation_id']
@@ -50,7 +53,7 @@ module Monadic
 
         begin
           if levels.include?(:summary)
-            counts[:summary] = upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings, written)
+            counts[:summary] = upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings, written, original)
           end
 
           if levels.include?(:turns) && !turns.empty?
@@ -99,7 +102,7 @@ module Monadic
       # via turns, just not displayed verbatim in the Viewer modal.
       SUMMARY_MESSAGES_MAX_BYTES = 1_000_000
 
-      def summary_payload(conversation, turns, scope_app)
+      def summary_payload(conversation, turns, scope_app, original = nil)
         meta = conversation['conversation_metadata'] || {}
         messages = conversation['messages'] || []
         participants = conversation['participants'] || []
@@ -127,7 +130,8 @@ module Monadic
           # fields. Skipped silently when over SUMMARY_MESSAGES_MAX_BYTES.
           'messages' => messages_payload,
           'participants' => participants,
-          'messages_skipped_reason' => messages_skipped_reason
+          'messages_skipped_reason' => messages_skipped_reason,
+          'original' => original
         }
         payload.compact
       end
@@ -150,7 +154,7 @@ module Monadic
         [messages, nil]
       end
 
-      def upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings, written)
+      def upsert_summary(conversation, turns, conv_id, scope_app, store, embeddings, written, original = nil)
         text = build_placeholder_summary_text(conversation, turns)
         return 0 if text.strip.empty?
         vector = embeddings.embed_passages([text]).first
@@ -161,7 +165,7 @@ module Monadic
           points: [{
             id: id,
             vector: { 'content' => vector },
-            payload: summary_payload(conversation, turns, scope_app)
+            payload: summary_payload(conversation, turns, scope_app, original)
           }]
         )
         1

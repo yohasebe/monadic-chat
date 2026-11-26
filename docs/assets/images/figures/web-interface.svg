@@ -68,6 +68,7 @@
   <text x="678.4" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">Work screen</text>
   <text x="766.7" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">Files</text>
   <text x="838.9" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">History</text>
+  <text x="919.2" y="131.0" font-size="12" fill="#58616b" text-anchor="middle">Library</text>
   <circle cx="860.0" cy="93.0" r="9" fill="#2a2e33"/>
   <text x="860.0" y="97.0" font-size="11" fill="#ffffff" font-weight="700" text-anchor="middle">7</text>
   <rect x="560" y="158" width="320" height="150" rx="6" fill="#ffffff" stroke="#dadee2"/>

@@ -35,7 +35,7 @@
 
   var COOKIE_NAME = 'menu-hidden-preference';
   var COOKIE_DAYS = 30;
-  var PANES = ['settings', 'work', 'files', 'history'];
+  var PANES = ['settings', 'work', 'files', 'history', 'library'];
   var pane = 'settings';
   // The side column's width, in % of the row: the user's (by dragging or
   // with the keys on the border), kept per browser.

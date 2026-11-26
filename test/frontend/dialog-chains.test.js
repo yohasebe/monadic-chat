@@ -54,7 +54,6 @@ describe('the Library\'s Browse and Viewer', () => {
     jest.resetModules();
     log = [];
     document.body.innerHTML = `
-      <dialog id="libraryBrowseModal"><button id="row-a" data-conversation-id="a">Open</button></dialog>
       <dialog id="libraryViewerModal"></dialog>`;
     window.safeWsSend = () => ({ sent: true });
     fakeDialogs(log);
@@ -69,21 +68,7 @@ describe('the Library\'s Browse and Viewer', () => {
     delete window.safeWsSend;
   });
 
-  test('from Browse: Browse closes, then the Viewer opens; closing the Viewer opens Browse again, back on the row', async () => {
-    const browse = window.MonadicDialog.of(document.getElementById('libraryBrowseModal'));
-    browse.open();
-    document.getElementById('row-a').focus();
-    log.length = 0;
-    lib.openViewerModal('a');
-    await flush();
-    expect(log).toEqual(['close libraryBrowseModal button', 'open libraryViewerModal']);
-    log.length = 0;
-    await window.MonadicDialog.of(document.getElementById('libraryViewerModal')).close('esc');
-    await flush();
-    expect(log).toEqual(['close libraryViewerModal esc', 'open libraryBrowseModal from row-a']);
-  });
-
-  test('on its own, the Viewer opens, and closing it opens nothing', async () => {
+  test('the Viewer opens on its own (the list is a tab of the side column), and closing it opens nothing', async () => {
     lib.openViewerModal('a');
     await flush();
     expect(log).toEqual(['open libraryViewerModal']);
@@ -159,6 +144,6 @@ describe('the scripts and the view use MonadicDialog only', () => {
   test('the view\'s dialogs are <dialog> elements, closed by their own attribute', () => {
     expect(VIEW).not.toMatch(/class="modal fade/);
     expect(VIEW).not.toMatch(/data-bs-dismiss="modal"|data-bs-backdrop|data-bs-keyboard/);
-    expect((VIEW.match(/<dialog class="mdialog/g) || []).length).toBeGreaterThan(10);
+    expect((VIEW.match(/<dialog class="mdialog/g) || []).length).toBeGreaterThan(9);
   });
 });

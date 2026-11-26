@@ -8,7 +8,7 @@
 4. **Current settings** and **Session**, with the app and model of the session. See [System Settings Screen](#system-settings-screen).
 5. The conversation, one card for each message. See [Message Cards](#message-cards).
 6. The message box and its buttons. See [Message Input](message-input.md).
-7. The sidebar's tabs: **Menu**, **Work screen**, **Files** and **History**.
+7. The sidebar's tabs: **Menu**, **Work screen**, **Files**, **History** and **Library**.
 8. The panels of the chosen tab. See [Sidebar Panels](#info-panel).
 
 The web interface is made up of the conversation area, the message input area, and a set of side panels.
@@ -119,7 +119,7 @@ A user's card has **Copy**, **Delete** and **Edit**.
 
 ![Tabs of the side column](../assets/images/figures/side-column.svg)
 
-The sidebar has four tabs at the top: **Menu**, which holds the following panels from top to bottom, **Work screen** (see [Work Screen](#work-screen) below), **Files** (see [Files Tab](#shared-folder-panel)) and **History** (see [History Tab](#chat-history-panel), shown while chats are kept). The page opens on Menu. Click a panel's title to collapse or expand it.
+The sidebar has five tabs at the top: **Menu**, which holds the following panels from top to bottom, **Work screen** (see [Work Screen](#work-screen) below), **Files** (see [Files Tab](#shared-folder-panel)), **History** (see [History Tab](#chat-history-panel), shown while chats are kept) and **Library** (see [Library Tab](#library-tab)). The page opens on Menu. Click a panel's title to collapse or expand it.
 
 The tabs, and the bar with **Current settings** above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab. On a narrow window, the sidebar and the conversation take turns at the full width.
 
@@ -256,6 +256,10 @@ The **History** tab lists the kept chats, the latest activity first, and is show
 - Click a chat to continue it in this tab with its messages, app, model and settings. The app's tools are set up anew, and Auto speech and Start from assistant are off for the continued chat. The chat that was in this tab stays in the history. On a narrow window, the conversation is shown after the chat is continued.
 - The **⋯** button of a chat holds **Continue**, **Name** and **Remove from the history**. **Name** gives the chat a name (up to 120 characters); press Enter to save it or Esc to cancel. **Remove from the history** asks you to confirm in the row. A removed chat can no longer be read from Monadic Chat, and its work screen (its items and the pictures sent with its messages) is removed with it; files the chat made in the shared folder, exported files and backups of your computer are not removed.
 - A chat open in a tab is marked "Open in a tab" and can be neither continued nor removed from another tab. To continue or remove it, start a new chat in the tab that has it open.
+
+## Library Tab :id=library-tab
+
+The **Library** tab lists what the [Knowledge Base](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry or deletes it. **Import file** adds a document. What the tab lists is not told to the AI.
 
 ## Files Tab :id=shared-folder-panel
 

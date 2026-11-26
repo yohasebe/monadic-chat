@@ -49,11 +49,11 @@ Knowledge Base にファイルを取り込むときの流れです。
 
 ## 検索するもの :id=visibility
 
-Knowledge Base の一覧の画面はすべての項目を表示し、Knowledge Base を検索するアプリは、どのアプリで保存した項目もすべて検索します。アプリが検索するのは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** がオンのときだけです。Live Conversation は、専用の **Tools** の切り替えで検索します。[Knowledge Base](/ja/apps/knowledge-base.md) のページを参照してください。
+サイドバーの **書庫** のタブはすべての項目を表示し、Knowledge Base を検索するアプリは、どのアプリで保存した項目もすべて検索します。アプリが検索するのは、ナレッジベースパネルの **このセッションでナレッジベース検索を使う** がオンのときだけです。Live Conversation は、専用の **Tools** の切り替えで検索します。[Knowledge Base](/ja/apps/knowledge-base.md) のページを参照してください。
 
 ## Knowledge Base での使い方 :id=use-in-knowledge-base
 
-1. ナレッジベースパネルの **保存** で今の会話を保存するか、**一覧** で開くナレッジベース ブラウザで **ファイルを読み込み** をクリックします
+1. ナレッジベースパネルの **保存** で今の会話を保存するか、サイドバーの **書庫** のタブで **ファイルを読み込み** をクリックします
 2. Monadic Chat が、[上記](#technical-implementation)のとおり、内容を抽出し、分け、埋め込み、保存します
 3. Knowledge Base を検索するアプリで、内容について質問します。検索するものは[検索するもの](#visibility)のとおりです
 4. Monadic Chat が、まず文書、次に区切りの順で、いちばん関係の深い区切りを探します

@@ -303,6 +303,7 @@
               <button type="button" id="side-tab-work" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="work-screen-pane" data-pane="work" tabindex="-1"><span data-i18n="ui.sidePane.workScreen">Work screen</span><i id="side-tab-work-mark" class="fa-solid fa-rotate fa-spin side-pane-tab-mark" aria-hidden="true" hidden></i><span id="side-tab-work-new" class="side-pane-tab-new" hidden><span class="visually-hidden" data-i18n="ui.workbench.announceNew">Something new is in the work screen.</span></span></button>
               <button type="button" id="side-tab-files" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="shared-files-pane" data-pane="files" tabindex="-1"><span data-i18n="ui.sidePane.files">Files</span></button>
               <button type="button" id="side-tab-history" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="history-pane" data-pane="history" tabindex="-1" hidden><span data-i18n="ui.sidePane.history">History</span></button>
+              <button type="button" id="side-tab-library" class="side-pane-tab" role="tab" aria-selected="false" aria-controls="library-pane" data-pane="library" tabindex="-1"><span data-i18n="ui.sidePane.library">Library</span></button>
             </div>
           </div>
           <div id="settings-pane" role="tabpanel" aria-labelledby="side-tab-settings">
@@ -780,6 +781,50 @@
             <div class="sfp-foot">
               <span id="history-info" class="sfp-info"></span>
               <button type="button" class="btn btn-sm btn-secondary" id="history-more" data-i18n="ui.historyPanel.more" hidden>Show more</button>
+            </div>
+          </div>
+          <div id="library-pane" class="shared-files-pane library-pane" role="tabpanel" aria-labelledby="side-tab-library" hidden>
+            <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+              <button type="button" class="btn btn-sm btn-primary" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Knowledge Base">
+                <i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="ui.libImportFile">Import file</span>
+              </button>
+              <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
+              <input type="search" class="form-control form-control-sm" id="library-browse-search" placeholder="Search title, source, language..." aria-label="Library search" data-i18n-aria-label="ui.librarySearchAriaLabel" data-i18n-placeholder="ui.libBrowsePlaceholder">
+              <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;" aria-label="Library sort order" data-i18n-aria-label="ui.librarySortAriaLabel">
+                <option value="created_desc" data-i18n="ui.libSortNewest">Newest first</option>
+                <option value="created_asc" data-i18n="ui.libSortOldest">Oldest first</option>
+                <option value="title_asc" data-i18n="ui.libSortTitleAsc">Title A→Z</option>
+                <option value="turns_desc" data-i18n="ui.libSortTurnsDesc">Most turns</option>
+              </select>
+              <select class="form-select form-select-sm" id="library-browse-pagesize" style="max-width: 100px;" aria-label="Library page size" data-i18n-aria-label="ui.libraryPageSizeAriaLabel">
+                <option value="20">20</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+              </select>
+              <span class="ms-auto small text-secondary" id="library-browse-count"></span>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th class="small text-secondary fw-normal text-center" style="width: 40px;" data-i18n="ui.libColType" title="Content type" data-i18n-title="ui.libColTypeTooltip">Type</th>
+                    <th class="small text-secondary fw-normal" data-i18n="ui.libColTitle">Title</th>
+                    <th class="small text-secondary fw-normal text-nowrap text-end" data-i18n="ui.libColTurns">Turns</th>
+                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColCreated">Saved</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="library-browse-tbody"></tbody>
+              </table>
+            </div>
+            <div id="library-browse-empty" class="text-center text-secondary py-4" style="display:none;" data-i18n="ui.libBrowseEmpty">No conversations match your filters.</div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="small text-secondary" id="library-browse-pageinfo"></span>
+              <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-secondary" id="library-browse-prev" disabled><i class="fa-solid fa-chevron-left"></i> <span data-i18n="ui.libPrev">Prev</span></button>
+                <button type="button" class="btn btn-sm btn-secondary" id="library-browse-next" disabled><span data-i18n="ui.libNext">Next</span> <i class="fa-solid fa-chevron-right"></i></button>
+              </div>
             </div>
           </div>
         </div>
@@ -1264,60 +1309,6 @@
       </div>
     </dialog>
 
-    <dialog class="mdialog" id="libraryBrowseModal" aria-labelledby="libraryBrowseModalLabel">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="libraryBrowseModalLabel"><i class="fas fa-book"></i> <span data-i18n="ui.libBrowseModalTitle">Knowledge Base Browser</span></h5>
-            <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-              <button type="button" class="btn btn-sm btn-primary" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Knowledge Base">
-                <i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="ui.libImportFile">Import file</span>
-              </button>
-              <input type="file" id="library-import-input" hidden accept=".md,.markdown,.mdx,.pdf,.docx,.xlsx,.pptx,.rb,.py,.js,.mjs,.cjs,.jsx,.ts,.tsx,.go,.java,.kt,.kts,.swift,.rs,.c,.h,.cpp,.cc,.cxx,.hpp,.hxx,.cs,.php,.sh,.bash,.zsh,.sql,.pl,.pm,.lua,.ex,.exs,.scala,.clj,.cljs,.hs,.ml,.mli,.r,.jl">
-              <input type="search" class="form-control form-control-sm" id="library-browse-search" style="max-width: 320px;" placeholder="Search title, source, language..." aria-label="Library search" data-i18n-aria-label="ui.librarySearchAriaLabel" data-i18n-placeholder="ui.libBrowsePlaceholder">
-              <select class="form-select form-select-sm" id="library-browse-sort" style="max-width: 180px;" aria-label="Library sort order" data-i18n-aria-label="ui.librarySortAriaLabel">
-                <option value="created_desc" data-i18n="ui.libSortNewest">Newest first</option>
-                <option value="created_asc" data-i18n="ui.libSortOldest">Oldest first</option>
-                <option value="title_asc" data-i18n="ui.libSortTitleAsc">Title A→Z</option>
-                <option value="turns_desc" data-i18n="ui.libSortTurnsDesc">Most turns</option>
-              </select>
-              <select class="form-select form-select-sm" id="library-browse-pagesize" style="max-width: 100px;" aria-label="Library page size" data-i18n-aria-label="ui.libraryPageSizeAriaLabel">
-                <option value="20">20</option>
-                <option value="50" selected>50</option>
-                <option value="100">100</option>
-                <option value="200">200</option>
-              </select>
-              <span class="ms-auto small text-secondary" id="library-browse-count"></span>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-sm table-hover align-middle">
-                <thead>
-                  <tr>
-                    <th class="small text-secondary fw-normal text-center" style="width: 40px;" data-i18n="ui.libColType" title="Content type" data-i18n-title="ui.libColTypeTooltip">Type</th>
-                    <th class="small text-secondary fw-normal" data-i18n="ui.libColTitle">Title</th>
-                    <th class="small text-secondary fw-normal text-nowrap text-end" data-i18n="ui.libColTurns">Turns</th>
-                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColCreated">Saved</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="library-browse-tbody"></tbody>
-              </table>
-            </div>
-            <div id="library-browse-empty" class="text-center text-secondary py-4" style="display:none;" data-i18n="ui.libBrowseEmpty">No conversations match your filters.</div>
-          </div>
-          <div class="modal-footer d-flex justify-content-between">
-            <span class="small text-secondary" id="library-browse-pageinfo"></span>
-            <div class="btn-group">
-              <button type="button" class="btn btn-sm btn-secondary" id="library-browse-prev" disabled><i class="fa-solid fa-chevron-left"></i> <span data-i18n="ui.libPrev">Prev</span></button>
-              <button type="button" class="btn btn-sm btn-secondary" id="library-browse-next" disabled><span data-i18n="ui.libNext">Next</span> <i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </dialog>
 
     <!-- Modal: Conversation Viewer (read-only verbatim conversation playback + metadata + actions) -->
     <dialog class="mdialog" id="libraryViewerModal" aria-labelledby="libraryViewerModalLabel">

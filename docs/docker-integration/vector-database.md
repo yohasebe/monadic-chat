@@ -49,11 +49,11 @@ When a file is imported into the Knowledge Base:
 
 ## Who Searches It :id=visibility
 
-The Knowledge Base browser shows every entry, and an app that searches the Knowledge Base searches every entry, whichever app it was saved in. Apps search it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel. Live Conversation searches it through its own **Tools** switch. See the [Knowledge Base](/apps/knowledge-base.md) page.
+The **Library** tab of the sidebar shows every entry, and an app that searches the Knowledge Base searches every entry, whichever app it was saved in. Apps search it only when **Use Knowledge Base for retrieval (this session)** is on in the Knowledge Base panel. Live Conversation searches it through its own **Tools** switch. See the [Knowledge Base](/apps/knowledge-base.md) page.
 
 ## Use in the Knowledge Base :id=use-in-knowledge-base
 
-1. Click **Save** in the Knowledge Base panel to save the current conversation, or click **Import file** in the Knowledge Base browser (**Browse**)
+1. Click **Save** in the Knowledge Base panel to save the current conversation, or click **Import file** in the **Library** tab of the sidebar
 2. Monadic Chat extracts, splits, embeds, and stores the content, as described [above](#technical-implementation)
 3. Ask questions about the content in an app that searches the Knowledge Base, as described under [Who Searches It](#visibility)
 4. Monadic Chat finds the most relevant sections, first by document and then by section

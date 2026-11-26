@@ -423,7 +423,6 @@ app "JupyterNotebookOpenAI" do
     easy_submit false
     auto_speech false
     jupyter true
-    math true
     initiate_from_assistant true
   end
 

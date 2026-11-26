@@ -306,7 +306,7 @@ module MonadicDSL
   # Simplified Feature Configuration
   class SimplifiedFeatureConfiguration
     # Settings of earlier versions: read and not used.
-    RETIRED = %i[monadic turn_state].freeze
+    RETIRED = %i[monadic turn_state math audio_upload].freeze
 
     def initialize(state)
       @state = state

@@ -14,7 +14,7 @@ module Monadic
     # @example
     #   settings = {
     #     imported_tool_groups: [...],
-    #     features: { math: true, pdf_upload: true },
+    #     features: { mermaid: true, pdf_upload: true },
     #     agents: { code_generator: "gpt-5-codex" }
     #   }
     #   badges = BadgeBuilder.build_all_badges(settings)
@@ -300,12 +300,6 @@ module Monadic
 
       # Configuration for badge-worthy features
       BADGE_WORTHY_FEATURES = {
-        math: {
-          icon: "fa-square-root-alt",
-          label: "math",
-          description: "Mathematical notation rendering",
-          user_controlled: true
-        },
         mermaid: {
           icon: "fa-project-diagram",
           label: "mermaid",

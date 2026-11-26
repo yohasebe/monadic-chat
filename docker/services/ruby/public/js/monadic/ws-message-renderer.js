@@ -427,9 +427,6 @@ function handleEditSuccess(data) {
       applyDrawIO(cardEl);
     }
 
-    if (toBool(p["math"])) {
-      applyMath(cardEl);
-    }
 
     if (toBool(p["abc"])) {
       applyAbc(cardEl);
@@ -537,9 +534,6 @@ function handleDisplaySample(data) {
     applyDrawIO(lastCard);
   }
 
-  if (toBool(p["math"])) {
-    applyMath(lastCard);
-  }
 
   if (toBool(p["abc"])) {
     applyAbc(lastCard);

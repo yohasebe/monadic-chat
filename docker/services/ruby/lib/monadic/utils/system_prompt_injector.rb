@@ -84,32 +84,8 @@ module Monadic
         PROMPT
       }.freeze
 
-      # Math formatting when rendering is disabled (the default)
-      MATH_DISABLED_PROMPT = <<~'PROMPT'.strip
-        Math Rendering is disabled. Write mathematical expressions in plain text or Unicode, without LaTeX delimiters (`\[ \]`, `\( \)`, `$$`, or `$`). If the user requests LaTeX source, put it in a fenced code block starting with ```latex.
-      PROMPT
-
-      # Math formatting prompt (base)
-      MATH_BASE_PROMPT = <<~PROMPT.strip
-        You use the LaTeX notation to write mathematical expressions. In doing so, you should follow the format requirements: Use double dollar signs `$$` to enclose LaTeX expressions that should be displayed as a separate block; Use single dollar signs `$` before and after the expressions that should appear inline with the text. Without these, the expressions will not render correctly. Either type of LaTeX expression should be presntend without surrounding backticks.
-      PROMPT
-
-      # Math formatting prompt for jupyter mode (requires extra escaping)
-      MATH_JUPYTER_PROMPT = <<~'PROMPT'.strip
-        Make sure to escape properly in the LaTeX expressions.
-
-          Good examples of inline LaTeX expressions:
-          - `$1 + 2 + 3 + … + k + (k + 1) = \\frac{k(k + 1)}{2} + (k + 1)$`
-          - `$\\textbf{a} + \\textbf{b} = (a_1 + b_1, a_2 + b_2)$`
-          - `$\\begin{align} 1 + 2 + … + k + (k+1) &= \\frac{k(k+1)}{2} + (k+1)\\end{align}$`
-          - `$\\sin(\\theta) = \\frac{\\text{opposite}}{\\text{hypotenuse}}$`
-
-        Good examples of block LaTeX expressions:
-          - `$$1 + 2 + 3 + … + k + (k + 1) = \\frac{k(k + 1)}{2} + (k + 1)$$`
-          - `$$\\textbf{a} + \\textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
-          - `$$\\begin{align} 1 + 2 + … + k + (k+1) &= \\frac{k(k+1)}{2} + (k+1)\\end{align}$$`
-          - `$$\\sin(\\theta) = \\frac{\\text{opposite}}{\\text{hypotenuse}}$$`
-      PROMPT
+      # How math is written: the page draws these as formulas (markdown-renderer.js).
+      MATH_PROMPT = 'Write mathematical expressions in LaTeX: \\( ... \\) within a line, and \\[ ... \\] or $$ ... $$ on a line of their own. A single $ is shown as a dollar sign, not as math.'
 
       # Library RAG prompt header — injected when the per-session "Use
       # Knowledge Base" toggle is on. The LLM treats library_search as the
@@ -140,24 +116,6 @@ module Monadic
           - `content_type`: one of "conversation", "pdf", "document", "markdown", "code"
           - `source`: a specific source key from the inventory above (e.g. matching the user's prior corpus or saved chats)
         Omit them to search the entire Knowledge Base.
-      PROMPT
-
-      # Math formatting prompt for regular mode (standard escaping)
-      MATH_REGULAR_PROMPT = <<~'PROMPT'.strip
-        Good examples of inline LaTeX expressions:
-          - `$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$`
-          - `$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$`
-          - `$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$`
-          - `$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$`
-
-        Good examples of block LaTeX expressions:
-          - `$$1 + 2 + 3 + … + k + (k + 1) = \frac{k(k + 1)}{2} + (k + 1)$$`
-          - `$$\textbf{a} + \textbf{b} = (a_1 + b_1, a_2 + b_2)$$`
-          - `$$\begin{align} 1 + 2 + … + k + (k+1) &= \frac{k(k+1)}{2} + (k+1)\end{align}$$`
-          - `$$\sin(\theta) = \frac{\text{opposite}}{\text{hypotenuse}}$$`
-
-        Remember that the following are not available in LaTeX:
-          - `\begin{itemize}` and `\end{itemize}`
       PROMPT
 
       # System message injection rules (applied at conversation start)
@@ -251,31 +209,8 @@ module Monadic
         {
           name: :math,
           priority: 50,
-          condition: ->(session, _options) {
-            session&.[](:parameters)&.[]("math") == true
-          },
-          generator: ->(session, _options) {
-            parts = [MATH_BASE_PROMPT]
-
-            # Add mode-specific escaping instructions
-            if session&.[](:parameters)&.[]("jupyter") == true
-              parts << MATH_JUPYTER_PROMPT
-            else
-              parts << MATH_REGULAR_PROMPT
-            end
-
-            parts.join("\n\n")
-          }
-        },
-        {
-          name: :math_disabled,
-          priority: 50,
-          condition: ->(session, _options) {
-            session&.[](:parameters)&.[]("math") != true
-          },
-          generator: ->(_session, _options) {
-            MATH_DISABLED_PROMPT
-          }
+          condition: ->(_session, _options) { true },
+          generator: ->(_session, _options) { MATH_PROMPT }
         },
         {
           name: :system_prompt_suffix,

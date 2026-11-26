@@ -65,3 +65,61 @@ describeFn('MarkdownRenderer puts formulas back in their places', () => {
     expect(html).not.toContain('katex-error');
   });
 });
+
+describe('MarkdownRenderer.extractMath takes what is math and leaves the rest', () => {
+  let extractMath;
+
+  beforeEach(() => {
+    jest.resetModules();
+    delete window.MarkdownRenderer;
+    require('../../docker/services/ruby/public/js/monadic/markdown-renderer.js');
+    extractMath = window.MarkdownRenderer.extractMath;
+  });
+
+  afterEach(() => {
+    delete window.MarkdownRenderer;
+  });
+
+  it.each([
+    'It costs $5 and $10.',
+    'From $5-$10.',
+    'price $5, total $10',
+    'US$5 only',
+    '$ x $ is not math',
+    'An escaped \\$5 stays',
+  ])('leaves dollar signs that are not math: %s', (text) => {
+    const result = extractMath(text);
+    expect(result.text).toBe(text);
+    expect(result.blocks).toEqual([]);
+    expect(result.inlines).toEqual([]);
+  });
+
+  it('takes $...$, \\(...\\), $$...$$ and \\[...\\]', () => {
+    const result = extractMath('a $x^2$ b \\(y\\) c $$z$$ d \\[w\\]');
+    expect(result.inlines).toEqual(['x^2', 'y']);
+    expect(result.blocks).toEqual(['z', 'w']);
+    expect(result.text).toBe('a MATH_INLINE_PLACEHOLDER_0 b MATH_INLINE_PLACEHOLDER_1 c MATH_BLOCK_PLACEHOLDER_0 d MATH_BLOCK_PLACEHOLDER_1');
+  });
+
+  it('takes a formula beside a price', () => {
+    const result = extractMath('$5 for $x+1$');
+    expect(result.inlines).toEqual(['x+1']);
+  });
+
+  it.each([
+    ['a code span', 'run `echo $HOME and $PATH` now'],
+    ['a fenced block', '```\nx = $a$\n```'],
+    ['a fenced block with ~', '~~~abc\nK:$C$\n~~~'],
+    ['an unclosed fence', '```\n$a$ to the end'],
+  ])('leaves the math-like text of %s', (_what, text) => {
+    const result = extractMath(text);
+    expect(result.text).toBe(text);
+    expect(result.inlines).toEqual([]);
+  });
+
+  it('takes the math after a code block', () => {
+    const result = extractMath('```\n$a$\n```\nthen $b$');
+    expect(result.inlines).toEqual(['b']);
+    expect(result.text).toBe('```\n$a$\n```\nthen MATH_INLINE_PLACEHOLDER_0');
+  });
+});

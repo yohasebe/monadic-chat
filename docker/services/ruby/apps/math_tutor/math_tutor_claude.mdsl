@@ -18,7 +18,6 @@ app "MathTutorClaude" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    math true
     group "Anthropic"
   end
 

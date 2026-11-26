@@ -120,7 +120,7 @@ end
 
 ## Settings of Earlier Versions
 
-`monadic`, `turn_state` and `context_schema` in an MDSL file are read and not used. They can be removed.
+`monadic`, `turn_state`, `context_schema`, `math` and `audio_upload` in an MDSL file are read and not used. They can be removed.
 
 ## See Also
 

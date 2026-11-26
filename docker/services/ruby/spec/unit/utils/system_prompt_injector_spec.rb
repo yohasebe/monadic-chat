@@ -8,13 +8,13 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
   describe '.build_injections' do
     context 'with system context' do
       context 'with default settings' do
-        it 'includes the disabled math instruction' do
+        it 'includes the math instruction' do
           session = {}
           options = {}
 
           result = described_class.build_injections(session: session, options: options, context: :system)
 
-          expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+          expect(result.map { |r| r[:name] }).to eq([:math])
         end
       end
     end
@@ -111,7 +111,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+        expect(result.map { |r| r[:name] }).to eq([:math])
       end
     end
 
@@ -261,73 +261,19 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+        expect(result.map { |r| r[:name] }).to eq([:math])
       end
     end
 
-    context 'with math enabled' do
-      it 'includes math prompt with regular escaping for standard mode' do
-        session = {
-          parameters: { "math" => true }
-        }
-        options = {}
+    context 'math' do
+      [{}, { 'math' => true }, { 'math' => false }, { 'jupyter' => true }].each do |parameters|
+        it "tells how math is written whatever the parameters (#{parameters.inspect})" do
+          result = described_class.build_injections(session: { parameters: parameters })
 
-        result = described_class.build_injections(session: session, options: options)
-
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
-        expect(result[0][:content]).to include('LaTeX notation')
-        expect(result[0][:content]).to include('\\frac{k(k + 1)}{2}')  # Single backslash (literal)
-        expect(result[0][:content]).not_to include('\\\\frac')  # Not double-escaped
-        expect(result[0][:content]).to include('\\begin{itemize}')  # Includes limitations
-      end
-
-      it 'gives a monadic app the same math prompt as any other app' do
-        plain = described_class.build_injections(session: { parameters: { "math" => true } }, options: {})
-        monadic = described_class.build_injections(session: { parameters: { "math" => true, "monadic" => true } }, options: {})
-
-        expect(monadic[0][:content]).to eq(plain[0][:content])
-      end
-
-      it 'includes math prompt with extra escaping for jupyter mode' do
-        session = {
-          parameters: { "math" => true, "jupyter" => true }
-        }
-        options = {}
-
-        result = described_class.build_injections(session: session, options: options)
-
-        expect(result.length).to eq(1)
-        expect(result[0][:name]).to eq(:math)
-        expect(result[0][:content]).not_to include(described_class::MATH_DISABLED_PROMPT)
-        expect(result[0][:content]).to include('LaTeX notation')
-        expect(result[0][:content]).to include('\\\\frac')  # Double backslash (literal) for JSON escaping
-        expect(result[0][:content]).to include('Make sure to escape properly')
-      end
-
-    end
-
-    context 'with math disabled' do
-      [false, nil, 'false', 'true'].each do |value|
-        it "uses only the disabled instruction when math is #{value.inspect}" do
-          session = { parameters: { 'math' => value, 'monadic' => true, 'jupyter' => true } }
-          result = described_class.build_injections(session: session)
-
-          expect(result.map { |r| r[:name] }).to eq([:math_disabled])
-          content = result.first[:content]
-          expect(content).to include('plain text or Unicode', '```latex')
-          expect(content).to include('\[ \]', '\( \)', '$$', '$')
-          expect(content).not_to include(described_class::MATH_BASE_PROMPT)
-          expect(content).not_to include(described_class::MATH_JUPYTER_PROMPT)
-          expect(content).not_to include(described_class::MATH_REGULAR_PROMPT)
+          expect(result.map { |r| r[:name] }).to eq([:math])
+          expect(result.first[:content]).to eq(described_class::MATH_PROMPT)
+          expect(result.first[:content]).to include('\\( ... \\)', '\\[ ... \\]', '$$ ... $$')
         end
-      end
-
-      it 'uses the disabled instruction when math is missing' do
-        result = described_class.build_injections(session: { parameters: {} })
-
-        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
       end
     end
 
@@ -353,7 +299,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+        expect(result.map { |r| r[:name] }).to eq([:math])
       end
     end
 
@@ -396,7 +342,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+        expect(result.map { |r| r[:name] }).to eq([:math])
       end
 
       it 'excludes autonomy injection when autonomy is not set' do
@@ -407,7 +353,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+        expect(result.map { |r| r[:name] }).to eq([:math])
       end
 
       it 'works with symbol key for autonomy' do
@@ -595,7 +541,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(result[0][:name]).to eq(:language_preference)
         expect(result[1][:name]).to eq(:autonomy)
         expect(result[2][:name]).to eq(:websearch)
-        expect(result[3][:name]).to eq(:math_disabled)
+        expect(result[3][:name]).to eq(:math)
       end
     end
   end
@@ -841,7 +787,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         expect {
           result = described_class.build_injections(session: session, options: options)
-          expect(result.map { |r| r[:name] }).to eq([:math_disabled])
+          expect(result.map { |r| r[:name] }).to eq([:math])
         }.not_to raise_error
       end
     end

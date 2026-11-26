@@ -403,7 +403,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "Show Initial Prompt for AI-User",
       startFromAssistant: "Start from assistant",
-      mathRendering: "Math Rendering",
       autoSpeech: "Auto speech",
       easySubmit: "Easy submit",
       easySubmitHint: "(with Enter key or Stop button)",
@@ -1120,7 +1119,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "AIユーザーの初期プロンプトを表示",
       startFromAssistant: "アシスタントから開始",
-      mathRendering: "数式レンダリング",
       autoSpeech: "自動音声",
       easySubmit: "簡単送信",
       easySubmitHint: "（Enterキーまたは停止ボタンで）",
@@ -1770,7 +1768,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "显示AI用户初始提示",
       startFromAssistant: "从助手开始",
-      mathRendering: "数学渲染",
       autoSpeech: "自动语音",
       easySubmit: "轻松提交",
       easySubmitHint: "（使用回车键或停止按钮）",
@@ -2486,7 +2483,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "AI 사용자 초기 프롬프트 표시",
       startFromAssistant: "어시스턴트부터 시작",
-      mathRendering: "수학 렌더링",
       autoSpeech: "자동 음성",
       easySubmit: "간편 제출",
       easySubmitHint: "（Enter 키 또는 정지 버튼으로）",
@@ -3200,7 +3196,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "Mostrar prompt inicial del usuario IA",
       startFromAssistant: "Comenzar desde el asistente",
-      mathRendering: "Renderizado matemático",
       autoSpeech: "Voz automática",
       easySubmit: "Envío fácil",
       easySubmitHint: "（Con tecla Enter o botón de parada）",
@@ -3914,7 +3909,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "Afficher le prompt initial de l'utilisateur IA",
       startFromAssistant: "Commencer par l'assistant",
-      mathRendering: "Rendu mathématique",
       autoSpeech: "Voix automatique",
       easySubmit: "Soumission facile",
       easySubmitHint: "(avec la touche Entrée ou le bouton Stop)",
@@ -4628,7 +4622,6 @@ const webUITranslations = {
 
       showInitialPromptAIUser: "Anfangsprompt des KI-Benutzers anzeigen",
       startFromAssistant: "Vom Assistenten beginnen",
-      mathRendering: "Mathematik-Rendering",
       autoSpeech: "Automatische Sprache",
       easySubmit: "Einfaches Senden",
       easySubmitHint: "(mit Enter-Taste oder Stopp-Taste)",

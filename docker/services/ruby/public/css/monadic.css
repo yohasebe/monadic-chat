@@ -5364,12 +5364,11 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
 }
 
 /* Model-parameter surface that a realtime session does not consume: web
-   search (no tools), math rendering (speech, not markup), reasoning
+   search (no tools), reasoning
    effort / thinking display (not exposed by the realtime API), sampling
    parameters, context/token caps (seeding does not consult them yet), and
    show-all (the model list is pinned to the MDSL declaration). */
 .lc-app #websearch-form,
-.lc-app #math-form,
 .lc-app #reasoning-effort-container,
 .lc-app #thinking-display-container,
 .lc-app #model_parameters,

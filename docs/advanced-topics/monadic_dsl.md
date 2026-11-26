@@ -172,7 +172,6 @@ features do
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
   show_thinking false     # Do not show the model's thinking by default (apps that answer by voice)
   max_tool_rounds 10      # At most this many rounds of tool calls in a turn (otherwise the provider cap, 20)
-  math true               # Enable mathematical notation rendering using KaTeX
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Tell the model how to write Mermaid diagrams (they are drawn in every app)
   websearch true          # Enable web search
@@ -378,7 +377,7 @@ app "MathTutorOpenAI" do  # AppName + Provider
   end
 
   features do
-    math true        # Enable math notation rendering
+    mermaid true     # Tell the model how to write Mermaid diagrams
   end
   
   tools do

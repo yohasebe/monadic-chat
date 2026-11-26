@@ -2355,7 +2355,7 @@ describe('Workbench', () => {
       }
     });
 
-    test('names a record of the conversation first, then asks whether to update one kept already or keep this one besides', async () => {
+    test('names a record of the conversation first (blank: the server takes its first heading), then asks whether to update one kept already or keep this one besides', async () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       document.body.insertAdjacentHTML('beforeend', '<dialog id="libraryKeepChoice"><input id="library-keep-title">'
         + '<div id="library-keep-records" hidden><select id="library-keep-target"></select></div>'
@@ -2369,7 +2369,7 @@ describe('Workbench', () => {
         view([doc], { selected: 'i_d' });
         document.querySelector('#workbench-view .workbench-to-library').click();
         expect(opened.length).toBe(1);
-        expect(document.getElementById('library-keep-title').value).toBe('Why tides?');
+        expect(document.getElementById('library-keep-title').value).toBe('');
         expect(document.getElementById('library-keep-records').hidden).toBe(true);
         document.getElementById('library-keep-title').value = 'Tides and moons';
         document.getElementById('library-keep-new').click();

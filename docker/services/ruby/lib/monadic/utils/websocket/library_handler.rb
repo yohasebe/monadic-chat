@@ -179,7 +179,7 @@ module WebSocketHelper
                                                    title: title, choice: choice)
     send_to_client(connection, reply.merge('import_id' => import_id, 'status_url' => "/library/import/status/#{import_id}"))
   rescue Monadic::Library::DeskImport::Choose => e
-    records = e.records.map { |r| { 'id' => r[:conversation_id], 'title' => r[:title], 'created_at' => r[:created_at] } }
+    records = e.records.map { |r| { 'id' => r[:conversation_id], 'title' => r[:title], 'created_at' => r[:created_at], 'revision' => r[:revision] } }
     send_to_client(connection, reply.merge('error' => 'choose', 'records' => records))
   rescue Monadic::Library::DeskImport::Refused => e
     send_to_client(connection, reply.merge('error' => e.message))

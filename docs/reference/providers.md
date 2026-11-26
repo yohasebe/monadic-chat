@@ -51,4 +51,4 @@ Several features make cross-provider comparison a first-class workflow:
 ## Local and Offline Options
 
 - **Ollama** runs open-weight models entirely on your own machine — see [Using Ollama](/advanced-topics/ollama.md).
-- The **Knowledge Base** (document import and RAG) uses a local Qdrant vector database with local embedding inference; importing and searching documents requires no provider API key. See [Knowledge Base](/apps/knowledge-base.md) and [Vector Database](/docker-integration/vector-database.md).
+- The **Library** (document import and RAG) uses a local Qdrant vector database with local embedding inference; importing and searching documents requires no provider API key. See [Library](/apps/knowledge-base.md) and [Vector Database](/docker-integration/vector-database.md).

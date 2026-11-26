@@ -1,6 +1,6 @@
 # Vector Database
 
-Monadic Chat includes a vector database for searching by meaning across the Knowledge Base and the help documentation. This page explains how it is used.
+Monadic Chat includes a vector database for searching by meaning across the Library and the help documentation. This page explains how it is used.
 
 ## Overview :id=overview
 
@@ -8,7 +8,7 @@ The vector database:
 - Converts text into vectors (embeddings) on your computer
 - Stores the vectors in the Qdrant container, together with information about where each piece of text came from
 - Finds text by similarity of meaning rather than by matching keywords
-- Is used by the Knowledge Base and the Monadic Chat Help app
+- Is used by the Library and the Monadic Chat Help app
 
 Embedding and search run locally; no API key is needed for them.
 
@@ -25,10 +25,10 @@ Both containers start with Monadic Chat and need no configuration.
 
 ### Text Processing Flow
 
-When a file is imported into the Knowledge Base:
+When a file is imported into the Library:
 
 1. **Text extraction**:
-   - PDFs are processed with [Docling](https://github.com/docling-project/docling) (layout analysis and OCR) in the Extractor container when the Knowledge Base Quality Pack is installed and running. Otherwise the Python container extracts the text and tables of PDFs without OCR, so the text of scanned, image-only PDFs is not extracted
+   - PDFs are processed with [Docling](https://github.com/docling-project/docling) (layout analysis and OCR) in the Extractor container when the Library Quality Pack is installed and running. Otherwise the Python container extracts the text and tables of PDFs without OCR, so the text of scanned, image-only PDFs is not extracted
    - Office files (`.docx`, `.xlsx`, `.pptx`) are read in the Python container
    - Markdown and source code are read directly
    - The text is split into sections, at headings in Markdown and at top-level definitions in source code
@@ -44,18 +44,18 @@ When a file is imported into the Knowledge Base:
 
 ## What Is Stored :id=database-schema
 
-- **Knowledge Base**: saved conversations and imported files, as documents and their sections
+- **Library**: saved conversations and imported files, as documents and their sections
 - **Help data**: the Monadic Chat documentation, used by the Monadic Chat Help app
 
 ## Who Searches It :id=visibility
 
-The **Library** tab of the sidebar shows every entry, and an app that searches the Knowledge Base searches every entry, whichever app it was saved in. The AI searches it when you ask it to or when it clearly helps, while **Sources the AI can use** in Settings allows it. Live Conversation searches it only while its **Search and compute** switch is on. See the [Knowledge Base](/apps/knowledge-base.md) page.
+The **Library** tab of the sidebar shows every entry, and an app that searches the Library searches every entry, whichever app it was saved in. The AI searches it when you ask it to or when it clearly helps, while **Sources the AI can use** in Settings allows it. Live Conversation searches it only while its **Search and compute** switch is on. See the [Library](/apps/knowledge-base.md) page.
 
-## Use in the Knowledge Base :id=use-in-knowledge-base
+## Use in the Library :id=use-in-knowledge-base
 
 1. In the **Library** tab of the sidebar, click **Keep this conversation** to put the current conversation on the work screen as a document to keep, or **Import file**
 2. Monadic Chat extracts, splits, embeds, and stores the content, as described [above](#technical-implementation)
-3. Ask questions about the content in an app that searches the Knowledge Base, as described under [Who Searches It](#visibility)
+3. Ask questions about the content in an app that searches the Library, as described under [Who Searches It](#visibility)
 4. Monadic Chat finds the most relevant sections, first by document and then by section
 5. The LLM answers based on the sections it receives
 

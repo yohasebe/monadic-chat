@@ -39,7 +39,7 @@ Runs the Monadic Chat server and the web interface. Every app needs it.
 ### Python Container (`monadic-chat-python-container`) :id=python-container
 Runs Python code, command-line tools, and JupyterLab for the apps.
 - **Port**: 8889 (JupyterLab)
-- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Concept Visualizer, Mermaid Grapher, Web Insight, Auto Forge, and Knowledge Base file imports
+- **Used by**: Code Interpreter, Jupyter Notebook, Research Assistant, Math Tutor, Video Describer, Concept Visualizer, Mermaid Grapher, Web Insight, Auto Forge, and Library file imports
 - Optional components (LaTeX, extra Python libraries, ImageMagick) are added with **Actions → Install Options**. See [Python Container](python-container.md).
 
 ### Selenium Container (`monadic-chat-selenium-container`) :id=selenium-container
@@ -48,16 +48,16 @@ Runs a Chromium browser that the apps control to open web pages and take screens
 - **Used by**: Web Insight, Research Assistant, Auto Forge, Mermaid Grapher
 
 ### Qdrant Container (`monadic-chat-qdrant-container`) :id=qdrant-container
-Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Knowledge Base and the help data. See [Vector Database](vector-database.md).
+Runs the [Qdrant](https://qdrant.tech) vector database. It stores the Library and the help data. See [Vector Database](vector-database.md).
 
 ### Embeddings Container (`monadic-chat-embeddings-container`) :id=embeddings-container
-Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Knowledge Base and the help data. It runs on the CPU and needs no API key.
+Converts text into vectors with the `intfloat/multilingual-e5-base` model, for searching the Library and the help data. It runs on the CPU and needs no API key.
 
 ### Privacy Container (`monadic-chat-privacy-container`) :id=privacy-container
 Finds names for [Anonymization](../advanced-topics/anonymization.md), which replaces the words you choose with placeholders in the text a chat sends. It runs locally and needs no API key.
 
 ### Extractor Container (`monadic-chat-extractor-container`) :id=extractor-container
-Present only when the Knowledge Base Quality Pack is installed (**Actions → Install Options → Install Knowledge Base Quality Pack**). It extracts text from PDFs with [Docling](https://github.com/docling-project/docling), including layout analysis and OCR, when files are imported into the Knowledge Base. Without it, the Python container extracts the text of PDFs without OCR, so scanned, image-only PDFs yield no text.
+Present only when the Library Quality Pack is installed (**Actions → Install Options → Install Library Quality Pack**). It extracts text from PDFs with [Docling](https://github.com/docling-project/docling), including layout analysis and OCR, when files are imported into the Library. Without it, the Python container extracts the text of PDFs without OCR, so scanned, image-only PDFs yield no text.
 
 ## Which Apps Need Which Containers :id=container-requirements
 
@@ -77,14 +77,14 @@ These apps use only the Ruby container (plus Qdrant and Embeddings, which always
 - Code execution (Code Interpreter, Jupyter Notebook)
 - Diagrams with LaTeX (Concept Visualizer)
 - Video analysis (Video Describer)
-- Knowledge Base file imports (PDF and Office files)
+- Library file imports (PDF and Office files)
 
 **Selenium Container**:
 - Opening web pages and taking screenshots (Web Insight, Research Assistant, Auto Forge)
 - Diagram previews (Mermaid Grapher)
 
 **Qdrant + Embeddings Containers**:
-- Knowledge Base
+- Library
 - Monadic Chat Help
 
 ?> To add your own containers, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
@@ -101,7 +101,7 @@ Monadic Chat can use [Ollama](https://ollama.com) for local LLMs. Ollama runs on
 
 ### Container Startup :id=container-dependencies
 - When you press Start, Monadic Chat starts the Ruby, Python, Selenium, Qdrant, Embeddings, and Privacy containers, and the Extractor container when it is installed
-- The web interface opens as soon as the Ruby container is ready; the Knowledge Base and help search become available when Qdrant and Embeddings have finished starting (the first start takes longer while the embedding model loads). Help search also needs the help data, installed from **Help Data** in the Monadic Chat Info panel
+- The web interface opens as soon as the Ruby container is ready; the Library and help search become available when Qdrant and Embeddings have finished starting (the first start takes longer while the embedding model loads). Help search also needs the help data, installed from **Help Data** in the Monadic Chat Info panel
 - If a container an app needs has stopped, Monadic Chat starts it again when you select the app
 
 ### Shared Data Volumes :id=shared-volumes

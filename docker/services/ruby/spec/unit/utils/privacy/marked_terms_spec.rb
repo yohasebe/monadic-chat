@@ -561,7 +561,7 @@ RSpec.describe 'Words a chat hides' do
   end
 
   # What is added after a helper's check, speech, uploads, titles and
-  # Knowledge Base results.
+  # Library results.
   describe 'the last boundary of each helper' do
     let(:outbound) { Monadic::Utils::Privacy::Outbound }
 

@@ -54,7 +54,7 @@ while passing in CI.
 
 - **Cause**: the example expects the PDF import to fall through to
   `run_python_extractor`. That path is taken only when the extractor
-  (Knowledge Base Quality Pack) service is unavailable. In CI no extractor
+  (Library Quality Pack) service is unavailable. In CI no extractor
   container is running, so the example passes. On a local dev box where the
   extractor container *is* up, `build_conversation` routes through the
   extractor service (`extract_via_service`) instead, and the container cannot
@@ -148,7 +148,7 @@ console.log('computed path:', computedPath);
 ### Slow container startup
 - Increase Docker memory allocation (Docker Desktop → Settings)
 - Use `rake server:debug` for development
-- Optional services are compose profiles: turn off the Privacy container with `PRIVACY_FILTER=false` and the Knowledge Base Quality Pack with `EXTRACTOR_SERVICE=false`
+- Optional services are compose profiles: turn off the Privacy container with `PRIVACY_FILTER=false` and the Library Quality Pack with `EXTRACTOR_SERVICE=false`
 
 ### Startup shows "Refreshing Ruby control‑plane" too often
 - What happens:

@@ -2,10 +2,10 @@
 
 
 # Shared Library Search tool for Monadic Chat
-# Exposes the project-wide Knowledge Base (Library) as a retrieval tool
+# Exposes the project-wide Library as a retrieval tool
 # that any app can import via `imported_tool_groups [:library_search]`.
 #
-# Every app searches every entry (the Knowledge Base is one shelf), while
+# Every app searches every entry (the Library is one shelf), while
 # the setting allows it (Library::InChats: Settings, Sources the AI can
 # use; on unless turned off).
 #
@@ -40,7 +40,7 @@ module MonadicSharedTools
     end
 
 
-    NO_RECORD_MESSAGE = "❌ The Knowledge Base was not searched: what is read is shown to the user, " \
+    NO_RECORD_MESSAGE = "❌ The Library was not searched: what is read is shown to the user, " \
                         "and this reply has no chat to show it in.".freeze
 
     DISABLED_MESSAGE = "❌ The Library is turned off for chats in Settings (Sources the AI can use). " \
@@ -58,7 +58,7 @@ module MonadicSharedTools
     # references the tool name; this method must match the schema declared
     # in MonadicSharedTools::Registry.
     module Tools
-      # Search the Knowledge Base for passages relevant to a query.
+      # Search the Library for passages relevant to a query.
       # Returns a formatted string ready to inject into the LLM context.
       #
       # The tool follows the setting (Library::InChats). While it is off the
@@ -110,7 +110,7 @@ module MonadicSharedTools
         # it sends it.
         MonadicSharedTools::LibrarySearch.format_results(query, hits, reading)
       rescue StandardError => e
-        "❌ Knowledge Base search failed: #{e.message}"
+        "❌ Library search failed: #{e.message}"
       end
 
       # What the Library holds, a page at a time (titles, kinds, sources and
@@ -222,10 +222,10 @@ module MonadicSharedTools
     # opens what the reply cites from it, and the reply's message marks
     # the excerpts its text links to.
     def format_results(query, hits, reading)
-      return "No matching passages were found in the Knowledge Base for query: #{query.inspect}" if hits.empty?
+      return "No matching passages were found in the Library for query: #{query.inspect}" if hits.empty?
 
       lines = []
-      lines << "Found #{hits.size} relevant passage#{'s' if hits.size != 1} in the Knowledge Base (shown to the user in the work screen):"
+      lines << "Found #{hits.size} relevant passage#{'s' if hits.size != 1} in the Library (shown to the user in the work screen):"
       lines << ''
       hits.each_with_index do |hit, i|
         excerpt = reading['excerpts'][i]

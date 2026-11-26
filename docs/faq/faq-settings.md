@@ -2,7 +2,7 @@
 
 ##### Q: Do I need an OpenAI API token to use Monadic Chat? :id=openai-api-token-requirement
 
-**A**: No. You can use any of the supported providers: OpenAI, Anthropic Claude, Google Gemini, Cohere, Mistral AI, DeepSeek and xAI Grok. Speech recognition and speech synthesis are also available from providers other than OpenAI (see the **Speech** panel), the browser's built-in voices need no key, and the Knowledge Base computes its embeddings on your computer.
+**A**: No. You can use any of the supported providers: OpenAI, Anthropic Claude, Google Gemini, Cohere, Mistral AI, DeepSeek and xAI Grok. Speech recognition and speech synthesis are also available from providers other than OpenAI (see the **Speech** panel), the browser's built-in voices need no key, and the Library computes its embeddings on your computer.
 
 If you do not want to use commercial APIs, you can use Ollama to run local language models:
 1. Install Ollama from [https://ollama.com/download](https://ollama.com/download)

@@ -218,7 +218,7 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
           always_visible: ["request_tool"],
           conditional: [
             { name: "library_search", visibility: :conditional,
-              unlock_conditions: [{ tool_request: "library_search" }], unlock_hint: "search the Knowledge Base" },
+              unlock_conditions: [{ tool_request: "library_search" }], unlock_hint: "search the Library" },
             { name: "analyze_image", visibility: :conditional,
               unlock_conditions: [{ tool_request: "image_analysis" }], unlock_hint: "analyze images" }
           ]

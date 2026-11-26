@@ -344,11 +344,8 @@
               <div class="mt-2 textbox-caption" data-i18n="ui.uiLanguageNote">UI language can be changed in system settings.</div>
             </div>
 
-            <!-- Session-level feature toggles. Web Search and Math Rendering
-                 belong here (rather than in the model-config area) because
-                 they are app/session toggles, not model-specific reasoning
-                 controls. The Privacy-Filter / Knowledge-Base panels follow
-                 the same "feature on/off lives in the meta panel" pattern. -->
+            <!-- Session-level feature toggles: they belong to the app and the
+                 session, not to the model's reasoning controls. -->
             <div class="mb-3">
               <div class="form-check form-switch mb-2" id="websearch-form">
                 <input class="form-check-input" type="checkbox" id="websearch">
@@ -761,7 +758,7 @@
           </div>
           <div id="library-pane" class="shared-files-pane library-pane" role="tabpanel" aria-labelledby="side-tab-library" hidden>
             <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
-              <button type="button" class="btn btn-sm btn-primary" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Knowledge Base">
+              <button type="button" class="btn btn-sm btn-primary" id="library-browse-import" data-i18n-title="ui.libImportTooltip" title="Import a Markdown / PDF / Office / code file into the Library">
                 <i class="fa-solid fa-file-arrow-up"></i> <span data-i18n="ui.libImportFile">Import file</span>
               </button>
               <button type="button" class="btn btn-sm btn-secondary" id="library-draft-conversation">

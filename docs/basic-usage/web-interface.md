@@ -256,7 +256,7 @@ The **History** tab lists the kept chats, the latest activity first, and is show
 
 ## Library Tab :id=library-tab
 
-The **Library** tab lists what the [Knowledge Base](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry on the work screen (a PDF as it is, other entries as their text; the AI can read it there as any item of the work screen), shows its details, opens the chat a conversation record was made from (while that chat is in the history), or deletes it. **Import file** adds a document, and **Keep this conversation** puts the current conversation on the work screen as a document to keep. What the tab lists is not told to the AI.
+The **Library** tab lists what the [Library](../apps/knowledge-base.md) holds: the documents and conversations kept for any chat to consult. It can be searched and sorted, and a row opens the entry on the work screen (a PDF as it is, other entries as their text; the AI can read it there as any item of the work screen), shows its details, opens the chat a conversation record was made from (while that chat is in the history), or deletes it. **Import file** adds a document, and **Keep this conversation** puts the current conversation on the work screen as a document to keep. What the tab lists is not told to the AI.
 
 ## Files Tab :id=shared-folder-panel
 
@@ -340,6 +340,6 @@ Each AI response has a **Verify this response** action below it. Clicking it cro
 ### Persistence
 
 - A verification result is kept when you reload the page and when you export or import the conversation as JSON.
-- It is **not** included when you save the conversation to a Knowledge Base or export to PDF — it is commentary about an answer, not part of the conversation's content.
+- It is **not** included when you save the conversation to a Library or export to PDF — it is commentary about an answer, not part of the conversation's content.
 
 The same capability is available to external agents through the `monadic_confidence` tool — see [MCP Integration](/advanced-topics/mcp-integration.md).

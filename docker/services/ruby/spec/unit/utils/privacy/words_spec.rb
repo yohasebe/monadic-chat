@@ -201,7 +201,7 @@ RSpec.describe Monadic::Utils::Privacy::Words do
         .to eq(filepath: '<<PERSON_1>>')
     end
 
-    it "gives the Knowledge Base search its query with the chat's words, and nothing else of the call" do
+    it "gives the Library search its query with the chat's words, and nothing else of the call" do
       table = described_class.start!(new_chat)
       table.confirm!('Ada', 'PERSON')
       described_class.request do

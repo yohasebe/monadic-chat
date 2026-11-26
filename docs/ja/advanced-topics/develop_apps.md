@@ -391,6 +391,6 @@ end
 
 ## MCP統合
 
-Monadic Chat には、Monadic Conduit という MCP（Model Context Protocol）のサーバーがあります。`monadic_*` の名前の決まったツール（問い合わせ、Knowledge Base、メディアの分析と生成など）を公開し、アプリごとのツールは公開しません。アプリを作るときに、MCP のためにすることはありません。
+Monadic Chat には、Monadic Conduit という MCP（Model Context Protocol）のサーバーがあります。`monadic_*` の名前の決まったツール（問い合わせ、書庫、メディアの分析と生成など）を公開し、アプリごとのツールは公開しません。アプリを作るときに、MCP のためにすることはありません。
 
 サーバーの設定、ツール、クライアントの設定は、[MCP 統合](/ja/advanced-topics/mcp-integration.md)を参照してください。

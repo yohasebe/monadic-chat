@@ -8,7 +8,7 @@ require_relative '../utils/environment'
 
 module Monadic
   module Library
-    # The files imported into the Knowledge Base, each kept once, named by
+    # The files imported into the Library, each kept once, named by
     # the SHA-256 of its bytes, in originals/ of the Library's own folder
     # (Environment.library_path). Only this server mounts that folder: the
     # other containers, where code a model writes runs, cannot read or

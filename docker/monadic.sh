@@ -50,7 +50,7 @@ ALL_PROFILES_UP="--profile python --profile selenium"
 if [[ "${PRIVACY_FILTER:-true}" == "true" ]]; then
   ALL_PROFILES_UP="${ALL_PROFILES_UP} --profile privacy"
 fi
-# Extractor (Knowledge Base Quality Pack) is opt-in. Including its profile
+# Extractor (Library Quality Pack) is opt-in. Including its profile
 # here makes the standard lifecycle cover it: started with `up -d`,
 # stopped/removed with everything else, and pulled during the full build.
 # Without this, nothing started the container after an app restart and the
@@ -573,7 +573,7 @@ EOF
 # The Ruby container bind-mounts ~/monadic/state and ~/monadic/library.
 # Create them here, owned by the user: left to Docker, a missing source is
 # created as root on Linux and the server run from the host could not write
-# its ledger or the Knowledge Base's files there.
+# its ledger or the Library's files there.
 ensure_state_dir() {
   local dir
   for dir in state library; do
@@ -1328,7 +1328,7 @@ build_docker_compose() {
   fi
   if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]]; then
     pull_services="${pull_services} extractor_service"
-    pull_note="${pull_note}, knowledge base quality pack (~1.3 GB)"
+    pull_note="${pull_note}, Library Quality Pack (~1.3 GB)"
   fi
   # Byte-level progress is not visible in this console (non-TTY pulls only
   # report per-layer milestones), so announce what is being downloaded and
@@ -1795,7 +1795,7 @@ start_docker_compose() {
   # (its progress goes to stderr, invisible in the app console) — announce
   # the one-time download first.
   if [[ "${EXTRACTOR_SERVICE:-false}" == "true" ]] && ! ${DOCKER} images | grep -q "ghcr.io/yohasebe/monadic-extractor"; then
-    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB, one time) . . .</p>"
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Library Quality Pack image (~1.3 GB, one time) . . .</p>"
   fi
 
   # The engine's messages (stderr) are kept: when the server's container
@@ -2511,7 +2511,7 @@ ensure-service)
       fi
       ;;
     extractor)
-      # Extractor (Knowledge Base Quality Pack) is opt-in via EXTRACTOR_SERVICE=true.
+      # Extractor (Library Quality Pack) is opt-in via EXTRACTOR_SERVICE=true.
       # The image is prebuilt (ghcr.io); when missing, pull it instead of
       # reporting not-built. Returns EXTRACTOR_DISABLED / EXTRACTOR_NOT_BUILT
       # so the caller can prompt the user via Settings → Install Options.
@@ -2607,7 +2607,7 @@ build_privacy_container)
   fi
   ;;
 build_extractor_container)
-  # Build the extractor container (Knowledge Base Quality Pack: Docling + RapidOCR).
+  # Build the extractor container (Library Quality Pack: Docling + RapidOCR).
   # Triggered from the Settings → Actions panel after the user opts in via
   # Install Options. Image is large (~3GB) and download includes ML models.
   if [[ "${EXTRACTOR_SERVICE:-false}" != "true" ]]; then
@@ -2624,11 +2624,11 @@ build_extractor_container)
     fetched=${PIPESTATUS[0]}
   else
     # Production: pull the prebuilt user-independent image from ghcr.io.
-    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Knowledge Base Quality Pack image (~1.3 GB on first download) . . .</p>"
+    echo "[HTML]: <p><i class='fa-solid fa-cloud-arrow-down' style='color:#61b0ff;'></i> Downloading the prebuilt Library Quality Pack image (~1.3 GB on first download) . . .</p>"
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p monadic-chat --profile extractor pull extractor_service" 2>&1 | tee -a "${build_log}"
     fetched=${PIPESTATUS[0]}
   fi
-  if service_image_ready "${fetched}" "${MONADIC_DEV:-false}" "ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}" "Knowledge Base Quality Pack" "${build_log}"; then
+  if service_image_ready "${fetched}" "${MONADIC_DEV:-false}" "ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}" "Library Quality Pack" "${build_log}"; then
     echo "[INFO] Extractor container build succeeded."
     put_running_service_on_image "${build_log}" extractor extractor_service monadic-chat-extractor-container "ghcr.io/yohasebe/monadic-extractor:${MONADIC_IMAGE_TAG:-latest}" "Extractor"
     # Snapshot marker: existence distinguishes "not yet built" from

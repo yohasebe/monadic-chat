@@ -2,7 +2,7 @@
 
 ##### Q: Monadic Chatを使うのにOpenAIのAPIトークンは必要ですか？ :id=openai-api-token-requirement
 
-**A**: 必要ありません。対応するどのプロバイダーでも使えます：OpenAI、Anthropic Claude、Google Gemini、Cohere、Mistral AI、DeepSeek、xAI Grok。音声認識と音声合成も OpenAI 以外のプロバイダーで使え（音声パネルを参照）、ブラウザー内蔵の声はキーが要りません。Knowledge Base の埋め込みは、お使いのコンピューターの上で計算されます。
+**A**: 必要ありません。対応するどのプロバイダーでも使えます：OpenAI、Anthropic Claude、Google Gemini、Cohere、Mistral AI、DeepSeek、xAI Grok。音声認識と音声合成も OpenAI 以外のプロバイダーで使え（音声パネルを参照）、ブラウザー内蔵の声はキーが要りません。書庫の埋め込みは、お使いのコンピューターの上で計算されます。
 
 商用のAPIを使いたくない場合は、Ollamaを使用してローカル言語モデルを実行できます：
 1. [https://ollama.com/download](https://ollama.com/download) からOllamaをインストール

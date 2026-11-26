@@ -1,4 +1,4 @@
-// The workspace ledger lives in ~/monadic/state and the Knowledge Base's own
+// The workspace ledger lives in ~/monadic/state and the Library's own
 // files in ~/monadic/library, outside the shared folder, and only the Ruby
 // container mounts them: the Python container runs generated code that can
 // write the shared folder, and must not reach these.

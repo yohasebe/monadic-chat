@@ -69,7 +69,7 @@ RSpec.describe "A chat's words with the session a real chat has" do
     expect(given).to be(session)
   end
 
-  it "keeps nothing of a chat with a word table in the Knowledge Base" do
+  it "keeps nothing of a chat with a word table in the Library" do
     replies = []
     host = Class.new { include WebSocketHelper }.new
     host.define_singleton_method(:send_to_client) { |_conn, payload| replies << payload }

@@ -312,9 +312,8 @@ window.loadedApp = "Chat";
       try { window.WorkScreen.onChatSocketOpen(); } catch (_) {}
     }
 
-    // Library (Knowledge Base) panel: fetch initial inventory + counts
-    // once the connection is up. The panel is mounted globally and
-    // visible across all apps, so we fire this for every session.
+    // The Library tab: fetch the list once the connection is up (the tab is
+    // there in every app).
     if (window.libraryPanel) {
       try { window.libraryPanel.requestList(); } catch (_) {}
     }

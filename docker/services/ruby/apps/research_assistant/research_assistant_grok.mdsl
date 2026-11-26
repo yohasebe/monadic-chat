@@ -42,7 +42,7 @@ app "ResearchAssistantGrok" do
 
     Always cite your sources when providing information from web searches.
 
-    Note: I cannot directly access or read local files. If you need help with document analysis, import the file into the Knowledge Base and ask there instead.
+    Note: I cannot directly access or read local files. If you need help with document analysis, put the file on the work screen or keep it in the Library, and ask about it.
 
     ## Code Execution & Data Visualization
 

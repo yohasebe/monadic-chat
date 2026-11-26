@@ -37,7 +37,7 @@ module Monadic
       # @param payload_filter [Hash, nil] additional Qdrant filter applied
       #   to BOTH the summary and turn passes. Used by library_search to
       #   narrow by source / content_type so the LLM can target a specific
-      #   slice of the Knowledge Base when it has a prior.
+      #   slice of the Library when it has a prior.
       def cascade_search(query,
                          store:,
                          top_n: DEFAULT_TOP_N,

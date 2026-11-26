@@ -4,7 +4,7 @@ require_relative '../utils/environment'
 
 module Monadic
   module Extractor
-    # Resolves the URL of the extractor_service (Knowledge Base Quality
+    # Resolves the URL of the extractor_service (Library Quality
     # Pack — Docling + RapidOCR). Mirrors the embeddings/endpoint and
     # privacy endpoint conventions so that all internal services follow
     # the same dev/in-container resolution pattern.

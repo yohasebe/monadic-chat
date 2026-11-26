@@ -8,7 +8,7 @@ subdirectory per service, each with its own Dockerfile + compose file,
 included from `docker/services/compose.yml`):
 
 - **Ruby** (`monadic-chat-ruby-container`): Main application server (Falcon/Rack, one worker)
-- **Qdrant** (`monadic-chat-qdrant-container`): Vector database for embeddings (Help system, PDF Library / Knowledge Base)
+- **Qdrant** (`monadic-chat-qdrant-container`): Vector database for embeddings (Help system, the Library)
 - **Embeddings** (`monadic-chat-embeddings-container`): Local embedding service (`multilingual-e5-base`)
 - **Python** (`monadic-chat-python-container`): JupyterLab, Python tools & script execution
 - **Selenium** (`monadic-chat-selenium-container`): Web automation for capture/search

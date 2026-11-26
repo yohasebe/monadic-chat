@@ -100,10 +100,10 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 | `ROUGE_THEME` | シンタックスハイライトのテーマ | `github:light` | [使えるテーマ](../basic-usage/syntax-highlighting.md)を参照 |
 | `PRIVACY_FILTER` | 匿名化のために名前を探す Privacy のコンテナをダウンロードし、起動する | `true` | `true`、`false` |
 | `PRIVACY_LANGS` | Privacy のコンテナが英語のほかに読み込む言語 | `en` | カンマ区切りのコード（`en`、`de`、`es`、`fr`、`it`、`ja`、`nl`、`pt`、`zh`） |
-| `EXTRACTOR_SERVICE` | Knowledge Base 品質パックのコンテナを使う | `false` | `true`、`false` |
-| `EXTRACTOR_LANGS` | Knowledge Base 品質パックの OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
-| `LIBRARY_IMPORT_MAX_BYTES` | Knowledge Base が取り込むファイルの最大の大きさ（バイト） | `104857600`（100 MiB） | 数 |
-| `LIBRARY_IN_CHATS` | 会話の中で AI が Knowledge Base を参照できるようにする（設定の「一般」の「AI が使える情報源」） | `true` | `true`、`false` |
+| `EXTRACTOR_SERVICE` | 書庫の品質パックのコンテナを使う | `false` | `true`、`false` |
+| `EXTRACTOR_LANGS` | 書庫の品質パックの OCR の言語 | `en,ja,zh,ko` | カンマ区切りのコード |
+| `LIBRARY_IMPORT_MAX_BYTES` | 書庫が取り込むファイルの最大の大きさ（バイト） | `104857600`（100 MiB） | 数 |
+| `LIBRARY_IN_CHATS` | 会話の中で AI が書庫を参照できるようにする（設定の「一般」の「AI が使える情報源」） | `true` | `true`、`false` |
 | `GEMINI_MAX_INLINE_PDF_MB` | Gemini にそのまま送る PDF の最大の大きさ（MB） | `20` | 数 |
 
 > **注意**：Web の画面でコンテキストサイズの設定がオンのときは、保存するメッセージの数もその値で制限されます。
@@ -148,7 +148,7 @@ OPENAI_API_KEY=op://Dev/OpenAI/credential
 
 ## インストールオプション :id=install-options
 
-Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**アクション → Pythonコンテナをビルド** で作り直してください。同じインストールオプションの項目にある、伏せる名前を探す言語と Knowledge Base 品質パックは、[システム設定](#system-settings)にあります。
+Python のコンテナに入れる追加のパッケージを選びます。変えた後は、**アクション → Pythonコンテナをビルド** で作り直してください。同じインストールオプションの項目にある、伏せる名前を探す言語と書庫の品質パックは、[システム設定](#system-settings)にあります。
 
 | 変数 | 説明 | 必要なアプリ | 既定 |
 |------|------|--------------|------|

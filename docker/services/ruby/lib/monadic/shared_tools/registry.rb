@@ -1265,7 +1265,8 @@ module MonadicSharedTools
         tools: [
           {
             name: "library_search",
-            description: "Search the project-wide Knowledge Base (Library) for passages relevant " \
+            description: "Search the Library (where the user keeps documents and records of " \
+                         "earlier conversations) for passages relevant " \
                          "to a query. Returns passages, each linked as [Title](mc:read:<id>). When you " \
                          "cite a passage, preserve its link exactly as returned so the user can open " \
                          "it; the passages are shown to the user in the work screen. Use " \

@@ -12,19 +12,19 @@ Monadic Chatをアンインストールする基本的な手順は以下の通�
 
 ### **macOS**
 
-1. File メニュー（macOS では Monadic Chat メニュー）の `Remove Images/Containers/Data` を選びます。下に示す Monadic Chat の Docker コンテナ、イメージ、ボリューム（Knowledge Base のデータ）が削除されます。`~/monadic` のファイルは残ります。
+1. File メニュー（macOS では Monadic Chat メニュー）の `Remove Images/Containers/Data` を選びます。下に示す Monadic Chat の Docker コンテナ、イメージ、ボリューム（書庫のデータ）が削除されます。`~/monadic` のファイルは残ります。
 2. Monadic Chatを終了します。
 3. Finderで`Applications`フォルダーを開き、Monadic Chatをゴミ箱にドラッグします。
 
 ### **Windows**
 
-1. File メニューの `Remove Images/Containers/Data` を選びます。下に示す Monadic Chat の Docker コンテナ、イメージ、ボリューム（Knowledge Base のデータ）が削除されます。`~/monadic` のファイルは残ります。
+1. File メニューの `Remove Images/Containers/Data` を選びます。下に示す Monadic Chat の Docker コンテナ、イメージ、ボリューム（書庫のデータ）が削除されます。`~/monadic` のファイルは残ります。
 2. Monadic Chatを終了します。
 3. Windows の設定の［アプリ］から Monadic Chat をアンインストールします。
 
 ### **Linux**
 
-1. File メニューの `Remove Images/Containers/Data` を選びます。下に示す Monadic Chat の Docker コンテナ、イメージ、ボリューム（Knowledge Base のデータ）が削除されます。`~/monadic` のファイルは残ります。
+1. File メニューの `Remove Images/Containers/Data` を選びます。下に示す Monadic Chat の Docker コンテナ、イメージ、ボリューム（書庫のデータ）が削除されます。`~/monadic` のファイルは残ります。
 2. Monadic Chatを終了します。
 3. ダウンロードした AppImage ファイルを削除します。
 
@@ -74,7 +74,7 @@ Docker Desktopのメニューから `Troubleshoot` → `Clean/Purge data`を使�
 - `monadic-chat-qdrant-container`
 - `monadic-chat-embeddings-container`
 - `monadic-chat-privacy-container`（`PRIVACY_FILTER=false` にしていなければ存在します）
-- `monadic-chat-extractor-container`（Knowledge Base 品質パックをインストールしている場合のみ）
+- `monadic-chat-extractor-container`（書庫の品質パックをインストールしている場合のみ）
 
 #### イメージ
 
@@ -84,7 +84,7 @@ Docker Desktopのメニューから `Troubleshoot` → `Clean/Purge data`を使�
 - `ghcr.io/yohasebe/monadic-qdrant`
 - `ghcr.io/yohasebe/monadic-selenium`
 - `ghcr.io/yohasebe/monadic-privacy`（`PRIVACY_FILTER=false` にしていない場合）
-- `ghcr.io/yohasebe/monadic-extractor`（Knowledge Base 品質パックインストール時のみ）
+- `ghcr.io/yohasebe/monadic-extractor`（書庫の品質パックインストール時のみ）
 - `ghcr.io/yohasebe/monadic-python`（Python コンテナのビルドのキャッシュとしてダウンロード）
 
 #### ボリューム

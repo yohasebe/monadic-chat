@@ -51,9 +51,9 @@ module Monadic
         value == false || value == "false"
       end
 
-      # Knowledge Base search is visible exactly while its toggle is on: added
-      # back from `all_tools` when on, removed when off (or absent).
-      def apply_library_toggle(tools, all_tools, session, conditional_names)
+      # The Library's tools are visible exactly while the setting allows them:
+      # added back from `all_tools` when it does, removed when it does not.
+      def apply_library_setting(tools, all_tools, session, conditional_names)
         names = Set.new(LIBRARY_TOOL_NAMES) | Set.new(conditional_names)
         kb = ->(t) { names.include?(extract_tool_name(t).to_s) }
         if library_offered?(session)
@@ -91,7 +91,7 @@ module Monadic
         return default_tools unless default_tools.is_a?(Array)
 
         metadata = app_settings["progressive_tools"] || app_settings[:progressive_tools]
-        return apply_library_toggle(default_tools, default_tools, session, Set.new) unless metadata.is_a?(Hash)
+        return apply_library_setting(default_tools, default_tools, session, Set.new) unless metadata.is_a?(Hash)
 
         metadata = deep_symbolize(metadata)
         tools_array = default_tools.dup
@@ -128,7 +128,7 @@ module Monadic
           filtered = filtered.reject { |t| ws_names.include?(extract_tool_name(t).to_s) } unless ws_names.empty?
         end
 
-        filtered = apply_library_toggle(filtered, tools_array, session, group_tool_names(metadata, LIBRARY_GROUP))
+        filtered = apply_library_setting(filtered, tools_array, session, group_tool_names(metadata, LIBRARY_GROUP))
 
         filtered
       end
@@ -214,7 +214,7 @@ module Monadic
           return []
         end
 
-        # The Knowledge Base group is governed by its toggle, not by request_tool.
+        # The Library's group follows the setting, not request_tool.
         return [] if key == LIBRARY_GROUP || group_tool_names(metadata, LIBRARY_GROUP).include?(key)
 
         targets = Array(mapping[key]).dup
@@ -315,7 +315,7 @@ module Monadic
           # Don't advertise a UI-toggle-gated group (web search) while its
           # toggle is off — the model must not be told to request it.
           next if websearch_off && key.to_s == WEBSEARCH_GROUP
-          # The Knowledge Base group follows its toggle and is never requested.
+          # The Library's group follows the setting and is never requested.
           next if key.to_s == LIBRARY_GROUP
           hint = group[:hint].to_s
           # Every menu line MUST tell the model to unlock via request_tool with

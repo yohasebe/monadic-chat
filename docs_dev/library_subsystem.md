@@ -1,6 +1,6 @@
 # Library Subsystem
 
-The Library is the store behind the Knowledge Base. Saved conversations and imported files go into Qdrant, embedded by the embeddings service (the model set by `MODEL_NAME` in `docker/services/embeddings/server.py`, 768 dimensions, cosine distance). The code is in `lib/monadic/library/`.
+The Library is where documents and conversations are kept for the AI to consult. Saved conversations and imported files go into Qdrant, embedded by the embeddings service (the model set by `MODEL_NAME` in `docker/services/embeddings/server.py`, 768 dimensions, cosine distance). The code is in `lib/monadic/library/`.
 
 Front ends:
 
@@ -30,7 +30,7 @@ Point ids are random UUIDs. `conversation_id` in the payload links an entry's su
 
 ## One Shelf
 
-Every read (`library_search`, `library_list`, the Knowledge Base UI, MCP) sees every entry. `Hierarchical.ingest` writes `scope_app` = `Global` on every point; entries of earlier versions may carry an app's class name there. Nothing filters on it.
+Every read (`library_search`, `library_list`, the Library UI, MCP) sees every entry. `Hierarchical.ingest` writes `scope_app` = `Global` on every point; entries of earlier versions may carry an app's class name there. Nothing filters on it.
 
 ## Ingestion
 
@@ -159,7 +159,7 @@ The frontend opens the Conversation Viewer when an `mc:conv:` link is clicked.
 
 ## MCP Server
 
-The MCP server's `monadic_search_kb`, `monadic_list_kb` and `monadic_import_kb` (`lib/monadic/mcp/conduit.rb`) use the same store: search through `Retriever.cascade_search`, the list through `Manager.list_conversations`, and import through `Importers::Markdown` and `Manager.import_conversation` (text) or `Manager.import_file` (a file in the shared folder). The chat tools ground their answer in the Knowledge Base when `knowledge_base` is given (any value).
+The MCP server's `monadic_search_library`, `monadic_list_library` and `monadic_import_library` (`lib/monadic/mcp/conduit.rb`) use the same store: search through `Retriever.cascade_search`, the list through `Manager.list_conversations`, and import through `Importers::Markdown` and `Manager.import_conversation` (text) or `Manager.import_file` (a file in the shared folder). The chat tools ground their answer in the Library when `library` is given (any value).
 
 ## Files
 

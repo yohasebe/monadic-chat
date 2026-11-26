@@ -27,7 +27,7 @@ The words are hidden in what a chat sends:
 
 - the chat's own requests to its model, including earlier messages and tool results
 - second opinions, **Verify** and AI User suggestions
-- the results of the Knowledge Base search, as they go to the model
+- the results of the Library search, as they go to the model
 - text read aloud (a hidden word is read as its type and number, such as "PERSON 1")
 - the names of the files the chat has made, as the AI is told of them (the tools that read a file get the real name back)
 
@@ -43,9 +43,9 @@ A chat whose list cannot be read (for example after the server was restarted) se
 
 Voice input works in a chat that hides words, but the voice itself is not hidden. Live Conversation (speech-to-speech) sends the conversation as it is, so it is not available in a chat that hides words.
 
-## Knowledge Base :id=knowledge-base
+## Library :id=knowledge-base
 
-A chat that hides words cannot be saved to the Knowledge Base: the Knowledge Base would keep the words, and a search from another chat would send them. Use **Export** to keep such a chat.
+A chat that hides words cannot be saved to the Library: the Library would keep the words, and a search from another chat would send them. Use **Export** to keep such a chat.
 
 ## Export and Import :id=export
 
@@ -60,7 +60,7 @@ The file also holds the images of the work screen the chat sent to the AI (the i
 
 To open an export, use **Import** (and the passphrase for an encrypted file). If the import reports hidden words, open **Anonymize** and check the list.
 
-To back up or restore the whole Knowledge Base (every chat saved to it and every PDF), use **Export Document DB** and **Import Document DB** in the console's [Actions menu](../basic-usage/console-panel.md#actions-menu).
+To back up or restore the whole Library (every chat saved to it and every PDF), use **Export Document DB** and **Import Document DB** in the console's [Actions menu](../basic-usage/console-panel.md#actions-menu).
 
 ## Finding Names :id=finding-names
 
@@ -84,4 +84,4 @@ After editing `PRIVACY_FILTER` or `PRIVACY_LANGS` in the file directly, restart 
 
 ## Custom Apps
 
-A `privacy do` block in an app's MDSL has no effect, and the server prints a warning when the app is loaded. Remove it. An app without `library_save false` and `library_search false` in its `features` block can save to and search the Knowledge Base.
+A `privacy do` block in an app's MDSL has no effect, and the server prints a warning when the app is loaded. Remove it. An app without `library_save false` and `library_search false` in its `features` block can save to and search the Library.

@@ -6,9 +6,8 @@
  * Dialogs that open one after another (MonadicDialog): the Library's
  * Viewer opens once Browse has closed and Browse opens again when the
  * Viewer closes (back on the row's button); opened on its own, the Viewer
- * opens nothing after it. Reset's "save to the Knowledge Base" opens the
- * save dialog once the reset dialog has closed, and not when that closing
- * was refused. A fake MonadicDialog keeps the order of what happened.
+ * opens nothing after it. A fake MonadicDialog keeps the order of what
+ * happened.
  */
 const path = require('path');
 

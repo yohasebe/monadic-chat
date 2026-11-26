@@ -11,11 +11,11 @@ require_relative 'originals'
 
 module Monadic
   module Library
-    # High-level Knowledge Base operations consumed by the Knowledge Base
-    # app's tools. These methods sit on top of Store / Hierarchical /
+    # High-level Library operations consumed by the Library tab, the
+    # Library's tools and MCP. These methods sit on top of Store / Hierarchical /
     # Retriever / Importers and expose conversation-level concepts.
     #
-    # The Knowledge Base is one shelf: every read sees every entry.
+    # The Library is one shelf: every read sees every entry.
     # Points carry `scope_app` (new entries "Global"; entries of earlier
     # versions may name an app), which nothing reads by.
     module Manager

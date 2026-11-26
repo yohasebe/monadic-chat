@@ -23,7 +23,7 @@ JSON-RPC methods:
 | `tools/list` | `handle_tools_list` | `Monadic::MCP::Conduit.tools` |
 | `tools/call` | `handle_tool_call` | `Conduit.call(name, arguments)` for a known tool, otherwise an error |
 
-The tool list is static (not derived from the apps): status and models, queries to one or several providers, second opinion and confidence, Knowledge Base search, list and import, media analysis and transcription, speech, code, image, video and music generation, a bounded tool-using agent (`monadic_agent`), and background jobs (`monadic_submit`, kept by the job store). The definitions are in `lib/monadic/mcp/conduit.rb`; `cost_guard.rb` keeps a process-wide token budget that each token-spending tool reserves against before the call and settles after it, and `job_store.rb` keeps background jobs.
+The tool list is static (not derived from the apps): status and models, queries to one or several providers, second opinion and confidence, Library search, list and import, media analysis and transcription, speech, code, image, video and music generation, a bounded tool-using agent (`monadic_agent`), and background jobs (`monadic_submit`, kept by the job store). The definitions are in `lib/monadic/mcp/conduit.rb`; `cost_guard.rb` keeps a process-wide token budget that each token-spending tool reserves against before the call and settles after it, and `job_store.rb` keeps background jobs.
 
 ## Stdio Bridge (`scripts/mcp_stdio_bridge.rb`)
 

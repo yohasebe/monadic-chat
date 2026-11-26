@@ -100,10 +100,10 @@ To see all available models from the provider, toggle the **All** switch next to
 | `ROUGE_THEME` | Syntax highlighting theme | `github:light` | See [available themes](../basic-usage/syntax-highlighting.md) |
 | `PRIVACY_FILTER` | Download and start the Privacy container, which finds names for Anonymization | `true` | `true`, `false` |
 | `PRIVACY_LANGS` | Languages the Privacy container loads, besides English | `en` | Comma-separated codes (`en`, `de`, `es`, `fr`, `it`, `ja`, `nl`, `pt`, `zh`) |
-| `EXTRACTOR_SERVICE` | Use the Knowledge Base Quality Pack container | `false` | `true`, `false` |
-| `EXTRACTOR_LANGS` | OCR languages of the Knowledge Base Quality Pack | `en,ja,zh,ko` | Comma-separated codes |
-| `LIBRARY_IMPORT_MAX_BYTES` | Largest file the Knowledge Base imports, in bytes | `104857600` (100 MiB) | A number |
-| `LIBRARY_IN_CHATS` | Let the AI consult the Knowledge Base in chats (Settings: General, Sources the AI can use) | `true` | `true`, `false` |
+| `EXTRACTOR_SERVICE` | Use the Library Quality Pack container | `false` | `true`, `false` |
+| `EXTRACTOR_LANGS` | OCR languages of the Library Quality Pack | `en,ja,zh,ko` | Comma-separated codes |
+| `LIBRARY_IMPORT_MAX_BYTES` | Largest file the Library imports, in bytes | `104857600` (100 MiB) | A number |
+| `LIBRARY_IN_CHATS` | Let the AI consult the Library in chats (Settings: General, Sources the AI can use) | `true` | `true`, `false` |
 | `GEMINI_MAX_INLINE_PDF_MB` | Largest PDF sent to Gemini inline, in MB | `20` | A number |
 
 > **Note**: When the context size setting is on in the web interface, the number of stored messages is also limited by it.
@@ -148,7 +148,7 @@ To see all available models from the provider, toggle the **All** switch next to
 
 ## Install Options
 
-These options choose optional packages for the Python container. After changing them, rebuild it with **Actions → Build Python Container**. The languages for finding names to hide and the Knowledge Base Quality Pack, which are in the same Install Options panel, are in [System Settings](#system-settings).
+These options choose optional packages for the Python container. After changing them, rebuild it with **Actions → Build Python Container**. The languages for finding names to hide and the Library Quality Pack, which are in the same Install Options panel, are in [System Settings](#system-settings).
 
 | Variable | Description | Required For | Default |
 |----------|-------------|--------------|---------|

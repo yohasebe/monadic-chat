@@ -24,7 +24,7 @@
     - [Music Generator](/ja/apps/music-generator.md)
     - [図解・可視化アプリ](/ja/apps/diagram-apps.md)
     - [Web・メディア分析アプリ](/ja/apps/analysis-apps.md)
-    - [Knowledge Base](/ja/apps/knowledge-base.md)
+    - [書庫](/ja/apps/knowledge-base.md)
     - [コーディング・ノートブックアプリ](/ja/apps/coding-apps.md)
     - [Music Tutor と Music Analyst](/ja/apps/music-apps.md)
     - [Auto Forge](/ja/apps/auto_forge.md)

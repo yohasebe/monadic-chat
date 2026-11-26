@@ -6,7 +6,7 @@ require_relative '../../library/conversation_draft'
 require_relative '../../library/desk_import'
 require_relative '../../history/store'
 
-# WebSocket handlers for the Library (Knowledge Base) panel.
+# WebSocket handlers for the Library tab.
 #
 # Messages handled:
 #   - LIBRARY_LIST          → 'library_conversations' (every entry, and their number)

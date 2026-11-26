@@ -88,9 +88,9 @@ The Chat app keeps a context alongside the conversation. Deleting a turn takes b
 
 ## Step 4: Working with Files
 
-### 4.1 Try Knowledge Base
+### 4.1 Try the Library :id=_41-try-knowledge-base
 
-1. Select **Knowledge Base** from the app menu
+1. Select **Library** from the app menu
 2. Open the **Library** tab of the sidebar, and click **Import file**
 3. Pick a Markdown / PDF / Office (.docx/.xlsx/.pptx) / source-code file
 4. Once the import completes, ask the AI questions about the content (e.g., "summarise the imported document")
@@ -131,7 +131,7 @@ Browse [all available apps and provider capabilities](../basic-usage/basic-apps.
 
 ## Tips for Success
 
-1. **Save your conversations**: Use **Export** in the Session Controls panel to save a chat as a JSON file, or **Keep this conversation** in the **Library** tab to keep it in the Knowledge Base as a document. The exported file carries the app's parameter settings as well, so importing it restores them
+1. **Save your conversations**: Use **Export** in the Session Controls panel to save a chat as a JSON file, or **Keep this conversation** in the **Library** tab to keep it in the Library as a document. The exported file carries the app's parameter settings as well, so importing it restores them
 2. **Check the logs**: If something goes wrong, the console shows what happened
 3. **Run the same task on different providers**: Most apps exist in several provider variants, so the same prompt can be compared side by side — see [Comparing Providers](../reference/providers.md#comparing-providers)
 

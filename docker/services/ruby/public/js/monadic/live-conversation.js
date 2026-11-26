@@ -155,7 +155,7 @@
     $id('lc-tools-label').textContent = t('ui.messages.lcTools', 'Search and compute');
     // What the switch lets the assistant do, on the control itself.
     $id('lc-tools-wrap').title = t('ui.messages.lcToolsHint',
-      'Lets the assistant check the time, run Python code, and search the Knowledge Base and the web during the conversation.');
+      'Lets the assistant check the time, run Python code, and search the Library and the web during the conversation.');
     $id('lc-turn-label').textContent = t('ui.messages.lcTurnDetection', 'Turn detection');
     $id('lc-turn-opt-silence').textContent = t('ui.messages.lcTurnSilence', 'By silence (default)');
     $id('lc-turn-opt-low').textContent = t('ui.messages.lcTurnLow', 'By meaning — patient');

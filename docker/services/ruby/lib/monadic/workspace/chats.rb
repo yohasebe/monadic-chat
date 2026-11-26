@@ -10,7 +10,7 @@ module Monadic
     # server, and is not the WebSocket tab id (a tab outlives many chats).
     #
     # Named "chat" because the Library already uses conversation_id for
-    # saved knowledge-base entries, which are a different thing.
+    # entries kept in the Library, which are a different thing.
     module Chats
       SESSION_KEY = :chat_id
 

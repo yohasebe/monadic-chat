@@ -203,7 +203,7 @@ const providerDefaults = {
 | `tts` | Text-to-speech models offered for the provider; the first entry is what `default_tts_model` returns. The chat's speech selector sends the model its `ttsChoices` entry names (below), not by position here |
 | `music` | Music generation (Gemini; ElevenLabs, used by Music Generator only when ELEVENLABS_API_KEY is set and the user names ElevenLabs). Resolved inside the generation tool, not a chat dropdown |
 
-> Note: there is no `embedding` category. Help search and the Knowledge Base
+> Note: there is no `embedding` category. Help search and the Library
 > run on the embedding model in the `embeddings_service` container, not on a
 > provider API.
 

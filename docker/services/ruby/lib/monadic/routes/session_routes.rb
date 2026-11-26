@@ -5,6 +5,7 @@ require_relative "../utils/privacy/words"
 require_relative "../workbench/record"
 require_relative "../workbench/look/record"
 require_relative "../workbench/shown"
+require_relative "../library/readings"
 require_relative "../workbench/made"
 require_relative "../workbench/picture"
 require_relative "../workbench/edit_inputs"
@@ -306,6 +307,8 @@ post "/load" do
           message_obj["workbench_picture"] = picture if picture && message_obj["role"] == "user"
           edits = Monadic::Workbench::EditInputs.clean(msg[Monadic::Workbench::EditInputs::KEY])
           message_obj[Monadic::Workbench::EditInputs::KEY] = edits if edits
+          readings = Monadic::Library::Readings.clean(msg[Monadic::Library::Readings::KEY])
+          message_obj[Monadic::Library::Readings::KEY] = readings if readings
           # What the reply changed in its app's state, taken as the file's
           # data; changes that do not fit are left out, and counted.
           if msg.key?("state_changes")

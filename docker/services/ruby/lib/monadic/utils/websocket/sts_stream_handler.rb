@@ -4,6 +4,7 @@ require "timeout"
 require_relative "../error_formatter"
 require_relative "../error_pattern_detector"
 require_relative "../../workbench/caller"
+require_relative "../../library/readings"
 require_relative "../../workbench/look"
 require_relative "../../workbench/made"
 require_relative "../../workbench/draw_tool"
@@ -382,13 +383,16 @@ module WebSocketHelper
         Monadic::Utils::ContainerDependencies.container_running?(:qdrant) &&
           Monadic::Utils::ContainerDependencies.container_running?(:embeddings)
       },
-      call: lambda { |args, session|
+      # What is read is recorded for the turn's card and shown on the work
+      # screen, as in a chat (Library::Readings).
+      records: true,
+      call: lambda { |args, session, context|
         # The shared tool self-gates on params['library_rag_enabled']; the LC
         # Tools toggle is the explicit opt-in, so shim a session that is
-        # enabled and carries the app name for scope resolution.
+        # enabled.
         shim = { parameters: (session[:parameters] || {}).merge("library_rag_enabled" => true) }
         WebSocketHelper.sts_tool_host.new.library_search(
-          query: args["query"].to_s, top_n: (args["top_n"] || 3).to_i, session: shim
+          query: args["query"].to_s, top_n: (args["top_n"] || 3).to_i, session: shim, workbench: context[:workbench]
         )
       }
     },
@@ -882,6 +886,7 @@ module WebSocketHelper
     Monadic::Workbench::Shown.close(request_id)
     Monadic::Workbench::Made.close(request_id)
     Monadic::Workbench::Draw.close(request_id)
+    Monadic::Library::Readings.take(request_id)
     WebSocketHelper::Replies.find(request_id)&.end!
   end
 
@@ -2769,6 +2774,7 @@ module WebSocketHelper
     out = { "type" => "sts_card_text", "mid" => msg["mid"], "content" => msg["text"] }
     out["tools_used"] = msg["tools_used"] if msg["tools_used"]
     out["workbench_shown"] = msg["workbench_shown"] if msg["workbench_shown"]
+    out[Monadic::Library::Readings::KEY] = msg[Monadic::Library::Readings::KEY] if msg[Monadic::Library::Readings::KEY]
     send_or_broadcast(out.to_json, ws_session_id)
   end
 
@@ -2872,6 +2878,9 @@ module WebSocketHelper
     msg[workbench::Made::REVISIONS_KEY] = revisions if revisions
     drawn = workbench::Draw.clean(Array(msg[workbench::Draw::KEY]) + workbench::Draw.seal(request_id))
     msg[workbench::Draw::KEY] = drawn if drawn
+    readings = Monadic::Library::Readings
+    read = readings.clean(Array(msg[readings::KEY]) + readings.seal(request_id, text: msg["text"]))
+    msg[readings::KEY] = read if read
     WebSocketHelper::Replies.find(request_id)&.end!
   end
 

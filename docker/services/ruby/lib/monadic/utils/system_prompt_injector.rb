@@ -93,8 +93,7 @@ module Monadic
       # when it could answer from training knowledge. A question on a topic
       # the inventory does not show is answered without a search, so a
       # reply does not wait for one that cannot help. The directive also pins the citation
-      # format so the frontend's mc:conv: link interception keeps
-      # round-tripping back to the source conversation.
+      # format: a reply cites a passage by its mc:read: link.
       #
       # The actual injected text is built dynamically by
       # build_library_rag_prompt so the LLM also sees a category-aware
@@ -106,7 +105,7 @@ module Monadic
 
         - Call `library_search` first when the question is about what the user has stored: their documents, notes or earlier conversations, or a topic the inventory below shows is there. This applies even when you believe you already know the answer from your training data.
         - Answer without searching when the question has nothing to do with the stored content: a general question on a topic the inventory does not show, or a conversational message (greetings, clarifications, formatting requests, etc.).
-        - When `library_search` returns hits, base your answer on the retrieved passages and preserve the markdown citation links `[Title](mc:conv:<id>)` exactly as they appear so the user can click through to the original conversation.
+        - When `library_search` returns hits, base your answer on the retrieved passages and keep the markdown link `[Title](mc:read:<id>)` of each passage you cite exactly as it appears, so the user can open it.
         - Fall back to your general knowledge when `library_search` returns no relevant hits.
         - You may issue multiple `library_search` calls in a single turn with different queries when the user's question spans several topics.
       PROMPT

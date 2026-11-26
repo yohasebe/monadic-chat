@@ -141,12 +141,18 @@ The `library_rag` rule in `SystemPromptInjector` (priority 70) applies when the 
 
 `library_search(query:, top_n: 3, content_type: nil, source: nil, session:)`:
 
-1. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
-2. Formats the hits: title link `[Title](mc:conv:<id>)`, source, speaker role, turn, score, and up to 480 characters of text.
+1. Refuses (`NO_RECORD_MESSAGE`) without a `workbench:` (Workbench::Caller): what is read is recorded and shown, so a reply with no chat reads nothing.
+2. Runs `Retriever.cascade_search` with `top_n` clamped to 1–10 and a filter on `content_type` / `source` when given.
+3. Records the search (`Monadic::Library::Readings.add`, before anything is returned; a search that cannot be recorded returns `NO_RECORD_MESSAGE`) and puts its excerpts on the work screen as `library-<reading id>.md` in the chat's `workbench/` folder (`Workbench::Put`).
+4. Formats the hits: title link `[Title](mc:read:<excerpt id>)`, source, speaker role, turn, score, and up to 480 characters of text.
 
 In a chat with a word table, the result is hidden with the rest of the request when it is sent (`hide_words_in_request!`).
 
 The tool group counts as available when the embeddings service answers its health check.
+
+### Readings
+
+`Monadic::Library::Readings` (`lib/monadic/library/readings.rb`) holds a reply's searches by `request_id`: `id` (`r_` + 16 hex), `query`, `at`, `path` (the copy on the work screen), `excerpts` (`id` `x_` + 16 hex, `conversation_id`, `title`, `source`, `turn`, `text` as the model was given it) and `cited`. The reply's message takes them as `library_readings` (`seal`, which marks as `cited` the excerpts its text links to by `mc:read:<id>`); a reply that ends without its message puts them on the user's message of the request (`library_readings_without_reply`). History (`History::Serializer`), import (`session_routes`) and the shared export (`PRIVACY_EXPORT_MESSAGE_KEYS`, every string masked) keep them through `Readings.clean`. The page draws them under the message (`Workbench.drawReadings`) and opens an excerpt's copy from an `mc:read:` link.
 
 ### Cascade Search
 

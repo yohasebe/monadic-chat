@@ -1151,9 +1151,10 @@
     const hasTools = Array.isArray(data.tools_used) && data.tools_used.length > 0;
     const shown = Array.isArray(data.workbench_shown) ? data.workbench_shown : null;
     // The text before the lines the card keeps under it (the files shown on
-    // the work screen).
-    const note = body.querySelector(':scope > .workbench-shown-note');
-    const written = note ? body.textContent.slice(0, body.textContent.length - note.textContent.length) : body.textContent;
+    // the work screen, what it read from the Library).
+    const notes = [...body.querySelectorAll(':scope > .workbench-shown-note, :scope > .workbench-reading-note')];
+    const noteChars = notes.reduce((n, el) => n + el.textContent.length, 0);
+    const written = body.textContent.slice(0, body.textContent.length - noteChars);
     const grows = text.length > written.trim().length;
     // Mirror the server's grow-only rule as a client-side belt — for the
     // TEXT only. A badge-carrying update is processed even without growth
@@ -1163,6 +1164,9 @@
     // again after the text is).
     const drawShown = () => {
       if (shown && window.Workbench && typeof window.Workbench.drawShown === 'function') window.Workbench.drawShown(data.mid, shown);
+      if (Array.isArray(data.library_readings) && window.Workbench && typeof window.Workbench.drawReadings === 'function') {
+        window.Workbench.drawReadings(data.mid, data.library_readings);
+      }
     };
     if (!grows && !hasTools) {
       drawShown();

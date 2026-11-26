@@ -1791,6 +1791,33 @@ describe('Workbench', () => {
       window.Workbench.drawEdits('m-r', []);
       expect(el.querySelector('.workbench-edit-note')).toBeNull();
     });
+
+    test('says what a reply read from the Library, and opens it from the note and from a cited link', () => {
+      const el = card('m-l');
+      const cited = 'x_' + 'b'.repeat(16);
+      window.Workbench.drawReadings('m-l', [
+        { id: 'r_' + 'a'.repeat(16), query: 'notes', path: 'conversations/c/workbench/library-r.md',
+          excerpts: [{ id: 'x_' + 'a'.repeat(16), conversation_id: 'conv-1', text: 'one' },
+            { id: cited, conversation_id: 'conv-1', text: 'two' }],
+          cited: [cited] },
+        { id: 'r_' + 'c'.repeat(16), query: 'nothing', excerpts: [] }
+      ]);
+      const lines = [...el.querySelectorAll('.workbench-reading-note .workbench-note-line')];
+      expect(lines.map((l) => l.textContent)).toEqual([
+        'Read from the Library: notes (2 passages, 1 cited) Show in the work screen',
+        'Read from the Library: nothing (nothing found)'
+      ]);
+      lines[0].querySelector('.workbench-reading-open').click();
+      expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'conversations/c/workbench/library-r.md' });
+      sent.length = 0;
+      const link = document.createElement('a');
+      link.setAttribute('href', `mc:read:${cited}`);
+      el.appendChild(link);
+      link.click();
+      expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'conversations/c/workbench/library-r.md' });
+      window.Workbench.drawReadings('m-l', []);
+      expect(el.querySelector('.workbench-reading-note')).toBeNull();
+    });
   });
 
   describe('a file put from the computer', () => {

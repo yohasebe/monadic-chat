@@ -158,6 +158,13 @@ describeFn('model-output sanitization pipeline (golden + XSS)', () => {
       expect(a.getAttribute('data-mc-link')).toBe('mc:conv:abc-123');
     });
 
+    test('mc:read citation link (an excerpt a reply cites) keeps its href', () => {
+      const doc = toDoc(renderSanitized('[Notes](mc:read:x_0123456789abcdef)'));
+      const a = doc.querySelector('a[href="mc:read:x_0123456789abcdef"]');
+      expect(a).not.toBeNull();
+      expect(a.getAttribute('target')).toBeNull();
+    });
+
     test('mermaid wrapper: div.mermaid-code > pre survives with source intact', () => {
       const doc = toDoc(renderSanitized('```mermaid\ngraph TD\n  A-->B\n```'));
       const pre = doc.querySelector('div.mermaid-code > pre');

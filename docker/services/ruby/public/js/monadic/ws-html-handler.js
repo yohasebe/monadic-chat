@@ -57,6 +57,7 @@ function handleHtml(data) {
   if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
     handled = wsHandlers.handleHtmlMessage(data, window.appendCard);
     if (handled) {
+      if (data["content"]["role"] === "assistant") _drawReplyRecords(data["content"]);
       // moreComing handling is now done inside handleHtmlMessage
       // so cancel_query visibility is controlled there
       if (!data["more_coming"]) {
@@ -177,6 +178,37 @@ function handleHtml(data) {
 }
 
 /**
+ * Draws what an assistant message records of the work screen and the
+ * Library (images it made, looks, files shown, edit inputs, readings) on
+ * its card, whichever handler made the card.
+ * @param {Object} content - The message
+ * @private
+ */
+function _drawReplyRecords(content) {
+  // What the reply made (an image placed in the chat's folder), as the
+  // message records it.
+  if (window.Workbench && Array.isArray(content["artifacts"])) {
+    window.Workbench.drawRecord(content["mid"], content["artifacts"]);
+  }
+  // What the reply looked at in the work screen, as the message records it.
+  if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(content["workbench_looks"])) {
+    window.Workbench.drawLooks(content["mid"], content["workbench_looks"]);
+  }
+  // What the reply showed in the work screen, as the message records it.
+  if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(content["workbench_shown"])) {
+    window.Workbench.drawShown(content["mid"], content["workbench_shown"]);
+  }
+  // The images of the work screen its image edits sent.
+  if (window.Workbench && typeof window.Workbench.drawEdits === 'function' && Array.isArray(content["workbench_edit_inputs"])) {
+    window.Workbench.drawEdits(content["mid"], content["workbench_edit_inputs"]);
+  }
+  // What it read from the Library.
+  if (window.Workbench && typeof window.Workbench.drawReadings === 'function' && Array.isArray(content["library_readings"])) {
+    window.Workbench.drawReadings(content["mid"], content["library_readings"]);
+  }
+}
+
+/**
  * Handle assistant role within the html message.
  * Manages moreComing (tool continuation) vs final message logic,
  * including Auto Speech TTS triggering.
@@ -190,27 +222,7 @@ function _handleAssistantRole(data, html, moreComing) {
   const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", window.assistantBadge(data["content"]), html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
-  // What the reply made (an image placed in the chat's folder), as the
-  // message records it.
-  if (window.Workbench && Array.isArray(data["content"]["artifacts"])) {
-    window.Workbench.drawRecord(data["content"]["mid"], data["content"]["artifacts"]);
-  }
-  // What the reply looked at in the work screen, as the message records it.
-  if (window.Workbench && typeof window.Workbench.drawLooks === 'function' && Array.isArray(data["content"]["workbench_looks"])) {
-    window.Workbench.drawLooks(data["content"]["mid"], data["content"]["workbench_looks"]);
-  }
-  // What the reply showed in the work screen, as the message records it.
-  if (window.Workbench && typeof window.Workbench.drawShown === 'function' && Array.isArray(data["content"]["workbench_shown"])) {
-    window.Workbench.drawShown(data["content"]["mid"], data["content"]["workbench_shown"]);
-  }
-  // The images of the work screen its image edits sent.
-  if (window.Workbench && typeof window.Workbench.drawEdits === 'function' && Array.isArray(data["content"]["workbench_edit_inputs"])) {
-    window.Workbench.drawEdits(data["content"]["mid"], data["content"]["workbench_edit_inputs"]);
-  }
-  // What it read from the Library.
-  if (window.Workbench && typeof window.Workbench.drawReadings === 'function' && Array.isArray(data["content"]["library_readings"])) {
-    window.Workbench.drawReadings(data["content"]["mid"], data["content"]["library_readings"]);
-  }
+  _drawReplyRecords(data["content"]);
 
   if (moreComing) {
     // Keep input disabled and streaming state active

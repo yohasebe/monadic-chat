@@ -289,8 +289,6 @@ const webUITranslations = {
       appSettings: "App Settings",
       conversationControl: "Conversation Control",
       speechInput: "Speech Input",
-      audioUpload: "Audio/MIDI",
-      uploadAudioMidi: "Upload audio or MIDI file for analysis",
       startStopVoice: "Start/stop voice input recording",
       monadicChatInfo: "Monadic Chat Info",
       monadicChatStatus: "Monadic Chat Status",
@@ -536,9 +534,6 @@ const webUITranslations = {
         openUrlInvalid: "Enter an address that starts with http:// or https://.",
         openUrlStarting: "The browser is starting. Try again in a moment.",
         openUrlFailed: "The page could not be opened in the work screen.",
-        audioUploadTitle: "Upload Audio/MIDI",
-        audioFileLabel: "Audio or MIDI file (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "Upload"
       },
       messages: {
         functionsComplete: "Functions complete",
@@ -1035,8 +1030,6 @@ const webUITranslations = {
       fromURL: "URLを開く",
       chatTop: "会話の先頭へ",
       chatBottom: "会話の末尾へ",
-      audioUpload: "音声/MIDI",
-      uploadAudioMidi: "分析用の音声/MIDIファイルをアップロード",
       speechInput: "音声入力",
       importFromWeb: "ページを作業画面で開くか、その文を取り込む",
       startStopVoice: "音声入力の開始/停止",
@@ -1277,9 +1270,6 @@ const webUITranslations = {
         openUrlInvalid: "http:// か https:// で始まるアドレスを入れてください。",
         openUrlStarting: "ブラウザーを起動しています。少し待ってからもう一度試してください。",
         openUrlFailed: "ページを作業画面で開けませんでした。",
-        audioUploadTitle: "音声/MIDIアップロード",
-        audioFileLabel: "音声/MIDIファイル (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "アップロード"
       },
       messages: {
         functionsComplete: "関数の実行が完了しました",
@@ -1985,8 +1975,6 @@ const webUITranslations = {
       attachImage: "将图像文件附加到消息",
       removeAttachment: "移除此附件",
       importFromWeb: "在工作区打开页面，或导入其文本",
-      audioUpload: "音频/MIDI",
-      uploadAudioMidi: "上传音频或MIDI文件进行分析",
       startStopVoice: "开始/停止语音输入",
       appCategories: {
         general: "通用",
@@ -2018,9 +2006,6 @@ const webUITranslations = {
         openUrlInvalid: "请输入以 http:// 或 https:// 开头的地址。",
         openUrlStarting: "浏览器正在启动。请稍后再试。",
         openUrlFailed: "无法在工作区打开该页面。",
-        audioUploadTitle: "上传音频/MIDI",
-        audioFileLabel: "音频或MIDI文件 (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "上传"
       },
       messages: {
         functionsComplete: "函数执行完成",
@@ -2728,8 +2713,6 @@ const webUITranslations = {
       attachImage: "메시지에 이미지 파일 첨부",
       removeAttachment: "이 첨부 파일 제거",
       importFromWeb: "작업 화면에서 페이지를 열거나 그 텍스트를 가져오기",
-      audioUpload: "오디오/MIDI",
-      uploadAudioMidi: "분석을 위한 오디오 또는 MIDI 파일 업로드",
       startStopVoice: "음성 입력 시작/중지",
       appCategories: {
         general: "일반",
@@ -2761,9 +2744,6 @@ const webUITranslations = {
         openUrlInvalid: "http:// 또는 https://로 시작하는 주소를 입력하세요.",
         openUrlStarting: "브라우저를 시작하는 중입니다. 잠시 후 다시 시도하세요.",
         openUrlFailed: "작업 화면에서 페이지를 열 수 없었습니다.",
-        audioUploadTitle: "오디오/MIDI 업로드",
-        audioFileLabel: "오디오 또는 MIDI 파일 (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "업로드"
       },
       messages: {
         functionsComplete: "함수 실행 완료",
@@ -3469,8 +3449,6 @@ const webUITranslations = {
       attachImage: "Adjuntar archivo de imagen al mensaje",
       removeAttachment: "Quitar este adjunto",
       importFromWeb: "Abrir una página en la pantalla de trabajo o importar su texto",
-      audioUpload: "Audio/MIDI",
-      uploadAudioMidi: "Subir archivo de audio o MIDI para análisis",
       startStopVoice: "Iniciar/detener grabación de voz",
       appCategories: {
         general: "General",
@@ -3502,9 +3480,6 @@ const webUITranslations = {
         openUrlInvalid: "Introduzca una dirección que empiece por http:// o https://.",
         openUrlStarting: "El navegador se está iniciando. Inténtelo de nuevo en un momento.",
         openUrlFailed: "No se pudo abrir la página en la pantalla de trabajo.",
-        audioUploadTitle: "Subir Audio/MIDI",
-        audioFileLabel: "Archivo de audio o MIDI (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "Subir"
       },
       messages: {
         functionsComplete: "Funciones completadas",
@@ -4210,8 +4185,6 @@ const webUITranslations = {
       attachImage: "Joindre un fichier image au message",
       removeAttachment: "Retirer cette pièce jointe",
       importFromWeb: "Ouvrir une page dans l'écran de travail ou en importer le texte",
-      audioUpload: "Audio/MIDI",
-      uploadAudioMidi: "Télécharger un fichier audio ou MIDI pour analyse",
       startStopVoice: "Démarrer/arrêter l'enregistrement vocal",
       appCategories: {
         general: "Général",
@@ -4243,9 +4216,6 @@ const webUITranslations = {
         openUrlInvalid: "Saisissez une adresse commençant par http:// ou https://.",
         openUrlStarting: "Le navigateur démarre. Réessayez dans un instant.",
         openUrlFailed: "La page n'a pas pu être ouverte dans l'écran de travail.",
-        audioUploadTitle: "Télécharger Audio/MIDI",
-        audioFileLabel: "Fichier audio ou MIDI (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "Télécharger"
       },
       messages: {
         functionsComplete: "Fonctions terminées",
@@ -4951,8 +4921,6 @@ const webUITranslations = {
       attachImage: "Bilddatei an Nachricht anhängen",
       removeAttachment: "Diesen Anhang entfernen",
       importFromWeb: "Eine Seite im Arbeitsbereich öffnen oder ihren Text übernehmen",
-      audioUpload: "Audio/MIDI",
-      uploadAudioMidi: "Audio- oder MIDI-Datei zur Analyse hochladen",
       startStopVoice: "Sprachaufnahme starten/stoppen",
       appCategories: {
         general: "Allgemein",
@@ -4984,9 +4952,6 @@ const webUITranslations = {
         openUrlInvalid: "Geben Sie eine Adresse ein, die mit http:// oder https:// beginnt.",
         openUrlStarting: "Der Browser startet. Versuchen Sie es gleich noch einmal.",
         openUrlFailed: "Die Seite konnte im Arbeitsbereich nicht geöffnet werden.",
-        audioUploadTitle: "Audio/MIDI Hochladen",
-        audioFileLabel: "Audio- oder MIDI-Datei (mp3, wav, m4a, ogg, flac, mid, midi)",
-        upload: "Hochladen"
       },
       messages: {
         functionsComplete: "Funktionen abgeschlossen",

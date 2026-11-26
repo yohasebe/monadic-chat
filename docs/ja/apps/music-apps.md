@@ -2,7 +2,7 @@
 
 2 つの音楽のアプリです。Music Tutor は、解説と、鳴らせる楽譜や伴奏パターンで音楽理論を教えます。Music Analyst は、音声や MIDI のファイルを分析し、録音された演奏を講評します。テキストの説明から新しい音楽を音声ファイルとして作るには、[Music Generator](music-generator.md) をご利用ください。
 
-どちらのアプリでも、音声や MIDI のファイルを[作業画面](../basic-usage/web-interface.md#work-screen)に置くか、メッセージ欄の下の **音声/MIDI** ボタンか添付のボタンで添付します。ファイルはその会話のフォルダーに保存され、次のメッセージと一緒に送られます。送信の前に、添付したファイルの名前をクリックすると、音声は[作業画面](../basic-usage/web-interface.md#work-screen)で再生できます。MIDI のファイルは作業画面では再生されません。
+どちらのアプリでも、音声や MIDI のファイルを[作業画面](../basic-usage/web-interface.md#work-screen)に置くか、メッセージ欄の下の添付のボタンで添付します。ファイルはその会話のフォルダーに保存され、次のメッセージと一緒に送られます。送信の前に、添付したファイルの名前をクリックすると、音声は[作業画面](../basic-usage/web-interface.md#work-screen)で再生できます。MIDI のファイルは作業画面では再生されません。
 
 ## Music Tutor :id=music-tutor
 

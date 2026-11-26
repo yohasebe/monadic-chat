@@ -1013,7 +1013,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setAlert(alertMessage, "warning");
 
         // Disable UI elements manually here to ensure they're disabled even if websocket events fail
-        ["message", "send", "clear", "image-file", "voice", "audio-upload", "select-role"].forEach(function(id) {
+        ["message", "send", "clear", "image-file", "voice", "select-role"].forEach(function(id) {
           var el = $id(id);
           if (el) el.disabled = true;
         });
@@ -2148,11 +2148,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return !!value;
     });
 
-    if (toBool(apps[appValue]["audio_upload"])) {
-      $show($id("audio-upload"));
-    } else {
-      $hide($id("audio-upload"));
-    }
+
 
     if (typeof window.applyAppCapabilityClasses === "function") window.applyAppCapabilityClasses(appValue);
 
@@ -2648,7 +2644,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      document.querySelectorAll("#send, #clear, #image-file, #voice, #audio-upload").forEach(function(_el) { _el.disabled = false; });
+      document.querySelectorAll("#send, #clear, #image-file, #voice").forEach(function(_el) { _el.disabled = false; });
       { const el = $id("message"); if (el) el.disabled = false; }
       { const el = $id("select-role"); if (el) el.disabled = false; }
       $hide($id("monadic-spinner"));
@@ -3133,53 +3129,6 @@ document.addEventListener("DOMContentLoaded", function () {
     { const el = $id('file-load'); if (el) el.value = ''; }
     { const el = $id('import-button'); if (el) el.disabled = true; }
     $hide($id("load-spinner"));
-  });
-
-  // Audio/MIDI upload button
-  $on($id("audio-upload"), "click", function(event) {
-    event.preventDefault();
-    { const el = $id("audioFile"); if (el) el.value = ""; }
-    if (formHandlers && formHandlers.showModalWithFocus) {
-      formHandlers.showModalWithFocus('audioUploadModal', 'audioFile', function() {
-        { const el = $id('audioFile'); if (el) el.value = ''; }
-        { const el = $id('uploadAudioBtn'); if (el) el.disabled = true; }
-      });
-    } else {
-      window.MonadicDialog.of($id("audioUploadModal")).open();
-    }
-  });
-
-  // Audio file input validation
-  if (formHandlers && formHandlers.setupFileValidation) {
-    formHandlers.setupFileValidation(
-      $id('audioFile'),
-      $id('uploadAudioBtn')
-    );
-  } else {
-    $on($id("audioFile"), "change", function() {
-      { const el = $id('uploadAudioBtn'); if (el) el.disabled = !this.files || this.files.length === 0; }
-    });
-  }
-
-  // Audio/MIDI upload submit: the file is attached to the chat, as with
-  // the attach button, and goes with the next message.
-  $on($id("uploadAudioBtn"), "click", async function () {
-    const file = $id("audioFile").files[0];
-    if (!file) return;
-    try {
-      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = true; });
-      $show($id("audio-upload-spinner"));
-      await window.uploadVideoAttachment(file, 'audio');
-      $hide($id("audio-upload-spinner"));
-      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-      window.MonadicDialog.of($id("audioUploadModal")).close('done');
-      { const el = $id("message"); if (el) el.focus(); }
-    } catch (error) {
-      $hide($id("audio-upload-spinner"));
-      document.querySelectorAll("#audioUploadModal button").forEach(function(_el) { _el.disabled = false; });
-      window.MonadicDialog.of($id("audioUploadModal")).close('done');
-      setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
-    }
   });
 
   // Text taken in for the message (a page's, a document's on the work

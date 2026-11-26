@@ -1266,16 +1266,13 @@ module MonadicSharedTools
           {
             name: "library_search",
             description: "Search the project-wide Knowledge Base (Library) for passages relevant " \
-                         "to a query. Returns passages, each linked as [Title](mc:read:<id>) — keep " \
-                         "the link of a passage you cite verbatim in your reply so the user can open " \
+                         "to a query. Returns passages, each linked as [Title](mc:read:<id>). When you " \
+                         "cite a passage, preserve its link exactly as returned so the user can open " \
                          "it; the passages are shown to the user in the work screen. Use " \
-                         "it for questions about what the user has stored (their documents, notes " \
-                         "or earlier conversations), even when you could answer from training " \
-                         "knowledge; answer a question on a topic the stored entries do not cover " \
-                         "without it. The system prompt lists what's currently " \
-                         "in the Knowledge Base by `source` and `content_type`; use those keys " \
-                         "with the optional narrowing parameters when the answer is likely in a " \
-                         "specific slice of the Library.",
+                         "it when the user asks for it or refers to what they keep (their documents, " \
+                         "notes or earlier conversations), or when it would clearly help; not on " \
+                         "every turn. The optional narrowing parameters take the `content_type` and " \
+                         "`source` values library_list shows.",
             parameters: [
               {
                 name: :query,
@@ -1292,19 +1289,32 @@ module MonadicSharedTools
               {
                 name: :content_type,
                 type: "string",
-                description: "Optional narrowing filter. One of \"conversation\", \"pdf\", \"document\", \"markdown\", \"code\". Match against the inventory listed in the system prompt; omit to search all content types.",
+                description: "Optional narrowing filter. One of \"conversation\", \"pdf\", \"document\", \"markdown\", \"code\"; omit to search all content types.",
                 required: false
               },
               {
                 name: :source,
                 type: "string",
-                description: "Optional narrowing filter. A specific source key from the inventory (e.g. \"monadic-chat\" for the user's saved chats, or any corpus identifier listed). Omit to search all sources.",
+                description: "Optional narrowing filter. A source as library_list shows it (e.g. \"monadic-chat\" for saved chats). Omit to search all sources.",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "library_list",
+            description: "List what the user's Library holds: each entry's title, kind, source and date, " \
+                         "newest first, a page at a time. Use it when the user asks what is in their Library " \
+                         "or you need an entry's title or source to search it.",
+            parameters: [
+              {
+                name: :page,
+                type: "integer",
+                description: "The page to list, from 1 (default 1).",
                 required: false
               }
             ]
           }
         ],
-        default_hint: "Call request_tool(\"library_search\") when the user references prior project knowledge or asks about content stored in the Knowledge Base.",
         visibility: 'conditional',
         available_when: -> { MonadicSharedTools::LibrarySearch.available? }
       }

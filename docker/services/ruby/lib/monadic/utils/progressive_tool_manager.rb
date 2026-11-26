@@ -2,6 +2,7 @@
 
 require "set"
 require_relative "app_names"
+require_relative "../library/in_chats"
 
 module Monadic
   module Utils
@@ -16,21 +17,17 @@ module Monadic
       # capability is never acquired through the dynamic skill system.
       WEBSEARCH_GROUP = "web_search_tools"
 
-      # The Knowledge Base search group follows the per-session "Use Knowledge
-      # Base for retrieval" toggle: shown without unlocking while it is on,
-      # hidden and not unlockable while it is off.
+      # The Library's group follows the setting (Library::InChats.on?):
+      # shown without unlocking while it allows them, hidden and not
+      # unlockable otherwise.
       LIBRARY_GROUP = "library_search"
-      LIBRARY_TOGGLE_KEY = "library_rag_enabled"
       # Tools of the group, however the app imported them (conditional or always).
-      LIBRARY_TOOL_NAMES = %w[library_search].freeze
+      LIBRARY_TOOL_NAMES = %w[library_search library_list].freeze
 
-      def library_rag_enabled?(session)
-        params = session.respond_to?(:[]) ? session[:parameters] : nil
-        return false unless params.respond_to?(:[])
-
-        value = params[LIBRARY_TOGGLE_KEY]
-        value = params[LIBRARY_TOGGLE_KEY.to_sym] if value.nil? && params.respond_to?(:key?)
-        value == true || value.to_s == "true"
+      # The Library's tools are offered while the setting allows them
+      # (Library::InChats.on?), in every chat.
+      def library_offered?(_session)
+        Monadic::Library::InChats.on?
       end
 
       # True only when the session has web search explicitly turned off
@@ -59,7 +56,7 @@ module Monadic
       def apply_library_toggle(tools, all_tools, session, conditional_names)
         names = Set.new(LIBRARY_TOOL_NAMES) | Set.new(conditional_names)
         kb = ->(t) { names.include?(extract_tool_name(t).to_s) }
-        if library_rag_enabled?(session)
+        if library_offered?(session)
           tools + all_tools.select { |t| kb.call(t) && !tools.include?(t) }
         else
           tools.reject { |t| kb.call(t) }

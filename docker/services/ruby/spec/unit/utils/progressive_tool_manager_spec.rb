@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../lib/monadic/utils/progressive_tool_manager"
+require_relative "../../../lib/monadic/library/in_chats"
 
 RSpec.describe Monadic::Utils::ProgressiveToolManager do
   let(:app_name) { "TestApp" }
@@ -205,9 +206,10 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
     end
   end
 
-  # The library_search group follows the Knowledge Base toggle: visible without
-  # unlocking while it is on, hidden and not unlockable while it is off.
-  describe "Knowledge Base toggle gating" do
+  # The Library's group follows the setting (Library::InChats.on?):
+  # visible without unlocking while it allows the tools, hidden and not
+  # unlockable otherwise.
+  describe "Library setting gating" do
     let(:kb_settings) do
       {
         "progressive_tools" => {
@@ -226,44 +228,44 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
     let(:kb_tools) do
       %w[library_search analyze_image request_tool].map { |n| { "type" => "function", "function" => { "name" => n } } }
     end
-    let(:kb_on) { { parameters: { "library_rag_enabled" => true } } }
-    let(:kb_off) { { parameters: { "library_rag_enabled" => false } } }
+    let(:session) { { parameters: {} } }
 
-    def kb_visible(session)
+    def library(allowed)
+      allow(Monadic::Library::InChats).to receive(:on?).and_return(allowed)
+    end
+
+    def kb_visible(settings = kb_settings)
       described_class.visible_tools(
-        app_name: "KbApp", session: session, app_settings: kb_settings, default_tools: kb_tools
+        app_name: "KbApp", session: session, app_settings: settings, default_tools: kb_tools
       ).map { |t| t["function"]["name"] }
     end
 
-    it "shows library_search on the first turn while the toggle is on" do
-      expect(kb_visible(kb_on)).to include("library_search")
-      expect(kb_visible(kb_on)).not_to include("analyze_image")
+    it "shows library_search on the first turn while the setting allows it" do
+      library(true)
+      expect(kb_visible).to include("library_search")
+      expect(kb_visible).not_to include("analyze_image")
     end
 
-    it "hides library_search while the toggle is off, and when it is absent" do
-      expect(kb_visible(kb_off)).not_to include("library_search")
-      expect(kb_visible({ parameters: {} })).not_to include("library_search")
+    it "hides library_search while the setting does not allow it" do
+      library(false)
+      expect(kb_visible).not_to include("library_search")
     end
 
-    it "treats the string \"false\" as off" do
-      expect(kb_visible({ parameters: { "library_rag_enabled" => "false" } })).not_to include("library_search")
-    end
-
-    it "follows the toggle when it is switched off after being on" do
-      session = { parameters: { "library_rag_enabled" => true } }
-      expect(kb_visible(session)).to include("library_search")
-      session[:parameters]["library_rag_enabled"] = false
-      expect(kb_visible(session)).not_to include("library_search")
+    it "ignores a switch a session still carries from an earlier version" do
+      library(false)
+      session[:parameters]["library_rag_enabled"] = true
+      expect(kb_visible).not_to include("library_search")
     end
 
     it "does not unlock library_search through request_tool" do
+      library(false)
       expect(described_class.unlock_request(
-        session: kb_off, app_name: "KbApp", app_settings: kb_settings, request_key: "library_search"
+        session: session, app_name: "KbApp", app_settings: kb_settings, request_key: "library_search"
       )).to eq([])
-      expect(kb_visible(kb_off)).not_to include("library_search")
+      expect(kb_visible).not_to include("library_search")
     end
 
-    it "follows the toggle when the app imports library_search as always visible" do
+    it "follows the setting when the app imports library_search as always visible" do
       always_settings = {
         "progressive_tools" => {
           provider: :openai,
@@ -272,26 +274,22 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
           conditional: []
         }
       }
-      visible = ->(session) {
-        described_class.visible_tools(app_name: "KbApp", session: session, app_settings: always_settings,
-                                      default_tools: kb_tools).map { |t| t["function"]["name"] }
-      }
-      expect(visible.call(kb_on)).to include("library_search")
-      expect(visible.call(kb_off)).not_to include("library_search")
-      expect(visible.call({ parameters: {} })).not_to include("library_search")
+      library(true)
+      expect(kb_visible(always_settings)).to include("library_search")
+      library(false)
+      expect(kb_visible(always_settings)).not_to include("library_search")
     end
 
-    it "follows the toggle for an app without progressive metadata" do
-      visible = ->(session) {
-        described_class.visible_tools(app_name: "KbApp", session: session, app_settings: {},
-                                      default_tools: kb_tools).map { |t| t["function"]["name"] }
-      }
-      expect(visible.call(kb_on)).to include("library_search", "analyze_image")
-      expect(visible.call(kb_off)).to contain_exactly("analyze_image", "request_tool")
+    it "follows the setting for an app without progressive metadata" do
+      library(true)
+      expect(kb_visible({})).to include("library_search", "analyze_image")
+      library(false)
+      expect(kb_visible({})).to contain_exactly("analyze_image", "request_tool")
     end
 
     it "leaves library_search out of the skill menu and keeps other groups" do
-      menu = described_class.skill_menu(app_settings: kb_settings, session: kb_on, app_name: "KbApp").join("\n")
+      library(true)
+      menu = described_class.skill_menu(app_settings: kb_settings, session: session, app_name: "KbApp").join("\n")
       expect(menu).not_to include("library_search")
       expect(menu).to include("image_analysis")
     end

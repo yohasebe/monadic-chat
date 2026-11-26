@@ -358,7 +358,7 @@ def knowledge_base(table, color, title):
     """The Knowledge Base panel of the menu."""
     figure = Figure(color, title)
     x, y, width = 20, 20, 400
-    figure.add('<rect x="%d" y="%d" width="%d" height="166" rx="6" fill="#ffffff" stroke="%s"/>'
+    figure.add('<rect x="%d" y="%d" width="%d" height="116" rx="6" fill="#ffffff" stroke="%s"/>'
                % (x, y, width, color('pal-grey-line')))
     figure.icon('fas', 'fa-book', x + 14, y + 16, 15, color('pal-amber-mid'))
     figure.text(x + 38, y + 29, re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip(), 15, None, '600')
@@ -367,11 +367,7 @@ def knowledge_base(table, color, title):
     for button_id in ('library-save', 'library-browse'):
         spec = specs[button_id]
         bx += figure.button(bx, y + 70, spec['kind'], spec['style'], spec['icon'], label(table, spec['key'])) + 8
-    figure.add('<rect x="%d" y="%d" width="28" height="15" rx="7.5" fill="%s"/><circle cx="%d" cy="%.1f" r="5.5" fill="#ffffff"/>'
-               % (x + 14, y + 134, color('pal-accent-mid'), x + 34, y + 141.5))
-    figure.callout(x + 28, y + 119)
-    figure.text(x + 50, y + 146, label(table, 'ui.libRagToggleLabel'), 12, color('pal-grey-text'))
-    figure.grow(x + width, y + 166)
+    figure.grow(x + width, y + 116)
     return figure
 
 
@@ -1045,7 +1041,7 @@ def settings_parts(category):
     # Each category is a button inside its list item (it takes the keyboard)
     items = re.findall(r'<li data-category="([a-z-]+)"[^>]*>\s*(?:<button\b[^>]*>\s*)?' + APP_ICON
                        + r'></i>\s*<span data-i18n="([^"]+)">', html)
-    footer = re.findall(r'<button type="button" id="(?:save|close)-settings-btn">\s*' + APP_ICON
+    footer = re.findall(r'<button type="button" id="(?:save|close)-settings-btn"[^>]*>\s*' + APP_ICON
                         + r'></i>\s*<span data-i18n="([^"]+)">', html)
     start = html.find('id="panel-%s"' % category)
     if not items or len(footer) != 2 or start < 0:
@@ -1055,7 +1051,7 @@ def settings_parts(category):
     for chunk in panel.split('<div class="setting-group"')[1:]:
         name = re.search(r'<label\b[^>]*?(?:data-i18n="([^"]+)")?>([^<]*)</label>', chunk)
         checks = re.findall(r'<input type="checkbox"[^>]*>\s*<label\b[^>]*?(?:data-i18n="([^"]+)")?>([^<]*)</label>', chunk)
-        actions = re.findall(r'class="action-btn"[^>]*>\s*' + APP_ICON + r'></i>\s*<span data-i18n="([^"]+)">', chunk)
+        actions = re.findall(r'class="[^"]*\baction-btn\b[^"]*"[^>]*>\s*' + APP_ICON + r'></i>\s*<span data-i18n="([^"]+)">', chunk)
         if not name and '<small' in chunk:
             groups.append({'kind': 'remark', 'key': None, 'text': '', 'extra': None, 'note': True})
             continue

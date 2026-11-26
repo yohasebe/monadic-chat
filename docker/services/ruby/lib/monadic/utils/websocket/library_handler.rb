@@ -14,8 +14,6 @@ require_relative '../../library/desk_import'
 #   - LIBRARY_SAVE          → 'library_saved' (ingest current session)
 #   - LIBRARY_RENAME        → 'library_renamed'
 #   - LIBRARY_GET_CONVERSATION → 'library_conversation_data'
-#   - LIBRARY_RAG_TOGGLE    → 'library_rag_state'
-#   - LIBRARY_RAG_QUERY     → 'library_rag_state' (UI sync on connect)
 module WebSocketHelper
   private def library_store_for_ws
     Monadic::Library::Store.new
@@ -58,28 +56,6 @@ module WebSocketHelper
       'type' => 'library_deleted', 'res' => 'failure',
       'content' => e.message,
       'conversation_id' => obj['contents']
-    })
-  end
-
-  RAG_TOGGLE_KEY = 'library_rag_enabled'
-
-  private def handle_ws_library_rag_toggle(connection, obj, session)
-    enabled = obj['contents']
-    enabled = enabled.is_a?(Hash) ? !!(enabled['enabled']) : !!enabled
-
-    session[:parameters] ||= {}
-    session[:parameters][RAG_TOGGLE_KEY] = enabled
-
-    send_to_client(connection, {
-      'type' => 'library_rag_state', 'enabled' => enabled
-    })
-  end
-
-  private def handle_ws_library_rag_query(connection, _obj, session)
-    params = session[:parameters] || {}
-    enabled = !!params[RAG_TOGGLE_KEY]
-    send_to_client(connection, {
-      'type' => 'library_rag_state', 'enabled' => enabled
     })
   end
 

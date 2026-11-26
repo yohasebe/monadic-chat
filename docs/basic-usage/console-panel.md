@@ -156,6 +156,9 @@ Select the browser to use when opening Monadic Chat from the console. "Internal 
 **Syntax Highlighting Theme** <br />
 Select the theme for code syntax highlighting. The default is `github-light`.
 
+**Sources the AI can use** <br />
+**The Library, in chats**: when on, the AI consults the [Knowledge Base](../apps/knowledge-base.md) when you ask for it or it clearly helps, and what it reads is shown on the work screen. On by default. The change takes effect when Monadic Chat starts again.
+
 ### System
 
 ![Settings: System](../assets/images/figures/settings-system.svg)

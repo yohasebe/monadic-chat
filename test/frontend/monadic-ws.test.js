@@ -235,7 +235,6 @@ describe('safeWsSend', () => {
   test('isIdempotent surface for callers', () => {
     expect(MonadicWs.isIdempotent('RESET')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_SAVE')).toBe(true);
-    expect(MonadicWs.isIdempotent('LIBRARY_RAG_QUERY')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_RENAME')).toBe(true);
     expect(MonadicWs.isIdempotent('LIBRARY_GET_CONVERSATION')).toBe(true);
     expect(MonadicWs.isIdempotent('EDIT')).toBe(true);
@@ -249,9 +248,7 @@ describe('safeWsSend', () => {
     expect(MonadicWs.isIdempotent('SYSTEM_PROMPT')).toBe(false);
     expect(MonadicWs.isIdempotent('SAMPLE')).toBe(false);
     expect(MonadicWs.isIdempotent('AI_USER_QUERY')).toBe(false);
-    // LIBRARY_RAG_STATE was a stale entry — the actual server message
-    // is LIBRARY_RAG_QUERY. Lock the rename so it cannot regress.
-    expect(MonadicWs.isIdempotent('LIBRARY_RAG_STATE')).toBe(false);
+    expect(MonadicWs.isIdempotent('LIBRARY_RAG_QUERY')).toBe(false);
     expect(MonadicWs.isIdempotent('UNKNOWN_FUTURE_MSG')).toBe(false);
   });
 });

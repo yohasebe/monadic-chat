@@ -422,6 +422,7 @@
     .dark-theme #loading-overlay p { color: var(--text-muted, #999); }
     </style>
     <script src="./settingsTranslations.js"></script>
+    <script src="./setting_values.js"></script>
   </head>
   <body>
     <div id="loading-overlay">
@@ -547,6 +548,15 @@
                 <option value="magritte:light">magritte</option>
                 <option value="pastie:light">pastie</option>
               </select>
+            </div>
+
+            <div class="setting-group">
+              <label data-i18n="settings.labels.aiSources">Sources the AI can use</label>
+              <div class="checkbox-row">
+                <input type="checkbox" id="library-in-chats" value="">
+                <label for="library-in-chats" data-i18n="settings.labels.libraryInChats">The Library, in chats</label>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.libraryInChatsDesc">When on, the AI consults the Library when you ask for it or it clearly helps, and what it reads is shown on the work screen. Takes effect when Monadic Chat starts again.</small>
             </div>
           </div>
 
@@ -1242,6 +1252,7 @@
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           TTS_DICT_PATH: document.getElementById('tts-dict-path').value,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
+          LIBRARY_IN_CHATS: document.getElementById('library-in-chats').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
@@ -1385,12 +1396,14 @@
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('auto-tts-max-bytes').value = data.AUTO_TTS_MAX_BYTES || '400';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
+        // On unless turned off.
+        document.getElementById('library-in-chats').checked = window.settingValues.onUnlessFalse(data.LIBRARY_IN_CHATS);
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
         document.getElementById('open-at-login').checked = data.OPEN_AT_LOGIN == "true" || false;
         document.getElementById('menu-bar-mode').checked = data.MENU_BAR_MODE == "true" || false;
         // On unless turned off.
-        document.getElementById('background-reply-notifications').checked = data.BACKGROUND_REPLY_NOTIFICATIONS !== "false";
+        document.getElementById('background-reply-notifications').checked = window.settingValues.onUnlessFalse(data.BACKGROUND_REPLY_NOTIFICATIONS);
         // Install Options
         document.getElementById('install-latex').checked = data.INSTALL_LATEX == "true" || false;
         document.getElementById('pyopt-nltk').checked = data.PYOPT_NLTK == "true" || false;

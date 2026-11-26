@@ -20,7 +20,7 @@ Rules run in descending priority.
 | 100 | `language_preference` | `session[:runtime_settings][:language]` is set | `LanguageConfig.system_prompt_for_language(lang)`; for `auto`, an instruction to answer in the language of the user |
 | 90 | `autonomy` | `autonomy` parameter is `high` or `low` | `AUTONOMY_HIGH_PROMPT` / `AUTONOMY_LOW_PROMPT` |
 | 80 | `websearch` | `options[:websearch_enabled]`, not `options[:reasoning_model]`, and a non-empty `options[:websearch_prompt]` | The web search prompt |
-| 70 | `library_rag` | `library_rag_enabled` is on and the app has `library_search` | Directive, Knowledge Base inventory and filter notes (`build_library_rag_prompt`) |
+| 70 | `library_rag` | `Library::InChats.on?` and the app has `library_search` | `LIBRARY_PROMPT`: when to consult the Library, `library_list`, the `mc:read` links |
 | 65 | `vocabulary_variables` | The app declares `${TOKEN}` variables in a `vocabulary` block | The list of variables to use verbatim |
 | 60 | `stt_diarization_warning` | The `stt_model` parameter contains `diarize` | `DIARIZATION_STT_PROMPT` (do not take a speaker's role) |
 | 50 | `math` | Always | `MATH_PROMPT` (how formulas are written: `\( \)` in a line, `\[ \]` or `$$ $$` on their own) |

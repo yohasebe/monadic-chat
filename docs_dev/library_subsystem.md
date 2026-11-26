@@ -4,7 +4,7 @@ The Library is the store behind the Knowledge Base. Saved conversations and impo
 
 Front ends:
 
-- **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename, delete and the "Use Knowledge Base" toggle, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
+- **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename and delete, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
 - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): retrieval from inside a chat turn.
 - **MCP server** (`lib/monadic/mcp/conduit.rb`): search, list and import for MCP clients; see [MCP Server](#mcp-server).
 
@@ -30,7 +30,7 @@ Point ids are random UUIDs. `conversation_id` in the payload links an entry's su
 
 ## One Shelf
 
-Every read (`library_search`, the RAG inventory, the Knowledge Base UI, MCP) sees every entry. `Hierarchical.ingest` writes `scope_app` = `Global` on every point; entries of earlier versions may carry an app's class name there. Nothing filters on it.
+Every read (`library_search`, `library_list`, the Knowledge Base UI, MCP) sees every entry. `Hierarchical.ingest` writes `scope_app` = `Global` on every point; entries of earlier versions may carry an app's class name there. Nothing filters on it.
 
 ## Ingestion
 
@@ -126,7 +126,7 @@ An entry opened from the Library tab (`WORKBENCH_OPEN_LIBRARY` → `Workbench::C
 
 `Manager.list_conversations` (behind `LIBRARY_LIST`) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
 
-Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_DELETE`, `LIBRARY_RAG_TOGGLE`, `LIBRARY_RAG_QUERY`.
+Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_DELETE`.
 
 ## App Capabilities
 
@@ -139,17 +139,19 @@ Apps with `library_search` true get the `library_search` tool group (`visibility
 
 ## Retrieval
 
-### Session Toggle
+### Setting
 
-The "Use Knowledge Base" toggle sets `session[:parameters]['library_rag_enabled']` (default off; only `true` or `"true"` counts as on). `ProgressiveToolManager.visible_tools` offers `library_search` exactly while the toggle is on, whether the app imports it as conditional (the default) or always visible; the group is left out of the skill menu and cannot be unlocked with `request_tool`. If it is called while the toggle is off, `library_search` returns a message telling the model to ask the user to turn it on.
+`Monadic::Library::InChats` (`lib/monadic/library/in_chats.rb`) reads `CONFIG['LIBRARY_IN_CHATS']` (Settings, General, Sources the AI can use; on unless `"false"`, read at server start). There is no per-chat switch; a `library_rag_enabled` parameter a session still carries is ignored.
+
+`on?` is the only check, and it asks nothing of the Library (it is asked whenever a prompt or a tool list is built, which sends nothing). `ProgressiveToolManager.visible_tools` offers the group (`library_search`, `library_list`) exactly while it holds, whether the app imports it as conditional (the default) or always visible; the group is left out of the skill menu and cannot be unlocked with `request_tool`. `LibrarySearch.session_enabled?` and Live's `available?` use it too; while it is off, `library_search` and `library_list` return `DISABLED_MESSAGE`. An empty Library is said by the tools: `library_list` returns that it is empty.
 
 ### System Prompt
 
-The `library_rag` rule in `SystemPromptInjector` (priority 70) applies when the toggle is on and the app's `library_search` is true. It adds:
+The `library_rag` rule in `SystemPromptInjector` (priority 70) applies while `InChats.on?` holds and the app's `library_search` is true. It adds `LIBRARY_PROMPT`: that the Library exists, to consult it only when asked, when the user refers to what they keep, or when it clearly helps, that `library_list` lists it, and to keep the `[Title](mc:read:<id>)` links. What the Library holds is not listed in the prompt.
 
-- an instruction to call `library_search` before answering factual questions and to keep the `[Title](mc:conv:<id>)` links;
-- an inventory of the entries the app can retrieve, counted by `source` and `content_type` (`Monadic::Library::Inventory`), left out when empty or unreachable;
-- the optional `content_type` and `source` parameters.
+### `library_list`
+
+`library_list(page:)` returns `LibrarySearch.list_text`: the entries from `Manager.list_conversations` (newest first), `LIST_PAGE` (30) per page, each as its title, `content_type`, `source` and date, with the total and the page count.
 
 ### `library_search`
 
@@ -196,7 +198,7 @@ lib/monadic/library/
   turn_segmenter.rb
   hierarchical.rb      # embed + upsert
   retriever.rb         # cascade_search
-  inventory.rb         # counts by source / content_type
+  in_chats.rb          # the setting: may the AI consult the Library in chats
   title_suggester.rb
   schema.rb, version.rb
 lib/monadic/vector_store/schema.rb

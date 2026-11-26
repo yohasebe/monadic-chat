@@ -103,6 +103,7 @@ To see all available models from the provider, toggle the **All** switch next to
 | `EXTRACTOR_SERVICE` | Use the Knowledge Base Quality Pack container | `false` | `true`, `false` |
 | `EXTRACTOR_LANGS` | OCR languages of the Knowledge Base Quality Pack | `en,ja,zh,ko` | Comma-separated codes |
 | `LIBRARY_IMPORT_MAX_BYTES` | Largest file the Knowledge Base imports, in bytes | `104857600` (100 MiB) | A number |
+| `LIBRARY_IN_CHATS` | Let the AI consult the Knowledge Base in chats (Settings: General, Sources the AI can use) | `true` | `true`, `false` |
 | `GEMINI_MAX_INLINE_PDF_MB` | Largest PDF sent to Gemini inline, in MB | `20` | A number |
 
 > **Note**: When the context size setting is on in the web interface, the number of stored messages is also limited by it.

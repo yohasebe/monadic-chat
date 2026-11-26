@@ -86,7 +86,7 @@ Show a live diagram of the selected app (Hidden, In Panel or Floating) — how i
 Start a new chat or continue your current conversation.
 
 **Session Indicator Badges**<br />
-The bar at the top shows badges for the features in effect: **Web Search**, **Math**, **Knowledge Base**, and the current reasoning effort (when it is not off). The Knowledge Base badge appears while **Use Knowledge Base for retrieval (this session)** is on. In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
+The bar at the top shows badges for the features in effect: **Web Search** and the current reasoning effort (when it is not off). In [Live Conversation](../apps/chat-apps.md#live-conversation), some of these settings have no UI, so the corresponding badges do not appear.
 
 The top bar of the page shows the conversation status. Its color tells what kind of status it is:
 
@@ -133,7 +133,7 @@ Links to the homepage and GitHub, the current version, the **Conversation Langua
 The models in use for the assistant and for the AI User feature, and the statistics of the current session (message and token counts).
 
 **Knowledge Base**<br />
-**Save** the current conversation to the Knowledge Base, **Browse** it, and turn **Use Knowledge Base for retrieval (this session)** on or off. See [Knowledge Base](../apps/knowledge-base.md).
+**Save** the current conversation to the Knowledge Base and **Browse** it. Whether the AI may use the Knowledge Base in chats is set in Settings. See [Knowledge Base](../apps/knowledge-base.md).
 
 **Session Controls**<br />
 - **Reset**: Clear the current conversation and reset parameters to defaults while keeping your app selection. To also clear the page's stored data and return to the initial app selection, use **Reset All** in the internal browser

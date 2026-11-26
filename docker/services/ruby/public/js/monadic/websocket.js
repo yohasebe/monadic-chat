@@ -318,7 +318,6 @@ window.loadedApp = "Chat";
     if (window.libraryPanel) {
       try { window.libraryPanel.requestList(); } catch (_) {}
       try { window.libraryPanel.requestStats(); } catch (_) {}
-      try { window.libraryPanel.requestRagState(); } catch (_) {}
     }
 
     // Detect browser/device capabilities for audio handling
@@ -1148,12 +1147,6 @@ window.loadedApp = "Chat";
       case "library_saved": {
         if (window.libraryPanel && typeof window.libraryPanel.handleSavedMessage === 'function') {
           window.libraryPanel.handleSavedMessage(data);
-        }
-        break;
-      }
-      case "library_rag_state": {
-        if (window.libraryPanel && typeof window.libraryPanel.handleRagState === 'function') {
-          window.libraryPanel.handleRagState(data);
         }
         break;
       }

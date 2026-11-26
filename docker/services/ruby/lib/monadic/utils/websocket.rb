@@ -254,10 +254,6 @@ module WebSocketHelper
           handle_ws_library_rename(connection, obj, session)
         when "LIBRARY_GET_CONVERSATION"
           handle_ws_library_get_conversation(connection, obj, session)
-        when "LIBRARY_RAG_TOGGLE"
-          handle_ws_library_rag_toggle(connection, obj, session)
-        when "LIBRARY_RAG_QUERY"
-          handle_ws_library_rag_query(connection, obj, session)
         when "LIBRARY_SUGGEST_TITLE"
           handle_ws_library_suggest_title(connection, obj, session)
         when "CHECK_TOKEN"

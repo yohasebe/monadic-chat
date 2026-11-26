@@ -6,7 +6,7 @@
   - Changes you may notice
     - The Privacy Filter and Private chats are replaced by `Anonymize`; every chat is kept in the chat history: **delete a chat you do not want to keep**
     - The PDF Database is removed: **import PDFs into the Knowledge Base** (earlier PDFs are not moved)
-    - Every app can save to and search the Knowledge Base; `Use Knowledge Base for retrieval (this session)` is off by default and remembered for each app
+    - Every app can save to and search the Knowledge Base; the AI searches it when you ask or when it clearly helps, and `Sources the AI can use` in Settings (General) turns this off after a restart
     - Chat Plus is merged into Chat, Language Practice Plus into Language Practice, and Music Lab is called Music Tutor; chats made with the old apps open in the new ones
     - Chat answers without waiting for its notes: the notes are updated after each reply with one more request to the same provider and model
     - The Session Context panel is removed: apps show their state as notes on the work screen

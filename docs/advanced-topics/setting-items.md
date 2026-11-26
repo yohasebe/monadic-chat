@@ -121,6 +121,7 @@ These are set in the **Settings** window (**Open → Settings**), not in MDSL fi
 
 - API keys for the providers, ElevenLabs and Tavily
 - UI language, Browser Mode, Launch at Login, Menu Bar Mode and Notify When a Reply Arrives in the Background
+- Whether the AI may use the Knowledge Base in chats (Sources the AI can use)
 - Extra Logging
 - The TTS dictionary file and the size limit for Auto Speech
 - The MCP server and its port

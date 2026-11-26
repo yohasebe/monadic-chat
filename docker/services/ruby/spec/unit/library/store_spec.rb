@@ -208,12 +208,12 @@ RSpec.describe Monadic::Library::Store do
   describe '#scroll' do
     let(:page) { { points: [{ 'id' => 'x' }], next: 'cursor-1' } }
 
-    it 'forwards collection / filter / limit / offset to the vector store' do
+    it 'forwards collection / filter / limit / offset / payload fields to the vector store' do
       allow(vector_store).to receive(:scroll).and_return(page)
       expect(vector_store).to receive(:scroll).with(
         collection: 'library_summaries',
         filter: { must: [{ key: 'conversation_id', match: { value: 'conv-abc' } }] },
-        limit: 50, offset: 'cur-prev', with_vectors: false
+        limit: 50, offset: 'cur-prev', with_payload: true, with_vectors: false
       )
       store.scroll(
         collection: 'library_summaries',

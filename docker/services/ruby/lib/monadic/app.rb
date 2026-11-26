@@ -375,8 +375,10 @@ class MonadicApp
         "#{success_with_output}#{truncate_output(stdout)}"
       end
     else
-      # The error text goes back to the model.
-      "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(stderr)}"
+      # The error text goes back to the model: stderr, or, for a script that
+      # prints its errors (ERROR: lines, a JSON "message") to stdout, those.
+      detail = stderr.strip.empty? ? Monadic::Utils::SecretRedactor.redact(stdout.lines.grep(/\AERROR:|"message":/).last(3).join) : stderr
+      "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(detail)}"
     end
   rescue StandardError => e
     "Error occurred: #{Monadic::Utils::ErrorFormatter.scrub_identifiers(e.message)}"

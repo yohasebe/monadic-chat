@@ -45,9 +45,9 @@ Queue limits:
 
 These message types are replayed after a reconnect (`IDEMPOTENT_MESSAGE_TYPES` in `monadic-ws.js`):
 
-`PING`, `RESET`, `LOAD`, `HTML`, `CHECK_TOKEN`, `CANCEL`, `DELETE`, `EDIT`, `STOP_TTS`, `UPDATE_PARAMS`, `UPDATE_LANGUAGE`, `PDF_TITLES`, `DELETE_PDF`, `DELETE_ALL_PDFS`, `PRIVACY_REGISTRY`, `LIBRARY_SAVE`, `LIBRARY_LIST`, `LIBRARY_DELETE`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME`
+`PING`, `RESET`, `LOAD`, `HTML`, `CHECK_TOKEN`, `CANCEL`, `DELETE`, `EDIT`, `STOP_TTS`, `UPDATE_PARAMS`, `UPDATE_LANGUAGE`, `LIBRARY_LIST`, `LIBRARY_DELETE`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME`, `HISTORY_LIST`
 
-Replaying does not make a handler idempotent: a `LIBRARY_SAVE` without a `conversation_id` creates a new entry each time it runs. Every other type is not replayed. Examples: a chat message (no `message` field), `SYSTEM_PROMPT` and `SAMPLE` (each adds a message), `AI_USER_QUERY` and `LIBRARY_SUGGEST_TITLE` (each calls a model), `PLAY_TTS`, `TTS` and `AUDIO` (each calls a speech service), `PRIVACY_EXPORT` (each makes a new download).
+Replaying does not make a handler idempotent, so a type that writes is not replayed: `LIBRARY_CONVERSATION_DRAFT` puts a new record on the work screen each time it runs. Every other type is not replayed. Examples: a chat message (no `message` field), `SYSTEM_PROMPT` and `SAMPLE` (each adds a message), `AI_USER_QUERY` (calls a model), `PLAY_TTS`, `TTS` and `AUDIO` (each calls a speech service), `PRIVACY_EXPORT` (each makes a new download).
 
 When you add a message type, add it to `IDEMPOTENT_MESSAGE_TYPES` only if running its handler twice leaves the same state as running it once.
 

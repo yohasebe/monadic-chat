@@ -4,7 +4,7 @@ The Library is the store behind the Knowledge Base. Saved conversations and impo
 
 Front ends:
 
-- **Knowledge Base sidebar panel** (`public/js/monadic/library-panel.js`): Save, Browse, Import file, rename and delete, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
+- **Library tab** of the side column (`public/js/monadic/library-panel.js`): the list, Import file, Keep this conversation, open on the work screen, open the original chat, the Conversation Viewer, rename and delete, over the WebSocket messages in `lib/monadic/utils/websocket/library_handler.rb` and the HTTP import route.
 - **`library_search` shared tool** (`lib/monadic/shared_tools/library_search.rb`): retrieval from inside a chat turn.
 - **MCP server** (`lib/monadic/mcp/conduit.rb`): search, list and import for MCP clients; see [MCP Server](#mcp-server).
 
@@ -22,7 +22,7 @@ Point ids are random UUIDs. `conversation_id` in the payload links an entry's su
 
 ### Summary Payload
 
-`conversation_id`, `scope_app`, `content_type` (default `conversation`), `source`, `language`, `title`, `license`, `topics`, `duration_seconds`, `participants_count`, `messages_count`, `turns_count`, `created_at`, plus `messages` and `participants` for the Conversation Viewer. When the JSON of `messages` exceeds 1,000,000 bytes, `messages` is left out and `messages_skipped_reason` is set.
+`conversation_id`, `scope_app`, `content_type` (default `conversation`), `source`, `language`, `title`, `license`, `topics`, `duration_seconds`, `participants_count`, `messages_count`, `turns_count`, `created_at`, `original` (a kept file), `source_chat_id` (a conversation record: the chat it was made from; indexed), `revision` (a new value on every write and rename: the version a choice was made on), plus `messages` and `participants` for the Conversation Viewer. When the JSON of `messages` exceeds 1,000,000 bytes, `messages` is left out and `messages_skipped_reason` is set.
 
 ### Turn Payload
 
@@ -42,18 +42,6 @@ All paths end in `Monadic::Library::Hierarchical.ingest(conversation, store:, or
 
 - One speaker (documents, monologues): each message is a turn.
 - Several speakers: consecutive messages by the same speaker form one turn.
-
-### Conversation Importers
-
-`Manager.import_from_text(store:, input:, options:)` parses a JSON string if possible and picks the first importer in `Importers::REGISTRY` whose `can_import?` accepts the input:
-
-1. `MonadicChatExport` (`parameters` + `messages`; source `monadic-chat`)
-2. `GeminiContents`
-3. `AnthropicMessages`
-4. `ChatML`
-5. `PlainText` (source `plain-text`)
-
-Importers accept `options[:conversation_id]`, `:title` and `:license`.
 
 ### File Importers
 
@@ -99,8 +87,9 @@ The working copy in `<data>/library/imports/` is separate: the route deletes it 
 
 ## From the Work Screen
 
-- `LIBRARY_FROM_WORKBENCH` (`handle_ws_library_from_workbench`) takes `item_id` and `sha256`: `Monadic::Library::DeskImport.start` reads the item's bytes at that version (`Board#file_read`), writes them to `<data>/library/imports/`, and runs `Manager.import_file` in a thread; the reply gives `import_id` and `status_url` (`ImportTracker`, as for an upload). Refused for a chat that hides words (`hides_words`), a tab that is not live (`not_allowed`), a name `FileImporter.importable?` refuses (`not_importable`), a file over `FileImporter::MAX_BYTES` (`too_large`), or another version (`changed`). The work screen offers it for items whose `library` flag (`Board#public_file`) is set.
-- `LIBRARY_CONVERSATION_DRAFT` (`handle_ws_library_conversation_draft`) gives the chat as a Markdown document (`Monadic::Library::ConversationRecord.of`: title, app, model, date, each user and assistant turn under `## User` / `## Assistant` with its own headings set to H4 and under, files named only, what a reply read from the Library) as `name` and `content`; nothing is stored. The page puts it on the work screen as a file (`Workbench.putFiles`). Refused for a chat that hides words.
+- `LIBRARY_FROM_WORKBENCH` (`handle_ws_library_from_workbench`) takes `item_id`, `sha256` and, for a conversation record, `choice`: `Monadic::Library::DeskImport.start` reads the item's bytes at that version (`Board#file_read`), writes them to `<data>/library/imports/`, and runs `Manager.import_file` in a thread; the reply gives `import_id` and `status_url` (`ImportTracker`, as for an upload; `updated` and `leftover` for an update). Refused for a chat that hides words (`hides_words`), a tab that is not live (`not_allowed`), a name `FileImporter.importable?` refuses (`not_importable`), a file over `FileImporter::MAX_BYTES` (`too_large`), or another version (`changed`). The work screen offers it for items whose `library` flag (`Board#public_file`) is set.
+- `LIBRARY_CONVERSATION_DRAFT` (`handle_ws_library_conversation_draft`, not replayed): `Monadic::Library::ConversationDraft.put` writes the chat as a Markdown document (`ConversationRecord.of`: title, app, model, date, each user and assistant turn under `## User` / `## Assistant` with its own headings set to H4 and under, files named only, what a reply read from the Library) into the chat's `workbench/` folder and adds it to the board as a file item with `draft: { 'source_chat_id' }` (kept on the item when the file is edited; `public_file` says `draft: true`); the file is deleted again when the board does not take it. The chat, app and messages are the session's. The page hides the button for an app whose `library_save` is false (`body:not(.app-cap-kb-save)` in `monadic.css`). Refused for a chat that hides words, a tab that is not live, a chat with nothing said (`empty`), or an app whose `library_save` is false (`not_saved_by_app`, `ConversationDraft.app_allows?`).
+- A draft item kept in the Library (`DeskImport`): the page asks for its title first (`#libraryKeepChoice`, its first heading offered) and sends `title`. Refused for an app whose `library_save` is false (the session's app at that time), and while a keep of the same chat runs (`in_progress`); options `title` (the user's, at most 200 characters, else the first `# ` line of the bytes kept, else the file name), `content_type: conversation`, `source: monadic-chat`, `source_chat_id` (the item's, never the page's). When `Store#records_from_chat` finds records of that chat and no `choice` is given, `DeskImport::Choose` replies `error: choose` with the records (id, title, `created_at`, newest first); the page asks to update one, keep this one besides (`choice: 'new'`), or cancel. `choice: { update, seen }` updates that record only while its `revision` is still `seen` (`record_changed`, `record_missing` otherwise), through `Manager.replace_file`, which checks the revision again under the entry's lock (`Manager.with_entry`, also taken by a rename and a delete; `Manager::Changed`, reported as `record_changed`): written under the same id, then the earlier version's points deleted by id (`leftover` when that fails) and its kept file removed unless another entry has it. A failed import leaves the earlier version.
 
 ## On the Work Screen
 
@@ -111,22 +100,9 @@ An entry opened from the Library tab (`WORKBENCH_OPEN_LIBRARY` → `Workbench::C
 - `Look` reads it (`library_seen`) at the item's version only: a PDF as a PDF file is read (`Pdf.visible`, `Pdf.whole`, or the file where the model takes PDFs), text as a text file is, and an Office entry's kept file as it is for the whole where the model takes it (`native_library_document`).
 - File-only operations (drawing, edits, pointing, keeping in the Library) do not take it: the item has no `file`.
 
-## Save
+## List
 
-`LIBRARY_SAVE` (`handle_ws_library_save`) takes `messages`, `parameters`, `title`, `license`, `monadic_state` and `conversation_id`. It refuses, before writing anything, when:
-
-- the session has a Privacy pipeline or `_privacy_session_enabled`;
-- `messages` is empty;
-- the app in `parameters['app_name']` has `library_save: false`;
-- `parameters` is missing.
-
-`verify` fields are removed from the messages. When `conversation_id` is given, the conversation is ingested again under the same id, so `mc:conv:<id>` links keep working, and then the points of the prior version are deleted by id (`Store#point_ids` before the ingest, `Store#delete_point_ids` after it, the summary last). A failed ingest leaves the prior version in place (the ingest removes what it wrote, as above). Once the ingest has succeeded, the new version is kept: when deleting the prior points fails (a failed delete may still have been applied), the reply is a success with `warning: "prior_version_left"`, which the panel shows as a warning, and both versions' points may be listed. Two saves of one conversation at the same time are not serialized. The panel keeps the id until Reset, a new session, an app change, or deletion of that entry in Browse.
-
-`LIBRARY_SUGGEST_TITLE` asks the current provider for a title (`Monadic::Library::TitleSuggester`): up to 4 user/assistant messages, 240 characters each, title at most 60 characters, with the chat's words hidden when it has a word table. Any failure returns `res: failure` and the title field stays empty. The panel reuses a suggestion until the conversation grows.
-
-`Manager.list_conversations` (behind `LIBRARY_LIST`) reads every page of `library_summaries` before it sorts by `created_at`, newest first, and applies the limit.
-
-Other messages: `LIBRARY_LIST`, `LIBRARY_STATS`, `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_DELETE`.
+`LIBRARY_LIST` returns every entry (`Manager.list_conversations(limit: nil)`: the summaries' `ROW_FIELDS` only, all pages read, newest first, the same date ordered by id) and `total`. A record whose chat is still in the history (`History::Store#resumable?`) carries `source_chat_id` and `source_chat_resumable`; the tab's row then offers to open that chat (`HistoryPanel.resume`). Other messages: `LIBRARY_GET_CONVERSATION`, `LIBRARY_RENAME` (title, at most 200 characters), `LIBRARY_DELETE`.
 
 ## App Capabilities
 
@@ -151,7 +127,7 @@ The `library_rag` rule in `SystemPromptInjector` (priority 70) applies while `In
 
 ### `library_list`
 
-`library_list(page:)` returns `LibrarySearch.list_text`: the entries from `Manager.list_conversations` (newest first), `LIST_PAGE` (30) per page, each as its title, `content_type`, `source` and date, with the total and the page count.
+`library_list(page:)` returns `LibrarySearch.list_text`: every entry from `Manager.list_conversations(limit: nil)` (newest first), `LIST_PAGE` (30) per page, each as its title, `content_type`, `source` and date, with the total and the page count.
 
 ### `library_search`
 
@@ -168,7 +144,7 @@ The tool group counts as available when the embeddings service answers its healt
 
 ### Readings
 
-`Monadic::Library::Readings` (`lib/monadic/library/readings.rb`) holds a reply's searches by `request_id`: `id` (`r_` + 16 hex), `query`, `at`, `path` (the copy on the work screen), `excerpts` (`id` `x_` + 16 hex, `conversation_id`, `title`, `source`, `turn`, `text` as the model was given it) and `cited`. The reply's message takes them as `library_readings` (`seal`, which marks as `cited` the excerpts its text links to by `mc:read:<id>`); a reply that ends without its message puts them on the user's message of the request (`library_readings_without_reply`). History (`History::Serializer`), import (`session_routes`) and the shared export (`PRIVACY_EXPORT_MESSAGE_KEYS`, every string masked) keep them through `Readings.clean`. The page draws them under the message (`Workbench.drawReadings`) and opens an excerpt's copy from an `mc:read:` link.
+`Monadic::Library::Readings` (`lib/monadic/library/readings.rb`) holds a reply's searches by `request_id`: `id` (`r_` + 16 hex), `query`, `at`, `path` (the copy on the work screen), `excerpts` (`id` `x_` + 16 hex, `conversation_id`, `title`, `source`, `turn`, `text` as the model was given it) and `cited`. The reply's message takes them as `library_readings` (`seal`, which marks as `cited` the excerpts its text links to by `mc:read:<id>`); a reply that ends without its message puts them on the user's message of the request (`library_readings_without_reply`). History (`History::Serializer`), import (`session_routes`) and the shared export (`PRIVACY_EXPORT_MESSAGE_KEYS`, every string masked) keep them through `Readings.clean`. The page draws them under the message (`Workbench.drawReadings`) and opens an excerpt's copy from an `mc:read:` link; when the copy is gone (the open of that path is refused), changed, or there was none, the excerpt is shown as recorded (`libraryPanel.showExcerpt`); a link with no record says the passage is no longer available.
 
 ### Cascade Search
 
@@ -199,7 +175,8 @@ lib/monadic/library/
   hierarchical.rb      # embed + upsert
   retriever.rb         # cascade_search
   in_chats.rb          # the setting: may the AI consult the Library in chats
-  title_suggester.rb
+  conversation_draft.rb # a chat's record put on its work screen
+  desk_import.rb       # a document of the work screen kept
   schema.rb, version.rb
 lib/monadic/vector_store/schema.rb
 lib/monadic/embeddings/client.rb

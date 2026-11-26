@@ -64,7 +64,8 @@ module Monadic
             { field: 'conversation_id', schema: 'keyword' },
             { field: 'scope_app', schema: 'keyword' },
             { field: 'source', schema: 'keyword' },
-            { field: 'language', schema: 'keyword' }
+            { field: 'language', schema: 'keyword' },
+            { field: 'source_chat_id', schema: 'keyword' }
           ]
         },
         LIBRARY_TURNS => {

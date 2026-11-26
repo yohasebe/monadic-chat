@@ -166,13 +166,6 @@ RSpec.describe Monadic::Library::Store do
     end
   end
 
-  describe '#conversation_count' do
-    it 'counts every summary' do
-      expect(vector_store).to receive(:count).with(collection: 'library_summaries', exact: true).and_return(7)
-      expect(store.conversation_count).to eq(7)
-    end
-  end
-
   describe '#point_ids and #delete_point_ids' do
     it 'collects every point of a conversation across pages and deletes those ids only' do
       allow(vector_store).to receive(:scroll) do |collection:, offset:, **|
@@ -202,6 +195,24 @@ RSpec.describe Monadic::Library::Store do
       allow(vector_store).to receive(:delete_points) { |collection:, **| order << collection }
       store.delete_point_ids('library_summaries' => ['s'], 'library_turns' => ['t'])
       expect(order).to eq(%w[library_turns library_summaries])
+    end
+  end
+
+  describe '#records_from_chat' do
+    it "gives every entry made from a chat's record, newest first, reading only their id, title, date and revision" do
+      filter = { must: [{ key: 'source_chat_id', match: { value: 'c_1' } }] }
+      fields = %w[conversation_id title created_at revision]
+      expect(vector_store).to receive(:scroll)
+        .with(collection: 'library_summaries', filter: filter, limit: 256, offset: nil, with_payload: fields, with_vectors: false)
+        .and_return(points: [{ 'payload' => { 'conversation_id' => 'a', 'title' => 'Old', 'created_at' => '2026-11-01', 'revision' => 'r1' } }],
+                    next: 'p2')
+      expect(vector_store).to receive(:scroll)
+        .with(collection: 'library_summaries', filter: filter, limit: 256, offset: 'p2', with_payload: fields, with_vectors: false)
+        .and_return(points: [{ 'payload' => { 'conversation_id' => 'b', 'title' => 'New', 'created_at' => '2026-11-02', 'revision' => 'r2' } }],
+                    next: nil)
+
+      expect(store.records_from_chat('c_1')).to eq([{ conversation_id: 'b', title: 'New', created_at: '2026-11-02', revision: 'r2' },
+                                                   { conversation_id: 'a', title: 'Old', created_at: '2026-11-01', revision: 'r1' }])
     end
   end
 

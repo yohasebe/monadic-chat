@@ -375,69 +375,6 @@ RSpec.describe Monadic::Utils::Privacy::Words do
     end
   end
 
-  describe 'suggesting a title' do
-    let(:sent) { [] }
-    let(:reply) { ['<<PERSON_1>> and the "Acme" deal, a long account of a meeting held over several days'] }
-    let(:instance) do
-      bodies = sent
-      replies = reply
-      Class.new do
-        define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
-        define_method(:send_query) do |body, model:|
-          Monadic::Utils::Privacy::Words.check_sending!
-          bodies << body
-          replies.first
-        end
-      end.new
-    end
-    let(:session) { new_chat }
-    let(:table) { described_class.start!(session).tap { |t| t.confirm!('Ada Augusta Lovelace', 'PERSON') } }
-
-    before do
-      stub_const('APPS', { 'ChatOpenAI' => instance })
-      stub_const('CONFIG', { 'OPENAI_API_KEY' => 'sk-test' })
-      allow(::SystemDefaults).to receive(:get_default_model).with('openai').and_return('gpt-test')
-    end
-
-    def suggest(messages)
-      Monadic::Library::TitleSuggester.suggest(messages: messages, app_name: 'ChatOpenAI', session: session, words: table)
-    end
-
-    it 'sends the messages with the words hidden, and gives the title with them put back, then cut' do
-      title = suggest([{ 'role' => 'user', 'text' => 'Ada Augusta Lovelace wrote <<PERSON_1>> in her notes.' }])
-      prompt = sent.last['messages'].last['content'].to_s
-      expect(prompt).to include('<<PERSON_1>> wrote ‹‹PERSON_1›› in her notes.')
-      expect(prompt).not_to include('Ada Augusta Lovelace')
-      # The placeholder is shorter than the word: the title is cut after the
-      # word is put back, so it is within the limit and holds the whole word.
-      expect(title).to start_with('Ada Augusta Lovelace and the')
-      expect(title.length).to be <= Monadic::Library::TitleSuggester::MAX_LENGTH
-    end
-
-    it 'sends nothing when the table changes while the request is sent' do
-      changing = Class.new do
-        define_method(:settings) { { 'group' => 'OpenAI', 'display_name' => 'Chat' } }
-        define_method(:send_query) do |_body, model:|
-          Monadic::Utils::Privacy::Words.table(Thread.current[:words_spec_session]).confirm!('Eve', 'PERSON')
-          Monadic::Utils::Privacy::Words.check_sending!
-          'never'
-        end
-      end.new
-      stub_const('APPS', { 'ChatOpenAI' => changing })
-      Thread.current[:words_spec_session] = session
-      table
-      expect(suggest([{ 'role' => 'user', 'text' => 'Ada Augusta Lovelace' }])).to be_nil
-    ensure
-      Thread.current[:words_spec_session] = nil
-    end
-
-    it "sends nothing when the app's own text holds a word" do
-      table.confirm!('Suggest', 'PERSON')
-      expect(suggest([{ 'role' => 'user', 'text' => 'hello' }])).to be_nil
-      expect(sent).to be_empty
-    end
-  end
-
   describe 'the end of a chat whose table is not here' do
     it 'keeps nothing for it, and does not stop the chat from ending' do
       session = new_chat

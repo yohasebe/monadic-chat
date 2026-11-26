@@ -198,5 +198,7 @@ get "/library/import/status/:id" do
   payload[:conversation_id] = entry[:conversation_id] if entry[:conversation_id]
   payload[:counts] = entry[:counts] if entry[:counts]
   payload[:error] = entry[:error] if entry[:error]
+  payload[:updated] = true if entry[:updated]
+  payload[:leftover] = true if entry[:leftover]
   payload.to_json
 end

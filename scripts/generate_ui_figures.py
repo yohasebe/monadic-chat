@@ -354,23 +354,6 @@ def message_buttons(table, color, title):
     return figure
 
 
-def knowledge_base(table, color, title):
-    """The Knowledge Base panel of the menu."""
-    figure = Figure(color, title)
-    x, y, width = 20, 20, 400
-    figure.add('<rect x="%d" y="%d" width="%d" height="116" rx="6" fill="#ffffff" stroke="%s"/>'
-               % (x, y, width, color('pal-grey-line')))
-    figure.icon('fas', 'fa-book', x + 14, y + 16, 15, color('pal-amber-mid'))
-    figure.text(x + 38, y + 29, re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip(), 15, None, '600')
-    specs = page_buttons(['library-save', 'library-browse'])
-    bx = x + 14
-    for button_id in ('library-save', 'library-browse'):
-        spec = specs[button_id]
-        bx += figure.button(bx, y + 70, spec['kind'], spec['style'], spec['icon'], label(table, spec['key'])) + 8
-    figure.grow(x + width, y + 116)
-    return figure
-
-
 def live_conversation(table, color, title):
     """The controls of Live Conversation."""
     figure = Figure(color, title)
@@ -1285,8 +1268,7 @@ def architecture(table, color, title, language):
     card(310, 64, 490, 96, word['web'], 'fa-window-maximize', green)
     cx = 328
     for text in [word['conversation'], label(table, 'ui.sidePane.workScreen'), label(table, 'ui.sidePane.files'),
-                 label(table, 'ui.sidePane.history'),
-                 re.sub(r'<[^>]+>\s*', '', label(table, 'ui.knowledgeBase')).strip()]:
+                 label(table, 'ui.sidePane.history'), label(table, 'ui.sidePane.library')]:
         cx += chip(cx, 118, text, green, color('pal-green-text')) + 6
 
     # Docker: the services on the left, the server on the right (it faces the cloud)
@@ -1357,7 +1339,6 @@ def architecture(table, color, title, language):
 FIGURES = {
     'input-buttons': (input_buttons, {'en': 'Buttons under the message box', 'ja': 'メッセージ入力欄の下のボタン'}),
     'message-buttons': (message_buttons, {'en': "Buttons of an assistant's card", 'ja': 'アシスタントのカードのボタン'}),
-    'knowledge-base': (knowledge_base, {'en': 'Knowledge Base panel', 'ja': 'ナレッジベースパネル'}),
     'live-conversation': (live_conversation, {'en': 'Live Conversation controls', 'ja': 'Live Conversation の操作欄'}),
     'side-column': (side_column, {'en': 'Tabs of the side column', 'ja': '右側の列のタブ'}),
     'work-screen': (work_screen, {'en': 'The work screen', 'ja': '作業画面'}),

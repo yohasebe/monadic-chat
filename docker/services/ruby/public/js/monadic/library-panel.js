@@ -1,34 +1,9 @@
 // frozen-by-convention; module-pattern, no globals beyond window.libraryPanel
 //
-// Library (Knowledge Base) sidebar + browse modal + detail modal.
-//
-// Two surfaces share the same data cache:
-//   - Sidebar  (#library-recent, 5 most recent rows, compact one-line).
-//   - The Library tab of the side column (#library-pane, search/sort/paginate).
-// Detail modal (#libraryDetailModal) shows full metadata + actions.
-//
-// All actions are routed through the WebSocket. The cache is populated
-// from `library_conversations` events; sidebar + browse modal both
-// re-render whenever new data arrives or filters change.
-//
-// Public API (full surface):
-//   window.libraryPanel.init()                 - DOM bootstrap
-//   window.libraryPanel.send(msg, payload?)    - low-level WS send
-//   window.libraryPanel.requestList()
-//   window.libraryPanel.requestStats()
-//   window.libraryPanel.openSaveModal()
-//   window.libraryPanel.submitSave()
-//   window.libraryPanel.openBrowseModal()
-//   window.libraryPanel.openDetailModal(conversationId)
-//   window.libraryPanel.handleConversations(data)
-//   window.libraryPanel.handleStats(data)
-//   window.libraryPanel.handleSavedMessage(data)
-//   window.libraryPanel.handleDeletedMessage(data)
-//   window.libraryPanel.handleVisibilityUpdated(data)
-//   window.libraryPanel.formatStats(stats)
-//   window.libraryPanel.relativeTime(iso)
-//   window.libraryPanel.compactRowMarkup(row)
-//   window.libraryPanel.applyFilters()
+// The Library tab of the side column (#library-pane: search, sort, pages,
+// open on the work screen, delete, import a file, put the chat's record on
+// the work screen) and the Conversation Viewer. All actions go through the
+// WebSocket; the list is the one `library_conversations` gives (every entry).
 (function () {
   'use strict';
 
@@ -41,29 +16,9 @@
     pageSize: 50,
     sortKey: 'created_desc',
     searchTerm: '',
-    selectedId: null,       // for detail modal
-    // The conversation_id assigned by the server on the most recent
-    // Save of the *current* chat session. While this is set, subsequent
-    // Saves replace the same KB entry instead of creating a new one.
-    // Cleared by clearCurrentConversation() on Reset, app switch, or
-    // when the matching entry is deleted from Browse.
-    currentConversationId: null,
-    // Set while a LIBRARY_SUGGEST_TITLE request is in flight. We use
-    // it to (a) prevent duplicate requests when the user closes and
-    // re-opens the modal quickly, and (b) ignore stale responses if
-    // the user has started typing a title in the meantime.
-    titleSuggestionPending: false,
-    // Cached suggestion + the message count at the moment we received
-    // it. If the user opens Save, gets a suggestion, cancels, then
-    // re-opens Save without sending any new chat turns, we reuse the
-    // cached value rather than burning another LLM call. The cache is
-    // invalidated when the conversation grows (new messages) or when
-    // clearCurrentConversation() fires (Reset / app switch).
-    cachedTitleSuggestion: null,
-    cachedTitleSuggestionMessageCount: 0
+    selectedId: null        // for detail modal
   };
 
-  var SIDEBAR_RECENT_LIMIT = 5;
 
   // ─── Sending ─────────────────────────────────────────────────────────
 
@@ -83,18 +38,6 @@
   }
 
   function requestList() { return send('LIBRARY_LIST'); }
-  function requestStats() { return send('LIBRARY_STATS'); }
-  function requestTitleSuggestion() {
-    var msgs = (Array.isArray(window.messages) ? window.messages : []).map(function (m) {
-      return { role: m.role, text: m.text };
-    });
-    // SUGGEST_TITLE is non-idempotent (LLM call) AND background
-    // (auto-fired when the Save modal opens, not user-clicked).
-    // silentDrop avoids alerting the user about a "nice to have"
-    // pre-fill if the WS happens to be reconnecting.
-    return send('LIBRARY_SUGGEST_TITLE', { contents: { messages: msgs } }, { silentDrop: true });
-  }
-
   function deleteConversation(conversationId) {
     return send('LIBRARY_DELETE', { contents: conversationId });
   }
@@ -203,26 +146,6 @@
 
   // ─── Compact row markup (used in sidebar AND browse modal table) ─────
 
-  // Sidebar markup: 1-line. Title + turns + relative time.
-  // No inline action button — sidebar is read-only; for actions the user
-  // opens Browse modal.
-  function compactRowMarkup(row) {
-    var title = row.title && row.title.length > 0 ? row.title : '(untitled)';
-    var turns = (typeof row.turns_count === 'number') ? row.turns_count : '?';
-    var rel = relativeTime(row.created_at);
-    var fullId = row.conversation_id || '';
-    var sourceMeta = [row.source, row.language].filter(Boolean).join(' · ');
-    var tooltip = fullId + (sourceMeta ? ' · ' + sourceMeta : '');
-    return (
-      '<div class="library-row-compact d-flex align-items-center py-1 small border-bottom" '
-        + 'data-conversation-id="' + escapeHtml(fullId) + '" '
-        + 'title="' + escapeHtml(tooltip) + '">'
-      +   '<span class="flex-grow-1 text-truncate me-2">' + escapeHtml(truncate(title, 40)) + '</span>'
-      +   '<span class="text-secondary text-nowrap">' + turns + 'T · ' + escapeHtml(rel) + '</span>'
-      + '</div>'
-    );
-  }
-
   // Library tab row: full table row with three inline icon-only buttons
   // on the right (open on the work screen / details / delete).
   // Cheap heuristics for "this row likely contains PII" — used for legacy
@@ -264,6 +187,15 @@
     var openLabel = t('ui.libOpenOnWorkScreen', 'Open on the work screen');
     var detailLabel = t('ui.libViewDetails', 'View details');
     var deleteLabel = t('ui.libDelete', 'Delete');
+    var chatLabel = t('ui.libOpenSourceChat', 'Open the original chat');
+    // A record of a chat that is still in the history: that chat goes on
+    // there.
+    var chatButton = row.source_chat_resumable && row.source_chat_id
+      ? '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-chat" data-chat-id="' + escapeHtml(row.source_chat_id) + '" '
+        + 'title="' + escapeHtml(chatLabel) + '" aria-label="' + escapeHtml(chatLabel) + '">'
+        + '<i class="fa-solid fa-clock-rotate-left"></i>'
+        + '</button>'
+      : '';
     return (
       '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
       +   '<td class="text-center">' + typeIconHtml(row.content_type, row.topics) + '</td>'
@@ -281,6 +213,7 @@
       +       'title="' + escapeHtml(openLabel) + '" aria-label="' + escapeHtml(openLabel) + '">'
       +       '<i class="fa-solid fa-display"></i>'
       +     '</button>'
+      +     chatButton
       +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-detail" '
       +       'title="' + escapeHtml(detailLabel) + '" aria-label="' + escapeHtml(detailLabel) + '">'
       +       '<i class="fa-solid fa-circle-info"></i>'
@@ -322,15 +255,6 @@
 
   // ─── Renderers ───────────────────────────────────────────────────────
 
-  function recentContainer() {
-    return (typeof document !== 'undefined') ? document.getElementById('library-recent') : null;
-  }
-  function statsContainer() {
-    return (typeof document !== 'undefined') ? document.getElementById('library-stats-info') : null;
-  }
-  function totalBadge() {
-    return (typeof document !== 'undefined') ? document.getElementById('library-total-badge') : null;
-  }
   function browseTbody() {
     return (typeof document !== 'undefined') ? document.getElementById('library-browse-tbody') : null;
   }
@@ -348,27 +272,6 @@
   }
   function browseNextBtn() {
     return (typeof document !== 'undefined') ? document.getElementById('library-browse-next') : null;
-  }
-
-  function emptyText() {
-    return t('ui.libEmpty', 'The Knowledge Base is empty.');
-  }
-
-  function renderSidebarRecent() {
-    var container = recentContainer();
-    if (!container) return;
-    var rows = state.allRows.slice(0, SIDEBAR_RECENT_LIMIT);
-    if (rows.length === 0) {
-      container.innerHTML = '<div class="small text-secondary fst-italic">' + escapeHtml(emptyText()) + '</div>';
-      return;
-    }
-    container.innerHTML = rows.map(compactRowMarkup).join('');
-  }
-
-  function renderTotalBadge() {
-    var el = totalBadge();
-    if (!el) return;
-    el.textContent = String(state.allRows.length);
   }
 
   function renderBrowseTable() {
@@ -413,8 +316,6 @@
 
   function rerenderAll() {
     applyFilters();
-    renderSidebarRecent();
-    renderTotalBadge();
     renderBrowseTable();
   }
 
@@ -429,6 +330,15 @@
         openLink.addEventListener('click', function (e) {
           e.preventDefault();
           if (window.Workbench && typeof window.Workbench.openLibrary === 'function') window.Workbench.openLibrary(convId);
+        });
+      }
+      var chatLink = tr.querySelector('.library-action-chat');
+      if (chatLink) {
+        chatLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (window.HistoryPanel && typeof window.HistoryPanel.resume === 'function') {
+            window.HistoryPanel.resume(chatLink.getAttribute('data-chat-id'));
+          }
         });
       }
       var detailLink = tr.querySelector('.library-action-detail');
@@ -568,9 +478,11 @@
     // editable.
     var renameBtn = viewerEl('library-viewer-rename');
     if (renameBtn) renameBtn.style.display = row ? '' : 'none';
+    var deleteBtn = viewerEl('library-viewer-delete');
+    if (deleteBtn) deleteBtn.style.display = '';
     closeRenameEditor();
     var metaEl = viewerEl('library-viewer-meta');
-    if (metaEl && row) metaEl.innerHTML = viewerMetaLine(row);
+    if (metaEl) metaEl.innerHTML = row ? viewerMetaLine(row) : '';
     var emptyEl = viewerEl('library-viewer-empty');
     if (emptyEl) emptyEl.style.display = 'none';
     var messagesEl = viewerEl('library-viewer-messages');
@@ -587,6 +499,35 @@
     if (viewer) viewer.open();
   }
 
+  // A passage as it was read for a reply (its record), shown when its copy
+  // on the work screen is gone: what the reply read, whatever the entry
+  // holds now. Without a record of it, that it is no longer there.
+  function showExcerpt(excerpt) {
+    if (typeof document === 'undefined') return;
+    state.selectedId = null;
+    var text = excerpt && typeof excerpt.text === 'string' ? excerpt.text : '';
+    var titleEl = viewerEl('library-viewer-title');
+    if (titleEl) titleEl.textContent = (excerpt && excerpt.title) || '(untitled)';
+    ['library-viewer-rename', 'library-viewer-delete'].forEach(function (id) {
+      var el = viewerEl(id);
+      if (el) el.style.display = 'none';
+    });
+    closeRenameEditor();
+    setViewerLoading(false);
+    var metaEl = viewerEl('library-viewer-meta');
+    if (metaEl) metaEl.textContent = t('ui.libExcerptRecorded', 'The passage as it was read for this reply.');
+    var emptyEl = viewerEl('library-viewer-empty');
+    if (emptyEl) emptyEl.style.display = 'none';
+    var messagesEl = viewerEl('library-viewer-messages');
+    if (messagesEl) {
+      messagesEl.innerHTML = '';
+      if (text) renderMarkdownInto(text, messagesEl);
+      else messagesEl.textContent = t('ui.libExcerptGone', 'This passage is no longer available.');
+    }
+    var viewer = dialogOf(viewerEl('libraryViewerModal'));
+    if (viewer) viewer.open();
+  }
+
   // Backwards-compat alias retained so older call sites and tests still
   // function. The viewer fully subsumes the old detail-only surface.
   function openDetailModal(conversationId) { return openViewerModal(conversationId); }
@@ -595,9 +536,6 @@
     var viewer = dialogOf(viewerEl('libraryViewerModal'));
     if (viewer) viewer.close('done');
   }
-  // Legacy alias for the previously-removed detail modal close hook.
-  function closeDetailModalIfOpen() { return closeViewerModalIfOpen(); }
-
   function handleConversationData(data) {
     setViewerLoading(false);
     if (!data || data.res !== 'success') {
@@ -631,7 +569,6 @@
   // Opens the Library tab (the side column shown) with a fresh list.
   function openBrowseModal() {
     requestList();
-    requestStats();
 
     if (typeof document === 'undefined') return;
     state.page = 0;
@@ -651,25 +588,12 @@
     rerenderAll();
   }
 
-  function handleStats(data) {
-    var el = statsContainer();
-    if (!el) return;
-    var stats = (data && typeof data.content === 'object') ? data.content : null;
-    el.textContent = formatStats(stats);
-  }
-
   function handleDeletedMessage(data) {
     if (data && data.res === 'success') {
       var convId = data.conversation_id;
       if (convId) {
         state.allRows = state.allRows.filter(function (r) { return r.conversation_id !== convId; });
         rerenderAll();
-        // If the user just deleted the same entry the current session
-        // was bound to, drop the binding so the next Save creates a new
-        // entry rather than failing to replace a non-existent one.
-        if (state.currentConversationId === convId) {
-          state.currentConversationId = null;
-        }
       }
     } else {
       // Surface the failure instead of leaving the row in place with no
@@ -678,101 +602,6 @@
       flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(msg), 'error');
     }
     requestList();
-    requestStats();
-  }
-
-  function handleSavedMessage(data) {
-    if (!data) return;
-    setSavePending(false);
-    // Broadcast the save result so external flows (e.g. Reset → Save &
-    // Reset) can react without coupling directly to handleSavedMessage.
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-      try {
-        window.dispatchEvent(new CustomEvent('library:save:result', { detail: data }));
-      } catch (e) { /* IE/test envs without CustomEvent — ignore */ }
-    }
-    if (data.res === 'success') {
-      // Remember the server-assigned id so subsequent Saves on this
-      // session update-in-place. The same id is reused across Save
-      // clicks until the user resets the session, switches apps, or
-      // deletes the entry from Browse.
-      if (data.conversation_id) {
-        state.currentConversationId = data.conversation_id;
-      }
-      requestList();
-      requestStats();
-      var modalEl = (typeof document !== 'undefined') ? document.getElementById('librarySaveModal') : null;
-      var saveDialog = dialogOf(modalEl);
-      if (saveDialog) saveDialog.close('done');
-      var defaultLabel = data.updated
-        ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
-        : t('ui.libSaveSuccess', 'Saved to Knowledge Base.');
-      if (data.warning === 'prior_version_left') {
-        // Saved, but some points of the earlier version are still stored.
-        flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libUpdatePartial',
-          'Updated the Knowledge Base entry, but part of the earlier version could not be removed and may still appear.')), 'warning');
-      } else {
-        flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(defaultLabel), 'success');
-      }
-    } else {
-      var msg = (data && data.content) ? data.content : 'Save failed';
-      var prefix = t('ui.libSaveFailure', 'Failed to save');
-      flashAlert(
-        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(prefix) + ': ' + escapeHtml(msg),
-        'warning'
-      );
-    }
-  }
-
-  // External hook: reset the binding so the next Save creates a brand
-  // new KB entry. Called from the conversation reset path and from the
-  // app-switch handler. Exported via window.libraryPanel.
-  function clearCurrentConversation() {
-    state.currentConversationId = null;
-    // The cached title suggestion belongs to the previous logical
-    // conversation; clearing it here ensures a fresh session asks the
-    // LLM for a new title rather than recycling a stale one.
-    state.cachedTitleSuggestion = null;
-    state.cachedTitleSuggestionMessageCount = 0;
-  }
-
-  // Apply an LLM-suggested title to the Save modal's title input. We
-  // intentionally do *not* overwrite anything the user has already
-  // typed: the suggestion is a default, not an override. The placeholder
-  // and spinner are reset whether the suggestion succeeded or not, so
-  // the loading state never lingers.
-  function handleTitleSuggested(data) {
-    state.titleSuggestionPending = false;
-    if (typeof document === 'undefined') return;
-    var input = document.getElementById('library-save-title');
-    if (!input) return;
-    // Reset placeholder so "Suggesting title…" doesn't stick around if
-    // the LLM returned nothing or the user already started typing.
-    input.placeholder = currentAppName() || '';
-    var spinnerEl = document.getElementById('library-save-title-spinner');
-    if (spinnerEl) spinnerEl.style.display = 'none';
-    if (!data || data.res !== 'success') return;
-    var title = (data.title || '').toString().trim();
-    if (!title) return;
-    // Cache the suggestion against the conversation length so that
-    // canceling and re-opening the modal does not fire another LLM
-    // call. The cache is invalidated implicitly when the conversation
-    // grows (count mismatch) and explicitly on Reset / app switch.
-    var count = Array.isArray(window.messages)
-      ? window.messages.filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); }).length
-      : 0;
-    state.cachedTitleSuggestion = title;
-    state.cachedTitleSuggestionMessageCount = count;
-    // Race protection: if the user typed a title while the request
-    // was in flight, leave their input alone.
-    if (input.value && input.value.trim().length > 0) return;
-    input.value = title;
-  }
-
-  function formatStats(stats) {
-    if (!stats || typeof stats !== 'object') return '';
-    var total = stats.conversations_total || 0;
-    return 'Knowledge Base: ' + total + ' total';
   }
 
   // ─── Save modal helpers (unchanged from prior iteration) ─────────────
@@ -780,25 +609,6 @@
   // The dialog (MonadicDialog) of an element, when there are both.
   function dialogOf(el) {
     return el && typeof window.MonadicDialog !== 'undefined' ? window.MonadicDialog.of(el) : null;
-  }
-
-  function setSavePending(pending) {
-    if (typeof document === 'undefined') return;
-    var btn = document.getElementById('library-save-confirm');
-    var cancelBtns = document.querySelectorAll('#librarySaveModal [data-dialog-close]');
-    var titleInput = document.getElementById('library-save-title');
-    if (btn) {
-      btn.disabled = !!pending;
-      if (pending) {
-        btn.dataset.origLabel = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('ui.libSavingButton', 'Saving...');
-      } else if (btn.dataset.origLabel) {
-        btn.innerHTML = btn.dataset.origLabel;
-        delete btn.dataset.origLabel;
-      }
-    }
-    cancelBtns.forEach(function (b) { b.disabled = !!pending; });
-    if (titleInput) titleInput.disabled = !!pending;
   }
 
   function flashAlert(html, severity) {
@@ -817,195 +627,6 @@
       if (p && p.app_name) return p.app_name;
     } catch (_) {}
     return '';
-  }
-
-  function chatHidesWords() {
-    return !!(window.WordTable && window.WordTable.isMarked());
-  }
-
-  function openSaveModal() {
-    if (typeof document === 'undefined') return;
-    // Defense in depth: the Save button is disabled when no messages exist,
-    // but this function is also exposed via window.libraryPanel — refuse
-    // programmatic opens against an empty session too.
-    if (!hasSessionMessages()) {
-      flashAlert(
-        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libNoMessages', 'There are no messages to save yet.')),
-        'warning'
-      );
-      return;
-    }
-    var modalEl = document.getElementById('librarySaveModal');
-    if (!modalEl) return;
-
-    // Pre-fill the title with the most recent title we know for the
-    // current session's KB entry. This covers the case where the user
-    // saved with an auto-generated name, then renamed the entry from
-    // the Viewer, then continued the conversation — re-Save should keep
-    // the user's chosen title rather than reverting to a blank field.
-    var existingRow = null;
-    if (state.currentConversationId) {
-      existingRow = state.allRows.find(function (r) {
-        return r.conversation_id === state.currentConversationId;
-      }) || null;
-    }
-    var titleInput = document.getElementById('library-save-title');
-    if (titleInput) {
-      titleInput.value = (existingRow && existingRow.title) ? existingRow.title : '';
-      titleInput.placeholder = currentAppName() || '';
-    }
-
-    // Reset the in-input spinner each time the modal opens; it gets
-    // re-shown below if a suggestion request is fired.
-    var spinnerEl = document.getElementById('library-save-title-spinner');
-    if (spinnerEl) spinnerEl.style.display = 'none';
-
-    // First-save case: ask the active provider's LLM for a concise
-    // title suggestion. We only do this when the title is blank and
-    // there is real conversation content to summarise — otherwise the
-    // request would be wasted (placeholder/app-name is already a fine
-    // default for an empty session).
-    var conversationCount = Array.isArray(window.messages)
-      ? window.messages.filter(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); }).length
-      : 0;
-    var hasConversation = conversationCount > 0;
-    if (titleInput && !state.currentConversationId && !titleInput.value && hasConversation && !state.titleSuggestionPending) {
-      // Cached-suggestion fast path: if we already asked the LLM for a
-      // title at the same conversation length and got a result, reuse
-      // it instead of firing another request when the user re-opens
-      // the modal after Cancel.
-      if (state.cachedTitleSuggestion && state.cachedTitleSuggestionMessageCount === conversationCount) {
-        titleInput.value = state.cachedTitleSuggestion;
-      } else {
-        state.titleSuggestionPending = true;
-        titleInput.placeholder = t('ui.libSuggestingTitle', 'Suggesting title…');
-        // Show the inline spinner so the user sees motion while the LLM
-        // works — a static placeholder reads as "frozen" especially on
-        // slower providers. The matching cleanup happens in
-        // handleTitleSuggested regardless of success/failure.
-        if (spinnerEl) spinnerEl.style.display = '';
-        requestTitleSuggestion();
-      }
-    }
-    // Update mode: when this session has already been saved, swap the
-    // dialog's title + confirm button + show a warning banner so the
-    // user understands the next click will replace, not duplicate.
-    var isUpdate = !!state.currentConversationId;
-    var titleEl = document.getElementById('library-save-modal-title-text');
-    var confirmEl = document.getElementById('library-save-confirm-text');
-    var updateNote = document.getElementById('library-save-update-note');
-    if (titleEl) {
-      titleEl.textContent = isUpdate
-        ? t('ui.libSaveModalTitleUpdate', 'Update Conversation in Knowledge Base')
-        : t('ui.libSaveModalTitle', 'Save Conversation to Knowledge Base');
-    }
-    if (confirmEl) {
-      confirmEl.textContent = isUpdate
-        ? t('ui.libUpdateButton', 'Update')
-        : t('ui.libSaveButton', 'Save');
-    }
-    if (updateNote) updateNote.style.display = isUpdate ? '' : 'none';
-
-    var saveDialog = dialogOf(modalEl);
-    if (saveDialog) saveDialog.open();
-  }
-
-  function buildSavePayload(opts) {
-    opts = opts || {};
-    var initialPromptEl = document.getElementById('initial-prompt');
-    var initial = (initialPromptEl && typeof initialPromptEl.value === 'string') ? initialPromptEl.value : '';
-    var sysid = Math.floor(1000 + Math.random() * 9000);
-    var msgs = [];
-    msgs.push({ role: 'system', text: initial, mid: sysid });
-
-    var src = (Array.isArray(window.messages)) ? window.messages : [];
-    src.forEach(function (m, idx) {
-      if (idx === 0 && m && m.role === 'system') return;
-      var entry;
-      if (m.role === 'assistant') {
-        entry = { role: m.role, text: m.text, mid: m.mid, thinking: m.thinking };
-      } else {
-        entry = { role: m.role, text: m.text, mid: m.mid };
-      }
-      if (m.image) entry.image = m.image;
-      msgs.push(entry);
-    });
-
-    var params = (typeof window.setParams === 'function') ? window.setParams() : {};
-    if (params && Object.prototype.hasOwnProperty.call(params, 'initiate_from_assistant')) {
-      delete params.initiate_from_assistant;
-    }
-
-    var payload = {
-      messages: msgs,
-      parameters: params
-    };
-    if (opts.title && String(opts.title).trim().length > 0) {
-      payload.title = String(opts.title).trim();
-    }
-    if (opts.monadicState && typeof opts.monadicState === 'object') {
-      payload.monadic_state = opts.monadicState;
-    }
-    // Carry the existing conversation_id forward when the current
-    // session has already been saved once. The server reads this and
-    // performs delete-then-insert, replacing the prior version in place.
-    var stickyId = (opts.conversationId !== undefined)
-      ? opts.conversationId
-      : state.currentConversationId;
-    if (stickyId) {
-      payload.conversation_id = stickyId;
-    }
-    return payload;
-  }
-
-  function readModalSelections() {
-    var titleEl = document.getElementById('library-save-title');
-    var title = (titleEl && titleEl.value) ? titleEl.value : '';
-    return { title: title };
-  }
-
-  function submitSave() {
-    var sel = readModalSelections();
-    var hasMessages = Array.isArray(window.messages) && window.messages.length > 0;
-    if (!hasMessages) {
-      flashAlert(
-        "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libNoMessages', 'There are no messages to save yet.')),
-        'warning'
-      );
-      return false;
-    }
-
-    setSavePending(true);
-    flashAlert(
-      "<i class='fas fa-spinner fa-spin'></i> " + escapeHtml(t('ui.libSavingMessage', 'Saving conversation to Knowledge Base...')),
-      'info'
-    );
-
-    var afterState = function (state2) {
-      var payload = buildSavePayload({
-        title: sel.title, monadicState: state2
-      });
-      var ok = send('LIBRARY_SAVE', { contents: payload });
-      if (!ok) {
-        setSavePending(false);
-        flashAlert(
-          "<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libSaveFailure', 'Failed to save')) + ': WebSocket not connected',
-          'warning'
-        );
-      }
-    };
-
-    try {
-      fetch('/monadic_state' + (typeof window.monadicTabQuery === 'function' ? window.monadicTabQuery() : '')).then(function (resp) {
-        if (!resp || !resp.ok) { afterState(null); return; }
-        return resp.json().then(function (data) {
-          afterState((data && data.monadic_state) ? data.monadic_state : null);
-        });
-      }).catch(function () { afterState(null); });
-    } catch (_) {
-      afterState(null);
-    }
-    return true;
   }
 
   // ─── Rename conversation (Viewer modal pencil + inline editor) ──────
@@ -1269,14 +890,16 @@
     })
       .then(function (entry) {
         setImportPending(false);
-        flashAlert(
-          "<i class='fa-solid fa-circle-check'></i> " +
-            escapeHtml(t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (entry.filename || filename)),
-          'success'
-        );
+        if (entry.leftover) {
+          flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(t('ui.libUpdatePartial',
+            'Updated the Knowledge Base entry, but part of the earlier version could not be removed and may still appear.')), 'warning');
+        } else {
+          var done = entry.updated ? t('ui.libUpdateSuccess', 'Updated existing Knowledge Base entry.')
+            : t('ui.libImportSuccess', 'Imported to Knowledge Base') + ': ' + (entry.filename || filename);
+          flashAlert("<i class='fa-solid fa-circle-check'></i> " + escapeHtml(done), 'success');
+        }
         requestList();
-        requestStats();
-        return entry;
+            return entry;
       })
       .catch(function (err) {
         setImportPending(false);
@@ -1298,18 +921,20 @@
     send('LIBRARY_CONVERSATION_DRAFT', {});
   }
 
+  // The server put the record of the chat on its work screen (or says why
+  // not): the work screen is shown, to keep it in the Library from there.
+  var DRAFT_REASONS = {
+    hides_words: ['ui.libDraftHidesWords', 'A chat that hides words cannot be kept in the Library.'],
+    empty: ['ui.libDraftEmpty', 'There is nothing in this conversation to keep yet.'],
+    not_saved_by_app: ['ui.workbench.toLibraryNotByApp', 'This app does not keep its conversations in the Library.']
+  };
   function handleConversationDraft(data) {
-    if (!data || typeof data.content !== 'string' || !data.name) {
-      var reason = data && data.error === 'hides_words'
-        ? t('ui.libDraftHidesWords', 'A chat that hides words cannot be kept in the Library.')
-        : t('ui.libDraftEmpty', 'There is nothing in this conversation to keep yet.');
-      flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(reason), 'warning');
+    if (!data || !data.item_id) {
+      var reason = data && DRAFT_REASONS[data.error];
+      flashAlert("<i class='fa-solid fa-triangle-exclamation'></i> " + escapeHtml(reason
+        ? t(reason[0], reason[1]) : t('ui.libDraftFailed', 'The conversation could not be put on the work screen.')), 'warning');
       return;
     }
-    var workbench = window.Workbench;
-    if (!workbench || typeof workbench.putFiles !== 'function' || typeof File === 'undefined') return;
-    var file = new File([data.content], data.name, { type: 'text/markdown' });
-    workbench.putFiles([file]);
     var lc = window.LayoutController;
     if (lc) lc.setPane('work');
     flashAlert("<i class='fa-solid fa-circle-info'></i> " +
@@ -1330,111 +955,7 @@
     uploadLibraryFile(file).catch(function () { /* error already surfaced */ });
   }
 
-  // Legacy alias retained for backwards compatibility with the original
-  // single-pane sidebar render (used in older Jest tests).
-  function render(container, rows) {
-    if (!container) return;
-    var safeRows = Array.isArray(rows) ? rows : [];
-    if (safeRows.length === 0) {
-      container.innerHTML =
-        '<span class="text-secondary">' + escapeHtml(emptyText()) + '</span>';
-      return;
-    }
-    container.innerHTML = safeRows.map(compactRowMarkup).join('');
-  }
-
-  // Legacy helper kept so existing Jest tests for the simple delete path
-  // continue to pass.
-  function handleDeleted(data, container) {
-    if (data && data.res === 'success' && container) {
-      var convId = data.conversation_id;
-      if (convId) {
-        var row = container.querySelector('[data-conversation-id="' + convId + '"]');
-        if (row && row.parentNode) row.parentNode.removeChild(row);
-      }
-    }
-    send('LIBRARY_LIST');
-  }
-
   // ─── DOM bootstrap ───────────────────────────────────────────────────
-
-  // True when there is at least one user/assistant message in the current
-  // session. The Library Save flow gates on this so empty sessions cannot
-  // produce empty Knowledge Base entries.
-  function hasSessionMessages() {
-    return Array.isArray(window.messages)
-      && window.messages.some(function (m) { return m && (m.role === 'user' || m.role === 'assistant'); });
-  }
-
-  // Whether the current app saves to the Knowledge Base (artifact-centric apps
-  // and apps that declare `library_save false` do not; flag set by DSL
-  // post-processing in lib/monadic/dsl.rb).
-  function isCurrentAppKbSaveEligible() {
-    return readAppFeatureFlag('library_save');
-  }
-
-  // Generic reader for boolean per-app feature flags. Treats absent
-  // (legacy / user-defined custom apps without the flag) as ELIGIBLE so
-  // an unknown app does not lose features it had before this gate
-  // existed; only an explicit false / "false" disables.
-  function readAppFeatureFlag(key) {
-    try {
-      var apps = window.apps;
-      var name = (window.params && window.params.app_name) || null;
-      if (!apps || !name) return true;
-      var settings = apps[name];
-      if (!settings) return true;
-      return settings[key] !== false && settings[key] !== 'false';
-    } catch (_) { return true; }
-  }
-
-  // The Save button is always present in the DOM (per CSS — see monadic.css
-  // "App-capability declarative visibility gate"). This function owns its
-  // `disabled` attribute and tooltip, picking the most informative reason
-  // when more than one disable condition is in effect:
-  //
-  //   1. The current app does not support saving to the Knowledge Base
-  //      (apps that declare `library_save false` in MDSL). Reported first because telling the
-  //      user "no messages yet" is misleading when saving will never
-  //      be allowed regardless of how many messages they have.
-  //   2. The chat hides words: the Knowledge Base would keep them, and a
-  //      search from another chat would send them. (Refused on the server
-  //      too.)
-  //   3. There are simply no user/assistant messages to save yet.
-  //
-  // Driven by initial page load, SessionState events (message added /
-  // cleared / app changed), and `wordtable:changed` from the chat's word
-  // table, so the button follows the chat without polling.
-  function updateSaveButtonAvailability() {
-    if (typeof document === 'undefined') return;
-    var btn = document.getElementById('library-save');
-    if (!btn) return;
-
-    var appEligible = isCurrentAppKbSaveEligible();
-    var hidesWords = chatHidesWords();
-    var saveable = hasSessionMessages();
-
-    var disabled = false;
-    var titleKey = 'ui.libSaveCurrent';
-    var titleFallback = 'Save current conversation to Knowledge Base';
-
-    if (!appEligible) {
-      disabled = true;
-      titleKey = 'ui.libSaveAppUnsupported';
-      titleFallback = 'This app does not support saving to the Knowledge Base.';
-    } else if (hidesWords) {
-      disabled = true;
-      titleKey = 'ui.libSaveHidesWords';
-      titleFallback = 'A chat that hides words cannot be saved to the Knowledge Base.';
-    } else if (!saveable) {
-      disabled = true;
-      titleKey = 'ui.libNoMessages';
-      titleFallback = 'There are no messages to save yet.';
-    }
-
-    btn.disabled = disabled;
-    btn.setAttribute('title', t(titleKey, titleFallback));
-  }
 
   // Drive the body capability classes from the SessionState `app:changed`
   // path: this function fans out the single SSOT entry point
@@ -1449,31 +970,15 @@
   function init() {
     if (typeof document === 'undefined') return;
 
-    var saveBtn = document.getElementById('library-save');
-    if (saveBtn) saveBtn.onclick = openSaveModal;
-    updateSaveButtonAvailability();
     updateCapabilityClasses();
-
-    // Re-evaluate visibility whenever the conversation set or current
-    // app changes. The Save button further reacts to Privacy state pushes
-    // (PF mutually exclusive with KB save).
     if (window.SessionState && typeof window.SessionState.on === 'function') {
-      ['message:added', 'messages:cleared', 'message:deleted', 'session:reset', 'session:new', 'app:changed']
-        .forEach(function (ev) { window.SessionState.on(ev, updateSaveButtonAvailability); });
       window.SessionState.on('app:changed', updateCapabilityClasses);
     }
-    document.addEventListener('wordtable:changed', updateSaveButtonAvailability);
-
-    var browseBtn = document.getElementById('library-browse');
-    if (browseBtn) browseBtn.onclick = openBrowseModal;
 
     var importBtn = document.getElementById('library-browse-import');
     if (importBtn) importBtn.onclick = triggerImportPicker;
     var importInput = document.getElementById('library-import-input');
     if (importInput) importInput.addEventListener('change', handleImportFileChange);
-
-    var confirmBtn = document.getElementById('library-save-confirm');
-    if (confirmBtn) confirmBtn.onclick = submitSave;
 
     // Browse-modal controls
     var search = document.getElementById('library-browse-search');
@@ -1575,29 +1080,13 @@
         }
       });
     }
-
-
-    // Tie the per-session conversation_id binding to the SessionState
-    // lifecycle. Reset / new session / app switch all start a different
-    // logical conversation, so the next Save should create a fresh KB
-    // entry instead of replacing the previous one.
-    if (window.SessionState && typeof window.SessionState.on === 'function') {
-      window.SessionState.on('session:reset', clearCurrentConversation);
-      window.SessionState.on('session:new', clearCurrentConversation);
-      window.SessionState.on('app:changed', clearCurrentConversation);
-    }
   }
 
   window.libraryPanel = {
     init: init,
     send: send,
     requestList: requestList,
-    requestStats: requestStats,
     deleteConversation: deleteConversation,
-    openSaveModal: openSaveModal,
-    submitSave: submitSave,
-    buildSavePayload: buildSavePayload,
-    readModalSelections: readModalSelections,
     uploadLibraryFile: uploadLibraryFile,
     followImport: followImport,
     draftConversation: draftConversation,
@@ -1611,26 +1100,17 @@
     openDetailModal: openDetailModal,
     applyFilters: applyFilters,
     handleConversations: handleConversations,
-    handleStats: handleStats,
-    handleDeleted: handleDeleted,
     handleDeletedMessage: handleDeletedMessage,
-    handleSavedMessage: handleSavedMessage,
-    clearCurrentConversation: clearCurrentConversation,
-    handleTitleSuggested: handleTitleSuggested,
     handleConversationData: handleConversationData,
     openViewerModal: openViewerModal,
+    showExcerpt: showExcerpt,
     renderViewerMessages: renderViewerMessages,
-    render: render,
-    compactRowMarkup: compactRowMarkup,
     browseRowMarkup: browseRowMarkup,
     privacyBadgeHtml: privacyBadgeHtml,
     rowLikelyHasPii: rowLikelyHasPii,
-    isCurrentAppKbSaveEligible: isCurrentAppKbSaveEligible,
-    updateSaveButtonAvailability: updateSaveButtonAvailability,
     updateCapabilityClasses: updateCapabilityClasses,
     relativeTime: relativeTime,
     truncate: truncate,
-    formatStats: formatStats,
     escapeHtml: escapeHtml,
     typeIconHtml: typeIconHtml,
     _state: state

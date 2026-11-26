@@ -1227,30 +1227,8 @@ function checkParams() {
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
-  // True when the current chat has at least one user/assistant turn
-  // worth saving — system-only sessions (no exchange yet) shouldn't
-  // offer "Save & Reset" because there is nothing to preserve.
-  const hasSaveableContent = (() => {
-    if (!Array.isArray(window.messages)) return false;
-    return window.messages.some(m => m && (m.role === 'user' || m.role === 'assistant'));
-  })();
-
-  // The same translated modal on every platform (iOS included), with the
-  // "Save to Knowledge Base" choice when there is something to save.
+  // The same translated modal on every platform (iOS included).
   const resetModal = $id("resetConfirmation");
-  const saveAndResetBtn = $id("resetSaveAndConfirm");
-  if (saveAndResetBtn) {
-    // Only surface the third button when the user has something to
-    // preserve AND the current app actually supports saving to the
-    // Knowledge Base. Without the capability check, apps with
-    // `library_save false` (e.g. Music Analyst) leaked a save path here
-    // even though the main Save button is correctly disabled — an
-    // asymmetry between the two save entry points.
-    const kbSaveEligible = !!(window.libraryPanel
-      && typeof window.libraryPanel.isCurrentAppKbSaveEligible === 'function'
-      && window.libraryPanel.isCurrentAppKbSaveEligible());
-    saveAndResetBtn.style.display = (hasSaveableContent && kbSaveEligible) ? '' : 'none';
-  }
   // Its Confirm is focused when it opens (data-dialog-initial).
   if (resetModal && window.MonadicDialog) window.MonadicDialog.of(resetModal).open();
   const resetConfirmedBtn = $id("resetConfirmed");
@@ -1258,25 +1236,6 @@ function resetEvent(_event, resetToDefaultApp = false) {
     resetConfirmedBtn.onclick = function (event) {
       event.preventDefault();
       doResetActions(resetToDefaultApp);
-    };
-  }
-  if (saveAndResetBtn) {
-    saveAndResetBtn.onclick = function (event) {
-      event.preventDefault();
-      // Defer to the same modal the sidebar Save button opens so the
-      // user can edit the title, pick a scope, and see the LLM-suggested
-      // title — the previous direct-LIBRARY_SAVE path skipped all three.
-      if (!window.libraryPanel || typeof window.libraryPanel.openSaveModal !== 'function') return;
-      const m = $id("resetConfirmation");
-      const open = function () { window.libraryPanel.openSaveModal(); };
-      const reset = m && window.MonadicDialog ? window.MonadicDialog.of(m) : null;
-      // The save dialog opens once the reset dialog has closed (and not
-      // when its closing was refused).
-      if (reset && reset.isOpen) {
-        reset.close('button').then(function (closed) { if (closed) open(); });
-        return;
-      }
-      open();
     };
   }
 }

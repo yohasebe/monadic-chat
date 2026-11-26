@@ -1,14 +1,13 @@
 /**
  * @jest-environment jsdom
  *
- * Per-app capabilities (library_save, library_search) drive UI visibility through body classes + CSS,
+ * The per-app capability library_save drives UI visibility through a body class + CSS,
  * not through JS `style.display` mutation. This file pins the body-class
  * contract end to end:
  *
  *   - applyAppCapabilityClasses(name) reads window.apps[name] and toggles
- *     `app-cap-kb-save` / `app-cap-kb-search` on <body>.
- *   - Defaults are KB save & search ON — preserving legacy behavior
- *     for apps that haven't declared the flags. Only an explicit `false`
+ *     `app-cap-kb-save` on <body>.
+ *   - The default is ON for apps that haven't declared the flag. Only an explicit `false`
  *     (or "false") disables, mirroring CAPABILITY_DEFAULTS on the Ruby side.
  *
  * The functions live in docker/services/ruby/public/js/monadic.js. We
@@ -65,36 +64,32 @@ describe('applyAppCapabilityClasses (body-class SSOT)', () => {
   });
 
   describe('applyAppCapabilityClasses', () => {
-    it('KB-only app (library_save+search true) sets save+search', () => {
+    it('an app that keeps its chats sets the class', () => {
       window.apps = { Chat: { library_save: true, library_search: true } };
       applyAppCapabilityClasses('Chat');
       const cl = document.body.classList;
       expect(cl.contains('app-cap-kb-save')).toBe(true);
-      expect(cl.contains('app-cap-kb-search')).toBe(true);
     });
 
-    it('Artifact-style app (library_save false, library_search false, no privacy) sets nothing', () => {
+    it('an app that keeps no chats (library_save false) does not', () => {
       window.apps = { Image: { library_save: false, library_search: false } };
       applyAppCapabilityClasses('Image');
       const cl = document.body.classList;
       expect(cl.contains('app-cap-kb-save')).toBe(false);
-      expect(cl.contains('app-cap-kb-search')).toBe(false);
     });
 
-    it('KB-save-only app (library_save true, library_search false) covers MonadicHelp / WebInsight class', () => {
+    it('library_search does not matter to it', () => {
       window.apps = { WebInsightOpenAI: { library_save: true, library_search: false } };
       applyAppCapabilityClasses('WebInsightOpenAI');
       const cl = document.body.classList;
       expect(cl.contains('app-cap-kb-save')).toBe(true);
-      expect(cl.contains('app-cap-kb-search')).toBe(false);
     });
 
-    it('legacy / unknown app (no flags declared) defaults to KB save+search ON', () => {
+    it('an app that declares nothing keeps its chats', () => {
       window.apps = { CustomLegacy: {} };
       applyAppCapabilityClasses('CustomLegacy');
       const cl = document.body.classList;
       expect(cl.contains('app-cap-kb-save')).toBe(true);
-      expect(cl.contains('app-cap-kb-search')).toBe(true);
     });
 
     it('handles string "false" (legacy serialization) the same as boolean false', () => {
@@ -102,7 +97,6 @@ describe('applyAppCapabilityClasses (body-class SSOT)', () => {
       applyAppCapabilityClasses('Legacy');
       const cl = document.body.classList;
       expect(cl.contains('app-cap-kb-save')).toBe(false);
-      expect(cl.contains('app-cap-kb-search')).toBe(false);
     });
 
     it('clears stale classes when switching from a KB app to an artifact app', () => {
@@ -113,7 +107,11 @@ describe('applyAppCapabilityClasses (body-class SSOT)', () => {
       applyAppCapabilityClasses('Mail');
       applyAppCapabilityClasses('Image');
       expect(document.body.classList.contains('app-cap-kb-save')).toBe(false);
-      expect(document.body.classList.contains('app-cap-kb-search')).toBe(false);
+    });
+
+    it('hides the record of the chat for an app that keeps no chats', () => {
+      const css = fs.readFileSync(path.join(__dirname, '../../docker/services/ruby/public/css/monadic.css'), 'utf8');
+      expect(css).toContain('body:not(.app-cap-kb-save) #library-draft-conversation { display: none; }');
     });
 
     it('no-ops safely when appName is null / unknown (does not toggle any class)', () => {

@@ -43,8 +43,8 @@
   <text x="566.7" y="134.5" font-size="12" fill="#326a4c" text-anchor="middle">Files</text>
   <rect x="599.0" y="118" width="67.2" height="24" rx="12" fill="none" stroke="#3a7a58"/>
   <text x="632.6" y="134.5" font-size="12" fill="#326a4c" text-anchor="middle">History</text>
-  <rect x="672.2" y="118" width="118.5" height="24" rx="12" fill="none" stroke="#3a7a58"/>
-  <text x="731.4" y="134.5" font-size="12" fill="#326a4c" text-anchor="middle">Knowledge Base</text>
+  <rect x="672.2" y="118" width="67.2" height="24" rx="12" fill="none" stroke="#3a7a58"/>
+  <text x="705.8" y="134.5" font-size="12" fill="#326a4c" text-anchor="middle">Library</text>
   <rect x="40" y="210" width="760" height="304" rx="10" fill="#ffffff" stroke="#3a68a6" stroke-width="1.5"/>
   <use href="#i-brands-docker" x="58.0" y="225.0" width="18.8" height="15" fill="#3a68a6"/>
   <text x="84.8" y="238.0" font-size="15" fill="#335d93" font-weight="700">Docker containers</text>

@@ -246,16 +246,10 @@ module WebSocketHelper
           handle_ws_library_list(connection, obj, session)
         when "LIBRARY_DELETE"
           handle_ws_library_delete(connection, obj, session)
-        when "LIBRARY_STATS"
-          handle_ws_library_stats(connection, obj, session)
-        when "LIBRARY_SAVE"
-          handle_ws_library_save(connection, obj, session)
         when "LIBRARY_RENAME"
           handle_ws_library_rename(connection, obj, session)
         when "LIBRARY_GET_CONVERSATION"
           handle_ws_library_get_conversation(connection, obj, session)
-        when "LIBRARY_SUGGEST_TITLE"
-          handle_ws_library_suggest_title(connection, obj, session)
         when "CHECK_TOKEN"
           handle_ws_check_token(connection, obj, session)
         when "PING"

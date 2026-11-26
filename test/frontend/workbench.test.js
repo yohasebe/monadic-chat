@@ -1818,6 +1818,37 @@ describe('Workbench', () => {
       window.Workbench.drawReadings('m-l', []);
       expect(el.querySelector('.workbench-reading-note')).toBeNull();
     });
+
+    test('shows a cited passage as it was recorded once its copy on the work screen is gone, or when it had none', () => {
+      const el = card('m-g');
+      const shown = [];
+      // Copies of the script loaded for earlier tests listen too, with no
+      // records: they say a passage is gone (null), which is left out here.
+      window.libraryPanel = { showExcerpt: (e) => { if (e) shown.push(e.text); } };
+      try {
+        const gone = 'x_' + 'd'.repeat(16);
+        const bare = 'x_' + 'e'.repeat(16);
+        window.Workbench.drawReadings('m-g', [
+          { id: 'r_' + 'd'.repeat(16), query: 'tides', path: 'conversations/c/workbench/library-gone.md',
+            excerpts: [{ id: gone, conversation_id: 'conv-1', title: 'Tides', text: 'as read' }], cited: [gone] },
+          { id: 'r_' + 'e'.repeat(16), query: 'moon', excerpts: [{ id: bare, conversation_id: 'conv-2', text: 'no copy' }] }
+        ]);
+        const link = (id) => {
+          const a = document.createElement('a');
+          a.setAttribute('href', `mc:read:${id}`);
+          el.appendChild(a);
+          return a;
+        };
+        link(gone).click();
+        expect(sent.at(-1).payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'conversations/c/workbench/library-gone.md' });
+        window.Workbench.onOpened({ status: 'refused', reason: 'missing', path: 'conversations/c/workbench/library-gone.md' });
+        link(bare).click();
+        expect(shown).toEqual(['as read', 'no copy']);
+      } finally {
+        delete window.libraryPanel;
+        window.Workbench.drawReadings('m-g', []);
+      }
+    });
   });
 
   describe('a file put from the computer', () => {
@@ -2321,6 +2352,52 @@ describe('Workbench', () => {
         expect(followImport).toHaveBeenCalledTimes(1);
       } finally {
         delete window.libraryPanel;
+      }
+    });
+
+    test('names a record of the conversation first, then asks whether to update one kept already or keep this one besides', async () => {
+      global.fetch = jest.fn(() => new Promise(() => {}));
+      document.body.insertAdjacentHTML('beforeend', '<dialog id="libraryKeepChoice"><input id="library-keep-title">'
+        + '<div id="library-keep-records" hidden><select id="library-keep-target"></select></div>'
+        + '<button id="library-keep-new"></button><button id="library-keep-update" hidden></button></dialog>');
+      const opened = [];
+      window.MonadicDialog = { of: () => ({ open: () => opened.push(true), close: () => Promise.resolve(true) }) };
+      const flush = () => new Promise((r) => setTimeout(r, 0));
+      try {
+        const doc = item({ id: 'i_d', kind: 'file', artifact_id: undefined, preview: 'text', name: 'conversation-1.md',
+          path: 'c/conversation-1.md', sha256: 'e'.repeat(64), library: true, draft: true, title: 'Why tides?' });
+        view([doc], { selected: 'i_d' });
+        document.querySelector('#workbench-view .workbench-to-library').click();
+        expect(opened.length).toBe(1);
+        expect(document.getElementById('library-keep-title').value).toBe('Why tides?');
+        expect(document.getElementById('library-keep-records').hidden).toBe(true);
+        document.getElementById('library-keep-title').value = 'Tides and moons';
+        document.getElementById('library-keep-new').click();
+        await flush();
+        expect(sent.at(-1).payload).toEqual({ message: 'LIBRARY_FROM_WORKBENCH', item_id: 'i_d', sha256: 'e'.repeat(64),
+          title: 'Tides and moons' });
+
+        window.Workbench.onToLibrary({ item_id: 'i_d', error: 'choose', records: [
+          { id: 'conv-2', title: 'Later', created_at: '2026-11-02T09:30:00Z', revision: 'v2' },
+          { id: 'conv-1', title: 'Tides', created_at: '2026-11-01T08:15:00Z', revision: 'v1' }] });
+        expect(opened.length).toBe(2);
+        expect(document.getElementById('library-keep-records').hidden).toBe(false);
+        expect(document.getElementById('library-keep-title').value).toBe('Tides and moons');
+        const options = [...document.querySelectorAll('#library-keep-target option')];
+        expect(options.map((o) => o.textContent)).toEqual(['Later (2026-11-02 09:30)', 'Tides (2026-11-01 08:15)']);
+        document.getElementById('library-keep-target').value = 'conv-1';
+        document.getElementById('library-keep-update').click();
+        await flush();
+        expect(sent.at(-1).payload).toEqual({ message: 'LIBRARY_FROM_WORKBENCH', item_id: 'i_d', sha256: 'e'.repeat(64),
+          title: 'Tides and moons', choice: { update: 'conv-1', seen: 'v1' } });
+
+        const count = sent.length;
+        document.getElementById('library-keep-update').click();
+        await flush();
+        expect(sent.length).toBe(count);
+      } finally {
+        delete window.MonadicDialog;
+        document.getElementById('libraryKeepChoice').remove();
       }
     });
   });

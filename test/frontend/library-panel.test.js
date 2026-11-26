@@ -76,510 +76,30 @@ describe('library-panel module', () => {
     });
   });
 
-  describe('render', () => {
-    let container;
-
-    beforeEach(() => {
-      document.body.innerHTML = '<div id="library-panel"></div>';
-      container = document.getElementById('library-panel');
-    });
-
-    it('shows an empty-state message when rows is []', () => {
-      lib.render(container, []);
-      expect(container.textContent).toContain('Knowledge Base is empty');
-    });
-
-    it('renders compact one-line rows with title, turns, relative time', () => {
-      const rows = [
-        {
-          conversation_id: 'A', title: 'Alpha Talk', source: 'ted-talk',
-          language: 'en', scope_app: 'Global', turns_count: 12,
-          messages_count: 12, created_at: new Date().toISOString()
-        },
-        {
-          conversation_id: 'B', title: '', source: 'monadic-chat',
-          language: 'ja', scope_app: 'ChatOpenAI', turns_count: 4,
-          messages_count: 4, created_at: new Date().toISOString()
-        }
-      ];
-      lib.render(container, rows);
-      const drawn = container.querySelectorAll('.library-row-compact');
-      expect(drawn.length).toBe(2);
-      expect(drawn[0].textContent).toContain('Alpha Talk');
-      expect(drawn[0].textContent).toContain('12T');  // turn count
-      expect(drawn[1].textContent).toContain('(untitled)');
-      // The compact sidebar row no longer carries an inline delete button —
-      // delete is now exposed through the Browse modal's action menu.
-      expect(container.querySelector('.library-row-delete')).toBeNull();
-    });
-
-    it('escapes HTML in titles and conversation IDs', () => {
-      lib.render(container, [{
-        conversation_id: '<bad>', title: '<img src=x onerror=alert(1)>',
-        scope_app: 'ChatOpenAI', created_at: new Date().toISOString()
-      }]);
-      expect(container.innerHTML).not.toContain('<img');
-      expect(container.innerHTML).toContain('&lt;img');
-    });
-  });
-
-  describe('handleDeleted', () => {
-    let container;
-
-    beforeEach(() => {
-      document.body.innerHTML = '<div id="library-panel"></div>';
-      container = document.getElementById('library-panel');
-      lib.render(container, [
-        { conversation_id: 'conv-1', title: 'first', scope_app: 'ChatOpenAI' },
-        { conversation_id: 'conv-2', title: 'second', scope_app: 'Global' }
-      ]);
-    });
-
-    it('removes the row optimistically when res is success', () => {
-      lib.handleDeleted({ res: 'success', conversation_id: 'conv-1' }, container);
-      const remaining = container.querySelectorAll('[data-conversation-id]');
-      expect(remaining.length).toBe(1);
-      expect(remaining[0].getAttribute('data-conversation-id')).toBe('conv-2');
-    });
-
-    it('always re-fetches LIBRARY_LIST after a delete attempt', () => {
-      lib.handleDeleted({ res: 'failure' }, container);
-      expect(sentMessages.find(m => m.message === 'LIBRARY_LIST')).toBeDefined();
-    });
-  });
-
-  describe('formatStats', () => {
-    it('renders the total', () => {
-      const out = lib.formatStats({ conversations_total: 7 });
-      expect(out).toBe('Knowledge Base: 7 total');
-    });
-
-    it('returns the empty string for nullish input', () => {
-      expect(lib.formatStats(null)).toBe('');
-    });
-  });
-
-  describe('openSaveModal title pre-fill', () => {
-    afterEach(() => {
-      document.body.innerHTML = '';
-      lib._state.currentConversationId = null;
-      lib._state.allRows = [];
-      lib._state.cachedTitleSuggestion = null;
-      lib._state.cachedTitleSuggestionMessageCount = 0;
-    });
-
-    function setupModal() {
-      document.body.innerHTML = `
-        <div id="librarySaveModal">
-          <input id="library-save-title">
-          <span id="library-save-title-spinner" style="display:none"></span>
-          <input id="library-scope-app" type="radio" name="s" value="app">
-          <input id="library-scope-global" type="radio" name="s" value="Global">
-          <span id="library-scope-app-name"></span>
-          <div id="library-save-privacy-note" style="display:none"></div>
-          <div id="library-save-update-note" style="display:none"></div>
-          <span id="library-save-modal-title-text"></span>
-          <span id="library-save-confirm-text"></span>
-        </div>`;
-    }
-
-    it('blanks the title field on first save (no sticky id)', () => {
-      setupModal();
-      lib.openSaveModal();
-      expect(document.getElementById('library-save-title').value).toBe('');
-    });
-
-    it('refuses to open the modal when the session has no messages', () => {
-      // Defence-in-depth check: the Save button is disabled when
-      // window.messages is empty, but openSaveModal is also exposed on
-      // window.libraryPanel so a programmatic caller could try to open
-      // it directly. The guard inside openSaveModal must short-circuit
-      // and surface a warning rather than silently producing an empty
-      // Knowledge Base entry.
-      setupModal();
-      global.window.messages = [];
-      const flashed = [];
-      const originalSetAlert = global.window.setAlert;
-      global.window.setAlert = (msg, kind) => flashed.push({ msg, kind });
-      try {
-        const before = document.getElementById('library-save-title').value;
-        lib.openSaveModal();
-        // Title input remains untouched; the modal-open side effects
-        // (placeholder, scope selection, etc.) are skipped.
-        expect(document.getElementById('library-save-title').value).toBe(before);
-        // A user-visible warning is queued.
-        expect(flashed.length).toBe(1);
-        expect(flashed[0].kind).toBe('warning');
-        expect(flashed[0].msg).toMatch(/no messages/i);
-      } finally {
-        global.window.setAlert = originalSetAlert;
-      }
-    });
-
-    it('pre-fills the latest known title when re-saving the same conversation', () => {
-      setupModal();
-      // openSaveModal now refuses empty sessions up front (the Save button
-      // is also disabled when there are no messages), so a re-save scenario
-      // must include at least one user/assistant message to exercise the
-      // pre-fill branch.
-      global.window.messages = [{ role: 'user', text: 'continued', mid: 2 }];
-      lib._state.currentConversationId = 'conv-9';
-      lib._state.allRows = [
-        { conversation_id: 'conv-9', title: 'My renamed conversation' },
-        { conversation_id: 'other', title: 'Unrelated' }
-      ];
-      lib.openSaveModal();
-      // After Rename in the Viewer the row's title is updated in-place,
-      // so the next openSaveModal must surface that title rather than
-      // dropping back to the empty default.
-      expect(document.getElementById('library-save-title').value)
-        .toBe('My renamed conversation');
-    });
-
-    it('still blanks the title when the sticky id is unknown to the inventory', () => {
-      // Defensive: if the row was deleted out from under us, fall back
-      // to the blank default so the user can type a fresh title.
-      setupModal();
-      lib._state.currentConversationId = 'gone';
-      lib._state.allRows = [];
-      lib.openSaveModal();
-      expect(document.getElementById('library-save-title').value).toBe('');
-    });
-
-    it('requests an LLM title suggestion on first save with conversation content', () => {
-      setupModal();
-      global.window.messages = [
-        { role: 'system', text: 'sys', mid: 1 },
-        { role: 'user', text: 'Help me write Ruby.', mid: 2 },
-        { role: 'assistant', text: 'Sure, what specifically?', mid: 3 }
-      ];
-      const before = sentMessages.length;
-      lib.openSaveModal();
-      const newSends = sentMessages.slice(before);
-      const req = newSends.find(m => m.message === 'LIBRARY_SUGGEST_TITLE');
-      expect(req).toBeDefined();
-      expect(req.contents.messages).toEqual([
-        { role: 'system', text: 'sys' },
-        { role: 'user', text: 'Help me write Ruby.' },
-        { role: 'assistant', text: 'Sure, what specifically?' }
-      ]);
-      expect(lib._state.titleSuggestionPending).toBe(true);
-    });
-
-    it('does not request a suggestion on re-save (sticky id present)', () => {
-      setupModal();
-      lib._state.currentConversationId = 'sticky-1';
-      lib._state.allRows = [{ conversation_id: 'sticky-1', title: 'Existing' }];
-      global.window.messages = [{ role: 'user', text: 'Help.' }];
-      const before = sentMessages.length;
-      lib.openSaveModal();
-      const newSends = sentMessages.slice(before);
-      expect(newSends.find(m => m.message === 'LIBRARY_SUGGEST_TITLE')).toBeUndefined();
-    });
-
-    it('does not request a suggestion when there is no conversation content', () => {
-      setupModal();
-      global.window.messages = [];
-      const before = sentMessages.length;
-      lib.openSaveModal();
-      const newSends = sentMessages.slice(before);
-      expect(newSends.find(m => m.message === 'LIBRARY_SUGGEST_TITLE')).toBeUndefined();
-    });
-
-    it('reuses a cached suggestion when the conversation has not grown', () => {
-      // First open: no cache, request fires.
-      setupModal();
-      global.window.messages = [
-        { role: 'user', text: 'Hi.' },
-        { role: 'assistant', text: 'Hello!' }
-      ];
-      lib._state.cachedTitleSuggestion = 'Cached topic';
-      lib._state.cachedTitleSuggestionMessageCount = 2;
-
-      const before = sentMessages.length;
-      lib.openSaveModal();
-      const newSends = sentMessages.slice(before);
-      // Cache hit: no LIBRARY_SUGGEST_TITLE traffic.
-      expect(newSends.find(m => m.message === 'LIBRARY_SUGGEST_TITLE')).toBeUndefined();
-      expect(document.getElementById('library-save-title').value).toBe('Cached topic');
-      expect(lib._state.titleSuggestionPending).toBe(false);
-    });
-
-    it('refreshes the suggestion when new conversation turns have been added', () => {
-      setupModal();
-      lib._state.cachedTitleSuggestion = 'Stale title';
-      lib._state.cachedTitleSuggestionMessageCount = 2;
-      // Conversation grew from 2 to 4 turns — cached title is no longer
-      // representative of the latest exchange, so we re-ask.
-      global.window.messages = [
-        { role: 'user', text: 'Hi.' },
-        { role: 'assistant', text: 'Hello!' },
-        { role: 'user', text: 'Tell me more.' },
-        { role: 'assistant', text: 'Sure.' }
-      ];
-
-      const before = sentMessages.length;
-      lib.openSaveModal();
-      const newSends = sentMessages.slice(before);
-      expect(newSends.find(m => m.message === 'LIBRARY_SUGGEST_TITLE')).toBeDefined();
-      // Title field stays empty until the response arrives — we did
-      // not pre-fill it with the stale cached value.
-      expect(document.getElementById('library-save-title').value).toBe('');
-    });
-  });
-
-  describe('handleTitleSuggested', () => {
-    afterEach(() => {
-      document.body.innerHTML = '';
-      lib._state.titleSuggestionPending = false;
-    });
-
-    it('writes the suggestion into the title field when the user has not typed', () => {
-      document.body.innerHTML = '<input id="library-save-title" value="" placeholder="Suggesting title…">';
-      lib._state.titleSuggestionPending = true;
-      lib.handleTitleSuggested({ res: 'success', title: 'Ruby refactor questions' });
-      expect(document.getElementById('library-save-title').value).toBe('Ruby refactor questions');
-      expect(lib._state.titleSuggestionPending).toBe(false);
-    });
-
-    it('leaves the title alone if the user already typed something (race protection)', () => {
-      document.body.innerHTML = '<input id="library-save-title" value="My own title">';
-      lib._state.titleSuggestionPending = true;
-      lib.handleTitleSuggested({ res: 'success', title: 'Suggested name' });
-      expect(document.getElementById('library-save-title').value).toBe('My own title');
-    });
-
-    it('clears the spinner placeholder on failure without surfacing an error', () => {
-      document.body.innerHTML = '<input id="library-save-title" value="" placeholder="Suggesting title…">';
-      lib._state.titleSuggestionPending = true;
-      lib.handleTitleSuggested({ res: 'failure' });
-      expect(document.getElementById('library-save-title').value).toBe('');
-      expect(document.getElementById('library-save-title').placeholder).not.toBe('Suggesting title…');
-      expect(lib._state.titleSuggestionPending).toBe(false);
-    });
-
-    it('hides the inline spinner once a response arrives (success or failure)', () => {
-      document.body.innerHTML = `
-        <input id="library-save-title" value="" placeholder="Suggesting title…">
-        <span id="library-save-title-spinner" style="display: ;"></span>`;
-      lib._state.titleSuggestionPending = true;
-      lib.handleTitleSuggested({ res: 'failure' });
-      expect(document.getElementById('library-save-title-spinner').style.display).toBe('none');
-
-      // Even on success the spinner should still be cleared so it does
-      // not linger above the just-written title.
-      document.getElementById('library-save-title-spinner').style.display = '';
-      lib._state.titleSuggestionPending = true;
-      lib.handleTitleSuggested({ res: 'success', title: 'X' });
-      expect(document.getElementById('library-save-title-spinner').style.display).toBe('none');
-    });
-
-    it('caches a successful suggestion against the current message count', () => {
-      document.body.innerHTML = '<input id="library-save-title" value="">';
-      global.window.messages = [
-        { role: 'user', text: 'Hi.' },
-        { role: 'assistant', text: 'Hello!' }
-      ];
-      lib._state.titleSuggestionPending = true;
-      lib.handleTitleSuggested({ res: 'success', title: 'Greetings' });
-      expect(lib._state.cachedTitleSuggestion).toBe('Greetings');
-      expect(lib._state.cachedTitleSuggestionMessageCount).toBe(2);
-    });
-  });
-
-  describe('clearCurrentConversation cache hygiene', () => {
-    it('wipes the cached suggestion alongside the sticky id', () => {
-      lib._state.currentConversationId = 'conv-1';
-      lib._state.cachedTitleSuggestion = 'Old title';
-      lib._state.cachedTitleSuggestionMessageCount = 4;
-      lib.clearCurrentConversation();
-      expect(lib._state.currentConversationId).toBeNull();
-      expect(lib._state.cachedTitleSuggestion).toBeNull();
-      expect(lib._state.cachedTitleSuggestionMessageCount).toBe(0);
-    });
-  });
-
-  describe('readModalSelections', () => {
+  describe('handleConversations / handleDeletedMessage', () => {
     afterEach(() => { document.body.innerHTML = ''; });
 
-    it('returns the title text', () => {
-      document.body.innerHTML = '<input id="library-save-title" value="My Conversation">';
-      expect(lib.readModalSelections()).toEqual({ title: 'My Conversation' });
-    });
-  });
-
-  describe('buildSavePayload', () => {
-    let originalSetParams;
-
-    beforeEach(() => {
-      originalSetParams = global.window.setParams;
-      global.window.setParams = () => ({ app_name: 'ChatOpenAI', model: 'gpt-5.4', initiate_from_assistant: true });
-      global.window.messages = [
-        { role: 'system', text: 'sys', mid: 1 },
-        { role: 'user', text: 'Hi', mid: 2 },
-        { role: 'assistant', text: 'Hello!', mid: 3, thinking: 'reasoning text' }
-      ];
-      document.body.innerHTML = '<input id="initial-prompt" value="You are a helper.">';
+    it('counts every entry the server gives, past any page', () => {
+      document.body.innerHTML = '<table><tbody id="library-browse-tbody"></tbody></table><span id="library-browse-count"></span>';
+      const rows = Array.from({ length: 501 }, (_, i) => ({ conversation_id: 'C' + i, title: 'Conv ' + i,
+        created_at: new Date(2026, 0, 1, 0, 0, i).toISOString() }));
+      lib.handleConversations({ content: rows, total: 501 });
+      expect(document.getElementById('library-browse-count').textContent).toBe('501 / 501');
     });
 
-    afterEach(() => {
-      global.window.setParams = originalSetParams;
-      delete global.window.messages;
-      document.body.innerHTML = '';
-    });
-
-    it('builds payload with replaced system prompt and skips the leading session system message', () => {
-      const payload = lib.buildSavePayload({ title: '  Demo  ' });
-      expect(payload.parameters.app_name).toBe('ChatOpenAI');
-      expect(payload.parameters.initiate_from_assistant).toBeUndefined();
-      expect(payload.scope_app).toBeUndefined();
-      expect(payload.title).toBe('Demo');
-      expect(payload.messages.length).toBe(3);
-      expect(payload.messages[0].role).toBe('system');
-      expect(payload.messages[0].text).toBe('You are a helper.');
-      expect(payload.messages[1]).toMatchObject({ role: 'user', text: 'Hi' });
-      expect(payload.messages[2]).toMatchObject({ role: 'assistant', text: 'Hello!', thinking: 'reasoning text' });
-    });
-
-    it('carries the monadic state', () => {
-      const payload = lib.buildSavePayload({ monadicState: { foo: 1 } });
-      expect(payload.monadic_state).toEqual({ foo: 1 });
-    });
-
-    it('omits an empty title from the payload', () => {
-      const payload = lib.buildSavePayload({ title: '   ' });
-      expect(payload.title).toBeUndefined();
-    });
-  });
-
-  describe('handleConversations / handleStats / handleSavedMessage', () => {
-    afterEach(() => { document.body.innerHTML = ''; });
-
-    it('renders compact inventory rows into #library-recent on library_conversations', () => {
-      document.body.innerHTML = '<div id="library-recent"></div>'
-        + '<span id="library-total-badge"></span>';
-      lib.handleConversations({ content: [
-        { conversation_id: 'A', title: 'Alpha', scope_app: 'ChatOpenAI',
-          turns_count: 3, created_at: new Date().toISOString() }
-      ] });
-      const html = document.getElementById('library-recent').innerHTML;
-      expect(html).toMatch(/Alpha/);
-      expect(html).toMatch(/data-conversation-id="A"/);
-      // Total badge updates with the row count.
-      expect(document.getElementById('library-total-badge').textContent).toBe('1');
-    });
-
-    it('limits the sidebar to the 5 most recent rows even when the server returns more', () => {
-      document.body.innerHTML = '<div id="library-recent"></div>'
-        + '<span id="library-total-badge"></span>';
-      const rows = Array.from({ length: 12 }, (_, i) => ({
-        conversation_id: 'C' + i, title: 'Conv ' + i, scope_app: 'ChatOpenAI',
-        turns_count: 1, created_at: new Date().toISOString()
-      }));
-      lib.handleConversations({ content: rows });
-      const drawn = document.getElementById('library-recent').querySelectorAll('.library-row-compact');
-      expect(drawn.length).toBe(5);
-      // Badge still reflects the full total.
-      expect(document.getElementById('library-total-badge').textContent).toBe('12');
-    });
-
-    it('writes the formatted stats line into #library-stats-info', () => {
-      document.body.innerHTML = '<div id="library-stats-info"></div>';
-      lib.handleStats({ content: { conversations_total: 4 } });
-      expect(document.getElementById('library-stats-info').textContent)
-        .toBe('Knowledge Base: 4 total');
-    });
-
-    it('refreshes list and stats after a successful save', () => {
-      lib.handleSavedMessage({ res: 'success', conversation_id: 'X', scope_app: 'ChatOpenAI' });
-      expect(sentMessages.some(m => m.message === 'LIBRARY_LIST')).toBe(true);
-      expect(sentMessages.some(m => m.message === 'LIBRARY_STATS')).toBe(true);
-    });
-
-    it('shows a warning, not the plain success, when part of the earlier version remains', () => {
-      const alerts = [];
-      const orig = global.window.setAlert;
-      global.window.setAlert = (html, severity) => alerts.push({ html, severity });
-      try {
-        lib.handleSavedMessage({ res: 'success', conversation_id: 'X', updated: true, warning: 'prior_version_left' });
-        lib.handleSavedMessage({ res: 'success', conversation_id: 'X', updated: true });
-      } finally {
-        global.window.setAlert = orig;
-      }
-      expect(alerts[0].severity).toBe('warning');
-      expect(alerts[0].html).toMatch(/earlier version could not be removed/);
-      expect(alerts[1].severity).toBe('success');
-    });
-
-    it('does not refresh the list when save fails', () => {
+    it('takes a deleted entry out and fetches the list again', () => {
+      lib._state.allRows = [{ conversation_id: 'A', title: 'A' }, { conversation_id: 'B', title: 'B' }];
       const before = sentMessages.length;
-      const origAlert = global.window.alert;
-      global.window.alert = () => {};
-      try {
-        lib.handleSavedMessage({ res: 'failure', content: 'qdrant down' });
-      } finally {
-        global.window.alert = origAlert;
-      }
-      const newSends = sentMessages.slice(before);
-      expect(newSends.find(m => m.message === 'LIBRARY_LIST')).toBeUndefined();
-    });
-
-    it('remembers conversation_id on save success so the next save updates in place', () => {
-      lib._state.currentConversationId = null;
-      lib.handleSavedMessage({ res: 'success', conversation_id: 'sticky-1' });
-      expect(lib._state.currentConversationId).toBe('sticky-1');
-
-      // buildSavePayload now ships the sticky id back so the server can
-      // delete-then-insert.
-      const payload = lib.buildSavePayload({});
-      expect(payload.conversation_id).toBe('sticky-1');
-    });
-
-    it('clearCurrentConversation drops the binding (Reset / app switch hook)', () => {
-      lib._state.currentConversationId = 'sticky-9';
-      lib.clearCurrentConversation();
-      expect(lib._state.currentConversationId).toBeNull();
-      const payload = lib.buildSavePayload({});
-      expect(payload.conversation_id).toBeUndefined();
-    });
-
-    it('drops the binding when the matching entry is deleted from Browse', () => {
-      lib._state.currentConversationId = 'sticky-1';
-      lib._state.allRows = [
-        { conversation_id: 'sticky-1', title: 'A' },
-        { conversation_id: 'other', title: 'B' }
-      ];
-      lib.handleDeletedMessage({ res: 'success', conversation_id: 'sticky-1' });
-      expect(lib._state.currentConversationId).toBeNull();
-    });
-
-    it('keeps the binding when an unrelated entry is deleted', () => {
-      lib._state.currentConversationId = 'sticky-1';
-      lib._state.allRows = [
-        { conversation_id: 'sticky-1', title: 'A' },
-        { conversation_id: 'other', title: 'B' }
-      ];
-      lib.handleDeletedMessage({ res: 'success', conversation_id: 'other' });
-      expect(lib._state.currentConversationId).toBe('sticky-1');
+      lib.handleDeletedMessage({ res: 'success', conversation_id: 'A' });
+      expect(lib._state.allRows.map(r => r.conversation_id)).toEqual(['B']);
+      expect(sentMessages.slice(before).map(m => m.message)).toEqual(['LIBRARY_LIST']);
     });
   });
 
   describe('init', () => {
     afterEach(() => { document.body.innerHTML = ''; });
 
-    it('binds Save / Browse / Confirm buttons when present', () => {
-      document.body.innerHTML = `
-        <button id="library-save"></button>
-        <button id="library-browse"></button>
-        <button id="library-save-confirm"></button>
-      `;
-      lib.init();
-      expect(typeof document.getElementById('library-save').onclick).toBe('function');
-      expect(typeof document.getElementById('library-browse').onclick).toBe('function');
-      expect(typeof document.getElementById('library-save-confirm').onclick).toBe('function');
-    });
-
-    it('opening the Library refreshes the list and stats, and shows the Library tab of the side column', () => {
+    it('opening the Library fetches the list and shows the Library tab of the side column', () => {
       const layout = { hidden: true, pane: 'work' };
       window.LayoutController = {
         isMenuHidden: () => layout.hidden,
@@ -589,9 +109,7 @@ describe('library-panel module', () => {
       try {
         const before = sentMessages.length;
         lib.openBrowseModal();
-        const after = sentMessages.slice(before);
-        expect(after.find(m => m.message === 'LIBRARY_LIST')).toBeDefined();
-        expect(after.find(m => m.message === 'LIBRARY_STATS')).toBeDefined();
+        expect(sentMessages.slice(before).map(m => m.message)).toEqual(['LIBRARY_LIST']);
         expect(layout).toEqual({ hidden: false, pane: 'library' });
       } finally {
         delete window.LayoutController;
@@ -600,37 +118,37 @@ describe('library-panel module', () => {
   });
 
   describe('keeping the conversation', () => {
-    it('asks the server for the chat as a document', () => {
+    it('asks the server to put the chat on the work screen', () => {
       const before = sentMessages.length;
       lib.draftConversation();
       expect(sentMessages.slice(before).map(m => m.message)).toEqual(['LIBRARY_CONVERSATION_DRAFT']);
     });
 
-    it('puts the document on the work screen as a file and shows the work screen', () => {
-      const put = [];
+    it('shows the work screen once the record is there', () => {
       const layout = {};
-      window.Workbench = { putFiles: (files) => { put.push(...files); } };
       window.LayoutController = { setPane: (p) => { layout.pane = p; } };
       try {
-        lib.handleConversationDraft({ name: 'conversation-20260102-030405.md', content: '# Hi\n' });
-        expect(put.map(f => [f.name, f.type])).toEqual([['conversation-20260102-030405.md', 'text/markdown']]);
+        lib.handleConversationDraft({ item_id: 'i_1' });
         expect(layout.pane).toBe('work');
       } finally {
-        delete window.Workbench;
         delete window.LayoutController;
       }
     });
 
-    it('puts nothing for a chat that hides words, and says so', () => {
-      const put = [];
-      window.Workbench = { putFiles: (files) => { put.push(...files); } };
-      window.setAlert = jest.fn();
+    it('says why nothing was put, the work screen left as it is', () => {
+      const layout = {};
+      window.LayoutController = { setPane: (p) => { layout.pane = p; } };
+      const alerts = [];
+      window.setAlert = (html) => alerts.push(html);
       try {
+        lib.handleConversationDraft({ error: 'not_saved_by_app' });
         lib.handleConversationDraft({ error: 'hides_words' });
-        expect(put).toEqual([]);
-        expect(window.setAlert).toHaveBeenCalled();
+        expect(layout.pane).toBeUndefined();
+        expect(alerts[0]).toMatch(/does not keep its conversations/);
+        expect(alerts[1]).toMatch(/hides words/);
       } finally {
-        delete window.Workbench;
+        delete window.LayoutController;
+        delete window.setAlert;
       }
     });
   });
@@ -649,31 +167,26 @@ describe('library-panel module', () => {
     });
   });
 
-  describe('compactRowMarkup', () => {
-    it('produces a one-line row with truncated title, turns and time', () => {
-      const html = lib.compactRowMarkup({
-        conversation_id: 'X', title: 'Hello world', scope_app: 'Global',
-        turns_count: 7, created_at: new Date().toISOString()
-      });
-      expect(html).toContain('library-row-compact');
-      expect(html).not.toContain('library-scope-dot');
-      expect(html).toContain('Hello world');
-      expect(html).toContain('7T');
-      // No inline delete button in compact row — actions live in browse modal.
-      expect(html).not.toContain('library-row-delete');
-    });
-
-    it('truncates very long titles', () => {
-      const longTitle = 'a'.repeat(100);
-      const html = lib.compactRowMarkup({
-        conversation_id: 'X', title: longTitle, scope_app: 'ChatOpenAI',
-        turns_count: 1, created_at: new Date().toISOString()
-      });
-      expect(html).toContain('…');
-    });
-  });
-
   describe('browseRowMarkup', () => {
+    it('offers the chat a record was made from, only while that chat can be continued', () => {
+      const resumed = [];
+      window.HistoryPanel = { resume: (id) => resumed.push(id) };
+      document.body.innerHTML = '<table><tbody id="library-browse-tbody"></tbody></table>';
+      try {
+        lib.handleConversations({ content: [
+          { conversation_id: 'r1', title: 'Kept', source_chat_id: 'c_1', source_chat_resumable: true, created_at: new Date().toISOString() },
+          { conversation_id: 'r2', title: 'Doc', created_at: new Date().toISOString() }
+        ] });
+        const buttons = document.querySelectorAll('#library-browse-tbody .library-action-chat');
+        expect(buttons.length).toBe(1);
+        buttons[0].click();
+        expect(resumed).toEqual(['c_1']);
+      } finally {
+        delete window.HistoryPanel;
+        document.body.innerHTML = '';
+      }
+    });
+
     it('opens the entry on the work screen from its row', () => {
       const opened = [];
       window.Workbench = { openLibrary: (id) => opened.push(id) };
@@ -805,6 +318,19 @@ describe('library-panel module', () => {
         '  <button id="library-viewer-delete"></button>' +
         '</div>';
     }
+
+    it('shows a passage as it was read for a reply, without the actions of an entry, or says it is gone', () => {
+      seedViewerDom();
+      document.getElementById('libraryViewerModal').insertAdjacentHTML('beforeend', '<button id="library-viewer-rename"></button>');
+      lib.showExcerpt({ title: 'Tides', text: 'The moon pulls the sea.' });
+      expect(document.getElementById('library-viewer-title').textContent).toBe('Tides');
+      expect(document.getElementById('library-viewer-messages').textContent).toContain('The moon pulls the sea.');
+      expect(document.getElementById('library-viewer-delete').style.display).toBe('none');
+      expect(document.getElementById('library-viewer-rename').style.display).toBe('none');
+
+      lib.showExcerpt({ title: 'Tides' });
+      expect(document.getElementById('library-viewer-messages').textContent).toBe('This passage is no longer available.');
+    });
 
     it('renderViewerMessages emits a block per message with role headers and data-role attribute', () => {
       seedViewerDom();
@@ -1078,9 +604,8 @@ describe('library-panel module', () => {
     });
   });
 
-  describe('per-app KB feature gates', () => {
+  describe('app capability classes', () => {
     afterEach(() => {
-      document.body.innerHTML = '';
       delete window.apps;
       delete window.params;
     });
@@ -1090,16 +615,6 @@ describe('library-panel module', () => {
       window.apps[name] = settings || {};
       window.params = { app_name: name };
     }
-
-    it('isCurrentAppKbSaveEligible returns false for apps with library_save: false', () => {
-      setApp('SecondOpinionOpenAI', { library_save: false, library_search: false });
-      expect(lib.isCurrentAppKbSaveEligible()).toBe(false);
-    });
-
-    it('isCurrentAppKbSaveEligible returns true for apps with library_save: true', () => {
-      setApp('ChatOpenAI', { library_save: true, library_search: true });
-      expect(lib.isCurrentAppKbSaveEligible()).toBe(true);
-    });
 
     it('updateCapabilityClasses delegates to applyAppCapabilityClasses with the current app name', () => {
       const spy = jest.fn();
@@ -1115,56 +630,6 @@ describe('library-panel module', () => {
       } finally {
         delete window.applyAppCapabilityClasses;
       }
-    });
-
-    it('updateSaveButtonAvailability disables and explains when the app is ineligible', () => {
-      // Save button is always present in the DOM (no display:none gate).
-      // When the app does not support library_save (e.g. Second Opinion, which
-      // declares `privacy do; enabled true; end`), the button stays
-      // visible but disabled with a tooltip explaining why. This mirrors
-      // the Privacy Filter session toggle's "visible but disabled"
-      // pattern on apps that don't support PF.
-      document.body.innerHTML = '<button id="library-save"></button>';
-      const btn = document.getElementById('library-save');
-      setApp('SecondOpinionOpenAI', { library_save: false });
-      lib.updateSaveButtonAvailability();
-      expect(btn.disabled).toBe(true);
-      // Tooltip should reference the "app does not support saving" reason,
-      // not the no-messages or privacy-active reasons.
-      expect(btn.getAttribute('title')).toMatch(/does not support|サポート/i);
-    });
-
-    it('updateSaveButtonAvailability disables Save for a chat that hides words', () => {
-      document.body.innerHTML = '<button id="library-save"></button>';
-      const btn = document.getElementById('library-save');
-      setApp('ChatOpenAI', { library_save: true });
-      window.WordTable = { isMarked: () => true };
-      try {
-        lib.updateSaveButtonAvailability();
-        expect(btn.disabled).toBe(true);
-        expect(btn.getAttribute('title')).toMatch(/hides words/i);
-      } finally {
-        delete window.WordTable;
-      }
-    });
-
-    it('follows the word table when the chat starts hiding words', () => {
-      document.body.innerHTML = '<button id="library-save"></button>';
-      const btn = document.getElementById('library-save');
-      setApp('ChatOpenAI', { library_save: true });
-      window.WordTable = { isMarked: () => true };
-      try {
-        btn.disabled = false;
-        document.dispatchEvent(new CustomEvent('wordtable:changed'));
-        expect(btn.disabled).toBe(true);
-      } finally {
-        delete window.WordTable;
-      }
-    });
-
-    it('absent flag defaults to eligible (legacy / user-defined custom apps)', () => {
-      setApp('CustomLegacyApp', {}); // no library_save / library_search
-      expect(lib.isCurrentAppKbSaveEligible()).toBe(true);
     });
   });
 

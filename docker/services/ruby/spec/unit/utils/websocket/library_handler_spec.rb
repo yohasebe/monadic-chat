@@ -56,6 +56,24 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       expect(msg['content'].first['conversation_id']).to eq('A')
     end
 
+    it 'gives every entry and their number, and says of a record whether its chat can be continued' do
+      rows = [{ conversation_id: 'A', title: 'Kept', source_chat_id: 'c_kept', created_at: '2026-11-02' },
+              { conversation_id: 'B', title: 'Gone', source_chat_id: 'c_gone', created_at: '2026-11-01' },
+              { conversation_id: 'C', title: 'Doc', created_at: '2026-10-31' }]
+      allow(Monadic::Library::Manager).to receive(:list_conversations).with(store: store, limit: nil).and_return(rows)
+      history = instance_double(Monadic::History::Store)
+      allow(Monadic::History::Store).to receive(:default).and_return(history)
+      allow(history).to receive(:resumable?) { |id| id == 'c_kept' }
+
+      host.send(:handle_ws_library_list, connection, {}, {})
+
+      msg = replies.first
+      expect(msg['total']).to eq(3)
+      expect(msg['content'][0]).to include('source_chat_id' => 'c_kept', 'source_chat_resumable' => true)
+      expect(msg['content'][1].keys).not_to include('source_chat_id', 'source_chat_resumable')
+      expect(msg['content'][2].keys).not_to include('source_chat_id')
+    end
+
     it 'returns an empty content array on Manager error' do
       allow(Monadic::Library::Manager).to receive(:list_conversations).and_raise('boom')
       host.send(:handle_ws_library_list, connection, {}, {})
@@ -94,289 +112,34 @@ RSpec.describe 'WebSocketHelper Library handlers' do
     end
   end
 
-  describe 'LIBRARY_SAVE → library_saved' do
-    let(:valid_payload) do
-      {
-        'messages' => [
-          { 'role' => 'system', 'text' => 'You are a helper.', 'mid' => 1 },
-          { 'role' => 'user', 'text' => 'Hi', 'mid' => 2 },
-          { 'role' => 'assistant', 'text' => 'Hello!', 'mid' => 3 }
-        ],
-        'parameters' => { 'app_name' => 'ChatOpenAI', 'model' => 'gpt-5.4' },
-        'title' => 'Demo'
-      }
-    end
-
-    it 'ingests via Manager.import_from_text and reports success' do
-      expect(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-        expect(args[:store]).to eq(store)
-        expect(args).not_to have_key(:scope_app)
-        { conversation_id: 'conv-9', counts: { summary: 1, turns: 2 } }
-      end
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
-      msg = replies.first
-      expect(msg['type']).to eq('library_saved')
-      expect(msg['res']).to eq('success')
-      expect(msg['conversation_id']).to eq('conv-9')
-      expect(msg).not_to have_key('scope_app')
-      expect(msg['counts']).to eq('summary' => 1, 'turns' => 2)
-    end
-
-    it 'ignores a scope_app sent by an earlier page' do
-      expect(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-        expect(args[:options][:title]).to eq('Demo')
-        expect(args[:options]).not_to have_key(:license)
-        expect(args).not_to have_key(:scope_app)
-        { conversation_id: 'conv-X', counts: { summary: 1, turns: 0 } }
-      end
-
-      payload = valid_payload.merge('scope_app' => 'Global')
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      expect(replies.first['res']).to eq('success')
-    end
-
-    it "strips per-message 'verify' verdicts so they never reach the Knowledge Base" do
-      captured = nil
-      allow(Monadic::Library::Manager).to receive(:import_from_text) do |args|
-        captured = args[:input]
-        { conversation_id: 'conv-v', counts: { summary: 1, turns: 1 } }
-      end
-      payload = valid_payload.merge(
-        'messages' => [
-          { 'role' => 'user', 'text' => 'Hi', 'mid' => 2 },
-          { 'role' => 'assistant', 'text' => 'Hello!', 'mid' => 3,
-            'verify' => { 'confidence' => 'high', 'consensus' => 'meta-commentary' } }
-        ]
-      )
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      expect(captured['messages'].any? { |m| m.key?('verify') }).to be false
-      expect(captured['messages'].map { |m| m['text'] }).to include('Hello!')
-    end
-
-    it 'rejects payloads with no messages' do
-      payload = valid_payload.merge('messages' => [])
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      msg = replies.first
-      expect(msg['type']).to eq('library_saved')
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/No messages/)
-    end
-
-    it 'rejects payloads missing parameters' do
-      payload = valid_payload.dup
-      payload.delete('parameters')
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/Missing parameters/)
-    end
-
-    it 'reports failure when Manager raises' do
-      allow(Monadic::Library::Manager).to receive(:import_from_text).and_raise('embeddings down')
-      host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to eq('embeddings down')
-    end
-
-    it 'rejects save when the active app declares library_save: false (artifact apps)' do
-      # Defense in depth: artifact apps like AutoForge / Drawio Grapher /
-      # Image Generator declare `library_save false` in MDSL because their
-      # output is not conversation-shaped. The frontend hides the Save
-      # button (and the entire library panel) for these apps, but a stale
-      # tab or programmatic client could still hit this path. Backend
-      # must reject before any storage side-effect.
-      app_double = double('AppInstance', settings: { library_save: false })
-      allow(MonadicApp).to receive(:app_settings).with('AutoForgeOpenAI').and_return(app_double)
-      payload = valid_payload.merge('parameters' => valid_payload['parameters'].merge('app_name' => 'AutoForgeOpenAI'))
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-
-      msg = replies.first
-      expect(msg['type']).to eq('library_saved')
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to match(/not supported for AutoForgeOpenAI/)
-    end
-
-    it 'allows save when the active app declares library_save: true (conversational apps)' do
-      app_double = double('AppInstance', settings: { library_save: true })
-      allow(MonadicApp).to receive(:app_settings).with('ChatOpenAI').and_return(app_double)
-      expect(Monadic::Library::Manager).to receive(:import_from_text)
-        .and_return(conversation_id: 'conv-ok', counts: { summary: 1, turns: 2 })
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
-
-      expect(replies.first['res']).to eq('success')
-    end
-
-    it 'updates in place when conversation_id is provided (ingest, then delete the prior points)' do
-      payload = valid_payload.merge('conversation_id' => 'conv-9')
-      prior = { 'library_summaries' => ['old-s'], 'library_turns' => ['old-t1'] }
-      expect(store).to receive(:point_ids).with('conv-9').ordered.and_return(prior)
-      expect(Monadic::Library::Manager).to receive(:import_from_text).ordered do |args|
-        expect(args[:options][:conversation_id]).to eq('conv-9')
-        { conversation_id: 'conv-9', counts: { summary: 1, turns: 2 } }
-      end
-      expect(store).to receive(:delete_point_ids).with(prior).ordered
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('success')
-      expect(msg['conversation_id']).to eq('conv-9')
-      expect(msg['updated']).to eq(true)
-      expect(msg['content']).to match(/Updated/)
-    end
-
-    it 'creates a new entry (no delete) when conversation_id is absent' do
-      expect(store).not_to receive(:delete_point_ids)
-      expect(Monadic::Library::Manager).to receive(:import_from_text)
-        .and_return(conversation_id: 'fresh', counts: { summary: 1, turns: 0 })
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('success')
-      expect(msg['updated']).to eq(false)
-    end
-
-    it 'forwards LIBRARY_SUGGEST_TITLE to the suggester and reports success' do
-      session = { parameters: { 'app_name' => 'ChatOpenAI' } }
-      messages = [{ 'role' => 'user', 'text' => 'Hi' }, { 'role' => 'assistant', 'text' => 'Hello!' }]
-      # The handler also forwards the chat itself (whose hidden words the
-      # request is checked for).
-      allow(Monadic::Library::TitleSuggester).to receive(:suggest)
-        .with(messages: messages, app_name: 'ChatOpenAI', session: session, words: nil)
-        .and_return('Friendly hello')
-
-      host.send(:handle_ws_library_suggest_title, connection,
-                { 'contents' => { 'messages' => messages } }, session)
-
-      msg = replies.first
-      expect(msg['type']).to eq('library_title_suggested')
-      expect(msg['res']).to eq('success')
-      expect(msg['title']).to eq('Friendly hello')
-    end
-
-    it 'reports failure when the suggester returns nil (key missing / LLM error)' do
-      allow(Monadic::Library::TitleSuggester).to receive(:suggest).and_return(nil)
-      host.send(:handle_ws_library_suggest_title, connection,
-                { 'contents' => { 'messages' => [{ 'role' => 'user', 'text' => 'Hi' }] } },
-                { parameters: { 'app_name' => 'ChatOpenAI' } })
-      msg = replies.first
-      expect(msg['type']).to eq('library_title_suggested')
-      expect(msg['res']).to eq('failure')
-    end
-
-    it 'rejects an empty messages payload without invoking the suggester' do
-      expect(Monadic::Library::TitleSuggester).not_to receive(:suggest)
-      host.send(:handle_ws_library_suggest_title, connection,
-                { 'contents' => { 'messages' => [] } }, {})
-      expect(replies.first['res']).to eq('failure')
-    end
-
-    it 'keeps the new version and flags a warning when the prior one could not be deleted' do
-      payload = valid_payload.merge('conversation_id' => 'conv-9')
-      allow(store).to receive(:point_ids).and_return('library_summaries' => ['old-s'], 'library_turns' => ['old-t'])
-      allow(Monadic::Library::Manager).to receive(:import_from_text)
-        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 1 })
-      deletes = []
-      allow(store).to receive(:delete_point_ids) do |ids|
-        deletes << ids
-        raise Monadic::VectorStore::BackendError, 'timeout'
-      end
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('success')
-      expect(msg['warning']).to eq('prior_version_left')
-      # Only the prior version's ids were ever deleted: the new version stays.
-      expect(deletes).to eq([{ 'library_summaries' => ['old-s'], 'library_turns' => ['old-t'] }])
-    end
-
-    it 'has no warning when the prior version is deleted' do
-      payload = valid_payload.merge('conversation_id' => 'conv-9')
-      allow(store).to receive(:point_ids).and_return('library_summaries' => ['old-s'])
-      allow(Monadic::Library::Manager).to receive(:import_from_text)
-        .and_return(conversation_id: 'conv-9', counts: { summary: 1, turns: 1 })
-      allow(store).to receive(:delete_point_ids)
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      expect(replies.first).not_to have_key('warning')
-    end
-
-    it 'keeps the prior version when writing the new one fails' do
-      payload = valid_payload.merge('conversation_id' => 'conv-9')
-      allow(store).to receive(:point_ids).and_return('library_summaries' => ['old-s'])
-      allow(Monadic::Library::Manager).to receive(:import_from_text).and_raise('embeddings down')
-      expect(store).not_to receive(:delete_point_ids)
-      expect(store).not_to receive(:delete_conversation)
-
-      host.send(:handle_ws_library_save, connection, { 'contents' => payload }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      expect(msg['content']).to eq('embeddings down')
-    end
-
-    it 'reports failure when contents is not a Hash' do
-      host.send(:handle_ws_library_save, connection, { 'contents' => 'not-a-hash' }, {})
-      msg = replies.first
-      expect(msg['res']).to eq('failure')
-      # Falls through validations; message-array check fires first.
-      expect(msg['content']).to match(/No messages/)
-    end
-
-    context 'when the chat hides words' do
-      it 'rejects the save with a clear failure message before anything is stored' do
-        # The page disables Save for such a chat, but a stale tab or another
-        # client could still send it.
-        expect(Monadic::Library::Manager).not_to receive(:import_from_text)
-        words = Monadic::Utils::Privacy::Words
-        session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [], parameters: {} }
-        words.start!(session)
-
-        host.send(:handle_ws_library_save, connection, { 'contents' => valid_payload }, session)
-
-        msg = replies.first
-        expect(msg['res']).to eq('failure')
-        expect(msg['content']).to match(/hides words/)
-      ensure
-        words::LOCK.synchronize { words::TABLES.clear }
-      end
-    end
-  end
-
   describe 'LIBRARY_CONVERSATION_DRAFT → library_conversation_draft' do
-    let(:words) { Monadic::Utils::Privacy::Words }
+    let(:session) { { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: {} } }
 
-    after { words::LOCK.synchronize { words::TABLES.clear } }
+    let(:live) { ->(_tab) { 1 } }
 
-    it 'gives the chat as a document to put on the work screen, keeping nothing' do
-      session = { messages: [{ 'role' => 'user', 'text' => 'Hi there' }, { 'role' => 'assistant', 'text' => 'Hello' }],
-                  parameters: { 'app_name' => 'ChatOpenAI', 'model' => 'gpt-x' } }
-      expect(Monadic::Library::Manager).not_to receive(:import_file)
+    before do
+      allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
+      stub_const('WebSocketHelper::WORKBENCH_LIVE', live)
+    end
+
+    it "puts the chat's record on its work screen and names the item" do
+      expect(Monadic::Library::ConversationDraft).to receive(:put)
+        .with(session, tab: 't', generation: 1, live: live).and_return('i_1')
+      allow(Monadic::Workbench::Channel).to receive(:changed)
 
       host.send(:handle_ws_library_conversation_draft, connection, {}, session)
 
-      msg = replies.first
-      expect(msg['type']).to eq('library_conversation_draft')
-      expect(msg['name']).to match(/\Aconversation-\d{8}-\d{6}\.md\z/)
-      expect(msg['content']).to include('# Hi there', '## User', '## Assistant', 'App: ChatOpenAI')
+      expect(replies.first).to eq('type' => 'library_conversation_draft', 'item_id' => 'i_1')
+      expect(Monadic::Workbench::Channel).to have_received(:changed).with('chat-1')
     end
 
-    it 'says there is nothing yet for a chat with no turns' do
-      host.send(:handle_ws_library_conversation_draft, connection, {}, { messages: [], parameters: {} })
-
-      expect(replies.first['error']).to eq('empty')
-    end
-
-    it 'gives nothing for a chat that hides words' do
-      session = { chat_id: Monadic::Workspace::Ids.generate(:chat), messages: [{ 'role' => 'user', 'text' => 'Hi' }],
-                  parameters: {} }
-      words.start!(session)
+    it 'says why nothing was put' do
+      allow(Monadic::Library::ConversationDraft).to receive(:put)
+        .and_raise(Monadic::Library::ConversationDraft::Refused, 'not_saved_by_app')
 
       host.send(:handle_ws_library_conversation_draft, connection, {}, session)
 
-      expect(replies.first).to eq('type' => 'library_conversation_draft', 'error' => 'hides_words')
+      expect(replies.first).to eq('type' => 'library_conversation_draft', 'error' => 'not_saved_by_app')
     end
   end
 
@@ -410,12 +173,30 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
       stub_const('WebSocketHelper::WORKBENCH_LIVE', ->(_tab) { 1 })
       allow(Monadic::Workbench::Board).to receive(:existing).with('chat-1').and_return(board)
-      expect(Monadic::Library::DeskImport).to receive(:start).with(board, 'i_1', 'a' * 64).and_return('imp-1')
+      expect(Monadic::Library::DeskImport).to receive(:start)
+        .with(board, 'i_1', 'a' * 64, app_name: 'ChatOpenAI', title: 'Tides', choice: { 'update' => 'conv-1', 'seen' => 't0' })
+        .and_return('imp-1')
 
-      host.send(:handle_ws_library_from_workbench, connection, { 'item_id' => 'i_1', 'sha256' => 'a' * 64 },
-                { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: {} })
+      host.send(:handle_ws_library_from_workbench, connection,
+                { 'item_id' => 'i_1', 'sha256' => 'a' * 64, 'title' => 'Tides', 'choice' => { 'update' => 'conv-1', 'seen' => 't0' } },
+                { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: { 'app_name' => 'ChatOpenAI' } })
 
       expect(replies.first).to include('import_id' => 'imp-1', 'status_url' => '/library/import/status/imp-1')
+    end
+
+    it 'takes no choice the page makes up, and asks the user to choose when the chat is kept already' do
+      allow(host).to receive(:workbench_connection).and_return(tab: 't', generation: 1)
+      stub_const('WebSocketHelper::WORKBENCH_LIVE', ->(_tab) { 1 })
+      allow(Monadic::Workbench::Board).to receive(:existing).and_return(double('board'))
+      records = [{ conversation_id: 'conv-1', title: 'Tides', created_at: 't0' }]
+      expect(Monadic::Library::DeskImport).to receive(:start).with(anything, 'i_1', 'a' * 64, app_name: nil, title: nil, choice: nil)
+                                                             .and_raise(Monadic::Library::DeskImport::Choose.new(records))
+
+      host.send(:handle_ws_library_from_workbench, connection, { 'item_id' => 'i_1', 'sha256' => 'a' * 64, 'choice' => 'overwrite-all' },
+                { Monadic::Workspace::Chats::SESSION_KEY => 'chat-1', messages: [], parameters: {} })
+
+      expect(replies.first).to include('error' => 'choose',
+                                       'records' => [{ 'id' => 'conv-1', 'title' => 'Tides', 'created_at' => 't0' }])
     end
 
     it 'says the document changed when it is not the version the tab shows' do
@@ -483,37 +264,6 @@ RSpec.describe 'WebSocketHelper Library handlers' do
       msg = replies.first
       expect(msg['res']).to eq('failure')
       expect(msg['content']).to eq('qdrant down')
-    end
-  end
-
-  describe 'LIBRARY_STATS → library_stats' do
-    it 'returns the counts payload with stringified keys' do
-      # Manager.library_stats now returns total + per-scope_app counts.
-      # The handler stringifies keys so the JS frontend gets a plain
-      # JSON object it can iterate. Regression guard against accidental
-      # symbol leakage and against a return-shape drift.
-      allow(Monadic::Library::Manager).to receive(:library_stats)
-        .with(store: store)
-        .and_return(
-          conversations_total: 10,
-          conversations_by_scope: { 'Global' => 3, 'ChatOpenAI' => 7 }
-        )
-      host.send(:handle_ws_library_stats, connection, {}, {})
-      msg = replies.first
-      expect(msg['type']).to eq('library_stats')
-      expect(msg['content']).to eq(
-        'conversations_total' => 10,
-        'conversations_by_scope' => { 'Global' => 3, 'ChatOpenAI' => 7 }
-      )
-    end
-
-    it 'reports zeros and an error message when Manager fails' do
-      allow(Monadic::Library::Manager).to receive(:library_stats).and_raise('embed-svc down')
-      host.send(:handle_ws_library_stats, connection, {}, {})
-      msg = replies.first
-      expect(msg['type']).to eq('library_stats')
-      expect(msg['content']['conversations_total']).to eq(0)
-      expect(msg['error']).to eq('embed-svc down')
     end
   end
 end

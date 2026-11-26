@@ -922,24 +922,80 @@
   }
 
   // A document of the work screen kept in the Library (as the version the
-  // tab shows); the Library says how the import goes (followImport).
+  // tab shows); the Library says how the import goes (followImport). A
+  // record of a conversation is named first (keepDialog). One keep of an
+  // item at a time, until its answer comes.
+  const keeping = new Set();
   function keepInLibrary(item) {
-    if (typeof window.safeWsSend !== 'function') return;
-    window.safeWsSend({ message: 'LIBRARY_FROM_WORKBENCH', item_id: item.id, sha256: item.sha256 });
+    if (item.draft) keepDialog(item, null, item.title || String(item.name || '').replace(/\.[^.]+$/, ''));
+    else sendKeep(item, {});
+  }
+
+  function sendKeep(item, extra) {
+    if (typeof window.safeWsSend !== 'function' || keeping.has(item.id)) return;
+    keeping.add(item.id);
+    window.safeWsSend(Object.assign({ message: 'LIBRARY_FROM_WORKBENCH', item_id: item.id, sha256: item.sha256 }, extra));
     announce(t('ui.workbench.toLibraryWorking', 'Keeping the document in the Library…'));
+  }
+
+  // The dialog for a record of a conversation: its title, and, when records
+  // of the chat are kept already (records), which to update, or keep this
+  // one besides.
+  function keepDialog(item, records, title) {
+    const dialog = $id('libraryKeepChoice');
+    const titleInput = $id('library-keep-title');
+    const select = $id('library-keep-target');
+    if (!dialog || !titleInput || !select || !window.MonadicDialog) return;
+    titleInput.value = title || '';
+    const choosing = Array.isArray(records) && records.length > 0;
+    $id('library-keep-records').hidden = !choosing;
+    $id('library-keep-update').hidden = !choosing;
+    $id('library-keep-new').textContent = choosing
+      ? t('ui.libKeepChoiceNew', 'Keep as another document') : t('ui.libKeepButton', 'Keep');
+    select.replaceChildren(...(choosing ? records : []).map((r) => {
+      const option = document.createElement('option');
+      option.value = r.id;
+      option.dataset.seen = r.revision || '';
+      option.textContent = `${r.title || r.id} (${String(r.created_at || '').slice(0, 16).replace('T', ' ')})`;
+      return option;
+    }));
+    const box = window.MonadicDialog.of(dialog);
+    const answer = (choice) => box.close('button').then((closed) => {
+      if (!closed) return;
+      const extra = { title: titleInput.value.trim() };
+      if (choice) extra.choice = choice;
+      sendKeep(item, extra);
+    });
+    $id('library-keep-update').onclick = () => {
+      const chosen = select.selectedOptions[0];
+      if (chosen) answer({ update: chosen.value, seen: chosen.dataset.seen });
+    };
+    $id('library-keep-new').onclick = () => answer(choosing ? 'new' : null);
+    box.open();
   }
 
   const TO_LIBRARY_REASONS = {
     hides_words: ['ui.workbench.toLibraryHidesWords', 'A chat that hides words cannot keep documents in the Library.'],
     changed: ['ui.workbench.toLibraryChanged', 'The document changed; open it again to keep it in the Library.'],
     not_importable: ['ui.workbench.toLibraryNotImportable', 'The Library does not take this kind of file.'],
-    too_large: ['ui.workbench.toLibraryTooLarge', 'The document is too large for the Library.']
+    too_large: ['ui.workbench.toLibraryTooLarge', 'The document is too large for the Library.'],
+    not_saved_by_app: ['ui.workbench.toLibraryNotByApp', 'This app does not keep its conversations in the Library.'],
+    record_changed: ['ui.workbench.toLibraryRecordChanged', 'That record changed in the Library meanwhile; keep the document again to choose.'],
+    record_missing: ['ui.workbench.toLibraryRecordMissing', 'That record is no longer in the Library; keep the document again to choose.'],
+    in_progress: ['ui.workbench.toLibraryInProgress', 'This conversation is being kept in the Library; try again once that is done.']
   };
   function onToLibrary(data) {
     if (!data) return;
+    keeping.delete(data.item_id);
     if (data.import_id && window.libraryPanel && typeof window.libraryPanel.followImport === 'function') {
       const item = items().find((i) => i.id === data.item_id);
       window.libraryPanel.followImport(data.import_id, item ? item.name : '').catch(() => {});
+      return;
+    }
+    if (data.error === 'choose' && Array.isArray(data.records) && data.records.length) {
+      const item = items().find((i) => i.id === data.item_id);
+      const titleInput = $id('library-keep-title');
+      if (item) keepDialog(item, data.records, titleInput ? titleInput.value : '');
       return;
     }
     const reason = TO_LIBRARY_REASONS[data.error];
@@ -3112,6 +3168,12 @@
     if (!data) return;
     const asked = opening;
     opening = null;
+    const fallback = typeof data.path === 'string' ? excerptFallbacks.get(data.path) : null;
+    if (typeof data.path === 'string') excerptFallbacks.delete(data.path);
+    if (data.status === 'refused' && fallback) {
+      showExcerpt(fallback);
+      return;
+    }
     if (data.status === 'refused') {
       const reason = data.reason === 'busy' ? t('ui.workbench.busy', 'The work screen is reading other files. Try again in a moment.')
         : data.reason === 'changed' ? t('ui.workbench.changedSinceShown', 'The file changed after it was shown.')
@@ -3435,20 +3497,34 @@
     else openFile(reading.path);
   }
 
+  // The excerpts shown as they were recorded when their copy, being
+  // opened, is found gone (by the copy's path).
+  const excerptFallbacks = new Map();
+
+  function showExcerpt(excerpt) {
+    if (window.libraryPanel && typeof window.libraryPanel.showExcerpt === 'function') window.libraryPanel.showExcerpt(excerpt);
+  }
+
   // An excerpt a reply cites by its link (mc:read:<id>): its reading's copy
-  // on the work screen, or else the entry it was read from.
+  // on the work screen, or, when the copy is gone or changed (or there was
+  // none), the excerpt as it was recorded for the reply; without a record,
+  // that it is no longer there.
   function openExcerpt(excerptId) {
     for (const list of readingRecords.values()) {
       for (const reading of list) {
         const excerpt = reading.excerpts.find((e) => e && e.id === excerptId);
         if (!excerpt) continue;
-        if (typeof reading.path === 'string') openReading(reading);
-        else if (window.libraryPanel && typeof window.libraryPanel.openViewerModal === 'function' && excerpt.conversation_id) {
-          window.libraryPanel.openViewerModal(excerpt.conversation_id);
-        }
+        const item = typeof reading.path === 'string'
+          ? items().find((i) => i.kind === 'file' && i.path === reading.path) : null;
+        if (item && item.status === 'ok') openItem(item.id);
+        else if (typeof reading.path === 'string' && !item) {
+          excerptFallbacks.set(reading.path, excerpt);
+          openFile(reading.path);
+        } else showExcerpt(excerpt);
         return true;
       }
     }
+    showExcerpt(null);
     return false;
   }
 

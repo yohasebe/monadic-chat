@@ -129,7 +129,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
       expect(out).to start_with('The Library holds 31 entries; page 1 of 2:')
       expect(out.lines[2]).to eq("- Entry 31 (pdf, import, 2026-11-01)\n")
       expect(described_class.list_text(2)).to include('- Entry 1 (pdf, import, 2026-11-01)')
-      expect(store).to have_received(:scroll).with(hash_including(with_payload: Monadic::Library::Manager::CATALOG_FIELDS)).at_least(:once)
+      expect(store).to have_received(:scroll).with(hash_including(with_payload: Monadic::Library::Manager::ROW_FIELDS)).at_least(:once)
     end
 
     it 'counts and pages every entry of a Library past 500' do
@@ -233,7 +233,7 @@ RSpec.describe MonadicSharedTools::LibrarySearch do
     end
 
     it 'says the Library could not be listed when it cannot be reached, not that it is empty' do
-      allow(Monadic::Library::Manager).to receive(:catalog).and_raise(Monadic::VectorStore::BackendError, 'down')
+      allow(Monadic::Library::Manager).to receive(:list_conversations).and_raise(Monadic::VectorStore::BackendError, 'down')
       expect(host.library_list).to eq('❌ The Library could not be listed: BackendError')
     end
 

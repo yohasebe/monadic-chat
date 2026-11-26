@@ -46,7 +46,7 @@
 
 ## アプリと Knowledge Base :id=kb-by-app
 
-どのアプリでも、会話を Knowledge Base に保存し、検索できます。AI が検索するのは、頼まれたときや明らかに役立つときで、ターンごとには検索しません。設定の「一般」の **AI が使える情報源** でオフにできます。Live Conversation は、アプリの **検索と計算** のスイッチがオンの間だけ検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に保存したものを見るには、ナレッジベースパネルの **一覧** をクリックします。
+会話は文書として Knowledge Base に収められ、アプリは Knowledge Base を検索できます。AI が検索するのは、頼まれたときや明らかに役立つときで、ターンごとには検索しません。設定の「一般」の **AI が使える情報源** でオフにできます。Live Conversation は、アプリの **検索と計算** のスイッチがオンの間だけ検索します。語を伏せている会話は、どのアプリでも保存できません（[匿名化](../advanced-topics/anonymization.md#knowledge-base)）。会話をファイルに残すには **エクスポート** を使います。Knowledge Base に収めたものを見るには、サイドバーの **書庫** のタブを開きます。
 
 
 ## プロバイダー機能概要 :id=provider-capabilities

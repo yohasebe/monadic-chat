@@ -1,20 +1,14 @@
 # Knowledge Base
 
-Save chat sessions and import documents into one searchable library.
+Keep conversations and documents in one searchable library.
 
 The Knowledge Base holds conversations and documents: conversation transcripts, PDFs, Office files, Markdown, and source code. The **Library** tab of the sidebar shows all of it, and every app that searches the Knowledge Base searches all of it.
 
-![Knowledge Base panel](../assets/images/figures/knowledge-base.svg)
-
-1. **Save**: saves the current conversation to the Knowledge Base.
-2. **Browse**: opens the **Library** tab of the sidebar.
-
 **Ways to add content:**
 
-1. **Save the current chat session**: the **Save** button in the Knowledge Base panel of the sidebar saves the current conversation to the Knowledge Base.
+1. **Keep this conversation as a document**: **Keep this conversation** in the **Library** tab puts the conversation on the work screen as a Markdown document: the title, the app, the model and the date, then each turn under a heading. Files of the conversation are named, not kept; system prompts, thinking and tool records are left out. Check it there, and keep it with **Keep in the Library**, giving it a title (its first heading is offered). When a record of the same conversation is kept already, you choose to update that record or keep this one as another document. Apps whose conversations are not kept in the Knowledge Base (such as the image and diagram generators) do not offer this.
 2. **Keep a document of the work screen**: under a document on the [work screen](../basic-usage/web-interface.md#work-screen) in one of the formats below, **Keep in the Library** imports it as the version shown.
-3. **Keep this conversation as a document**: **Keep this conversation** in the **Library** tab puts the conversation on the work screen as a Markdown document: the title, the app, the model and the date, then each turn under a heading. Files of the conversation are named, not kept; system prompts, thinking and tool records are left out. Check it there, and keep it with **Keep in the Library**.
-4. **Import a file**: open the **Library** tab of the sidebar and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
+3. **Import a file**: open the **Library** tab of the sidebar and click **Import file** to upload a file in one of the formats below. The file is extracted, split into sections, and stored as one entry that you can search, view, and rename. The file itself is kept in `~/monadic/library`, outside the shared folder; it is deleted with its entry, unless another entry was made from the same file.
 
 **Supported import formats:**
 
@@ -27,16 +21,15 @@ The Knowledge Base holds conversations and documents: conversation transcripts, 
 
 The text and tables of PDFs are extracted. With the Knowledge Base Quality Pack installed, layout analysis and OCR are used; without it, no text is extracted from image-only PDFs.
 
-A chat that [hides words](../advanced-topics/anonymization.md) cannot be saved, but it can still search the Knowledge Base.
+A chat that [hides words](../advanced-topics/anonymization.md) cannot be kept, but it can still search the Knowledge Base.
 
 **Other features:**
 
-- **Saving again updates the entry**: saving the same chat session again updates its entry instead of creating another one. The dialog then reads "Update Conversation in Knowledge Base", with an **Update** button and a note. The link between the session and the entry ends on Reset, on switching apps, or when the entry is deleted in Browse.
-- **Suggested titles**: when you first save a conversation, the title field is filled in by the current provider's model, based on the conversation. You can type over it. The suggestion is kept, so closing and reopening the dialog does not ask the model again.
 - **Rename**: open the Conversation Viewer, click the pencil icon next to the title, edit, and save.
-- **Recent saves and counts**: the sidebar shows the most recent saves and the total counts. The Library tab can be searched and sorted.
+- **Search and counts**: the Library tab shows how many entries there are, and can be searched and sorted.
 - **Open on the work screen**: the first button of a row in the Library tab puts the entry on the [work screen](../basic-usage/web-interface.md#work-screen): a PDF as its kept file, Markdown and source code as the kept file's text, other entries (Office documents, saved conversations) as their text. The AI reads it as any other item: what the conversation needs, and the whole when the question needs it (with a model that takes files, a PDF or Office document as it is). If the entry changes or is deleted in the Knowledge Base, the work screen says so.
 - **Conversation Viewer**: click a row to see every message of the entry. The system prompt is folded.
-- **Retrieval in chats**: the AI searches the Knowledge Base when you ask it to, when you refer to what you keep there, or when it clearly helps with the question; it does not search on every turn, and it can list what the Knowledge Base holds. The passages it read are put on the [work screen](../basic-usage/web-interface.md#work-screen) and listed under its reply, with how many it cited; a passage it cites opens from its link in the reply. To keep the AI from using the Knowledge Base, turn off **The Library, in chats** under **Sources the AI can use** in the General section of Settings; the change takes effect when Monadic Chat starts again. In Live Conversation the AI searches only while the app's **Search and compute** switch is on.
+- **Open the original chat**: a conversation kept as a document has a button in its row that opens the chat it was made from, while that chat is in the history.
+- **Retrieval in chats**: the AI searches the Knowledge Base when you ask it to, when you refer to what you keep there, or when it clearly helps with the question; it does not search on every turn, and it can list what the Knowledge Base holds. The passages it read are put on the [work screen](../basic-usage/web-interface.md#work-screen) and listed under its reply, with how many it cited; a passage it cites opens from its link in the reply, as it was read even when the entry has changed since. To keep the AI from using the Knowledge Base, turn off **The Library, in chats** under **Sources the AI can use** in the General section of Settings; the change takes effect when Monadic Chat starts again. In Live Conversation the AI searches only while the app's **Search and compute** switch is on.
 
 ?> The Knowledge Base converts text into vectors on your computer and stores them in Qdrant, so importing and searching need no API key. See [Vector Database](../docker-integration/vector-database.md).

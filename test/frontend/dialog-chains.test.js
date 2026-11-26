@@ -79,52 +79,6 @@ describe('the Library\'s Browse and Viewer', () => {
   });
 });
 
-describe('Reset and saving to the Knowledge Base', () => {
-  const SOURCE = require('fs').readFileSync(path.join(JS, 'utilities.js'), 'utf8');
-
-  const setUp = (refuse) => {
-    const log = [];
-    document.body.innerHTML = `
-      <dialog id="resetConfirmation"><button id="resetSaveAndConfirm">Save</button><button id="resetConfirmed">Confirm</button></dialog>
-      <div id="main-panel"></div>`;
-    global.$id = (id) => document.getElementById(id);
-    window.audioInit = () => {};
-    window.messages = [{ role: 'user', text: 'hello' }];
-    fakeDialogs(log, { refuse });
-    window.libraryPanel = {
-      isCurrentAppKbSaveEligible: () => true,
-      openSaveModal: () => log.push('open librarySaveModal')
-    };
-    (0, eval)(SOURCE);
-    return log;
-  };
-
-  afterEach(() => {
-    delete window.MonadicDialog;
-    delete window.libraryPanel;
-    delete window.messages;
-  });
-
-  test('the save dialog opens once the reset dialog has closed', async () => {
-    const log = setUp(() => false);
-    window.resetEvent(null, false);
-    expect(log).toEqual(['open resetConfirmation']);
-    log.length = 0;
-    document.getElementById('resetSaveAndConfirm').click();
-    await flush();
-    expect(log).toEqual(['close resetConfirmation button', 'open librarySaveModal']);
-  });
-
-  test('when the reset dialog\'s closing is refused, the save dialog does not open', async () => {
-    const log = setUp((el) => el.id === 'resetConfirmation');
-    window.resetEvent(null, false);
-    log.length = 0;
-    document.getElementById('resetSaveAndConfirm').click();
-    await flush();
-    expect(log).toEqual(['refused resetConfirmation']);
-  });
-});
-
 describe('the scripts and the view use MonadicDialog only', () => {
   const fs = require('fs');
   const DIR = path.join(__dirname, '../../docker/services/ruby/public/js');

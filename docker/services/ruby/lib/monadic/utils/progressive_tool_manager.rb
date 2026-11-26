@@ -263,6 +263,9 @@ module Monadic
           "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
         elsif requested.empty?
           "No skill name provided. Call request_tool with the name of the skill to unlock."
+        elsif requested.match?(/web|tavily/i) && websearch_disabled?(session)
+          "Web search is off for this chat (in Settings, or not used by this app). Answer without it, " \
+            "and say so when the question needs current information."
         else
           "Nothing to unlock for '#{requested}' (already available, or not a known skill)."
         end

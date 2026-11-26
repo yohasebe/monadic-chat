@@ -168,14 +168,30 @@ RSpec.describe Monadic::Utils::SecretRedactor do
     it "a failed command returns its error to the model without secrets" do
       require_relative "../../../lib/monadic/app"
       allow(Monadic::Utils::Environment).to receive(:rotate_log)
-      allow(Open3).to receive(:capture3).and_return(["", "provider said #{FAKE_MISTRAL}", double(success?: false)])
       stub_const("MonadicApp::COMMAND_LOG_FILE", File.join(Dir.tmpdir, "spec-command-#{Process.pid}.log"))
       app = MonadicApp.new
+      allow(app).to receive(:capture_command).and_return(["", "provider said #{FAKE_MISTRAL}", double(success?: false)])
       allow(app).to receive(:ruby_side_command).and_return({ argv: ["ruby", "x.rb"], chdir: Dir.tmpdir, path: "/usr/bin" })
       allow(app).to receive(:ruby_side_env).and_return({})
       out = app.send(:send_command, command: "x.rb", container: "ruby")
-      expect(out).to start_with("Error occurred:")
+      expect(out).to start_with("Error occurred: provider said")
       expect(out).not_to include(FAKE_MISTRAL)
+    ensure
+      FileUtils.rm_f(File.join(Dir.tmpdir, "spec-command-#{Process.pid}.log"))
+    end
+
+    it "a failed command that prints its error to stdout returns that line, without secrets" do
+      require_relative "../../../lib/monadic/app"
+      allow(Monadic::Utils::Environment).to receive(:rotate_log)
+      printed = "Working...\nERROR: Invalid size for this model (#{FAKE_MISTRAL})\n{\n  \"success\": false\n}\n"
+      stub_const("MonadicApp::COMMAND_LOG_FILE", File.join(Dir.tmpdir, "spec-command-#{Process.pid}.log"))
+      app = MonadicApp.new
+      allow(app).to receive(:capture_command).and_return([printed, "", double(success?: false)])
+      allow(app).to receive(:ruby_side_command).and_return({ argv: ["ruby", "x.rb"], chdir: Dir.tmpdir, path: "/usr/bin" })
+      allow(app).to receive(:ruby_side_env).and_return({})
+      out = app.send(:send_command, command: "x.rb", container: "ruby")
+      expect(out).to start_with("Error occurred: ERROR: Invalid size for this model")
+      expect(out).not_to include(FAKE_MISTRAL, "Working")
     ensure
       FileUtils.rm_f(File.join(Dir.tmpdir, "spec-command-#{Process.pid}.log"))
     end

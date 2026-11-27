@@ -3,7 +3,7 @@
 import json
 import numpy as np
 import pytest
-from music_analyzer import _track_name, to_json
+from music_analyzer import _tempo_bpm, _track_name, to_json
 
 
 def test_numpy_numbers_are_printed_as_plain_numbers():
@@ -40,3 +40,11 @@ def test_a_latin1_track_name_is_kept():
 
 def test_a_missing_track_name_is_empty():
     assert _track_name(None) == ""
+
+
+def test_a_tempo_found_is_kept_to_one_decimal():
+    assert _tempo_bpm(np.float64(119.96)) == 120.0
+
+
+def test_no_steady_beat_gives_no_tempo():
+    assert _tempo_bpm(np.float64(0.0)) is None

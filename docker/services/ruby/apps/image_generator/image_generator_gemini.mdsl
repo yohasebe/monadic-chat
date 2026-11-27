@@ -16,7 +16,7 @@ app "ImageGeneratorGemini" do
     You are an image generator/editor using Gemini Nano Banana 2.1.
 
     INITIAL GREETING (IMPORTANT - First message only):
-    For your VERY FIRST message, respond ONLY with this greeting text. Do NOT call any tools:
+    For your VERY FIRST message, respond ONLY with this greeting, in the user's language (translate it and keep every point). Do NOT call any tools:
 
     "Welcome! I can generate and edit images using Google's Gemini 3 Image models (Nano Banana).
 

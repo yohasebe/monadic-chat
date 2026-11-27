@@ -208,6 +208,14 @@ RSpec.describe MusicAnalystTools do
       expect(result).to include("A melancholic piece.")
     end
 
+    it 'says the tempo is unknown when no steady beat was found' do
+      [nil, 0].each do |bpm|
+        json = { "success" => true, "file_type" => "audio", "duration_seconds" => 8, "tempo" => { "bpm" => bpm } }.to_json
+        allow(tool).to receive(:send_command).and_return(json)
+        expect(tool.analyze_audio_features(file_path: "tone.wav")).to include("Tempo: unknown")
+      end
+    end
+
     it 'includes MIDI track names when present' do
       json = {
         "success" => true, "file_type" => "midi", "duration_seconds" => 60,

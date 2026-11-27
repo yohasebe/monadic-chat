@@ -114,8 +114,9 @@ module MusicAnalystTools
     if (dur = result["duration_seconds"])
       lines << "- Duration: #{(dur / 60).to_i}:#{format('%02d', (dur % 60).to_i)}"
     end
-    if (bpm = result.dig("tempo", "bpm"))
-      lines << "- Tempo: #{bpm.round(1)} BPM"
+    if result.key?("tempo")
+      bpm = result.dig("tempo", "bpm").to_f
+      lines << (bpm.positive? ? "- Tempo: #{bpm.round(1)} BPM" : "- Tempo: unknown (no steady beat found)")
     end
     if (key = result.dig("key", "key"))
       mode = result.dig("key", "mode")

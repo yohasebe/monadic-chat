@@ -199,6 +199,12 @@ describe('WsPrivacyHandler — the export request and its answer', () => {
     expect(status()).toContain('120 MB');
   });
 
+  it('says less than 1 MB for images that take under half a megabyte', () => {
+    window.WsPrivacyHandler.handleExportEstimate({ image_bytes: 8 * 1024, near: false });
+    expect(status()).toContain('less than 1 MB');
+    expect(status()).not.toContain('about');
+  });
+
   it('ignores an answer that arrives after the dialog was opened again', () => {
     button().click();
     const id = sent[0].request_id;

@@ -18,14 +18,15 @@ The `parallel_dispatch` group (`lib/monadic/shared_tools/parallel_dispatch.rb`) 
 
 ## Web Search
 
-Web search is on only when the call passes `websearch: true` and the message being answered may search (`TurnSettings#websearch`: `WEB_SEARCH_IN_CHATS` and the app's MDSL). It is never inherited: a Tavily sub-call sends its query before the subtask runs.
+Web search is on only when the call passes `websearch: true` and the message being answered may search (`TurnSettings#websearch`: `WEB_SEARCH_IN_CHATS` and the app's MDSL). It is never inherited: a Tavily or DeepSeek sub-call sends its query before the subtask runs.
 
 | Strategy | Providers | How |
 |---|---|---|
 | `:responses_api` | OpenAI, xAI | Responses API with the `web_search` tool (`responses_api_sub_call`) |
 | `:grounding` | Gemini | `google_search` grounding (`gemini_websearch_sub_call`) |
 | `:native_tool` | Anthropic | Messages API with the server-side `web_search` tool, `max_uses` 5; only text blocks are kept (`anthropic_websearch_sub_call`) |
-| `:tavily` | Mistral, Cohere, DeepSeek | Tavily search before the call, results put in front of the prompt (`tavily_prefetch_and_inject`) |
+| `:tavily` | Mistral, Cohere | Tavily search before the call, results put in front of the prompt (`tavily_prefetch_and_inject`) |
+| `:deepseek_search` | DeepSeek | DeepSeek's Search API before the call, results put in front of the prompt (`deepseek_prefetch_and_inject`) |
 
 Tavily:
 
@@ -33,9 +34,15 @@ Tavily:
 - Query: the first 400 characters of the prompt, `search_depth: "basic"`, `max_results: 3`.
 - A Tavily error or an empty result leaves the prompt unchanged.
 
+DeepSeek:
+
+- Uses `DEEPSEEK_API_KEY` (`Monadic::SharedTools::DeepSeekSearch.search`); nothing goes to Tavily.
+- Query: the prompt with whitespace collapsed, its first 128 characters; `count: 3`. Each result's summary is injected.
+- An error or an empty result leaves the prompt unchanged.
+
 ## Tests
 
 ```bash
 cd docker/services/ruby
-bundle exec rspec spec/unit/shared_tools/parallel_dispatch_spec.rb
+bundle exec rspec spec/unit/shared_tools/parallel_dispatch_spec.rb spec/unit/shared_tools/deepseek_search_spec.rb
 ```

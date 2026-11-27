@@ -277,8 +277,6 @@ end
 class ResearchAssistantDeepSeek < MonadicApp
   include DeepSeekHelper
   include ResearchAssistantBaseTools
-  include MonadicSharedTools::WebSearchTools
-  include TavilyHelper
 end
 
 # Ollama doesn't support web search, so no Research Assistant for Ollama

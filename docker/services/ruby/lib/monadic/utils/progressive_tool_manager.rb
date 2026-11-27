@@ -4,6 +4,7 @@ require "set"
 require_relative "app_names"
 require_relative "../library/in_chats"
 require_relative "../web_search_setting"
+require_relative "../shared_tools/tavily_definitions"
 
 module Monadic
   module Utils
@@ -263,7 +264,8 @@ module Monadic
           "Unlocked: #{unlocked.join(', ')}. These tools are now available — call them as needed."
         elsif requested.empty?
           "No skill name provided. Call request_tool with the name of the skill to unlock."
-        elsif requested.match?(/web|tavily/i) && websearch_disabled?(session)
+        elsif (requested.match?(/web|tavily/i) || Monadic::SharedTools::TavilyDefinitions.web_search_tool?(requested)) &&
+              websearch_disabled?(session)
           "Web search is off for this chat (in Settings, or not used by this app). Answer without it, " \
             "and say so when the question needs current information."
         else

@@ -8,6 +8,7 @@ require_relative "../../utils/extra_logger"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../base_vendor_helper"
 require_relative "../../shared_tools/tavily_definitions"
+require_relative "../../shared_tools/deepseek_search"
 require 'strscan'
 require 'securerandom'
 require_relative "../../workbench/caller"
@@ -25,11 +26,13 @@ module DeepSeekHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
-  # Tavily-backed web search tools. SSOT is
-  # `Monadic::SharedTools::TavilyDefinitions` (consolidated 2026-05-13);
-  # local constants are aliases for backwards compat with the rest of
-  # this file.
-  WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
+  # Web search through DeepSeek's own Search and Fetch APIs. SSOT is
+  # `Monadic::SharedTools::DeepSeekSearch`.
+  WEBSEARCH_TOOLS = Monadic::SharedTools::DeepSeekSearch::TOOLS
+
+  # The names of a search or fetch call the model writes in its content as
+  # JSON text.
+  WEBSEARCH_CALL_NAMES = Monadic::SharedTools::DeepSeekSearch::TOOL_NAMES.map { |n| Regexp.escape(n) }.join("|")
 
   # JSON format instruction for json mode (required by DeepSeek API)
   JSON_FORMAT_PROMPT = <<~TEXT
@@ -37,7 +40,7 @@ module DeepSeekHelper
     IMPORTANT: You must respond in valid JSON format. Your response should be a properly formatted JSON object.
   TEXT
 
-  WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
+  WEBSEARCH_PROMPT = Monadic::SharedTools::DeepSeekSearch::PROMPT
 
   class << self
     attr_reader :cached_models
@@ -506,7 +509,7 @@ module DeepSeekHelper
               dsml_abort_streaming = true
               throw :deepseek_stream_end
             end
-          elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
+          elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(#{WEBSEARCH_CALL_NAMES})"/m
             # DeepSeek is outputting function calls as JSON text, don't send fragments
             # We'll handle this after the full message is received
           elsif is_json
@@ -642,6 +645,16 @@ module DeepSeekHelper
     dispatch_deepseek_tool_results(tools, text_result, finish_reason, obj, session, app, call_depth, &block)
   end
 
+  # The web search tools offered when the message may search
+  # (WEBSEARCH_TOOLS), run with the chat's DeepSeek key.
+  def deepseek_search(query:, count: Monadic::SharedTools::DeepSeekSearch::DEFAULT_COUNT, **)
+    Monadic::SharedTools::DeepSeekSearch.search(query: query, count: count, api_key: CONFIG["DEEPSEEK_API_KEY"])
+  end
+
+  def deepseek_fetch(url:, **)
+    Monadic::SharedTools::DeepSeekSearch.fetch(url: url, api_key: CONFIG["DEEPSEEK_API_KEY"])
+  end
+
   private
 
   def configure_deepseek_tools(body, app, obj, websearch, session)
@@ -662,6 +675,11 @@ module DeepSeekHelper
 
     # A model the spec says cannot call tools is offered none of the app's.
     app_tools = [] if Monadic::Utils::ModelSpec.get_model_property(Monadic::TurnSettings.current(obj).model, "tool_capability") == false
+    # A DeepSeek chat searches through DeepSeek's own API: the Tavily tools an
+    # app imports are not offered.
+    app_tools = Monadic::Utils::ToolDispatchGuard.without(
+      app_tools, Monadic::SharedTools::TavilyDefinitions::TAVILY_TOOL_NAMES
+    )
 
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
@@ -790,12 +808,12 @@ module DeepSeekHelper
     deepseek_thinking_switch?(turn.model) && turn.reasoning_content != "disabled" && turn.reasoning_effort != "none"
   end
 
-  # Whether the message being answered was sent with Web Search on (and the
-  # search key is set): the same for every request and tool call of its answer.
+  # Whether the message being answered was sent with Web Search on (the
+  # setting and the app, TurnSettings): the same for every request and tool
+  # call of its answer. The search runs on DeepSeek's own API with the chat's
+  # key.
   def deepseek_web_search?(obj)
-    Monadic::SharedTools::TavilyDefinitions.websearch_requested?(
-      { "websearch" => Monadic::TurnSettings.current(obj).websearch }
-    )
+    Monadic::TurnSettings.current(obj).websearch == true
   end
 
   def configure_deepseek_reasoning(body, obj, is_json, role)
@@ -1042,7 +1060,7 @@ module DeepSeekHelper
   end
 
   def parse_deepseek_json_function_call(content, text_result, tools)
-    return unless content =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
+    return unless content =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(#{WEBSEARCH_CALL_NAMES})".*?\})\s*\n?\s*```/m
 
     json_match = $1
     begin
@@ -1058,7 +1076,7 @@ module DeepSeekHelper
           }
         }]
 
-        text_result["choices"][0]["message"]["content"] = content.gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\}\s*\n?\s*```/m, "").strip
+        text_result["choices"][0]["message"]["content"] = content.gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(#{WEBSEARCH_CALL_NAMES})".*?\}\s*\n?\s*```/m, "").strip
         text_result["choices"][0]["finish_reason"] = "function_call"
 
         tid = text_result["choices"][0]["message"]["tool_calls"][0]["id"]
@@ -1256,15 +1274,22 @@ module DeepSeekHelper
 
     # The Web Search toggle, asked where every path of a call meets: the
     # model can still write a call in its content (JSON or DSML) for a tool
-    # the request did not offer it.
+    # the request did not offer it. A Tavily tool never runs in a DeepSeek
+    # chat.
     web_search_off = lambda {
-      next unless Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name) &&
-                  !deepseek_web_search?(session[:parameters])
+      next unless Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name)
 
-      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
-      "❌ Web search is turned off for this conversation. " \
-        "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
-        "knowledge, and note that your information may not be up to date."
+      unless deepseek_web_search?(session[:parameters])
+        Monadic::Utils::ExtraLogger.log { "[DeepSeek] Web Search off — blocked #{function_name}" }
+        next "❌ Web search is turned off for this conversation. " \
+             "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
+             "knowledge, and note that your information may not be up to date."
+      end
+      next unless Monadic::SharedTools::TavilyDefinitions::TAVILY_TOOL_NAMES.include?(function_name.to_s)
+
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] blocked #{function_name}" }
+      "❌ #{function_name} is not available in this conversation. " \
+        "Use deepseek_search to search the web and deepseek_fetch to read a page."
     }
     result = run_tool_call(
       app, session, function_name, converted, call_id: tool_call["id"], refuse: web_search_off,

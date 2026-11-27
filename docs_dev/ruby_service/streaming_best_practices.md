@@ -22,7 +22,7 @@ The final message is rendered again from the full response, so the streamed text
 ## Provider Notes
 
 - **Anthropic**: `content_block_stop` adds nothing to the stream. Web search answers come in many content blocks, and a separator per block would break the text.
-- **DeepSeek**: once the accumulated content contains DSML, or a fenced JSON Tavily call, the following fragments are held back and the content is handled after the stream (see [deepseek_architecture.md](vendors/deepseek_architecture.md)). Fragments are also held back in JSON mode.
+- **DeepSeek**: once the accumulated content contains DSML, or a fenced JSON `deepseek_search` / `deepseek_fetch` call, the following fragments are held back and the content is handled after the stream (see [deepseek_architecture.md](vendors/deepseek_architecture.md)). Fragments are also held back in JSON mode.
 - **Thinking**: thinking and reasoning text is sent as `thinking` / `reasoning` messages, not as fragments (see [thinking_reasoning_display.md](thinking_reasoning_display.md)).
 
 ## Debugging

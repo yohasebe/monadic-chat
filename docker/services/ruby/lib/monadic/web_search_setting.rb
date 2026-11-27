@@ -6,8 +6,8 @@ module Monadic
   # "false"), read when the server starts, and the app's MDSL `websearch`
   # (only an app that says `websearch true` searches). Whether a search is
   # made is the model's choice; whether the model and its provider can
-  # search (a native search tool, or Tavily with its key) is each
-  # adapter's.
+  # search (a native search tool, DeepSeek's Search API, or Tavily with its
+  # key) is each adapter's.
   module WebSearchSetting
     KEY = 'WEB_SEARCH_IN_CHATS'
 

@@ -105,7 +105,7 @@ parallel beta-header handling.**
 | Feature | Type | Activation | Source | Notes |
 |---|---|---|---|---|
 | Reasoning content (V4 thinking; name-based detection for older names) | model_param | Model-gated | `deepseek_helper.rb` | Fragment output separated as reasoning |
-| Tavily web search | server_tool | MDSL | `deepseek_helper.rb` | Shared Tavily adapter |
+| Web search (DeepSeek Search and Fetch APIs) | client_side | MDSL `websearch true` + Sources the AI can use | `deepseek_helper.rb`, `shared_tools/deepseek_search.rb` | `deepseek_search` / `deepseek_fetch` with `DEEPSEEK_API_KEY`; no Tavily |
 
 ### Ollama
 

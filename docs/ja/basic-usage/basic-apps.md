@@ -59,7 +59,7 @@
 | Mistral | ✅ | ✅ | ✅ Tavily |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ ネイティブ |
-| DeepSeek | ✅ | ✅ | ✅ Tavily |
+| DeepSeek | ✅ | ✅ | ✅ ネイティブ |
 | Ollama | モデル依存 | モデル依存 | ✅ Tavily |
 
 ## アプリカテゴリ

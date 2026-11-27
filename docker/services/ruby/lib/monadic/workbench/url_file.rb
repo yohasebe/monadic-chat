@@ -81,13 +81,13 @@ module Monadic
         (REDIRECTS + 1).times do
           uri = web_uri(url) or return :browser
           begin
-            address = Array(check.call(uri.host)).first
+            addresses = Array(check.call(uri.host))
           rescue Monadic::Utils::PublicAddress::Refused
             return :browser
           end
-          return :browser unless address
+          return :browser if addresses.empty?
 
-          response = client.call(address).get(uri.to_s)
+          response = ask(client, addresses, uri, deadline)
           begin
             if [301, 302, 303, 307, 308].include?(response.code)
               location = header(response, 'Location')
@@ -108,6 +108,18 @@ module Monadic
         :browser
       rescue HTTP::Error, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError
         raise Failed, 'unreachable'
+      end
+
+      # The answer from the first of the checked addresses that can be
+      # reached (an IPv6 address without an IPv6 route is passed over).
+      def ask(client, addresses, uri, deadline)
+        addresses.each_with_index do |address, index|
+          raise Failed, 'unreachable' if index.positive? && Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
+          return client.call(address).get(uri.to_s)
+        rescue HTTP::ConnectionError, HTTP::ConnectTimeoutError, SystemCallError, SocketError
+          raise if index == addresses.length - 1
+        end
       end
 
       def client(address)

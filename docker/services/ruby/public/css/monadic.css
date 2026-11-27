@@ -6023,6 +6023,9 @@ body.side-pane-resizing {
   padding: var(--spacing-xs) 0;
 }
 .workbench-stash-open {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;

@@ -193,14 +193,26 @@ RSpec.describe Monadic::Workspace::SharedFolderPreview do
 
     def same_origin = header('Sec-Fetch-Site', 'same-origin')
 
+    # Another site, or the same site on another port, is already refused
+    # by Sinatra's protection (no Referer and a cross-site Sec-Fetch-Site);
+    # a request that does not say reaches the route, which refuses it.
     it 'refuses another site, the same site on another port, and a request that does not say' do
       [nil, 'cross-site', 'same-site', 'none', 'other'].each do |site|
         header 'Sec-Fetch-Site', site
         get '/api/shared_folder/file', path: 'clip.mp4'
         expect(last_response.status).to eq(403), site.inspect
-        expect(last_response.headers['cross-origin-resource-policy']).to eq('same-origin')
+        expect(last_response.body).not_to include((0..99).map(&:chr).join)
         get '/api/shared_folder/text', path: 'page.html'
         expect(last_response.status).to eq(403), site.inspect
+        expect(last_response.body).not_to include('alert(1)')
+      end
+    end
+
+    it 'says no other site may embed a refusal of its own' do
+      [nil, 'none', 'other'].each do |site|
+        header 'Sec-Fetch-Site', site
+        get '/api/shared_folder/file', path: 'clip.mp4'
+        expect(last_response.headers['cross-origin-resource-policy']).to eq('same-origin'), site.inspect
       end
     end
 

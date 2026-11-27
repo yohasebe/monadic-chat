@@ -2,7 +2,7 @@
 
 ## Setup
 
-- Ruby 3.4 (the Ruby image uses `ruby:3.4.7-slim-bookworm`), Bundler, and Docker for the peer containers.
+- Ruby 3.4 (the Ruby image uses `ruby:3.4.13-slim-bookworm`), Bundler, and Docker for the peer containers.
 - Install the gems in `docker/services/ruby`:
 
 ```bash
@@ -16,7 +16,7 @@ The gems come from `docker/services/ruby/Gemfile.lock`, which is tracked: the ho
 
 ```bash
 cd docker/services/ruby
-docker run --rm -v "$PWD":/w -w /w ruby:3.4.7-slim-bookworm sh -c \
+docker run --rm -v "$PWD":/w -w /w ruby:3.4.13-slim-bookworm sh -c \
   'bundle lock --update <gem> && bundle lock --add-checksums'
 bundle install
 ```

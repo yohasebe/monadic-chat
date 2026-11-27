@@ -138,5 +138,40 @@ module MonadicSharedTools
     def look_at_workbench(scope: 'visible', item: nil, workbench: nil)
       Monadic::Workbench::Look.run(workbench, scope: scope, item: item)
     end
+
+    # Puts an item of the work screen away (by its id): it leaves the desk,
+    # and is told by name and kind only until it is brought back.
+    def put_away_on_workbench(item:, workbench: nil)
+      return WorkbenchTools.moved_refusal('this reply cannot change the work screen') unless workbench
+
+      board = Monadic::Workbench::Board.existing(workbench.chat_id) or return WorkbenchTools.moved_refusal('nothing is on the work screen')
+      moved = board.move(item_id: item.to_s, to: 'stash', origin: workbench.origin, epoch: workbench.epoch)
+      Monadic::Workbench::Channel.changed(workbench.chat_id)
+      JSON.generate({ 'status' => 'put_away', 'item' => moved['id'] })
+    rescue Monadic::Workbench::Board::Refused => e
+      WorkbenchTools.moved_refusal(e.message)
+    end
+
+    # The put-away items whose name holds name (any case), the newest
+    # first: their ids, kinds and names, to bring one back with
+    # show_on_workbench(item:). Names that hold a word the chat hides are
+    # left out (counted).
+    def find_on_workbench(name:, workbench: nil)
+      return WorkbenchTools.moved_refusal('this reply cannot use the work screen') unless workbench
+
+      board = Monadic::Workbench::Board.existing(workbench.chat_id)
+      found = board ? board.find_put_away(name.to_s) : { items: [], total: 0 }
+      outbound = Monadic::Utils::Privacy::Outbound
+      outbound.chat_session!(workbench.session)
+      words = outbound.terms_of(workbench.session)
+      shown, hidden = found[:items].partition { |entry| words.empty? || !outbound.leaks_word?(entry['name'], words) }
+      JSON.generate({ 'put_away' => shown, 'matches' => found[:total], 'withheld' => (hidden.size if hidden.any?) }.compact)
+    rescue Monadic::Utils::Privacy::Outbound::Refused
+      WorkbenchTools.moved_refusal('the names cannot be checked for the words this chat hides')
+    end
+
+    def self.moved_refusal(reason)
+      "❌ The work screen was not changed: #{reason}."
+    end
   end
 end

@@ -26,6 +26,8 @@ module Monadic
 
         board = Board.existing(workbench.chat_id)
         item = board&.item(item_id.to_s) or raise Refused, 'that item is not on the work screen now'
+        raise Refused, Board::PUT_AWAY if item['place'] == 'stash'
+
         file = item['file'] or raise Refused, 'that item is not a file'
         raise Refused, "that item is not #{kinds.join(' or ')}" unless kinds.include?(kind_of(file))
         raise Refused, 'the file changed after it was put on the work screen; open it again' unless FileItem.same_version?(file)

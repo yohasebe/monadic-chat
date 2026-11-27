@@ -10,6 +10,8 @@ require_relative "../../../lib/monadic/workbench/look"
 require_relative "../../../lib/monadic/workbench/look/availability"
 require_relative "../../../lib/monadic/workbench/look/record"
 require_relative "../../../lib/monadic/shared_tools/workbench_tools"
+require_relative "../../../lib/monadic/workbench/image_tool"
+require_relative "../../../lib/monadic/workbench/media_item"
 
 RSpec.describe "looking at the work screen (look_at_workbench)" do
   let(:look) { Monadic::Workbench::Look }
@@ -359,6 +361,75 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
     it "refuses a scope it does not know, and a reply without a caller" do
       expect(look.run(caller_for, scope: "all")).to include("(unsupported_kind)")
       expect(look.run(nil)).to include("(connection_gone)")
+    end
+  end
+
+  describe "a put-away item" do
+    def put_away(item)
+      board.accept(item_id: item["id"], action: "stash", operation_id: "op_#{SecureRandom.hex(4)}", epoch: epoch,
+                   sha256: item.dig("file", "sha256"))
+    end
+
+    it "is not looked at, named or selected, and the model is told to bring it into Now" do
+      write("notes.txt", "secret plan\n")
+      notes = open_file("notes.txt")
+      put_away(notes)
+      named = look.run(caller_for, item: notes["id"]).to_s
+      expect(named).to start_with("❌").and include("put_away", "show_on_workbench")
+      expect(named).not_to include("secret plan")
+      selected = look.run(caller_for).to_s
+      expect(selected).to start_with("❌").and include("put_away")
+    end
+
+    it "is not looked at when it is put away while it is read" do
+      write("notes.txt", "plan\n")
+      notes = open_file("notes.txt")
+      allow(look).to receive(:read).and_wrap_original do |original, *args, **kw|
+        result = original.call(*args, **kw)
+        put_away(notes)
+        result
+      end
+      expect(look.run(caller_for, scope: "whole", item: notes["id"]).to_s).to start_with("❌").and include("put away meanwhile")
+    end
+
+    it "is found by name for the tools, and can be put away and brought back by the model" do
+      tools = Object.new.extend(MonadicSharedTools::WorkbenchTools)
+      write("Report 2026.txt", "r\n")
+      write("other.txt", "o\n")
+      report = open_file("Report 2026.txt")
+      other = open_file("other.txt")
+      put_away(report)
+      board.begin_reply(request_id)
+      moved = JSON.parse(tools.put_away_on_workbench(item: other["id"], workbench: caller_for))
+      expect(moved).to eq("status" => "put_away", "item" => other["id"])
+      found = JSON.parse(tools.find_on_workbench(name: "report", workbench: caller_for))
+      expect(found).to eq("put_away" => [{ "id" => report["id"], "kind" => "text", "name" => "Report 2026.txt" }],
+                          "matches" => 1)
+      tools.show_on_workbench(item: report["id"], workbench: caller_for)
+      expect(board.item(report["id"])["place"]).to eq("current")
+      expect(look.run(caller_for, scope: "whole", item: report["id"]).to_s).not_to start_with("❌")
+    end
+
+    it "leaves out of a search the names that hold a word the chat hides" do
+      tools = Object.new.extend(MonadicSharedTools::WorkbenchTools)
+      write("acme plan.txt", "a\n")
+      put_away(open_file("acme plan.txt"))
+      allow(Monadic::Utils::Privacy::Outbound).to receive(:terms_of).and_return(["acme"])
+      allow(Monadic::Utils::Privacy::Outbound).to receive(:chat_session!)
+      found = JSON.parse(tools.find_on_workbench(name: "plan", workbench: caller_for))
+      expect(found).to eq("put_away" => [], "matches" => 1, "withheld" => 1)
+    end
+
+    it "is not taken by the image and media tools" do
+      write("cat.png", png(8, 8))
+      cat = board.add_file(path: "cat.png", origin: { actor: :user, source: :panel, tab: "tab-1", generation: 1 },
+                           epoch: epoch).first
+      put_away(cat)
+      expect { Monadic::Workbench::ImageTool.item_image(caller_for, cat["id"]) }
+        .to raise_error(Monadic::Workbench::ImageTool::NoSource, /put away/)
+      expect { Monadic::Workbench::MediaItem.resolve(caller_for, cat["id"], kinds: %w[video]) }
+        .to raise_error(Monadic::Workbench::MediaItem::Refused, /put away/)
+      expect(board.latest_image).to be_nil
     end
   end
 

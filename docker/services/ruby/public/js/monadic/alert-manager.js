@@ -144,7 +144,9 @@ function setAlert(text, alertType) {
         displayText = "<i class='fas fa-spinner'></i> " + getTranslation('ui.messages.spinnerProcessing', 'Processing');
       } else if (text.includes("THINKING")) {
         displayText = "<i class='fas fa-brain'></i> " + getTranslation('ui.messages.spinnerThinking', 'Thinking');
-      } else if (text === text.toUpperCase() && text.length > 10) {
+      } else if (/^[A-Z0-9\s.,:;!?'"()_-]+$/.test(text) && /[A-Z]/.test(text) && text.length > 10) {
+        // A status written in capitals (CALLING FUNCTIONS) is shown in
+        // sentence case; a message in a language without capitals is not.
         displayText = text.charAt(0) + text.slice(1).toLowerCase();
       }
     }

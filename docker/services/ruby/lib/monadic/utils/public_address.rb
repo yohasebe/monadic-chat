@@ -16,7 +16,11 @@ module Monadic
       LOCAL_NAMES = %w[localhost host.docker.internal gateway.docker.internal docker.for.mac.localhost
                        docker.for.win.localhost].freeze
       NOT_PUBLIC = %w[0.0.0.0/8 100.64.0.0/10 192.0.0.0/24 198.18.0.0/15 224.0.0.0/4 240.0.0.0/4
-                      ::/96 ff00::/8 64:ff9b:1::/48].map { |range| IPAddr.new(range) }.freeze
+                      ::/96 ff00::/8 fec0::/10 64:ff9b:1::/48].map { |range| IPAddr.new(range) }.freeze
+      # IPv6 ranges that carry an IPv4 address (NAT64, 6to4): the address
+      # they carry must be public too.
+      NAT64 = IPAddr.new('64:ff9b::/96')
+      SIX_TO_FOUR = IPAddr.new('2002::/16')
       RESOLVE_TIMEOUT = 10
 
       module_function
@@ -38,9 +42,21 @@ module Monadic
       def public?(address)
         ip = IPAddr.new(address.to_s)
         ip = ip.native if ip.ipv6? && ip.ipv4_mapped?
+        carried = carried_ipv4(ip)
+        return false if carried && !public?(carried.to_s)
+
         !(ip.loopback? || ip.private? || ip.link_local? || NOT_PUBLIC.any? { |range| range.family == ip.family && range.include?(ip) })
       rescue IPAddr::Error
         false
+      end
+
+      def carried_ipv4(ip)
+        return nil unless ip.ipv6?
+
+        value = if NAT64.include?(ip) then ip.to_i & 0xffffffff
+                elsif SIX_TO_FOUR.include?(ip) then (ip.to_i >> 80) & 0xffffffff
+                end
+        value && IPAddr.new(value, Socket::AF_INET)
       end
 
       def literal?(name)

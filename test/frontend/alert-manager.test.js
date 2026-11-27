@@ -86,6 +86,13 @@ describe('alert-manager', () => {
       expect(document.getElementById('status-message').innerHTML).toBe('Some long status message');
     });
 
+    it('leaves a message in a language without capitals as it is', () => {
+      setAlert('PDF をこの会話のファイルとして作業画面に置きました。', 'info');
+      expect(document.getElementById('status-message').innerHTML).toBe('PDF をこの会話のファイルとして作業画面に置きました。');
+      setAlert('已将该 PDF 作为此对话的文件放到工作区。', 'info');
+      expect(document.getElementById('status-message').innerHTML).toBe('已将该 PDF 作为此对话的文件放到工作区。');
+    });
+
     it('creates error card for error type', () => {
       setAlert('Something broke', 'error');
       const errorCards = document.querySelectorAll('.error-message-card');

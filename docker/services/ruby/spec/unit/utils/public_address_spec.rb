@@ -21,6 +21,14 @@ RSpec.describe Monadic::Utils::PublicAddress do
     expect { check("example.com", ["93.184.216.34", "10.0.0.5"]) }.to raise_error(described_class::Refused)
   end
 
+  it "refuses an IPv6 address that carries a private IPv4 one (NAT64, 6to4), and site-local addresses" do
+    %w[64:ff9b::a00:1 64:ff9b::7f00:1 2002:7f00:1:: 2002:c0a8:101::1 fec0::1].each do |address|
+      expect { check(address) }.to raise_error(described_class::Refused), address
+    end
+    expect(check("64:ff9b::5db8:d822")).to eq(["64:ff9b::5db8:d822"])
+    expect(check("2002:5db8:d822::1")).to eq(["2002:5db8:d822::1"])
+  end
+
   it "refuses the names of this machine and of the Docker host, and a name that does not resolve" do
     %w[localhost LOCALHOST. app.localhost host.docker.internal gateway.docker.internal].each do |name|
       expect { check(name) }.to raise_error(described_class::Refused), name

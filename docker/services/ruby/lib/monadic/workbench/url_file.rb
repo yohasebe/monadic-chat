@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'uri'
+require 'socket'
 require 'stringio'
 require_relative 'file_item'
 require_relative 'channel'
@@ -20,7 +21,9 @@ module Monadic
     # %PDF-; otherwise the answer is let go after its first bytes. Only
     # http and https addresses whose host is public (PublicAddress) are
     # asked, a redirect included, and at most REDIRECTS redirects are
-    # followed; an address that is not asked goes to the browser.
+    # followed; an address that is not asked goes to the browser. The
+    # connection goes to the address that was checked (the name is not
+    # looked up again), and the whole answer is read within DEADLINE.
     module UrlFile
       class Failed < StandardError
         attr_reader :reason
@@ -35,6 +38,7 @@ module Monadic
       CONNECT_TIMEOUT = 10
       READ_TIMEOUT = 30
       WRITE_TIMEOUT = 10
+      DEADLINE = 120
       CHUNK = 64 * 1024
       MAGIC = '%PDF-'.b
       NAME_BYTES = 120
@@ -69,17 +73,21 @@ module Monadic
       end
 
       # { name:, bytes: } for a PDF of at most limit bytes, or :browser.
-      # client: what asks (Monadic::Utils::HttpClient by default); check:
-      # raises PublicAddress::Refused for a host not to be asked.
+      # client: what asks, given the address to connect to
+      # (Monadic::Utils::HttpClient by default); check: the public addresses
+      # of a host, or PublicAddress::Refused for a host not to be asked.
       def fetch(url, limit:, client: method(:client), check: Monadic::Utils::PublicAddress.method(:check!))
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEADLINE
         (REDIRECTS + 1).times do
           uri = web_uri(url) or return :browser
           begin
-            check.call(uri.host)
+            address = Array(check.call(uri.host)).first
           rescue Monadic::Utils::PublicAddress::Refused
             return :browser
           end
-          response = client.call.get(uri.to_s)
+          return :browser unless address
+
+          response = client.call(address).get(uri.to_s)
           begin
             if [301, 302, 303, 307, 308].include?(response.code)
               location = header(response, 'Location')
@@ -90,7 +98,7 @@ module Monadic
             end
             return :browser unless (200..299).cover?(response.code)
 
-            return read_pdf(response, uri, limit)
+            return read_pdf(response, uri, limit, deadline)
           ensure
             close(response)
           end
@@ -102,9 +110,24 @@ module Monadic
         raise Failed, 'unreachable'
       end
 
-      def client
-        Monadic::Utils::HttpClient.rest(connect: CONNECT_TIMEOUT, read: READ_TIMEOUT, write: WRITE_TIMEOUT)
-                                  .headers('Accept' => 'application/pdf, */*;q=0.8')
+      def client(address)
+        Asker.new(address)
+      end
+
+      # Asks with the connection made to address (TLS still checks the
+      # host's name).
+      class Asker
+        def initialize(address)
+          @socket_class = Class.new(TCPSocket) do
+            define_singleton_method(:open) { |_host, port, *_rest| TCPSocket.open(address, port) }
+          end
+        end
+
+        def get(url)
+          Monadic::Utils::HttpClient.rest(connect: CONNECT_TIMEOUT, read: READ_TIMEOUT, write: WRITE_TIMEOUT)
+                                    .headers('Accept' => 'application/pdf, */*;q=0.8')
+                                    .get(url, socket_class: @socket_class)
+        end
       end
 
       def web_uri(url)
@@ -113,7 +136,7 @@ module Monadic
       end
 
       # The body, while it is a PDF: by its type, or by its first bytes.
-      def read_pdf(response, uri, limit)
+      def read_pdf(response, uri, limit, deadline)
         by_type = header(response, 'Content-Type').split(';').first.to_s.strip.casecmp?('application/pdf')
         raise Failed, 'too_large' if by_type && header(response, 'Content-Length').to_i > limit
 
@@ -122,6 +145,7 @@ module Monadic
           bytes << chunk.b
           return :browser if !by_type && bytes.bytesize >= MAGIC.bytesize && !bytes.start_with?(MAGIC)
           raise Failed, 'too_large' if bytes.bytesize > limit
+          raise Failed, 'unreachable' if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
         end
         return :browser unless by_type || bytes.start_with?(MAGIC)
 

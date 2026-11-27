@@ -23,12 +23,14 @@ RSpec.describe Monadic::Workbench::UrlFile do
   # What the fetch asks: each address answers with what answers names
   # ([code, headers, body]); the addresses asked are kept.
   let(:asked) { [] }
+  let(:connected_to) { [] }
   let(:closed) { [] }
   let(:answers) { {} }
   let(:client) do
     asked_list = asked
     table = answers
     closes = closed
+    addresses = connected_to
     spec = self
     getter = Object.new
     getter.define_singleton_method(:get) do |url|
@@ -36,7 +38,10 @@ RSpec.describe Monadic::Workbench::UrlFile do
       code, headers, bytes, piece = table.fetch(url)
       spec.answer_of(code, headers, bytes.to_s, piece || 16, -> { closes << url })
     end
-    -> { getter }
+    lambda do |address|
+      addresses << address
+      getter
+    end
   end
   let(:public_check) { ->(_host) { ["93.184.216.34"] } }
 
@@ -65,6 +70,28 @@ RSpec.describe Monadic::Workbench::UrlFile do
     it "leaves an answer that is not a success to the browser" do
       answers["https://example.com/gone.pdf"] = [404, { "Content-Type" => "application/pdf" }, ""]
       expect(fetch("https://example.com/gone.pdf")).to eq(:browser)
+    end
+  end
+
+  describe "the connection" do
+    it "goes to the address that was checked, not to a new look-up of the name" do
+      answers["https://example.com/a.pdf"] = [200, { "Content-Type" => "application/pdf" }, pdf_bytes]
+      fetch("https://example.com/a.pdf", check: ->(_host) { ["93.184.216.34", "93.184.216.35"] })
+      expect(connected_to).to eq(["93.184.216.34"])
+    end
+
+    it "stops reading an answer that takes longer than the deadline" do
+      stub_const("#{described_class}::DEADLINE", -1)
+      answers["https://example.com/slow.pdf"] = [200, { "Content-Type" => "application/pdf" }, pdf_bytes]
+      expect { fetch("https://example.com/slow.pdf") }.to raise_error(described_class::Failed, "unreachable")
+    end
+
+    it "connects a socket to the given address while the request names the host" do
+      opened = []
+      allow(TCPSocket).to receive(:open) { |*args| opened << args; raise Errno::ECONNREFUSED }
+      socket_class = described_class::Asker.new("93.184.216.34").instance_variable_get(:@socket_class)
+      expect { socket_class.open("example.com", 443) }.to raise_error(Errno::ECONNREFUSED)
+      expect(opened).to eq([["93.184.216.34", 443]])
     end
   end
 
@@ -102,6 +129,8 @@ RSpec.describe Monadic::Workbench::UrlFile do
     it "does not ask a host that is not public, nor follow a redirect to one" do
       private_check = lambda do |host|
         raise Monadic::Utils::PublicAddress::Refused, "not public" if host == "internal.example.com"
+
+        ["93.184.216.34"]
       end
       answers["https://example.com/a"] = [302, { "Location" => "https://internal.example.com/x.pdf" }, ""]
       expect(fetch("https://internal.example.com/x.pdf", check: private_check)).to eq(:browser)
@@ -111,7 +140,7 @@ RSpec.describe Monadic::Workbench::UrlFile do
     end
 
     it "says the address could not be reached when the connection fails" do
-      failing = -> { Object.new.tap { |o| o.define_singleton_method(:get) { |_url| raise HTTP::ConnectionError, "refused" } } }
+      failing = ->(_address) { Object.new.tap { |o| o.define_singleton_method(:get) { |_url| raise HTTP::ConnectionError, "refused" } } }
       expect { described_class.fetch("https://example.com/x.pdf", limit: 1024, client: failing, check: public_check) }
         .to raise_error(described_class::Failed, "unreachable")
     end

@@ -298,16 +298,20 @@
     return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.title || item.name || '');
   }
 
+  // An item's tab names it: shortened when long, its full name the tab's
+  // accessible name and its tooltip (on hover and on focus).
   function tab(id, label) {
     const wrap = element('span', 'workbench-item-wrap');
     const el = element('button', 'workbench-item');
     el.type = 'button';
     el.setAttribute('role', 'tab');
     el.setAttribute('aria-selected', id === selected ? 'true' : 'false');
+    el.setAttribute('aria-label', label);
     el.dataset.item = id;
     el.title = label;
     const shownItem = itemById(id);
     el.appendChild(element('span', 'workbench-item-name', shownItem && shownItem.kind === 'browser' ? label : shortName(label)));
+    if (window.MonadicTip) window.MonadicTip.attach(el, { delay: { show: 500, hide: 0 } });
     // The item shown already stays as it is (nothing is drawn again).
     el.addEventListener('click', () => { if (id !== selected) select(id); });
     wrap.appendChild(el);
@@ -330,6 +334,7 @@
   function drawList() {
     const list = $id('workbench-items');
     if (!list) return;
+    if (window.MonadicTip) window.MonadicTip.disposeWithin(list);
     list.replaceChildren();
     const shown = rowItems();
     list.hidden = shown.length === 0;
@@ -424,8 +429,8 @@
     row.forEach((item, index) => { if (item.id !== focus.id) drawOther(item, nodes[index]); });
   }
 
-  // An item's part of the view: its name (choosing it), what it holds,
-  // and what is said about it.
+  // An item's part of the view: its name (choosing it; the one chosen is
+  // named by its tab), what it holds, and what is said about it.
   function section(item) {
     const node = element('section', 'workbench-section');
     node.dataset.item = item.id;
@@ -460,8 +465,7 @@
     const head = node.querySelector(':scope > .workbench-section-head');
     if (!head) return;
     head.textContent = label(item);
-    if (focused) head.setAttribute('aria-current', 'true');
-    else head.removeAttribute('aria-current');
+    head.hidden = focused;
   }
 
   // The others are drawn once near the view (an image, a PDF, a text read

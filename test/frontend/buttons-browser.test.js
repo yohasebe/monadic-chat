@@ -73,6 +73,7 @@ describe('The shared buttons in a browser', () => {
 
   test('the top bar\'s status label is as tall as the small buttons beside it, on one line with them', () => {
     const [status, ...buttons] = r.view.wide.bar;
+    expect(buttons.map((b) => b.id)).toEqual(['cancel_query', 'layout-mode', 'both', 'left', 'right']);
     near(status.height, SMALL);
     buttons.forEach((b) => {
       near(b.height, SMALL);

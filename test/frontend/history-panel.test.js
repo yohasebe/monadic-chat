@@ -73,7 +73,7 @@ describe('History tab', () => {
     narrow = false;
     window.LayoutController = {
       selectedPane: () => pane, isMenuHidden: () => false,
-      setPane: jest.fn((p) => { pane = p; }), setMenuHidden: jest.fn()
+      setPane: jest.fn((p) => { pane = p; }), setMenuHidden: jest.fn(), showConversation: jest.fn()
     };
     window.UIConfig = { isTabletView: () => narrow };
     sent = [];
@@ -283,12 +283,12 @@ describe('History tab', () => {
     delete window.Workbench;
   });
 
-  it('shows the conversation after a chat is continued on a narrow screen', () => {
+  it('shows the conversation after a chat is continued, and not when it was not', () => {
     show();
+    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: false, error: 'history_chat_here' });
+    expect(window.LayoutController.showConversation).not.toHaveBeenCalled();
     window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
+    expect(window.LayoutController.showConversation).toHaveBeenCalledTimes(1);
     expect(window.LayoutController.setMenuHidden).not.toHaveBeenCalled();
-    narrow = true;
-    window.HistoryPanel.onMessage({ type: 'history_resumed', chat_id: 'c_aaaaaaaaaaaaaaaa', success: true });
-    expect(window.LayoutController.setMenuHidden).toHaveBeenCalledWith(true);
   });
 });

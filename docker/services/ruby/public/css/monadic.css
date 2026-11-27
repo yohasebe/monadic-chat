@@ -474,7 +474,7 @@ textarea {
 
 /* ------------------------------------------ */
 
-/* Override toggle-menu and navbar-brand layout */
+/* Override navbar-brand layout */
 
 #main-nav .navbar-brand {
   /* Prevent brand from flex stretching and ensure vertical centering */
@@ -913,20 +913,17 @@ h5 i,
   color: var(--color-icon-primary);
 }
 
-/* The top bar's Cancel and menu switch are shared buttons (buttons.css). */
+/* The top bar's Cancel and layout buttons are shared buttons (buttons.css).
+   The layout buttons are one group on its panel (btn-panel), with no
+   padding or border, so it is as tall as the status line beside it. */
 
-#toggle-menu .navbar-toggler-icon {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
-  display: inline-block;
-  width: 1.25em;
-  height: 1.25em;
-  vertical-align: middle;
-  background-size: 100%;
-  background-position: center;
-  background-repeat: no-repeat;
+#layout-mode {
+  flex: 0 0 auto;
+  padding: 0;
+  gap: 0;
+  border: 0;
+  border-radius: var(--btn-radius);
 }
-
-/* Toggle menu hover and focus styles defined at the top of the file */
 
 #main {
   padding-bottom: 0;
@@ -4243,10 +4240,6 @@ i.fas.fa-bolt,
     padding: 0;
     margin: 0;
   }
-
-  #toggle-menu {
-    right: 10px;
-  }
 }
 
 /* Desktop-specific styles */
@@ -4562,7 +4555,6 @@ i.fas.fa-bolt,
     position: static;
   }
   
-  /* Removed mobile-specific static positioning for toggle-menu to rely on responsive CSS */
   
   /* Adjust main content position to match reduced navbar height */
   #contents {
@@ -4649,24 +4641,23 @@ i.fas.fa-bolt,
   }
 }
 
-/* Mobile-specific media queries for toggle menu */
+/* Narrow windows: the layout buttons and Cancel stay at the top bar's right. */
 
 @media (max-width: 767px) {
-  #toggle-menu {
+  #layout-mode {
     position: fixed;
     margin: 0;
-    /* Center vertically by aligning button center with navbar center */
-    /* The navbar's height (65px) less a small button's (30px), halved. */
+    /* The navbar's height (65px) less the group's, halved. */
     top: calc((65px - var(--btn-h-sm)) / 2);
     right: 15px;
     z-index: 1100;
   }
 
-  /* Adjust cancel button in mobile view */
+  /* Left of the layout buttons (three small buttons wide), with a gap */
   #cancel_query {
     position: fixed;
-    top: calc((65px - var(--btn-h-sm)) / 2); /* As the menu switch */
-    right: 65px;
+    top: calc((65px - var(--btn-h-sm)) / 2); /* As the layout buttons */
+    right: calc(15px + 3 * var(--btn-h-sm) + 0.5rem);
     z-index: 1100;
   }
 }
@@ -5541,6 +5532,13 @@ body.verifying .func-verify { pointer-events: none; opacity: 0.5; }
     width: auto;
     max-width: none;
     min-width: 0;
+  }
+  /* The side column alone (body.side-pane-only): the full width, the kept
+     width left as it is for side by side. */
+  body.side-pane-only #contents > .row > #menu {
+    flex: 1 1 0;
+    width: auto;
+    max-width: none;
   }
   /* The bars at the top of each column stay there, at its top edge, while
      the column scrolls under them. Each sits in a square of the page's

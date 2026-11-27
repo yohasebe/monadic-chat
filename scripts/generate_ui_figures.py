@@ -127,6 +127,19 @@ def page_buttons(ids):
     return out
 
 
+def layout_buttons():
+    """The top bar's layout buttons, in the page's order: [(mode, style, icon, pressed)]."""
+    html = read('views', 'index.erb')
+    group = re.search(r'<div\b[^>]*\bid="layout-mode"[^>]*>(.*?)</div>', html, re.S)
+    if not group:
+        raise SystemExit('views/index.erb no longer has the layout buttons')
+    found = re.findall(r'<button\b[^>]*\bdata-layout="([a-z]+)"[^>]*\baria-pressed="(true|false)"[^>]*>\s*'
+                       r'<i class="(fas|far|fa-solid|fa-regular) (fa-[a-z0-9-]+)', group.group(1))
+    if len(found) != 3:
+        raise SystemExit('views/index.erb has the layout buttons in a way the figure does not read')
+    return [(mode, style, icon, pressed == 'true') for mode, pressed, style, icon in found]
+
+
 def card_functions():
     """The assistant card's functions, in the card's order: [(name, style, icon)]."""
     source = read('public', 'js', 'monadic', 'card-renderer.js')
@@ -793,16 +806,28 @@ def web_interface(table, color, title):
     used = figure.text(68, 63, 'Monadic', 17, ink, '600')
     figure.text(68 + used + 5, 63, 'Chat', 17, color('pal-amber-strong'), '700')
     figure.callout(90, 21)
+    # The layout buttons, one group at the right, the mode chosen filled
+    buttons = layout_buttons()
+    gw = 26 * len(buttons)
+    gx = 868 - gw
     status = word('ui.messages.readyForInput')
     sw = text_width(status) + 46
+    sx = gx - 12 - sw
     figure.add('<rect x="%.1f" y="45" width="%.1f" height="24" rx="4" fill="%s" stroke="%s"/>'
-               % (820 - sw, sw, color('pal-grey-soft'), line))
-    figure.icon('fas', 'fa-circle-check', 830 - sw, 51, 12, color('pal-green-strong'))
-    figure.text(848 - sw, 62, status)
-    figure.callout(820 - sw / 2, 21)
-    figure.add('<rect x="832" y="45" width="36" height="24" rx="4" fill="#ffffff" stroke="%s"/>' % blue)
-    figure.icon('fas', 'fa-bars', 844, 51, 12, blue)
-    figure.callout(850, 21)
+               % (sx, sw, color('pal-grey-soft'), line))
+    figure.icon('fas', 'fa-circle-check', sx + 10, 51, 12, color('pal-green-strong'))
+    figure.text(sx + 28, 62, status)
+    figure.callout(sx + sw / 2, 21)
+    figure.add('<rect x="%d" y="45" width="%d" height="24" rx="4" fill="%s" stroke="%s"/>'
+               % (gx, gw, color('tool-panel-bg'), line))
+    for i, (_, style, icon, pressed) in enumerate(buttons):
+        bx = gx + 26 * i
+        if pressed:
+            figure.add('<rect x="%d" y="46" width="26" height="22" rx="3" fill="%s"/>' % (bx, color('tool-active-bg')))
+        key = figure.icons.use(style, icon)
+        iw = 12 * figure.icons.ratio(key)
+        figure.icon(style, icon, bx + (26 - iw) / 2, 51, 12, color('tool-active-fg') if pressed else color('tool-fg'))
+    figure.callout(gx + gw / 2, 21)
 
     # The conversation's side
     figure.add('<rect x="20" y="106" width="520" height="40" rx="6" fill="%s"/>' % line)

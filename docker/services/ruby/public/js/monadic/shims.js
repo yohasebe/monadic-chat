@@ -88,23 +88,11 @@ window.shims.uiUtils = {
     var mainPanel = $id('main');
     if (!mainPanel) return;
 
-    var windowWidth = window.innerWidth;
-    var isMobile = windowWidth < 600;
-    var isMedium = windowWidth < 768; // Bootstrap md breakpoint
-
-    // On mobile and medium screens where menu/content are exclusive, check toggle state
-    if (isMobile || isMedium) {
-      var toggleBtn = $id('toggle-menu');
-      var isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
-        : (toggleBtn && toggleBtn.classList.contains('menu-hidden'));
-
-      if (!isMenuHidden) {
-        var topBtn = $id('back_to_top');
-        var bottomBtn = $id('back_to_bottom');
-        $hide(topBtn);
-        $hide(bottomBtn);
-        return;
-      }
+    // The conversation is not shown (the side column alone): no scroll buttons
+    if (window.LayoutController && window.LayoutController.isMainHidden()) {
+      $hide($id('back_to_top'));
+      $hide($id('back_to_bottom'));
+      return;
     }
 
     // Also check for menu-visible class (mobile menu state)

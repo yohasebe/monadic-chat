@@ -9,7 +9,6 @@
 // Setup DOM elements needed by the module
 document.body.innerHTML = `
   <div id="main" style="height: 500px; overflow: auto;"></div>
-  <div id="toggle-menu" class="menu-hidden"></div>
   <div id="back_to_top" style="display: none;"></div>
   <div id="back_to_bottom" style="display: none;"></div>
   <div id="image-file"></div>
@@ -102,8 +101,6 @@ describe('UI Utilities', () => {
       Object.defineProperty(mainEl, 'scrollTop', { value: 300, configurable: true, writable: true });
       Object.defineProperty(mainEl, 'clientWidth', { value: 800, configurable: true });
 
-      // Ensure toggle-menu has menu-hidden class (main is visible)
-      document.getElementById('toggle-menu').classList.add('menu-hidden');
 
       // Mock window.innerWidth
       Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true });
@@ -123,7 +120,6 @@ describe('UI Utilities', () => {
       Object.defineProperty(mainEl, 'scrollTop', { value: 500, configurable: true, writable: true });
       Object.defineProperty(mainEl, 'clientWidth', { value: 800, configurable: true });
 
-      document.getElementById('toggle-menu').classList.add('menu-hidden');
       Object.defineProperty(window, 'innerWidth', { value: 1920, configurable: true });
 
       uiUtils.adjustScrollButtons();
@@ -132,6 +128,21 @@ describe('UI Utilities', () => {
       expect(document.getElementById('back_to_top').style.display).not.toBe('none');
       // Bottom button should be hidden (distance from bottom = 0)
       expect(document.getElementById('back_to_bottom').style.display).toBe('none');
+    });
+
+    it('hides both buttons while the conversation is not shown (the side panel alone)', () => {
+      const mainEl = document.getElementById('main');
+      Object.defineProperty(mainEl, 'scrollHeight', { value: 2000, configurable: true });
+      Object.defineProperty(mainEl, 'clientHeight', { value: 500, configurable: true });
+      Object.defineProperty(mainEl, 'scrollTop', { value: 300, configurable: true, writable: true });
+      window.LayoutController = { isMainHidden: () => true };
+      try {
+        uiUtils.adjustScrollButtons();
+        expect(document.getElementById('back_to_top').style.display).toBe('none');
+        expect(document.getElementById('back_to_bottom').style.display).toBe('none');
+      } finally {
+        delete window.LayoutController;
+      }
     });
   });
 

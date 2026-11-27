@@ -4,7 +4,7 @@
 
 1. The name of the app. Click it to reset the chat (the current app is kept).
 2. The status: what Monadic Chat is doing now.
-3. Shows or hides the sidebar.
+3. The layout: the conversation and the sidebar side by side, the conversation only, or the sidebar only.
 4. **Current settings** and **Session**, with the app and model of the session. See [System Settings Screen](#system-settings-screen).
 5. The conversation, one card for each message. See [Message Cards](#message-cards).
 6. The message box and its buttons. See [Message Input](message-input.md).
@@ -25,7 +25,7 @@ In internal browser mode, five buttons appear at the bottom-right corner (hover 
 - **Zoom In**: Increase the page zoom factor
 - **Zoom Out**: Decrease the page zoom factor
 - **Reset Zoom**: Reset page zoom to default
-- **Reset All**: After you confirm, clear the page's stored data (local storage and caches) and reload it, returning to the initial app selection. Cookies, such as the theme, the conversation language and whether the menu is shown, are kept
+- **Reset All**: After you confirm, clear the page's stored data (local storage and caches) and reload it, returning to the initial app selection. Cookies, such as the theme, the conversation language and the layout, are kept
 - **Monadic Chat Console**: Show the main console window
 
 ### External Browser Mode :id=external-browser-mode
@@ -124,7 +124,9 @@ A user's card has **Copy**, **Delete** and **Edit**.
 
 The sidebar has five tabs at the top: **Menu**, which holds the following panels from top to bottom, **Work screen** (see [Work Screen](#work-screen) below), **Files** (see [Files Tab](#shared-folder-panel)), **History** (see [History Tab](#chat-history-panel), shown while chats are kept) and **Library** (see [Library Tab](#library-tab)). The page opens on Menu. Click a panel's title to collapse or expand it.
 
-The tabs, and the bar with **Current settings** above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab. On a narrow window, the sidebar and the conversation take turns at the full width.
+The tabs, and the bar with **Current settings** above the conversation, stay at the top while the column under them scrolls. Drag the border between the conversation and the sidebar to change the sidebar's width; you can also select the border with the Tab key and use ← and → (Home and End for the narrowest and widest). The width is kept, and is the same for every tab.
+
+The three buttons at the top right choose the layout: **Side by side** shows the conversation and the sidebar, **Left only** the conversation alone, and **Right only** the sidebar alone, at the full width. Back to side by side, the sidebar has the width you set. The layout is kept. When only the conversation is shown and you open something in the sidebar (for example an item of the work screen from a line in the conversation), the layout returns to side by side. On a narrow window, the sidebar and the conversation take turns at the full width: **Left only** and **Right only** show one of them, and **Side by side** shows the conversation first; press it again to switch to the sidebar.
 
 **Monadic Chat Info**<br />
 Links to the homepage and GitHub, the current version, the **Conversation Language** selector, the name and description of the current base app, **Help Data** (the help database used by the Monadic Chat Help app: its status and an install button), and the list of **Available Variables**.
@@ -206,7 +208,7 @@ The AI can also look at the item your tab shows, when it needs to see it: an ima
 
 A model that reads images but cannot use tools cannot look at the work screen itself: with each message you send, it is given the image or the part of the PDF page you have in view of the item you chose.
 
-When the AI shows something new, the work screen shows it, unless you are typing a message or turned off **Show new items in the work screen** in the Interaction panel. What you open yourself is always shown. If the sidebar is hidden, it stays hidden. When something new comes or an item is updated while another tab is shown, the **Work screen** tab shows a dot until you open it. The work screen keeps up to eight items: when a new one comes, the oldest item is removed from the work screen (its file stays in the shared folder). The item an open page (a web browser tab) is showing, the latest image and an open browser are kept. When every item is kept, remove one with its × before opening another; a browser that opens then is shown once you remove one.
+When the AI shows something new, the work screen shows it, unless you are typing a message or turned off **Show new items in the work screen** in the Interaction panel. What you open yourself is always shown. If only the conversation is shown, the sidebar stays hidden. When something new comes or an item is updated while another tab is shown, the **Work screen** tab shows a dot until you open it. The work screen keeps up to eight items: when a new one comes, the oldest item is removed from the work screen (its file stays in the shared folder). The item an open page (a web browser tab) is showing, the latest image and an open browser are kept. When every item is kept, remove one with its × before opening another; a browser that opens then is shown once you remove one.
 
 ## Speech Panel :id=speech-settings-panel
 

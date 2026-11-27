@@ -57,28 +57,12 @@ function adjustScrollButtons() {
     const mainPanel = $id('main');
     if (!mainPanel) return;
 
-    // Use centralized configuration if available
-    const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : window.innerWidth < 600;
-    const isTablet = window.UIConfig ? window.UIConfig.isTabletView() : window.innerWidth < 768;
-
-    // On mobile and tablet screens where menu/content are exclusive, check toggle state
-    if (isMobile || isTablet) {
-    // Check if toggle button has menu-hidden class
-    // When menu-hidden class is present, menu is hidden and main is showing
-    // When menu-hidden class is absent, menu is showing and main is hidden
-    const toggleBtn = $id('toggle-menu');
-    const isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
-      : (toggleBtn && toggleBtn.classList.contains('menu-hidden'));
-
-    if (!isMenuHidden) {
-      // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
-      const topBtn = $id('back_to_top');
-      const bottomBtn = $id('back_to_bottom');
-      $hide(topBtn);
-      $hide(bottomBtn);
+    // The conversation is not shown (the side column alone): no scroll buttons
+    if (window.LayoutController && window.LayoutController.isMainHidden()) {
+      $hide($id('back_to_top'));
+      $hide($id('back_to_bottom'));
       return;
     }
-  }
 
   // Also check for menu-visible class (mobile menu state)
   if (document.body.classList.contains('menu-visible')) {

@@ -69,7 +69,6 @@ describe('WorkScreen', () => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
     document.cookie = 'menu-hidden-preference=false; path=/';
     document.body.innerHTML =
-      '<button id="toggle-menu"></button>' +
       '<div id="menu">' +
         '<div id="side-pane-tabs" role="tablist">' +
           '<button role="tab" aria-controls="settings-pane" data-pane="settings">Menu</button>' +

@@ -35,7 +35,6 @@ const PAGE = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/vendor/css/all.min.css">
 </head><body>
 <nav class="navbar fixed-top" style="height:65px"></nav>
-<button id="toggle-menu"></button>
 <div class="container-fluid pt-0 p-3" id="contents">
   <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
     <div id="menu" class="order-md-2 scrollable">
@@ -198,6 +197,11 @@ async function wide(browser, base) {
   out.hidden = await page.evaluate(measure);
   await page.evaluate(() => window.LayoutController.setMenuHidden(false));
   out.back = await page.evaluate(measure);
+  // The side column alone, and side by side again.
+  await page.evaluate(() => window.LayoutController.setMode('right'));
+  out.rightOnly = await page.evaluate(measure);
+  await page.evaluate(() => window.LayoutController.setMode('both'));
+  out.bothAgain = await page.evaluate(measure);
   // Narrow (767): the columns take turns at full width; no border.
   await page.setViewport({ width: 767, height: 800 });
   await page.evaluate(() => window.LayoutController.apply());

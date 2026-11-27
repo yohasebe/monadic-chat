@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../../../lib/monadic/utils/websocket'
 
-RSpec.describe 'Opening an address in the chat browser from the page' do
+RSpec.describe 'Opening an address on the work screen from the page' do
   let(:host) do
     Class.new do
       include WebSocketHelper
@@ -26,6 +26,7 @@ RSpec.describe 'Opening an address in the chat browser from the page' do
   before do
     Thread.current[:websocket_session_id] = 'tab-open-url'
     allow(WebSocketHelper).to receive(:page_browser_host).and_return(double(new: opener))
+    allow(Monadic::Workbench::UrlFile).to receive(:put).and_return(nil)
   end
 
   after { Thread.current[:websocket_session_id] = nil }
@@ -44,7 +45,7 @@ RSpec.describe 'Opening an address in the chat browser from the page' do
 
     host.send(:handle_ws_workbench_open_url, nil, { 'url' => ' https://example.com/a?b=1 ' }, session)
 
-    expect(answer).to eq('type' => 'workbench_open_url', 'success' => true, 'error' => nil)
+    expect(answer).to eq('type' => 'workbench_open_url', 'success' => true)
     expect(seen.pop).to eq(['https://example.com/a?b=1', session, 'tab-open-url'])
   end
 
@@ -77,6 +78,39 @@ RSpec.describe 'Opening an address in the chat browser from the page' do
     host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com' }, session)
 
     expect(answer).to eq('type' => 'workbench_open_url', 'success' => false, 'error' => 'open_failed')
+  end
+
+  it 'puts a PDF the address serves on the work screen as a file, for the tab, without the browser' do
+    connected = session.merge(_ws_generation: 3)
+    expect(opener).not_to receive(:start_browser)
+    expect(Monadic::Workbench::UrlFile).to receive(:put)
+      .with('https://example.com/paper.pdf', connected, tab: 'tab-open-url', generation: 3,
+                                                      live: WebSocketHelper::WORKBENCH_LIVE)
+      .and_return({ 'as_file' => true, 'item_id' => 'i_paper' })
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com/paper.pdf' }, connected)
+
+    expect(answer).to eq('type' => 'workbench_open_url', 'as_file' => true, 'item_id' => 'i_paper', 'success' => true)
+  end
+
+  it 'says why a PDF was not put on the work screen, without the browser' do
+    expect(opener).not_to receive(:start_browser)
+    allow(Monadic::Workbench::UrlFile).to receive(:put).and_raise(Monadic::Workbench::UrlFile::Failed.new('too_large'))
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com/big.pdf' }, session)
+
+    expect(answer).to eq('type' => 'workbench_open_url', 'as_file' => true, 'error' => 'too_large', 'success' => false)
+  end
+
+  it 'names the browser item of the board when the page opened' do
+    allow(MonadicSharedTools::WebAutomation).to receive(:available?).and_return(true)
+    allow(opener).to receive(:start_browser).and_return({ success: true })
+    board = double('board', snapshot: { items: [{ id: 'i_file', kind: 'file' }, { id: 'i_browser', kind: 'browser' }] })
+    allow(Monadic::Workbench::Board).to receive(:existing).with(session[:chat_id]).and_return(board)
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com' }, session)
+
+    expect(answer).to eq('type' => 'workbench_open_url', 'success' => true, 'item_id' => 'i_browser')
   end
 
   it 'starts the browser with the browser tools\' own start, on an app object' do

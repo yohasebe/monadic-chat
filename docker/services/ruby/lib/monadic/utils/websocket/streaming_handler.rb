@@ -210,7 +210,15 @@ module WebSocketHelper
 
     connection = { tab: Thread.current[:websocket_session_id], generation: session[:_ws_generation] }
     if marked
-      return Monadic::Workbench::Picture.accept_marked(marked, chat_id: chat_id, request_id: request_id, **connection)
+      # The words the chat hides; when they cannot be read, no name is told.
+      words = begin
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
+        Monadic::Utils::Privacy::Outbound.terms_of(session)
+      rescue Monadic::Utils::Privacy::Outbound::Refused
+        nil
+      end
+      return Monadic::Workbench::Picture.accept_marked(marked, chat_id: chat_id, request_id: request_id, words: words,
+                                                               **connection)
     end
     return [] unless single
 

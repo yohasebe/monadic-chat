@@ -5,6 +5,7 @@ require 'fileutils'
 require 'securerandom'
 require_relative 'pointing'
 require_relative 'store'
+require_relative '../utils/privacy/outbound'
 
 module Monadic
   module Workbench
@@ -50,10 +51,11 @@ module Monadic
       NOTE_IMAGE_PLAIN = 'The image attached to this message is the image selected on the work screen when the user sent it.'
       # Pictures of marked items, several with one message (accept_marked).
       PER_MESSAGE = 4
-      NOTE_MARKED = 'Work screen picture %<n>d attached to this message is page %<page>d of the PDF "%<name>s" ' \
+      # named: ' "the item's name"', or nothing when it is not told (name_for).
+      NOTE_MARKED = 'Work screen picture %<n>d attached to this message is page %<page>d of the PDF%<named>s ' \
                     '(work screen item %<item>s). The user marked a part of it with a translucent %<color>s %<shape>s ' \
                     'to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the page).'
-      NOTE_MARKED_IMAGE = 'Work screen picture %<n>d attached to this message is the image "%<name>s" ' \
+      NOTE_MARKED_IMAGE = 'Work screen picture %<n>d attached to this message is the image%<named>s ' \
                           '(work screen item %<item>s). The user marked a part of it with a translucent %<color>s ' \
                           '%<shape>s to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
       # A mark's own id (the page's), and how many times it changed.
@@ -97,7 +99,9 @@ module Monadic
         # (or an image the AI made), once per item and page. Raises Refused
         # (with why) when one is not taken: none is taken then. They are not
         # kept until the message is accepted (keep!).
-        def accept_marked(list, chat_id:, request_id:, tab:, generation:)
+        # words: the words the chat hides (nil: not known); a name that holds
+        # one is not told, nor any name when they are not known.
+        def accept_marked(list, chat_id:, request_id:, tab:, generation:, words: [])
           raise Refused, 'not_a_picture' unless list.is_a?(Array) && !list.empty?
           raise Refused, 'too_many' if list.size > PER_MESSAGE
 
@@ -125,7 +129,7 @@ module Monadic
 
             new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
                 version: item[:version], kind: kind, page: page, pages: pages, mark: mark, bytes: png_of(data['image']),
-                name: name_of(item), mark_id: mark_id, mark_rev: data['mark_rev'], position: index + 1)
+                name: name_for(item, words), mark_id: mark_id, mark_rev: data['mark_rev'], position: index + 1)
           end
         end
 
@@ -206,9 +210,19 @@ module Monadic
           { 'image' => 'image', 'pdf' => 'pdf' }[item[:preview].to_s]
         end
 
-        # The item's name as the model is told it: one line, short.
-        def name_of(item)
-          (item[:title] || item[:name]).to_s.scrub('?').gsub(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}"]/, ' ').squeeze(' ').strip[0, NAME_LIMIT]
+        # The item's name as the model is told it: one line, every kind of
+        # space as a space, cut at a word's end; nil when the whole name holds
+        # a word the chat hides (the picture is then named by its item only,
+        # as the observation leaves such a name out).
+        def name_for(item, words)
+          name = (item[:title] || item[:name]).to_s.scrub('?').gsub(/[\p{Cc}\p{Cf}\p{Z}"]/, ' ').squeeze(' ').strip
+          return nil if name.empty? || words.nil?
+          return nil if !words.empty? && Monadic::Utils::Privacy::Outbound.leaks_word?(name, words)
+          return name if name.length <= NAME_LIMIT
+
+          cut = name[0, NAME_LIMIT]
+          cut = cut[0, cut.rindex(' ')] if name[NAME_LIMIT] != ' ' && cut.include?(' ')
+          "#{cut.rstrip}…"
         end
 
         # The PNG's bytes, within the size taken, or Refused.
@@ -285,7 +299,8 @@ module Monadic
         return format(kind == 'image' ? NOTE_IMAGE_PLAIN : NOTE_PLAIN, page: page) unless mark
 
         if mark_id
-          return format(kind == 'image' ? NOTE_MARKED_IMAGE : NOTE_MARKED, n: position, page: page, name: name.to_s,
+          return format(kind == 'image' ? NOTE_MARKED_IMAGE : NOTE_MARKED, n: position, page: page,
+                                                                         named: name ? %( "#{name}") : '',
                                                                          item: item_id, **mark_terms)
         end
 

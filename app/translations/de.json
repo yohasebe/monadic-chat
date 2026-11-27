@@ -275,7 +275,7 @@
     "seleniumWillNotStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat NICHT gestartet.",
     "exportDbConfirmTitle": "Dokument-Datenbank exportieren",
     "exportDbConfirmMessage": "Gesamte Dokument-Datenbank exportieren?",
-    "exportDbConfirmDetail": "Der Export enthält alle in der Bibliothek gespeicherten Unterhaltungen und alle PDF-Dokumente. Der Unterhaltungsverlauf ist nicht enthalten. Verschlüsselung der Ausgabe wird dringend empfohlen — ohne Verschlüsselung werden alle in der Datenbank gespeicherten persönlichen Informationen im Klartext in die Datei geschrieben.",
+    "exportDbConfirmDetail": "Der Export enthält alle in der Bibliothek gespeicherten Unterhaltungen und alle importierten Dokumente samt Originaldatei. Der Unterhaltungsverlauf ist nicht enthalten. Verschlüsselung der Ausgabe wird dringend empfohlen — ohne Verschlüsselung werden alle in der Datenbank gespeicherten persönlichen Informationen im Klartext in die Datei geschrieben.",
     "exportDbEncrypted": "Verschlüsseln und exportieren",
     "exportDbPlain": "Im Klartext exportieren",
     "exportDbPassphraseTitle": "Passphrase für verschlüsselten Export festlegen",

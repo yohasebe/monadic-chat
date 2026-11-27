@@ -167,7 +167,7 @@
     "seleniumWillNotStartOnNextLaunch": "Selenium 컨테이너는 다음 Monadic Chat 시작 시 시작되지 않습니다.",
     "exportDbConfirmTitle": "문서 DB 내보내기",
     "exportDbConfirmMessage": "전체 문서 DB를 내보내시겠습니까?",
-    "exportDbConfirmDetail": "내보내기 파일에는 라이브러리에 저장한 모든 대화와 PDF 문서가 포함됩니다. 대화 기록은 포함되지 않습니다. 출력 파일을 암호화하는 것을 강력히 권장합니다 — 암호화하지 않으면 데이터베이스에 저장된 모든 개인 정보가 평문으로 파일에 기록됩니다.",
+    "exportDbConfirmDetail": "내보내기 파일에는 라이브러리에 저장한 모든 대화와, 가져온 모든 문서(원본 파일 포함)가 포함됩니다. 대화 기록은 포함되지 않습니다. 출력 파일을 암호화하는 것을 강력히 권장합니다 — 암호화하지 않으면 데이터베이스에 저장된 모든 개인 정보가 평문으로 파일에 기록됩니다.",
     "exportDbEncrypted": "암호화하여 내보내기",
     "exportDbPlain": "평문으로 내보내기",
     "exportDbPassphraseTitle": "암호화 내보내기용 암호 설정",

@@ -52,9 +52,10 @@ module Monadic
       # Pictures of marked items, several with one message (accept_marked).
       PER_MESSAGE = 4
       # named: ' "the item's name"', or nothing when it is not told (name_for).
-      NOTE_MARKED = 'Work screen picture %<n>d attached to this message is page %<page>d of the PDF%<named>s ' \
-                    '(work screen item %<item>s). The user marked a part of it with a translucent %<color>s %<shape>s ' \
-                    'to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the page).'
+      NOTE_MARKED = 'Work screen picture %<n>d attached to this message is the part of page %<page>d of the PDF%<named>s ' \
+                    '(work screen item %<item>s) the user had in view when marking it. The user marked a part of it ' \
+                    'with a translucent %<color>s %<shape>s to point at it ' \
+                    '(left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the picture).'
       NOTE_MARKED_IMAGE = 'Work screen picture %<n>d attached to this message is the image%<named>s ' \
                           '(work screen item %<item>s). The user marked a part of it with a translucent %<color>s ' \
                           '%<shape>s to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
@@ -92,8 +93,9 @@ module Monadic
         end
 
         # The pictures of the marked items the page sent with a message (list:
-        # each the whole image, or the whole page of a PDF, with the mark
-        # drawn on it), checked against the board as the tab's connection
+        # each the whole image, or the part of a PDF's page in view when the
+        # mark was made, with the mark drawn on it; the mark's place is a
+        # fraction of the picture), checked against the board as the tab's connection
         # sees it: each item on the desk where marks are made (Now, Latest),
         # at the version the board has, a file that shows an image or a PDF
         # (or an image the AI made), once per item and page. Raises Refused

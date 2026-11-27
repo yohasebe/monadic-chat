@@ -172,7 +172,9 @@ RSpec.describe "The picture of the work screen sent with a message" do
       message = send_message("workbench_pictures" => [marked("i_1", "v" * 64, "page" => 3, "pages" => 9), marked("i_2", "x" * 64)])
       pictures = all_seen.last
       expect(pictures.map(&:item_id)).to eq(%w[i_1 i_2])
-      expect(pictures.first.note).to start_with('Work screen picture 1 attached to this message is page 3 of the PDF "plan.pdf"')
+      expect(pictures.first.note).to start_with('Work screen picture 1 attached to this message is the part of page 3 of the PDF ' \
+                                                '"plan.pdf" (work screen item i_1) the user had in view')
+      expect(pictures.first.note).to end_with("of the picture).")
       expect(pictures.last.note).to start_with('Work screen picture 2 attached to this message is the image "cat.png"')
       expect(message["workbench_pictures"].map { |ref| ref.slice("item_id", "mark_id", "mark_rev") })
         .to eq([{ "item_id" => "i_1", "mark_id" => "m_i1aaaa", "mark_rev" => 2 },

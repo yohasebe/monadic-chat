@@ -13,14 +13,15 @@
  * MAX_PIXELS; on a high-density screen the page is drawn sharper within
  * that.
  *
- * WorkbenchPdf.show(box, bytes, onChange) draws into box and returns a
+ * WorkbenchPdf.show(box, bytes, onChange, onMark) draws into box and returns a
  * handle: state() (the page and scale asked for), shown() (what is drawn
  * now: { status: 'ready', page, pages, scale, drawing } once a page and its
  * text layer are drawn, drawing being the number of that drawing,
  * otherwise { status: 'loading' | 'drawing' | 'failed' }), canvas() and
  * textLayer() (the page's canvas and its text layer, as drawn now), and
  * dispose() (stops drawing and lets the document go). onChange is called
- * whenever shown() changes.
+ * whenever shown() changes; onMark whenever the user's mark is made, moved
+ * or taken away.
  *
  * The pointer (workbench-pointer.js) is over the page: pointer() is the
  * part the user marked ({ page, by, shape, color, x, y, w, h }, the four as
@@ -76,7 +77,7 @@
     return loading;
   }
 
-  function show(box, bytes, onChange) {
+  function show(box, bytes, onChange, onMark) {
     // rendering: the page being drawn; loading: the task that loads the
     // document (and lets it go).
     // fit: the scale follows the pane's width (until the user zooms).
@@ -109,7 +110,9 @@
     sheet.append(canvas);
     // The pointer, over the page (above its text layer while a mark is
     // being drawn); a mark is shown on its own page only.
-    const pointing = window.WorkbenchPointer.attach({ surface: sheet, where: () => state.page });
+    const pointing = window.WorkbenchPointer.attach({
+      surface: sheet, where: () => state.page, changed: () => { if (typeof onMark === 'function') onMark(); }
+    });
     bar.append(pointing.controls);
     box.classList.add('workbench-pdf');
     box.setAttribute('tabindex', '0');

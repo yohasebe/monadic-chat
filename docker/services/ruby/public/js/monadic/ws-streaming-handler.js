@@ -241,7 +241,7 @@ function handleUser(data) {
     window.addAttachmentsToCard($id(data["content"]["mid"]), data["content"]["attachments"]);
   }
   if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
-    window.Workbench.drawPicture(data["content"]["mid"], data["content"]["workbench_picture"]);
+    window.Workbench.drawPicture(data["content"]["mid"], data["content"]["workbench_pictures"] || data["content"]["workbench_picture"]);
   }
   if (window.Workbench && typeof window.Workbench.drawSelection === 'function') {
     window.Workbench.drawSelection(data["content"]["mid"], data["content"]["workbench_selection"]);

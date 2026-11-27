@@ -1332,7 +1332,7 @@
     frame.append(img);
     // Dragging over the image draws a mark, not the browser's drag of it.
     img.draggable = false;
-    const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1 });
+    const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1, changed: () => markChanged(drawn) });
     pointing.setPointable(drawn.markable !== false);
     const bar = element('div', 'workbench-image-bar');
     bar.append(pointing.controls);
@@ -1507,7 +1507,7 @@
       if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
       drawn.pdf = window.WorkbenchPdf.show(box, bytes, (now) => {
         if (now && now.status === 'ready') showAiPoint();
-      });
+      }, () => markChanged(drawn));
       if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(drawn.markable !== false);
       showSelectionChip();
     });
@@ -1752,6 +1752,7 @@
     drawLock();
     drawView();
     drawNotes();
+    drawMarksLine();
     placeJump();
   }
 
@@ -2202,7 +2203,128 @@
     return mark;
   }
 
+  // ---- marks sent with a message -------------------------------------
+
+  // Each drawn item's mark, with its picture taken when it was made or
+  // changed (the item, its version, the page, the mark's own id and how many
+  // times it changed): the pictures of the marked items on the desk (Now and
+  // Latest) go with the next message, in their order there, at most
+  // MARKS_PER_MESSAGE (Picture::PER_MESSAGE); a mark sent once is not sent
+  // again until it changes.
+  const MARKS_PER_MESSAGE = 4;
+  const sentMarks = new Set();
+  const MARK_LETTERS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+  function newMarkId() {
+    let id = 'm_';
+    for (let i = 0; i < 12; i += 1) id += MARK_LETTERS[Math.floor(Math.random() * MARK_LETTERS.length)];
+    return id;
+  }
+
+  function markChanged(drawn) {
+    const item = drawn && itemById(drawn.itemId);
+    const handle = drawn && (drawn.image || drawn.pdf);
+    const pointer = handle && typeof handle.pointer === 'function' ? handle.pointer() : null;
+    if (!drawn) return;
+    if (!item || !pointer) {
+      drawn.mark = null;
+      drawMarksLine();
+      return;
+    }
+    const id = drawn.mark ? drawn.mark.id : newMarkId();
+    const rev = handle.pointerSeq();
+    let data = null;
+    try {
+      data = drawn.image ? imageMarkPicture(item, drawn.image, pointer) : pdfMarkPicture(item, drawn.pdf, pointer);
+    } catch (_) {
+      data = null;
+    }
+    drawn.mark = { id: id, rev: rev, data: data };
+    drawMarksLine();
+  }
+
+  function imageMarkPicture(item, handle, pointer) {
+    const part = markedImage(handle, pointer);
+    if (!part.image || !part.mark) return null;
+    return { item_id: item.id, version: item.version || item.sha256 || '', mark: part.mark, image: part.image };
+  }
+
+  // The part of the PDF's page in view with the mark, as the mark is made
+  // there (the page it is on is the page shown).
+  function pdfMarkPicture(item, handle, pointer) {
+    const shown = handle.shown();
+    if (shown.status !== 'ready' || pointer.page !== shown.page) return null;
+    const marked = drawingMark(handle, pointer);
+    const part = cutPage(handle, shown.drawing, marked.decorate);
+    const mark = marked.mark();
+    if (!part || !part.image || !mark) return null;
+    return { item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
+             mark: mark, image: part.image };
+  }
+
+  // The marked items on the desk whose marks have not gone with a message,
+  // in their order there.
+  function waitingMarks() {
+    if (!takesImages()) return [];
+    const order = rowItems().filter((item) => ['current', 'latest'].includes(placeOf(item))).map((item) => item.id);
+    return [drawnBody].concat(Array.from(others.values()))
+      .filter((drawn) => drawn && drawn.mark && drawn.mark.data && order.includes(drawn.itemId))
+      .filter((drawn) => {
+        const item = itemById(drawn.itemId);
+        return item && (item.version || item.sha256 || '') === drawn.mark.data.version;
+      })
+      .filter((drawn) => !sentMarks.has(`${drawn.itemId}:${drawn.mark.id}:${drawn.mark.rev}`))
+      .sort((a, b) => order.indexOf(a.itemId) - order.indexOf(b.itemId));
+  }
+
+  // The pictures of the marked items that go with the message the user
+  // sends now, or null.
+  function picturesNow() {
+    if (local) return null;
+    const waiting = waitingMarks();
+    if (waiting.length === 0) return null;
+    const going = waiting.slice(0, MARKS_PER_MESSAGE);
+    return {
+      data: going.map((drawn) => Object.assign({}, drawn.mark.data, { mark_id: drawn.mark.id, mark_rev: drawn.mark.rev })),
+      left: waiting.length - going.length,
+      sent: () => {
+        going.forEach((drawn) => sentMarks.add(`${drawn.itemId}:${drawn.mark.id}:${drawn.mark.rev}`));
+        drawMarksLine();
+      }
+    };
+  }
+
+  // Before sending: when more items are marked than a message takes, which
+  // go (the first in the desk's order).
+  function drawMarksLine() {
+    const head = document.querySelector('#work-screen-pane .workbench-head');
+    let line = $id('workbench-marks');
+    const waiting = waitingMarks();
+    const over = waiting.length > MARKS_PER_MESSAGE;
+    if (!line && head && over) {
+      line = element('div', 'workbench-marks text-secondary mb-2');
+      line.id = 'workbench-marks';
+      line.setAttribute('role', 'status');
+      head.appendChild(line);
+    }
+    if (!line) return;
+    line.hidden = !over;
+    if (over) {
+      line.textContent = t('ui.workbench.marksOver',
+        '{n} items are marked. The next message takes the first {max} in the order of the work screen; the others are not sent.')
+        .replace('{n}', String(waiting.length)).replace('{max}', String(MARKS_PER_MESSAGE));
+    }
+  }
+
+  // The picture of the item chosen without a mark, for a model that cannot
+  // look at the work screen itself (marked items go by picturesNow).
   function pictureNow() {
+    if (waitingMarks().length > 0) return null;
+    const picture = singlePictureNow();
+    return picture && picture.data && picture.data.unmarked ? picture : null;
+  }
+
+  function singlePictureNow() {
     if (local || !paneShown() || !takesImages()) return null;
     const item = selected ? itemById(selected) : null;
     if (!item || item.kind !== 'file' || placeOf(item) === 'stash') return null;
@@ -3566,33 +3688,38 @@
   // The picture of the work screen a user's message was sent with (its
   // reference): a line on the message's card that shows it in the work
   // screen, asked of the server when clicked.
-  function drawPicture(mid, picture) {
+  // pictures: the message's references (a list; a message from before has
+  // one): a line each on the message's card, opening the picture as sent.
+  function drawPicture(mid, pictures) {
     if (!mid) return;
     const card = $id(mid);
     const text = card ? card.querySelector('.card-text') : null;
     if (!text) return;
     let el = text.querySelector(':scope > .workbench-picture-note');
-    if (!picture || typeof picture.id !== 'string') {
+    const list = (Array.isArray(pictures) ? pictures : [pictures]).filter((p) => p && typeof p.id === 'string');
+    if (list.length === 0) {
       if (el) el.remove();
       return;
     }
     if (!el) {
-      el = element('div', 'workbench-picture-note small text-secondary mt-2');
+      el = element('div', 'workbench-picture-note text-secondary mt-2');
       text.appendChild(el);
     }
     el.replaceChildren();
-    const line = element('div', 'workbench-note-line');
-    line.appendChild(element('i', 'fa-solid fa-crosshairs me-1'));
-    const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-picture-open');
-    open.type = 'button';
-    open.textContent = picture.kind === 'image'
-      ? t('ui.workbench.pictureSentImage', 'The work screen as sent (image)')
-      : t('ui.workbench.pictureSent', 'The work screen as sent (page {n})').replace('{n}', String(picture.page));
-    open.addEventListener('click', () => {
-      if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_PICTURE', picture_id: picture.id });
+    list.forEach((picture) => {
+      const line = element('div', 'workbench-note-line');
+      line.appendChild(element('i', 'fa-solid fa-crosshairs me-1'));
+      const open = element('button', 'btn btn-link btn-sm p-0 align-baseline workbench-picture-open');
+      open.type = 'button';
+      open.textContent = picture.kind === 'image'
+        ? t('ui.workbench.pictureSentImage', 'The work screen as sent (image)')
+        : t('ui.workbench.pictureSent', 'The work screen as sent (page {n})').replace('{n}', String(picture.page));
+      open.addEventListener('click', () => {
+        if (typeof window.safeWsSend === 'function') window.safeWsSend({ message: 'WORKBENCH_PICTURE', picture_id: picture.id });
+      });
+      line.appendChild(open);
+      el.appendChild(line);
     });
-    line.appendChild(open);
-    el.appendChild(line);
   }
 
   // The text a user's message was sent with, selected in the work screen
@@ -3823,7 +3950,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, locked, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, locked, picturesNow, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

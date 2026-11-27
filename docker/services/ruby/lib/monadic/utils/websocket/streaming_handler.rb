@@ -191,31 +191,58 @@ module WebSocketHelper
     nil
   end
 
-  # The picture of the work screen the user sent with a message (taken and
-  # kept, Workbench::Picture), or nil: none for an app that makes images (the
-  # picture is no material of its), for a model known to take no images, or
-  # when the board does not have what the page pictured. A failure here
-  # never keeps the message from being sent.
-  private def workbench_picture(session, obj, chat_id, request_id, data)
-    return nil unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
+  # The pictures of the work screen the user sent with a message
+  # (Workbench::Picture), checked and not yet kept (they are kept once the
+  # message is accepted): the marked items' (marked, up to
+  # Picture::PER_MESSAGE), or else the selected item's unmarked one for a
+  # model that cannot look at the work screen itself (single). None for an
+  # app that makes images (a picture is no material of its), for a model
+  # known to take no images, or when the board does not have what the page
+  # pictured. A failure here never keeps the message from being sent.
+  private def workbench_pictures(session, obj, chat_id, request_id, marked, single)
+    return [] unless Monadic::Workspace::Ids.valid?(:chat, chat_id)
 
     app_settings = defined?(APPS) && APPS[obj["app_name"]] ? APPS[obj["app_name"]].settings : {}
-    return nil if app_settings["image_generation"] || obj["app_name"].to_s.match?(/ImageGenerator|VideoGenerator/)
+    return [] if app_settings["image_generation"] || obj["app_name"].to_s.match?(/ImageGenerator|VideoGenerator/)
 
     model = Monadic::TurnSettings.accepted(obj, session[:parameters]).model
-    return nil if model && !Monadic::Utils::ModelSpec.vision_capability?(model)
+    return [] if model && !Monadic::Utils::ModelSpec.vision_capability?(model)
+
+    connection = { tab: Thread.current[:websocket_session_id], generation: session[:_ws_generation] }
+    if marked
+      # The words the chat hides; when they cannot be read, no name is told.
+      words = begin
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
+        Monadic::Utils::Privacy::Outbound.terms_of(session)
+      rescue Monadic::Utils::Privacy::Outbound::Refused
+        nil
+      end
+      return Monadic::Workbench::Picture.accept_marked(marked, chat_id: chat_id, request_id: request_id, words: words,
+                                                               **connection)
+    end
+    return [] unless single
 
     provider = Monadic::Workbench::Look::Availability.transport_of(app_settings["provider"] || app_settings[:provider])
     unmarked = Monadic::Workbench::Look::Availability.by_message?(provider: provider, model: model)
-    Monadic::Workbench::Picture.accept(data, chat_id: chat_id, request_id: request_id,
-                                             tab: Thread.current[:websocket_session_id],
-                                             generation: session[:_ws_generation], unmarked: unmarked).keep!
+    [Monadic::Workbench::Picture.accept(single, chat_id: chat_id, request_id: request_id, unmarked: unmarked, **connection)]
   rescue Monadic::Workbench::Picture::Refused => e
-    Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not taken: #{e.reason}" }
-    nil
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Pictures not taken: #{e.reason}" }
+    []
   rescue StandardError => e
-    Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not taken: #{e.class}" }
-    nil
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Pictures not taken: #{e.class}" }
+    []
+  end
+
+  # The pictures kept, now that the message is accepted; one that cannot be
+  # kept does not go with it.
+  private def kept_workbench_pictures(pictures)
+    pictures.select do |picture|
+      picture.keep!
+      true
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not kept: #{e.class}" }
+      false
+    end
   end
 
   # The text the user selected in the work screen, sent with a message, as
@@ -291,6 +318,8 @@ module WebSocketHelper
     # (workbench_picture): taken below for this message only, never kept
     # with the chat's parameters.
     sent_picture = obj.delete("workbench_picture")
+    # The pictures of the items the user marked (workbench_pictures): the same.
+    sent_pictures = obj.delete("workbench_pictures")
     # The text the user selected in the work screen to send with it
     # (workbench_selection): the same.
     sent_selection = obj.delete("workbench_selection")
@@ -301,7 +330,11 @@ module WebSocketHelper
     # The user's own message: text, or attached files only (video or audio
     # as attachments, images and PDFs as images).
     user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty? || !Array(obj["images"]).empty?
-    picture = user_sent && sent_picture ? workbench_picture(session, obj, chat_at_start, request_id, sent_picture) : nil
+    pictures = if user_sent && (sent_pictures || sent_picture)
+                 workbench_pictures(session, obj, chat_at_start, request_id, sent_pictures, sent_picture)
+               else
+                 []
+               end
     selection = user_sent && sent_selection ? workbench_selection(session, chat_at_start, request_id, sent_selection) : nil
     # The settings the message was sent with, read before they are merged
     # into the session's parameters.
@@ -344,7 +377,8 @@ module WebSocketHelper
         "active" => true
       }.merge(user_turn_fields(request_id: request_id, chat_id: chat_at_start,
                                app_name: params["app_name"], attachment_refs: attachment_refs))
-      user_message_data["workbench_picture"] = picture.reference if picture
+      pictures = kept_workbench_pictures(pictures)
+      user_message_data["workbench_pictures"] = pictures.map(&:reference) unless pictures.empty?
       user_message_data["workbench_selection"] = selection.reference if selection
       session[:messages] << user_message_data
       sync_session_state!
@@ -400,7 +434,7 @@ module WebSocketHelper
       tab: ws_session_id, generation: session[:_ws_generation],
       observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
       settings: turn_settings, parameters: session[:parameters],
-      picture: picture, selection: selection
+      pictures: pictures, selection: selection
     )
     give_reply_token(ws_session_id, session[:_ws_generation], chat_at_start, request_id, token) if token
     replied = false

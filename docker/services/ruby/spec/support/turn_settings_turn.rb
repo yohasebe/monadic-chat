@@ -109,7 +109,7 @@ module TurnSettingsTurn
       )
     end
     pointed = {}
-    pointed[:picture] = @turn_picture if @turn_picture
+    pointed[:pictures] = [@turn_picture] if @turn_picture
     if selection
       pointed[:selection] = Monadic::Workbench::Selection.new(
         request_id: request_id, item_id: PICTURED_ITEM, version: PICTURED_VERSION, page: 2, pages: 5,

@@ -2653,6 +2653,8 @@ document.addEventListener("DOMContentLoaded", function () {
       // as they are when the user sends (not later, once the connection is
       // back: the pane may have scrolled meanwhile).
       const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
+      // The marked items' pictures (several), or else the chosen item's unmarked one.
+      const pictures = window.Workbench && typeof window.Workbench.picturesNow === 'function' ? window.Workbench.picturesNow() : null;
       const picture = window.Workbench && typeof window.Workbench.pictureNow === 'function' ? window.Workbench.pictureNow() : null;
       const selection = window.Workbench && typeof window.Workbench.selectionNow === 'function' ? window.Workbench.selectionNow() : null;
       // The AI's mark is for the reply it came with: the next message takes it away.
@@ -2676,7 +2678,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // the page keeps, does not take it.
         const extra = {};
         if (shown) extra.workbench_range = shown;
-        if (picture) extra.workbench_picture = picture.data;
+        if (pictures) extra.workbench_pictures = pictures.data;
+        else if (picture) extra.workbench_picture = picture.data;
         if (selection) extra.workbench_selection = selection.data;
         const outgoing = Object.keys(extra).length > 0 ? Object.assign({}, params, extra) : params;
         const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
@@ -2685,7 +2688,8 @@ document.addEventListener("DOMContentLoaded", function () {
           restoreAfterUnsentMessage();
           return;
         }
-        if (picture) picture.sent();
+        if (pictures) pictures.sent();
+        else if (picture) picture.sent();
         if (selection) selection.sent();
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');

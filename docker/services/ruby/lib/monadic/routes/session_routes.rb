@@ -303,8 +303,8 @@ post "/load" do
           message_obj["workbench_revisions"] = revisions if revisions
           # The images of the work screen it went with or sent (their
           # sha256; the file's sent_images holds them).
-          picture = Monadic::Workbench::Picture.clean(msg["workbench_picture"])
-          message_obj["workbench_picture"] = picture if picture && message_obj["role"] == "user"
+          pictures = Monadic::Workbench::Picture.clean_all(msg)
+          message_obj["workbench_pictures"] = pictures if !pictures.empty? && message_obj["role"] == "user"
           edits = Monadic::Workbench::EditInputs.clean(msg[Monadic::Workbench::EditInputs::KEY])
           message_obj[Monadic::Workbench::EditInputs::KEY] = edits if edits
           readings = Monadic::Library::Readings.clean(msg[Monadic::Library::Readings::KEY])

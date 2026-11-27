@@ -1287,16 +1287,22 @@ describe('Workbench', () => {
       let pointerNow;
       let drawnShapes;
       let drawImage;
+      let markChanged;
+      let markSeq;
 
       beforeEach(async () => {
         layout.pane = 'work';
         pointerNow = null;
+        markSeq = 1;
         drawnShapes = [];
         drawImage = jest.fn();
         window.WorkbenchPointer = {
           COLORS: { cyan: { fill: 'rgba(0,0,0,0.2)', line: '#000' } },
-          attach: () => ({ controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
-            pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false, setPointable: () => {}, dispose: jest.fn() })
+          attach: (opts) => {
+            markChanged = opts.changed;
+            return { controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
+              pointer: () => pointerNow, pointerSeq: () => markSeq, escape: () => false, setPointable: () => {}, dispose: jest.fn() };
+          }
         };
         jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
           drawImage, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
@@ -1352,15 +1358,61 @@ describe('Workbench', () => {
           crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
       });
 
-      test('takes the image with the mark drawn on it to go with a message, once for each place of the mark', () => {
-        expect(window.Workbench.pictureNow()).toBeNull();
+      test('takes the image with the mark drawn on it when the mark is made, to go with a message once for each place of it', () => {
+        expect(window.Workbench.picturesNow()).toBeNull();
         pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
-        const picture = window.Workbench.pictureNow();
-        expect(picture.data).toEqual({ item_id: 'i_g', version: 'e'.repeat(64), image: 'QUJD',
-          mark: { shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 },
-          crop: { x: 0, y: 0, width: 800, height: 600, sent_width: 800, sent_height: 600 } });
-        picture.sent();
+        markChanged();
+        const pictures = window.Workbench.picturesNow();
+        expect(pictures.data).toHaveLength(1);
+        expect(pictures.data[0]).toMatchObject({ item_id: 'i_g', version: 'e'.repeat(64), image: 'QUJD', mark_rev: 1,
+          mark: { shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 } });
+        expect(pictures.data[0].mark_id).toMatch(/^m_[a-z0-9]{12}$/);
+        // The marked item's picture goes, not the chosen item's single one.
         expect(window.Workbench.pictureNow()).toBeNull();
+        pictures.sent();
+        expect(window.Workbench.picturesNow()).toBeNull();
+        // Moved: it goes again, as the same mark.
+        markSeq = 2;
+        pointerNow = Object.assign({}, pointerNow, { x: 0.1 });
+        markChanged();
+        const again = window.Workbench.picturesNow();
+        expect(again.data[0]).toMatchObject({ mark_id: pictures.data[0].mark_id, mark_rev: 2 });
+        // Taken away: nothing goes.
+        pointerNow = null;
+        markChanged();
+        expect(window.Workbench.picturesNow()).toBeNull();
+      });
+
+      test('sends the marked items on the desk in their order, at most four, and says which go when more are marked', () => {
+        document.getElementById('work-screen-pane').insertAdjacentHTML('afterbegin', '<div class="workbench-head"></div>');
+        const hooks = [];
+        window.WorkbenchPointer.attach = (opts) => {
+          hooks.push(opts.changed);
+          return { controls: document.createElement('div'), pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false,
+            setPointable: () => {}, dispose: jest.fn() };
+        };
+        const photos = [1, 2, 3, 4, 5].map((n) => Object.assign({}, photo, { id: `i_${n}`, name: `${n}.png`,
+          sha256: String(n).repeat(64), version: String(n).repeat(64), place: n === 5 ? 'latest' : 'current' }));
+        view(photos, { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: photos } });
+        pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        photos.forEach((p) => {
+          window.Workbench.select(p.id);
+          const img = document.querySelector(`.workbench-section[data-item="${p.id}"] .workbench-image-frame img`);
+          Object.defineProperty(img, 'complete', { value: true });
+          Object.defineProperty(img, 'naturalWidth', { value: 80 });
+          Object.defineProperty(img, 'naturalHeight', { value: 60 });
+        });
+        // Each drawn image's mark is made.
+        hooks.forEach((changed) => changed());
+        const pictures = window.Workbench.picturesNow();
+        expect(pictures.data.map((d) => d.item_id)).toEqual(['i_1', 'i_2', 'i_3', 'i_4']);
+        expect(pictures.left).toBe(1);
+        const line = document.getElementById('workbench-marks');
+        expect(line.hidden).toBe(false);
+        expect(line.textContent).toContain('5 items are marked');
+        pictures.sent();
+        expect(window.Workbench.picturesNow().data.map((d) => d.item_id)).toEqual(['i_5']);
+        expect(line.hidden).toBe(true);
       });
 
       test('gives no image when nothing is marked, or when no image is asked for', async () => {
@@ -1614,13 +1666,15 @@ describe('Workbench', () => {
       HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,UElDVFVSRQ==';
       let pointer = null;
       let seq = 0;
+      let marked = null;
       const page = document.createElement('canvas');
       page.width = 800;
       page.height = 1000;
       // The canvas drawn 400 × 500, the upper half of it in view.
       page.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400, width: 400, height: 500 });
       window.WorkbenchPdf = {
-        show: (box) => {
+        show: (box, _bytes, _onChange, onMark) => {
+          marked = onMark;
           const sheet = document.createElement('div');
           sheet.className = 'workbench-pdf-page';
           sheet.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400 });
@@ -1638,32 +1692,38 @@ describe('Workbench', () => {
         document.querySelector('#workbench-view .workbench-pdf').getBoundingClientRect =
           () => ({ top: 0, bottom: 500, left: 0, right: 400, height: 500 });
         window.innerHeight = 250;
-        expect(window.Workbench.pictureNow()).toBeNull();
+        expect(window.Workbench.picturesNow()).toBeNull();
         // On the page shown, in the upper half of the canvas.
         pointer = { page: 2, shape: 'ellipse', x: 0.25, y: 0.1, w: 0.5, h: 0.2 };
         seq = 1;
-        const picture = window.Workbench.pictureNow();
-        expect(picture.data).toMatchObject({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5, image: 'UElDVFVSRQ==' });
-        expect(picture.data.mark).toEqual({ shape: 'ellipse', color: 'orange', x: 0.25, y: 0.2, w: 0.5, h: 0.4 });
+        marked();
+        const pictures = window.Workbench.picturesNow();
+        expect(pictures.data[0]).toMatchObject({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5, image: 'UElDVFVSRQ==',
+          mark_rev: 1 });
+        expect(pictures.data[0].mark).toEqual({ shape: 'ellipse', color: 'orange', x: 0.25, y: 0.2, w: 0.5, h: 0.4 });
         expect(drawn.map((d) => d[0])).toEqual(['ellipse']);
         // Sent: not again until the pointer changes.
-        picture.sent();
-        expect(window.Workbench.pictureNow()).toBeNull();
+        pictures.sent();
+        expect(window.Workbench.picturesNow()).toBeNull();
         seq = 2;
-        expect(window.Workbench.pictureNow()).not.toBeNull();
-        // On another page, or out of view: none.
+        marked();
+        expect(window.Workbench.picturesNow()).not.toBeNull();
+        // Made on a page not shown, or out of view: no picture of it.
         pointer = Object.assign({}, pointer, { page: 3 });
         seq = 3;
-        expect(window.Workbench.pictureNow()).toBeNull();
+        marked();
+        expect(window.Workbench.picturesNow()).toBeNull();
         pointer = { page: 2, shape: 'rect', x: 0.1, y: 0.8, w: 0.2, h: 0.1 };
         seq = 4;
-        expect(window.Workbench.pictureNow()).toBeNull();
+        marked();
+        expect(window.Workbench.picturesNow()).toBeNull();
         // For a model that takes no images: none.
         pointer = { page: 2, shape: 'rect', x: 0.1, y: 0.1, w: 0.2, h: 0.1 };
         seq = 5;
+        marked();
         document.body.insertAdjacentHTML('beforeend', '<select id="model"><option value="blind" selected>blind</option></select>');
         window.modelSpec = { blind: { vision_capability: false } };
-        expect(window.Workbench.pictureNow()).toBeNull();
+        expect(window.Workbench.picturesNow()).toBeNull();
       } finally {
         delete window.WorkbenchPdf;
         delete window.modelSpec;

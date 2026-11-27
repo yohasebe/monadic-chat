@@ -218,7 +218,7 @@ module BaseVendorHelper
       # What the server fixed when it accepted the send stays as it was.
       existing.merge!(content.except(*USER_TURN_SERVER_FIELDS))
       content["attachments"] = existing["attachments"] if existing["attachments"]
-      content["workbench_picture"] = existing["workbench_picture"] if existing["workbench_picture"]
+      content["workbench_pictures"] = existing["workbench_pictures"] if existing["workbench_pictures"]
       content["workbench_selection"] = existing["workbench_selection"] if existing["workbench_selection"]
     else
       content["request_id"] = request_id if request_id
@@ -227,7 +227,8 @@ module BaseVendorHelper
     block&.call res
   end
 
-  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot workbench_picture workbench_selection].freeze
+  USER_TURN_SERVER_FIELDS = %w[request_id attachments request_snapshot workbench_picture workbench_pictures
+                               workbench_selection].freeze
 
   # Whether this send has a user turn to record and show: typed text, or
   # files attached to the message of the current request with no text.
@@ -425,27 +426,38 @@ module BaseVendorHelper
     Monadic::Workbench::Look::Attempt.new(ledger, ids).send!(session, provider: provider, model: model, &)
   end
 
-  # The picture of the work screen the message being answered went with (it
-  # is in each request of its turn), kept as sent (Workbench::Sent) as the
-  # first of them is handed to the provider, and named on the message.
-  # When the chat keeps too much, nothing is sent (Look::Withheld); a chat
-  # without a folder for it sends it without keeping it.
+  # The pictures of the work screen the message being answered went with
+  # (they are in each request of its turn), kept as sent (Workbench::Sent)
+  # as the first of them is handed to the provider, and named on the
+  # message: all of them or none (room for all is checked first). When the
+  # chat keeps too much, nothing is sent (Look::Withheld); a chat without a
+  # folder for them sends them without keeping them.
   def keep_workbench_picture(session)
-    picture = workbench_picture_now(session)
-    return unless picture && session.respond_to?(:[])
+    pictures = workbench_pictures_now(session)
+    return if pictures.empty? || !session.respond_to?(:[])
 
+    request_id = pictures.first.request_id
     message = Array(session[:messages]).reverse.find do |m|
-      m.is_a?(Hash) && m['request_id'] == picture.request_id && m['workbench_picture'].is_a?(Hash)
+      m.is_a?(Hash) && m['request_id'] == request_id && m['workbench_pictures'].is_a?(Array)
     end
-    return if message.nil? || message['workbench_picture']['sha256']
+    return if message.nil?
+
+    refs = message['workbench_pictures'].select { |ref| ref.is_a?(Hash) }
+    waiting = pictures.select { |picture| (ref = refs.find { |r| r['id'] == picture.id }) && !ref['sha256'] }
+    return if waiting.empty?
 
     sent = Monadic::Workbench::Sent
-    sha256 = sent.keep!(picture.chat_id, picture.bytes, 'image/png', app_name: session[:parameters]&.dig('app_name'))
-    message['workbench_picture']['sha256'] = sha256
-    sent.done(picture.chat_id, [sha256])
+    chat_id = waiting.first.chat_id
+    sent.check_room!(chat_id, waiting.sum { |picture| picture.bytes.bytesize })
+    app_name = session[:parameters]&.dig('app_name')
+    shas = waiting.map { |picture| sent.keep!(chat_id, picture.bytes, 'image/png', app_name: app_name) }
+    waiting.zip(shas).each { |picture, sha256| refs.find { |r| r['id'] == picture.id }['sha256'] = sha256 }
+    sent.done(chat_id, shas)
   rescue Monadic::Workbench::Sent::Full => e
+    sent.done(chat_id, shas) if shas
     raise Monadic::Workbench::Look::Withheld, "The request was not sent: #{e.message}."
   rescue Monadic::Workbench::Sent::Unavailable
+    sent.done(chat_id, shas) if shas
     nil
   end
 
@@ -522,27 +534,28 @@ module BaseVendorHelper
     described.merge("text" => Monadic::Workspace::StoppedReplies.with_note(msg, described["text"]))
   end
 
-  # The picture of the work screen the message being answered was sent with
-  # (Workbench::Picture), while the session is still in that chat, or nil.
-  def workbench_picture_now(session = nil)
-    picture = Monadic::Workspace::RequestContext.current&.picture
-    return nil unless picture
+  # The pictures of the work screen the message being answered was sent
+  # with (Workbench::Picture), in order, while the session is still in that
+  # chat; none otherwise.
+  def workbench_pictures_now(session = nil)
+    pictures = Monadic::Workspace::RequestContext.current&.pictures || []
+    return [] if pictures.empty?
 
     chat_id = session && (session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s])
-    return nil if chat_id && chat_id != picture.chat_id
+    return [] if chat_id && chat_id != pictures.first.chat_id
 
-    picture
+    pictures
   end
 
-  # msg with the picture its request was sent with, when msg is the message
-  # of that request: the picture after its images and what it is after its
-  # text. A new message (the session's keeps neither).
+  # msg with the pictures its request was sent with, when msg is the message
+  # of that request: the pictures after its images, in order, and what each
+  # is after its text. A new message (the session's keeps neither).
   def with_workbench_picture(msg)
-    picture = workbench_picture_now
-    return msg unless picture && msg["request_id"] && msg["request_id"] == picture.request_id
+    pictures = workbench_pictures_now
+    return msg unless !pictures.empty? && msg["request_id"] && msg["request_id"] == pictures.first.request_id
 
-    msg.merge("images" => Array(msg["images"]) + [picture.image],
-              "text" => [msg["text"].to_s, picture.note].reject(&:empty?).join("\n\n"))
+    msg.merge("images" => Array(msg["images"]) + pictures.map(&:image),
+              "text" => ([msg["text"].to_s] + pictures.map(&:note)).reject(&:empty?).join("\n\n"))
   end
 
   # msg with the text the user selected in the work screen to send with it,
@@ -559,10 +572,10 @@ module BaseVendorHelper
   # from the request (images) rather than from its messages: with the
   # picture of the work screen it was sent with, when there is one.
   def images_with_workbench_picture(images, session)
-    picture = workbench_picture_now(session)
-    return images unless picture
+    pictures = workbench_pictures_now(session)
+    return images if pictures.empty?
 
-    Array(images) + [picture.image]
+    Array(images) + pictures.map(&:image)
   end
 
   def model_facing_attachments(msg)

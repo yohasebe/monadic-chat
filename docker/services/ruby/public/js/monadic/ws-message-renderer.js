@@ -130,7 +130,7 @@ function handlePastMessages(data) {
           window.Workbench.drawLooks(msg.mid, msg.workbench_looks);
         }
         if (window.Workbench && typeof window.Workbench.drawPicture === 'function') {
-          window.Workbench.drawPicture(msg.mid, msg.workbench_picture);
+          window.Workbench.drawPicture(msg.mid, msg.workbench_pictures || msg.workbench_picture);
         }
         if (window.Workbench && typeof window.Workbench.drawEdits === 'function') {
           window.Workbench.drawEdits(msg.mid, msg.workbench_edit_inputs);

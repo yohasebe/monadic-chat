@@ -575,7 +575,6 @@ describe('a PDF item in the workbench', () => {
     jest.resetModules();
     document.body.innerHTML = `
       <div id="workbench-status"></div>
-      <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>`;
     window.LayoutController = { isMenuHidden: () => false, setMenuHidden: jest.fn(), selectedPane: () => 'work', setPane: jest.fn() };
@@ -584,6 +583,7 @@ describe('a PDF item in the workbench', () => {
     window.SessionState = { getMessages: () => [] };
     delete global.webUIi18n;
     require(js('monadic/dom-helpers.js'));
+    require(js('monadic/workbench-places.js'));
     require(js('monadic/workbench.js'));
   });
 

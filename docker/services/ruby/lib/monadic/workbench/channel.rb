@@ -27,6 +27,9 @@ module Monadic
     # trusts what the page says about the chat, the epoch or the image: the
     # server's token and the ledger hold them.
     module Channel
+      # The reasons the page tells apart, for the board's refusals.
+      REFUSALS = { Board::BUSY => 'replying', Board::FULL => 'now_full' }.freeze
+
       module_function
 
       # The message for the tab's page: the board's snapshot, a token for
@@ -104,7 +107,7 @@ module Monadic
         { 'type' => 'workbench_result', 'operation_id' => operation['id'], 'item_id' => operation['item_id'],
           'status' => status.to_s, 'action' => operation['action'], 'state' => operation['state'] }
       rescue Board::Refused => e
-        refusal(operation_id, e.message)
+        refusal(operation_id, REFUSALS.fetch(e.message, e.message))
       end
 
       # The user opens a file of the shared folder (path, as the Shared
@@ -313,8 +316,10 @@ module Monadic
         session[Monadic::Workspace::Chats::SESSION_KEY] || session[Monadic::Workspace::Chats::SESSION_KEY.to_s]
       end
 
+      # A chat with no board yet: nothing on it, and whether a reply runs.
       def empty_board(chat_id)
-        { board_id: nil, chat_id: chat_id, epoch: Monadic::Workspace::Chats.epoch(chat_id), revision: 0, items: [] }
+        { board_id: nil, chat_id: chat_id, epoch: Monadic::Workspace::Chats.epoch(chat_id), revision: 0, items: [],
+          layers: {}, replying: !Board.running_reply(chat_id).nil?, now_limit: Board::NOW_LIMIT }
       end
 
       def refusal(operation_id, reason)

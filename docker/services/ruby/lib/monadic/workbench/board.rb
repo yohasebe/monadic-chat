@@ -112,13 +112,14 @@ module Monadic
         end
 
         # The reply request_id ended (any outcome): its turn ends. Returns
-        # the chat of the board it ended on (its pages are told), or nil.
+        # its chat (its pages are told, also when it has no board), or nil
+        # for a reply that did not begin here.
         def end_reply(request_id)
           chat_id = @replies_lock.synchronize { @replies.delete(request_id) }
-          board = chat_id && @boards_lock.synchronize { @boards[chat_id] }
-          return nil unless board
+          return nil unless chat_id
 
-          board.end_reply(request_id)
+          board = @boards_lock.synchronize { @boards[chat_id] }
+          board&.end_reply(request_id)
           chat_id
         end
 
@@ -190,22 +191,16 @@ module Monadic
         data = @lock.synchronize { deep_dup(@data) }
         {
           board_id: data['board_id'], chat_id: @chat_id, epoch: Monadic::Workspace::Chats.epoch(@chat_id),
-          revision: data['revision'], layers: public_layers(data), replying: !@reply.nil?,
+          revision: data['revision'], layers: public_layers(data), replying: !@reply.nil?, now_limit: NOW_LIMIT,
           items: data['items'].values.map { |item| public_item(item) }
         }
       end
 
       # The user's message request_id was accepted: the user's turn ends
       # and the reply's opens (its placements go into current).
+      # The revision moves on also when nothing moves, so that a page's view
+      # of whether a reply runs is never replaced by an older one.
       def begin_reply(request_id)
-        quiet = @lock.synchronize do
-          next false if @data['items'].values.any? { |item| item['place'] == 'current' || item['fresh'] }
-
-          @reply = request_id
-          true
-        end
-        return if quiet
-
         change do |data|
           shift!(data, 'user', request_id)
           data['items'].each_value { |item| item.delete('fresh') }
@@ -217,14 +212,7 @@ module Monadic
       # The reply request_id ended: its turn ends. Returns whether the desk
       # changed.
       def end_reply(request_id)
-        quiet = @lock.synchronize do
-          next true unless @reply == request_id
-          next false if @data['items'].values.any? { |item| item['place'] == 'current' }
-
-          @reply = nil
-          true
-        end
-        return false if quiet
+        return false unless @lock.synchronize { @reply == request_id }
 
         changed = false
         change do |data|

@@ -65,7 +65,6 @@ describe('Attachments on the work screen', () => {
     document.body.innerHTML = `
       <div id="discourse"></div>
       <div id="workbench-status"></div>
-      <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
       <textarea id="message"></textarea>`;
@@ -88,6 +87,7 @@ describe('Attachments on the work screen', () => {
     delete window.electronAPI;
     delete global.webUIi18n;
     require(js('monadic/dom-helpers.js'));
+    require(js('monadic/workbench-places.js'));
     require(js('monadic/workbench.js'));
   });
 

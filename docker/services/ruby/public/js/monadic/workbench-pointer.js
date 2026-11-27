@@ -285,7 +285,8 @@
     // or those sides. The change counts once, when the mark is let go.
     let held = null;
     mark.addEventListener('pointerdown', (e) => {
-      if (drawing || !pointer || e.button !== 0) return;
+      // A mark that can no longer be changed (setPointable(false)) stays as it is.
+      if (!pointable || drawing || !pointer || e.button !== 0) return;
       const from = fractionAt(e);
       if (!from) return;
       const handle = e.target.closest && e.target.closest('.workbench-pointer-handle');

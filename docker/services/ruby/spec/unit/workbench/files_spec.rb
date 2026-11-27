@@ -241,6 +241,15 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(Monadic::Workbench::Board.end_reply(request)).to be_nil
     end
 
+    it "tells a chat with no board that a reply runs, and ends the reply there too" do
+      request = Monadic::Workspace::Ids.generate(:request)
+      Monadic::Workbench::Board.begin_reply(chat, request)
+      expect(Monadic::Workbench::Board.existing(chat)).to be_nil
+      expect(channel.view(session, tab: "tab-1", generation: 1, live: live)["board"]).to include(replying: true, items: [])
+      expect(Monadic::Workbench::Board.end_reply(request)).to eq(chat)
+      expect(channel.view(session, tab: "tab-1", generation: 1, live: live)["board"]).to include(replying: false)
+    end
+
     it "reads a board saved before the desk had places with every item put away" do
       write("a.txt", "a")
       item, = open_file("a.txt")

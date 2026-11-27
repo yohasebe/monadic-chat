@@ -80,6 +80,29 @@ RSpec.describe Monadic::Workbench::UrlFile do
       expect(connected_to).to eq(["93.184.216.34"])
     end
 
+    it "tries the next checked address when one cannot be reached" do
+      answers["https://example.com/a.pdf"] = [200, { "Content-Type" => "application/pdf" }, pdf_bytes]
+      reached = []
+      flaky = lambda do |address|
+        reached << address
+        raise HTTP::ConnectionError, "no route" if address.include?(":")
+
+        client.call(address)
+      end
+      found = described_class.fetch("https://example.com/a.pdf", limit: 1024, client: flaky,
+                                                                 check: ->(_host) { ["2606:2800:220:1::1", "93.184.216.34"] })
+      expect(found).to include(bytes: pdf_bytes)
+      expect(reached).to eq(["2606:2800:220:1::1", "93.184.216.34"])
+    end
+
+    it "says the address could not be reached when none of the checked addresses can be" do
+      down = ->(_address) { raise HTTP::ConnectionError, "no route" }
+      expect do
+        described_class.fetch("https://example.com/a.pdf", limit: 1024, client: down,
+                                                           check: ->(_host) { ["2606:2800:220:1::1", "93.184.216.34"] })
+      end.to raise_error(described_class::Failed, "unreachable")
+    end
+
     it "stops reading an answer that takes longer than the deadline" do
       stub_const("#{described_class}::DEADLINE", -1)
       answers["https://example.com/slow.pdf"] = [200, { "Content-Type" => "application/pdf" }, pdf_bytes]

@@ -5,8 +5,9 @@
  * and where it is (for a PDF, the page); the pointer gives its buttons, the
  * mark, and what is marked.
  *
- * WorkbenchPointer.attach({ surface, where }) puts a layer over surface (a
- * positioned element) and returns a handle:
+ * WorkbenchPointer.attach({ surface, where, changed }) puts a layer over
+ * surface (a positioned element) and returns a handle; changed(pointer), when
+ * given, is called each time the mark is made, moved or taken away:
  * - controls: the pointer's buttons (point, the look, take it away), to be
  *   put in the view's bar
  * - pointer(): what is marked ({ at, by, shape, color, x, y, w, h }: at is
@@ -96,7 +97,7 @@
     return g;
   }
 
-  function attach({ surface, where }) {
+  function attach({ surface, where, changed }) {
     const tips = [];
     // The buttons: draw a mark (the next drag over the surface, in the
     // color of the mark), choose its look (shape and color), take it away.
@@ -240,6 +241,7 @@
       pointer = next;
       pointerSeq += 1;
       showPointer();
+      if (typeof changed === 'function') changed(pointer);
     }
 
     // The point on the surface under an event, as fractions (within 0..1).

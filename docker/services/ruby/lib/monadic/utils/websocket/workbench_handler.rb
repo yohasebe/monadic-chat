@@ -128,12 +128,14 @@ module WebSocketHelper
     id = obj['picture_id'].to_s
     reply = { 'type' => 'workbench_picture', 'picture_id' => id }
     chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
-    named = Array(session[:messages]).find do |m|
-      m.is_a?(Hash) && m['role'] == 'user' && m['workbench_picture'].is_a?(Hash) && m['workbench_picture']['id'] == id
-    end
+    named = Array(session[:messages]).lazy.filter_map do |m|
+      next unless m.is_a?(Hash) && m['role'] == 'user'
+
+      Monadic::Workbench::Picture.references_of(m).find { |ref| ref['id'] == id }
+    end.first
     # Kept with the chat's workbench, or, as it was sent, in its folder (a
     # chat taken from a file has only that).
-    sha256 = named && named['workbench_picture']['sha256']
+    sha256 = named && named['sha256']
     bytes = named && chat_id ? Monadic::Workbench::Picture.read(chat_id, id) : nil
     bytes ||= Monadic::Workbench::Sent.read(chat_id, sha256) if chat_id && sha256
     return send_to_client(connection, reply.merge('found' => false)) unless bytes

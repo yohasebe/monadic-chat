@@ -29,16 +29,16 @@ module Monadic
       # the chat the message came in (the Hash itself): the settings are
       # those of a request made with these parameters, and of no other (a
       # tool that asks a model of its own makes its own).
-      # picture: the picture of the work screen the message was sent with
-      # (Workbench::Picture), or nil. selection: the text the user selected
+      # pictures: the pictures of the work screen the message was sent with
+      # (Workbench::Picture), in order. selection: the text the user selected
       # in the work screen to send with it (Workbench::Selection), or nil.
-      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings, :picture,
+      attr_reader :request_id, :chat_id, :attachment_ids, :tab, :generation, :observation, :settings, :pictures,
                   :selection
 
       def initialize(chat_id:, attachment_ids: [], request_id: Ids.generate(:request), tab: nil, generation: nil,
-                     observation: nil, settings: nil, parameters: nil, picture: nil, selection: nil)
+                     observation: nil, settings: nil, parameters: nil, pictures: [], selection: nil)
         @request_id = request_id
-        @picture = picture
+        @pictures = Array(pictures).compact.freeze
         @selection = selection
         @settings = settings
         @parameters = parameters

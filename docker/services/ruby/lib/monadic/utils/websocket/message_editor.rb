@@ -67,9 +67,12 @@ module WebSocketHelper
   end
   
   def remove_workbench_picture(rack_session, message)
-    id = message.is_a?(Hash) && message["workbench_picture"].is_a?(Hash) ? message["workbench_picture"]["id"] : nil
     chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
-    Monadic::Workbench::Picture.remove(chat_id, id) if id && chat_id
+    return unless chat_id
+
+    Monadic::Workbench::Picture.references_of(message).each do |ref|
+      Monadic::Workbench::Picture.remove(chat_id, ref["id"]) if ref["id"]
+    end
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Picture not removed: #{e.class}" }
   end

@@ -3,6 +3,7 @@
 require 'base64'
 require 'digest'
 require_relative 'image_check'
+require_relative 'picture'
 require_relative '../utils/environment'
 require_relative '../utils/shared_path_guard'
 require_relative '../utils/tool_image_utils'
@@ -109,12 +110,12 @@ module Monadic
       end
 
       # Full when the chat could not keep bytes more (checked before what
-      # would send them goes); a chat without a folder yet has room.
+      # would send them goes); a chat without a folder yet keeps nothing.
       def check_room!(chat_id, bytes)
         return if bytes.zero?
 
-        dir = dir_for(chat_id) or return
-        raise Full, 'the images this chat sent are too large to keep' if total(dir) + bytes > LIMIT_BYTES
+        dir = dir_for(chat_id)
+        raise Full, 'the images this chat sent are too large to keep' if (dir ? total(dir) : 0) + bytes > LIMIT_BYTES
       end
 
       # The images of shas256 a reply sent are named by its message now, or
@@ -153,9 +154,9 @@ module Monadic
 
             [look['image_sha256'], look['file_sha256']].compact
           end
-          picture = message['workbench_picture']
+          pictures = Picture.references_of(message).filter_map { |ref| ref['sha256'] }
           edits = Array(message['workbench_edit_inputs']).filter_map { |e| e['sha256'] if e.is_a?(Hash) }
-          looks + edits + [picture.is_a?(Hash) ? picture['sha256'] : nil].compact
+          looks + edits + pictures
         end.uniq
       end
 

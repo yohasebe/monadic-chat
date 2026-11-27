@@ -511,11 +511,11 @@ module CohereHelper
     if role != "tool" || current_turn
       suffix_options = is_initial_greeting ? {} : { prompt_suffix: obj["prompt_suffix"] }
       base = role == "tool" ? model_facing_message(current_turn)["text"].to_s : message
-      # What the picture of the work screen it was sent with is (the tool's
-      # request has it from model_facing_message).
-      picture = workbench_picture_now(session)
-      if role != "tool" && picture && current_turn && picture.request_id == current_turn["request_id"]
-        base = [base.to_s, picture.note].reject(&:empty?).join("\n\n")
+      # What the pictures of the work screen it was sent with are (the tool's
+      # request has them from model_facing_message).
+      pictures = workbench_pictures_now(session)
+      if role != "tool" && !pictures.empty? && current_turn && pictures.first.request_id == current_turn["request_id"]
+        base = ([base.to_s] + pictures.map(&:note)).reject(&:empty?).join("\n\n")
       end
       # And the text the user selected in the work screen to send with it.
       base = with_workbench_selection(current_turn.merge("text" => base.to_s))["text"] if role != "tool" && current_turn
@@ -530,9 +530,9 @@ module CohereHelper
       # The message's images go with it, in the request that returns a
       # tool's results too.
       latest_msg = role == "tool" ? current_turn : session[:messages].last
-      # With the picture of the work screen the message was sent with (its
+      # With the pictures of the work screen the message was sent with (its
       # text says so already).
-      if latest_msg && workbench_picture_now(session)&.request_id == latest_msg["request_id"]
+      if latest_msg && workbench_pictures_now(session).first&.request_id == latest_msg["request_id"]
         latest_msg = latest_msg.merge("images" => images_with_workbench_picture(latest_msg["images"], session))
       end
       if latest_msg && latest_msg["images"] && latest_msg["images"].any? && %w[user tool].include?(role)

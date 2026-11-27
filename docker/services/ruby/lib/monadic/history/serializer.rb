@@ -101,8 +101,8 @@ module Monadic
         out[Monadic::Library::Readings::KEY] = readings if readings
         # The picture of the work screen a user message was sent with (its
         # reference; the picture is in the chat's workbench folder).
-        picture = Monadic::Workbench::Picture.clean(raw['workbench_picture'] || raw[:workbench_picture])
-        out['workbench_picture'] = picture if picture && out['role'] == 'user'
+        pictures = Monadic::Workbench::Picture.clean_all(raw.transform_keys(&:to_s))
+        out['workbench_pictures'] = pictures if !pictures.empty? && out['role'] == 'user'
         # The text a user message was sent with, selected in the work screen.
         selection = Monadic::Workbench::Selection.clean(raw['workbench_selection'] || raw[:workbench_selection])
         out['workbench_selection'] = selection if selection && out['role'] == 'user'

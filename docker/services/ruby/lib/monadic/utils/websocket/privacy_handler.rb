@@ -284,7 +284,7 @@ module WebSocketHelper
     mid role text app_name type lang html active
     thinking tokens images image
     interrupted tools_used verify artifacts workbench_looks workbench_shown workbench_made workbench_revisions
-    workbench_picture workbench_edit_inputs library_readings state_changes
+    workbench_picture workbench_pictures workbench_edit_inputs library_readings state_changes
   ].freeze
 
   # Reduce messages to the shared-export schema. Anything not named above is
@@ -310,8 +310,9 @@ module WebSocketHelper
       kept = kept.merge('workbench_revisions' => revisions) if revisions
       # The images of the work screen it was sent with or sent (their
       # sha256: the file's sent_images holds them).
-      picture = Monadic::Workbench::Picture.clean(kept.delete('workbench_picture') || kept.delete(:workbench_picture))
-      kept = kept.merge('workbench_picture' => picture) if picture && m['role'] == 'user'
+      pictures = Monadic::Workbench::Picture.clean_all(kept.transform_keys(&:to_s))
+      %w[workbench_picture workbench_pictures].each { |key| kept.delete(key) || kept.delete(key.to_sym) }
+      kept = kept.merge('workbench_pictures' => pictures) if !pictures.empty? && m['role'] == 'user'
       edits = Monadic::Workbench::EditInputs.clean(kept.delete(Monadic::Workbench::EditInputs::KEY))
       kept = kept.merge(Monadic::Workbench::EditInputs::KEY => edits) if edits
       readings = Monadic::Library::Readings.clean(kept.delete(Monadic::Library::Readings::KEY))

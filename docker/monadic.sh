@@ -323,6 +323,24 @@ safe_rm() {
   }
 }
 
+# Empties a log file in place, so a server that keeps it open goes on
+# writing to the same file. A link is removed rather than followed.
+safe_truncate() {
+  local target="$1"
+  if [ -L "$target" ]; then
+    safe_rm "$target"
+    return
+  fi
+  [ -f "$target" ] || return 0
+  : > "$target" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      sudo truncate -s 0 "$target" 2>/dev/null || echo "[WARN] Unable to empty $target"
+    else
+      echo "[WARN] Unable to empty $target (insufficient permissions)"
+    fi
+  }
+}
+
 safe_touch() {
   local target="$1"
   touch "$target" 2>/dev/null || {
@@ -629,11 +647,10 @@ ensure_data_dir() {
   ensure_state_dir
   in_container || ensure_code_dirs || exit 1
 
-  safe_rm "${log_dir}/command.log"
-  safe_rm "${log_dir}/jupyter.log"
-
-  # remove extra.log if it exists
-  safe_rm "${log_dir}/extra.log"
+  # Empty the logs (a running server keeps writing to the same files)
+  safe_truncate "${log_dir}/command.log"
+  safe_truncate "${log_dir}/jupyter.log"
+  safe_truncate "${log_dir}/extra.log"
 
   safe_touch "${config_dir}/env"
 

@@ -160,39 +160,97 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
   end
 
   describe "the row of items" do
-    let(:limit) { Monadic::Workbench::Board::ITEM_LIMIT }
+    let(:limit) { Monadic::Workbench::Board::NOW_LIMIT }
 
-    it "takes the oldest item off when it is full, but not one a tab shows nor the latest image" do
-      write("f1.txt", "1")
-      shown, = open_file("f1.txt")
-      board.select(tab: "tab-2", generation: 1, item_id: shown["id"])
-      latest = image("x")
-      (3..limit).each do |i|
-        write("f#{i}.txt", i.to_s)
-        open_file("f#{i}.txt")
-      end
-      write("next.txt", "next")
-      open_file("next.txt")
-      paths = board.snapshot[:items].map { |i| i[:path] }
-      expect(paths.size).to eq(limit)
-      expect(paths).to include("f1.txt", latest.dig("artifact", "path"))
-      expect(paths).not_to include("f3.txt")
-      expect(File.file?(File.join(@data, "f3.txt"))).to be(true)
-    end
-
-    it "refuses to add when every item is kept, and the user can still take one off" do
-      (1..limit).each { |i| live_tabs["tab-#{i}"] = 1 }
-      live_tabs["tab-x"] = 1
+    it "refuses an 11th item in Now and takes nothing off; taking one off makes room" do
       items = (1..limit).map do |i|
         write("f#{i}.txt", i.to_s)
-        open_file("f#{i}.txt", tab: "tab-#{i}").first
+        open_file("f#{i}.txt").first
       end
       write("next.txt", "next")
-      expect { open_file("next.txt", tab: "tab-x") }.to raise_error(Monadic::Workbench::Board::Refused, /full/)
-      status, = board.accept(item_id: items.first["id"], action: "remove", operation_id: "op-00000001", epoch: epoch,
-                             sha256: items.first.dig("file", "sha256"))
-      expect(status).to eq(:accepted)
-      expect { open_file("next.txt", tab: "tab-x") }.not_to raise_error
+      expect { open_file("next.txt") }.to raise_error(Monadic::Workbench::Board::Refused, /Now/)
+      expect(board.snapshot[:items].map { |i| i[:id] }).to eq(items.map { |i| i["id"] })
+      _, operation = board.accept(item_id: items.first["id"], action: "remove", operation_id: "op-00000001", epoch: epoch,
+                                  sha256: items.first.dig("file", "sha256"))
+      expect(operation["state"]).to eq("removed")
+      expect(File.file?(File.join(@data, "f1.txt"))).to be(true)
+      expect { open_file("next.txt") }.not_to raise_error
+    end
+
+    it "moves the layers down when a turn ends with something in Now, and not otherwise" do
+      write("a.txt", "a")
+      write("b.txt", "b")
+      mine, = open_file("a.txt")
+      request = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(request)
+      agent = { actor: :agent, source: :tool, request_id: request }
+      made, = board.add_file(path: "b.txt", origin: agent, epoch: epoch)
+      places = -> { board.snapshot[:items].to_h { |i| [i[:id], i[:place]] } }
+      expect(places.call).to eq(mine["id"] => "latest", made["id"] => "current")
+      board.end_reply(request)
+      expect(places.call).to eq(mine["id"] => "previous", made["id"] => "latest")
+      expect(board.snapshot[:layers]).to eq("latest" => "agent", "previous" => "user")
+      # A turn of text only moves nothing.
+      board.begin_reply(Monadic::Workspace::Ids.generate(:request))
+      expect(places.call).to eq(mine["id"] => "previous", made["id"] => "latest")
+    end
+
+    it "keeps the user's turn while a reply runs, and brings an item into Now without moving the others" do
+      write("a.txt", "a")
+      write("b.txt", "b")
+      write("c.txt", "c")
+      first, = open_file("a.txt")
+      second, = open_file("b.txt")
+      request = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(request)
+      expect { open_file("c.txt") }.to raise_error(Monadic::Workbench::Board::Refused, /replying/)
+      board.end_reply(request)
+      # The reply placed nothing: the user's items stay in latest.
+      board.accept(item_id: first["id"], action: "bring", operation_id: "op-00000002", epoch: epoch,
+                   sha256: first.dig("file", "sha256"))
+      expect(board.snapshot[:items].to_h { |i| [i[:id], i[:place]] }).to eq(second["id"] => "latest", first["id"] => "current")
+      # Sent before: taking it off puts it away.
+      _, operation = board.accept(item_id: first["id"], action: "remove", operation_id: "op-00000003", epoch: epoch,
+                                  sha256: first.dig("file", "sha256"))
+      expect(operation["state"]).to eq("stashed")
+      expect(board.snapshot[:items].find { |i| i[:id] == first["id"] }[:place]).to eq("stash")
+    end
+
+    it "puts a late item of a reply that ended into that reply's layer" do
+      write("a.txt", "a")
+      write("b.txt", "b")
+      mine, = open_file("a.txt")
+      request = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(request)
+      board.end_reply(request)
+      late, = board.add_file(path: "b.txt", origin: { actor: :agent, source: :job, request_id: request }, epoch: epoch)
+      expect(board.snapshot[:items].to_h { |i| [i[:id], i[:place]] }).to eq(mine["id"] => "previous", late["id"] => "latest")
+      expect(board.snapshot[:layers]).to eq("latest" => "agent", "previous" => "user")
+    end
+
+    it "keeps a reply's turn for a board first made while it runs, and ends it by its request" do
+      request = Monadic::Workspace::Ids.generate(:request)
+      Monadic::Workbench::Board.begin_reply(chat, request)
+      write("a.txt", "a")
+      made, = board.add_file(path: "a.txt", origin: { actor: :agent, source: :tool, request_id: request }, epoch: epoch)
+      expect(board.snapshot).to include(replying: true)
+      expect(board.snapshot[:items].first).to include(id: made["id"], place: "current", by: "agent")
+      expect(Monadic::Workbench::Board.end_reply(request)).to eq(chat)
+      expect(board.snapshot).to include(replying: false)
+      expect(board.snapshot[:items].first[:place]).to eq("latest")
+      expect(Monadic::Workbench::Board.end_reply(request)).to be_nil
+    end
+
+    it "reads a board saved before the desk had places with every item put away" do
+      write("a.txt", "a")
+      item, = open_file("a.txt")
+      path = Dir.glob(File.join(@state, "workbench", "**", "manifest.json")).first
+      saved = JSON.parse(File.read(path))
+      saved["schema"] = 2
+      saved["items"].each_value { |i| i.delete("place") && i.delete("by") && i.delete("fresh") }
+      File.write(path, JSON.generate(saved))
+      Monadic::Workbench::Board.reset!
+      expect(board.snapshot[:items].map { |i| [i[:id], i[:place], i[:by]] }).to eq([[item["id"], "stash", "user"]])
     end
 
     it "keeps a tab's selection for its connection only" do
@@ -549,21 +607,6 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(opened(2)["browser"]).to eq("instance" => 2)
     end
 
-    it "is kept while open when the board makes room, and can go once closed" do
-      live_tabs["tab-x"] = 1
-      item = opened(1, tab: "tab-x")
-      board.select(tab: "tab-x", generation: 1, item_id: nil)
-      (1..Monadic::Workbench::Board::ITEM_LIMIT).each do |i|
-        write("f#{i}.txt", i.to_s)
-        open_file("f#{i}.txt")
-      end
-      expect(board.snapshot[:items].map { |i| i[:id] }).to include(item["id"])
-      open_instance[0] = nil
-      write("g.txt", "g")
-      open_file("g.txt")
-      expect(board.snapshot[:items].map { |i| i[:id] }).not_to include(item["id"])
-    end
-
     it "gives the browser a token to remove it, and no address" do
       item = opened
       message = channel.view(session, tab: "tab-1", generation: 1, live: live)
@@ -600,11 +643,10 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
           define_singleton_method(:send_to_live_connection) { |_tab, message, **| sent << JSON.parse(message) }
         end)
       end
-      # Every item is kept: each is what a tab of its own has selected.
-      files = (1..Monadic::Workbench::Board::ITEM_LIMIT).map do |i|
-        live_tabs["tab-k#{i}"] = 1
+      # Now is full.
+      files = (1..Monadic::Workbench::Board::NOW_LIMIT).map do |i|
         write("k#{i}.txt", i.to_s)
-        open_file("k#{i}.txt", tab: "tab-k#{i}").first
+        open_file("k#{i}.txt").first
       end
       expect(Monadic::WorkScreen.browser_opened(chat)).to eq(:full)
       expect(sent.find { |m| m["event"] == "browser_opened" }).to include("workbench" => "full")

@@ -118,11 +118,12 @@ RSpec.describe "the workbench over the main socket (channel, asset server)" do
   end
 
   describe "removing an image" do
-    it "takes it off the board, keeps its file, and answers a removal sent again" do
+    it "puts away what the assistant placed, keeps its file, and answers a removal sent again" do
       item = image
       token = view["approvals"][item["id"]]
-      expect(remove(item, token)).to include("status" => "accepted", "action" => "remove", "item_id" => item["id"])
-      expect(board.item(item["id"])).to be_nil
+      expect(remove(item, token)).to include("status" => "accepted", "action" => "remove", "item_id" => item["id"],
+                                             "state" => "stashed")
+      expect(board.item(item["id"])["place"]).to eq("stash")
       expect(File.file?(file_of(item))).to be(true)
       # The same operation again (its result was lost) is told it was done.
       expect(remove(item, token)).to include("status" => "same")

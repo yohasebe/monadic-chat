@@ -33,7 +33,7 @@ RSpec.describe "The picture of the work screen sent with a message" do
     allow(Monadic::History).to receive(:enabled?).and_return(false)
     allow(Monadic::Workbench::Board).to receive(:existing).and_call_original
     allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id)
-                                                         .and_return(double("board", observe: { items: [item], selected: "i_1" }))
+                                                         .and_return(double("board", observe: { items: [item], selected: "i_1" }, begin_reply: nil))
     allow(host).to receive(:send_or_broadcast) { |msg, *_| sent << JSON.parse(msg) }
     allow(host).to receive(:send_to_client) { |_c, msg| sent << msg }
     allow(host).to receive(:initialize_token_counting).and_return(nil)

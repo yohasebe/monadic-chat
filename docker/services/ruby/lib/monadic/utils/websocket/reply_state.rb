@@ -45,6 +45,13 @@ module WebSocketHelper
       # A reply that did not finish told nothing of the work screen's changes.
       Monadic::Workbench::Observation.untold(request_id) if defined?(Monadic::Workbench::Observation)
     end
+    ending_step("desk") do
+      # Its turn ends on the work screen (after what it made and no message
+      # took was taken off): what it placed moves down.
+      if defined?(Monadic::Workbench::Board) && (chat_id = Monadic::Workbench::Board.end_reply(request_id))
+        Monadic::Workbench::Channel.changed(chat_id)
+      end
+    end
     ending_step("capture") do
       # What it asked the work screen is not taken now.
       Monadic::Workbench::Capture.revoke_request(request_id) if defined?(Monadic::Workbench::Capture)

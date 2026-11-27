@@ -23,7 +23,9 @@ module Monadic
     class Store
       DIRNAME = 'workbench'
       MANIFEST = 'manifest.json'
-      SCHEMA = 2
+      SCHEMA = 3
+      # The form before the desk had places: read with every item put away.
+      PLACELESS_SCHEMA = 2
       LEGACY_SCHEMA = 1
 
       class Unreadable < StandardError; end
@@ -59,6 +61,7 @@ module Monadic
 
         data = JSON.parse(File.read(path))
         return nil if legacy?(data, chat_id)
+        data = put_away(data) if data.is_a?(Hash) && data['schema'] == PLACELESS_SCHEMA && data['items'].is_a?(Hash)
         unless data.is_a?(Hash) && data['schema'] == SCHEMA && data['chat_id'] == chat_id
           raise Unreadable, 'manifest is not of this form'
         end
@@ -86,6 +89,18 @@ module Monadic
       end
 
       private
+
+      # A manifest of PLACELESS_SCHEMA as this form: its items put away, in
+      # the order they arrived, each by who placed it.
+      def put_away(data)
+        data['items'].each_value do |item|
+          next unless item.is_a?(Hash)
+
+          item['place'] = 'stash'
+          item['by'] = item.dig('origin', 'actor').to_s == 'user' ? 'user' : 'agent'
+        end
+        data.merge('schema' => SCHEMA)
+      end
 
       # A manifest of the earlier form: its schema, its chat, and the
       # collections that form had.

@@ -356,7 +356,7 @@ describe('Workbench', () => {
     document.querySelector('.workbench-item-remove').click();
     expect(sent[0].payload).toMatchObject({ message: 'WORKBENCH_ACTION', item_id: 'i_1', action: 'remove', token: 'tok-i_1' });
     expect(sent[0].opts).toMatchObject({ idempotent: true });
-    window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1' });
+    window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1', state: 'removed' });
     view([], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [] }, approvals: {}, assets: {} });
     expect(el.querySelector('.workbench-note code').textContent).toBe(PATH);
     expect(el.querySelector('.workbench-open')).toBeNull();
@@ -366,7 +366,17 @@ describe('Workbench', () => {
     expect(document.getElementById('workbench-status').textContent).not.toContain('older item');
   });
 
-  test('says so when the board put an older image away to make room', () => {
+  test('keeps an item the server put away instead of removing it', () => {
+    view([item()]);
+    document.querySelector('.workbench-item-remove').click();
+    window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1', state: 'stashed' });
+    const kept = item();
+    view([kept], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [kept] } });
+    expect(shown()).toBe('i_1');
+    expect(document.getElementById('workbench-status').textContent).not.toContain('Removed');
+  });
+
+  test('says so when an item left the board without the user taking it off', () => {
     view([item()]);
     document.getElementById('workbench-status').textContent = '';
     const next = item({ id: 'i_2', artifact_id: 'r_2', sha256: 'b'.repeat(64) });
@@ -448,7 +458,7 @@ describe('Workbench', () => {
 
   test('tells the user when a removal was refused', () => {
     window.Workbench.onResult({ status: 'refused' });
-    window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1' });
+    window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1', state: 'removed' });
     expect(window.setAlert).toHaveBeenCalledTimes(1);
   });
   describe('files and the row', () => {

@@ -95,6 +95,17 @@ RSpec.describe Monadic::Workbench::UrlFile do
       expect(reached).to eq(["2606:2800:220:1::1", "93.184.216.34"])
     end
 
+    it "tries no further address once the deadline has passed" do
+      stub_const("#{described_class}::DEADLINE", -1)
+      reached = []
+      down = ->(address) { reached << address; raise HTTP::ConnectionError, "no route" }
+      expect do
+        described_class.fetch("https://example.com/a.pdf", limit: 1024, client: down,
+                                                           check: ->(_host) { ["2606:2800:220:1::1", "93.184.216.34"] })
+      end.to raise_error(described_class::Failed, "unreachable")
+      expect(reached).to eq(["2606:2800:220:1::1"])
+    end
+
     it "says the address could not be reached when none of the checked addresses can be" do
       down = ->(_address) { raise HTTP::ConnectionError, "no route" }
       expect do

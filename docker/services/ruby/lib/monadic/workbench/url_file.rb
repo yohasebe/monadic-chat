@@ -87,7 +87,7 @@ module Monadic
           end
           return :browser if addresses.empty?
 
-          response = ask(client, addresses, uri)
+          response = ask(client, addresses, uri, deadline)
           begin
             if [301, 302, 303, 307, 308].include?(response.code)
               location = header(response, 'Location')
@@ -112,8 +112,10 @@ module Monadic
 
       # The answer from the first of the checked addresses that can be
       # reached (an IPv6 address without an IPv6 route is passed over).
-      def ask(client, addresses, uri)
+      def ask(client, addresses, uri, deadline)
         addresses.each_with_index do |address, index|
+          raise Failed, 'unreachable' if index.positive? && Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
           return client.call(address).get(uri.to_s)
         rescue HTTP::ConnectionError, HTTP::ConnectTimeoutError, SystemCallError, SocketError
           raise if index == addresses.length - 1

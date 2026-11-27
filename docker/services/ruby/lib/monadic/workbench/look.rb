@@ -38,7 +38,7 @@ module Monadic
         private vision_unsupported tools_unsupported transport_unsupported connection_gone no_selection
         selection_changed changed missing range_unknown not_shown drawing rendered capture_timeout
         browser_unavailable pdf_text_unavailable unsupported_kind too_large busy cancelled filtered not_on_screen
-        not_selected
+        not_selected put_away
       ].freeze
 
       # The apps that take an audio or a video file on the work screen, named
@@ -222,6 +222,9 @@ module Monadic
             raise Refused.new('selection_changed', 'the work screen shows something else now; nothing was looked at')
           end
           raise Refused.new('cancelled', 'the reply was stopped') unless current?(caller)
+          unless board.on_desk?(looked_at['id'])
+            raise Refused.new('put_away', 'the item was put away meanwhile; nothing was looked at')
+          end
 
           id = "look_#{SecureRandom.hex(8)}"
           # What goes to the model as text (the result, the caption before
@@ -244,6 +247,8 @@ module Monadic
         return [target(board, caller), false] if item.nil? || item.to_s.empty?
 
         found = board.item(item.to_s) or raise Refused.new('not_on_screen', 'that item is not on the work screen now')
+        raise Refused.new('put_away', Board::PUT_AWAY) if found['place'] == 'stash'
+
         selected = board.look_target(tab: caller.tab, generation: caller.generation)
         return [selected, false] if selected.is_a?(Board::Target) && selected.item['id'] == found['id']
         raise Refused.new('not_selected', 'the browser can be looked at only when the user has it selected') if found['browser']
@@ -261,6 +266,8 @@ module Monadic
         when nil
           raise Refused.new('no_selection', 'nothing is selected in the work screen of the tab this message came from')
         end
+        raise Refused.new('put_away', Board::PUT_AWAY) if found.item['place'] == 'stash'
+
         found
       end
 

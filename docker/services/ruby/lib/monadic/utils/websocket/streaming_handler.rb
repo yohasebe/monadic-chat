@@ -303,14 +303,9 @@ module WebSocketHelper
     user_sent = !obj["message"].to_s.empty? || !Array(attachment_refs).empty? || !Array(obj["images"]).empty?
     picture = user_sent && sent_picture ? workbench_picture(session, obj, chat_at_start, request_id, sent_picture) : nil
     selection = user_sent && sent_selection ? workbench_selection(session, chat_at_start, request_id, sent_selection) : nil
-    request_context = Monadic::Workspace::RequestContext.new(
-      chat_id: chat_at_start, request_id: request_id,
-      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
-      tab: ws_session_id, generation: session[:_ws_generation],
-      observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
-      settings: Monadic::TurnSettings.accepted(obj, session[:parameters]), parameters: session[:parameters],
-      picture: picture, selection: selection
-    )
+    # The settings the message was sent with, read before they are merged
+    # into the session's parameters.
+    turn_settings = Monadic::TurnSettings.accepted(obj, session[:parameters])
 
     session[:parameters].merge! obj
 
@@ -347,7 +342,7 @@ module WebSocketHelper
         "text" => message_text,
         "app_name" => params["app_name"],
         "active" => true
-      }.merge(user_turn_fields(request_id: request_context.request_id, chat_id: chat_at_start,
+      }.merge(user_turn_fields(request_id: request_id, chat_id: chat_at_start,
                                app_name: params["app_name"], attachment_refs: attachment_refs))
       user_message_data["workbench_picture"] = picture.reference if picture
       user_message_data["workbench_selection"] = selection.reference if selection
@@ -355,7 +350,7 @@ module WebSocketHelper
       sync_session_state!
       # The model this request is sent with, for the notes kept after its
       # reply (Monadic::TurnState::Keeper).
-      Monadic::TurnState::Keeper.sent_with(request_context.request_id, params["model"], message_text)
+      Monadic::TurnState::Keeper.sent_with(request_id, params["model"], message_text)
 
       # Auto-detect: lock the session language (for finding words to hide)
       # from the user's actual typed text.
@@ -388,7 +383,6 @@ module WebSocketHelper
     # The page is told that this answer is running and, when no answer comes
     # (an error, Cancel, Reset, a closed connection), that it ended without
     # one. An answer that comes ends when it is recorded (html_handler).
-    request_id = request_context.request_id
     # The answer's handle (who ends it, and how it is stopped) and the token
     # its page can stop it with by HTTP while the read loop waits for it
     # (ReplyCancelServer), sent to this connection only.
@@ -398,6 +392,16 @@ module WebSocketHelper
     # The user's turn ends on the work screen and the reply's opens (its
     # end is the reply's end, finish_reply).
     desk_turn_begins(chat_at_start, request_id)
+    # The request this answer runs under. What the model is told of the
+    # work screen is read after the user's turn ended there.
+    request_context = Monadic::Workspace::RequestContext.new(
+      chat_id: chat_at_start, request_id: request_id,
+      attachment_ids: earlier_ids + Array(attachment_refs).map { |a| a["attachment_id"] },
+      tab: ws_session_id, generation: session[:_ws_generation],
+      observation: (user_sent ? workbench_observation(session, chat_at_start, request_id, reported_range) : nil),
+      settings: turn_settings, parameters: session[:parameters],
+      picture: picture, selection: selection
+    )
     give_reply_token(ws_session_id, session[:_ws_generation], chat_at_start, request_id, token) if token
     replied = false
 
@@ -816,7 +820,7 @@ module WebSocketHelper
     # When the worker was not made (it ends the request otherwise), an
     # answer accepted ends here without one.
     if thread.nil? && handle
-      finish_reply(request_context.request_id, "no_reply", ws_session_id)
+      finish_reply(request_id, "no_reply", ws_session_id)
       handle.end!
     end
     # A worker made and not yet attached (an error came between): the

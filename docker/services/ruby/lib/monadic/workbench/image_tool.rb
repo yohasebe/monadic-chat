@@ -112,6 +112,7 @@ module Monadic
 
         board = workbench && Board.existing(workbench.chat_id)
         item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is edited.'
+        raise NoSource, "❌ #{Board::PUT_AWAY.sub(/\A./, &:upcase)}: nothing is edited." if item['place'] == 'stash'
         return drawn_source(workbench, item_id) if BoardEdit.whiteboard?(item)
         unless item['artifact'] || item.dig('file', 'preview') == 'image'
           raise NoSource, '❌ That item is not an image or a whiteboard drawn on one: nothing is edited.'
@@ -129,6 +130,7 @@ module Monadic
       def item_image(workbench, item_id)
         board = workbench && Board.existing(workbench.chat_id)
         item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is made from it.'
+        raise NoSource, "❌ #{Board::PUT_AWAY.sub(/\A./, &:upcase)}: nothing is made from it." if item['place'] == 'stash'
         unless item['artifact'] || item.dig('file', 'preview') == 'image'
           raise NoSource, '❌ That item is not an image: nothing is made from it.'
         end

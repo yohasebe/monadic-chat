@@ -57,7 +57,8 @@ RSpec.describe Monadic::Workbench::Observation do
   it "lists the items with the server's statuses, and the selected one with its version" do
     item = open_file("a.txt", "one\ntwo\n")
     data = observe.data["work_screen"]
-    expect(data["items"]).to eq([{ "id" => item["id"], "kind" => "text", "name" => "a.txt", "path" => "a.txt", "status" => "ok" }])
+    expect(data["items"]).to eq([{ "id" => item["id"], "kind" => "text", "name" => "a.txt", "path" => "a.txt", "status" => "ok",
+                                   "place" => "current", "by" => "user" }])
     expect(data["selected"]).to eq("id" => item["id"], "version" => item.dig("file", "sha256")[0, 12], "range_note" => "unknown")
   end
 
@@ -74,6 +75,61 @@ RSpec.describe Monadic::Workbench::Observation do
     expect(observe(report.call(nil)).data["work_screen"]).not_to have_key("in_view")
     expect(observe.data["work_screen"]).not_to have_key("in_view")
     expect(described_class::PREAMBLE).to include('"in_view"')
+  end
+
+  describe "places" do
+    def end_turn(by)
+      request = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(request)
+      yield request if block_given?
+      board.end_reply(request) if by == :agent
+    end
+
+    def remove(item)
+      board.accept(item_id: item["id"], action: "stash", operation_id: "op_#{SecureRandom.hex(4)}",
+                   epoch: Monadic::Workspace::Chats.epoch(chat), sha256: item.dig("file", "sha256"))
+    end
+
+    it "tells the desk by place, who placed each layer, and put-away items by name and kind only" do
+      old = open_file("old.txt", "o")
+      remove(old)
+      mine = open_file("mine.txt", "m")
+      end_turn(:agent) do |request|
+        File.binwrite(File.join(@data, "made.md"), "# made")
+        board.add_file(path: "made.md", origin: { actor: :agent, source: :tool, request_id: request },
+                       epoch: Monadic::Workspace::Chats.epoch(chat))
+      end
+      data = observe.data["work_screen"]
+      expect(data["items"].map { |i| [i["name"], i["place"], i["by"]] })
+        .to eq([["made.md", "latest", "agent"], ["mine.txt", "previous", "user"]])
+      expect(data["places"]).to eq("latest" => "agent", "previous" => "user")
+      expect(data["put_away"]).to eq("items" => [{ "id" => old["id"], "kind" => "text", "name" => "old.txt" }], "count" => 1)
+      expect(described_class::PREAMBLE).to include('"put_away"')
+      expect(mine["id"]).to eq(data["items"].last["id"])
+    end
+
+    it "tells only the newest put-away names, and leaves out put-away names before items of the desk" do
+      items = (1..12).map { |i| open_file("p#{i}.txt", i.to_s).tap { |item| remove(item) } }
+      desk = open_file("#{'d' * 150}.txt", "d")
+      data = observe.data["work_screen"]
+      expect(data["put_away"]["items"].map { |i| i["id"] }).to eq(items.reverse.first(10).map { |i| i["id"] })
+      expect(data["put_away"]["count"]).to eq(12)
+      stub_const("#{described_class}::TEXT_LIMIT", 1200)
+      rendered = JSON.parse(observe.render.lines[2])["work_screen"]
+      expect(rendered["items"].map { |i| i["id"] }).to eq([desk["id"]])
+      expect(rendered["put_away"]["items"].size).to be < 10
+      expect(rendered["put_away"]["count"]).to eq(12)
+    end
+
+    it "does not tell a put-away item as selected or in view" do
+      item = open_file("a.txt", "a")
+      remove(item)
+      report = { "item_id" => item["id"], "version" => item.dig("file", "sha256"),
+                 "in_view" => [{ "item_id" => item["id"], "version" => item.dig("file", "sha256") }] }
+      data = observe(report).data["work_screen"]
+      expect(data["selected"]).to be_nil
+      expect(data["in_view"]).to eq([])
+    end
   end
 
   it "says what a file the work screen only holds is, by its type" do
@@ -282,6 +338,23 @@ RSpec.describe Monadic::Workbench::Observation do
       FileUtils.mkdir_p(File.join(@data, "group"))
       open_file("group/private.txt", "a")
       open_file('say "x".txt', "b")
+    end
+
+    it "leaves out only the put-away names that hold a word, counted, and tells the rest" do
+      FileUtils.mkdir_p(File.join(@data, "old"))
+      hidden = open_file("old/Ada Lovelace notes.txt", "c")
+      plain = open_file("old/plain.txt", "d")
+      [hidden, plain].each do |item|
+        board.accept(item_id: item["id"], action: "stash", operation_id: "op_#{SecureRandom.hex(4)}",
+                     epoch: Monadic::Workspace::Chats.epoch(chat), sha256: item.dig("file", "sha256"))
+      end
+      board.told!(board.observe(tab: "tab-1", generation: 1)[:events_tail])
+      text = observe.render_for(session_with(["Ada Lovelace"]))
+      expect(text).not_to be_nil
+      expect(text).not_to include("Ada Lovelace")
+      put_away = JSON.parse(text.lines[2])["work_screen"]["put_away"]
+      expect(put_away).to eq("items" => [{ "id" => plain["id"], "kind" => "text", "name" => "plain.txt" }],
+                             "count" => 2, "withheld" => 1)
     end
 
     it "sends none of it when a word would be left" do

@@ -174,7 +174,7 @@ features do
   max_tool_rounds 10      # At most this many rounds of tool calls in a turn (otherwise the provider cap, 20)
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Tell the model how to write Mermaid diagrams (they are drawn in every app)
-  websearch true          # The app's chats may search the web (unsaid: they do not)
+  websearch true          # The app's chats may search the web (unsaid: they do not; the Web search setting can turn it off for every app)
   library_save false      # No saving to the Library (default true)
   library_search false    # No Library retrieval (default true; needs library_save)
 end

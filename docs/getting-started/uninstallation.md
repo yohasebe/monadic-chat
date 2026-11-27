@@ -44,7 +44,7 @@ If your desktop environment offered to integrate the AppImage into your applicat
 
 After uninstallation, your data and settings remain in two places:
 
-- `~/monadic/`: configuration files, the shared folder and logs. On Windows, this folder is in the home folder of your WSL Linux (Ubuntu), not in Windows
+- `~/monadic/`: configuration files, the shared folder, the kept chats (`state/`), the original files of the Library (`library/`) and logs. On Windows, this folder is in the home folder of your WSL Linux (Ubuntu), not in Windows
 - The application's own storage (cookies, cached pages, window state):
   - macOS: `~/Library/Application Support/Monadic Chat`
   - Linux: `~/.config/Monadic Chat`

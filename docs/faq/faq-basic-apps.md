@@ -52,7 +52,7 @@ The first start needs a connection to download the container images and build th
 **A**: To reset the app to its initial state, you can:
 
 1. Click the **Reset** button in the web interface.
-2. This clears the current conversation and returns the parameters to their defaults; the selected app stays. If the conversation can be saved, the confirmation dialog also offers to save it to the Library first.
+2. This clears the current conversation and returns the parameters to their defaults; the selected app stays.
 
 Reset does not delete files in the shared folder or change the settings.
 

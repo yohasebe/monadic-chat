@@ -30,6 +30,6 @@ When the AI unlocks a skill mid-conversation, the diagram updates automatically,
 
 Each app has its own set of skill groups it can request (for app developers, see [Tool Groups](../advanced-topics/tool-groups.md)).
 
-- **Library retrieval** (`library_search`) is added automatically as a conditional skill to tool-capable apps (except apps that turn it off) and is offered to the AI, without a `request_tool` request, while **Sources the AI can use** in Settings allows it (on by default) and the Library holds something. With it comes `library_list`, which lists what the Library holds.
+- **Library retrieval** (`library_search`) is added automatically as a conditional skill to tool-capable apps (except apps that turn it off) and is offered to the AI, without a `request_tool` request, while **Sources the AI can use** in Settings allows it (on by default). With it comes `library_list`, which lists what the Library holds.
 
 If a skill group does not appear in the Tools node at all, the app cannot acquire it — asking the AI to request it will not succeed.

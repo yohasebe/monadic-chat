@@ -90,7 +90,7 @@ The Chat app keeps a context alongside the conversation. Deleting a turn takes b
 
 ### 4.1 Try the Library :id=_41-try-knowledge-base
 
-1. Select **Library** from the app menu
+1. Select an app such as **Chat** from the app menu
 2. Open the **Library** tab of the sidebar, and click **Import file**
 3. Pick a Markdown / PDF / Office (.docx/.xlsx/.pptx) / source-code file
 4. Once the import completes, ask the AI questions about the content (e.g., "summarise the imported document")

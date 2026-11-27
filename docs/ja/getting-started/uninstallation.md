@@ -44,7 +44,7 @@ $ rm monadic-chat_*.AppImage
 
 アンインストール後も、データと設定は次の2箇所に残ります：
 
-- `~/monadic/`：設定ファイル、共有フォルダ、ログ。Windows では、このフォルダは Windows 側ではなく WSL の Linux（Ubuntu）のホームフォルダにあります
+- `~/monadic/`：設定ファイル、共有フォルダ、残した会話（`state/`）、書庫の原本（`library/`）、ログ。Windows では、このフォルダは Windows 側ではなく WSL の Linux（Ubuntu）のホームフォルダにあります
 - アプリ自身の保存領域（Cookie、キャッシュ、ウィンドウ状態）:
   - macOS: `~/Library/Application Support/Monadic Chat`
   - Linux: `~/.config/Monadic Chat`

@@ -974,7 +974,7 @@ def console_parts():
     engine = re.search(r"icon\.className = engineName === '(Docker)' \? '(fa-brands|fa-solid) (fa-[a-z0-9-]+)'",
                        app_source('mainScreen.js'))
     system = re.findall(r'<span id="systemLabel" data-i18n="([^"]+)">\s*' + APP_ICON, head)
-    buttons = re.findall(r'<button id="(\w+)"( disabled)? data-i18n="([^"]+)">' + APP_ICON, group)
+    buttons = re.findall(r'<button id="(\w+)"([^>]*?) data-i18n="([^"]+)">' + APP_ICON, group)
     if not (name and engine and '<span id="dockerLabel">' in head and len(system) == 1 and buttons):
         raise SystemExit('app/index.html no longer builds the console window as its figure reads it')
     # (text or translation key, is a key, icon style, icon)

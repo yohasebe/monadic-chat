@@ -311,7 +311,8 @@ module Monadic
         chat_id == @chat_id && Monadic::Workspace::Chats.epoch(chat_id) == @epoch
       end
 
-      # The text added to the message for the model: the data as JSON (within
+      # The text added to the message for the model: the data as JSON (put-away
+      # names that hold a word the chat hides left out and counted; within
       # TEXT_LIMIT: put-away names first, then the desk's items from the
       # oldest place, are left out, the selected one kept), checked
       # for the words the chat hides (the JSON decoded too). nil when a word
@@ -335,10 +336,10 @@ module Monadic
       private
 
       def checked(words)
-        text = json
+        outbound = Monadic::Utils::Privacy::Outbound
+        text = json(words.empty? ? @data : without_hidden_names(@data, words, outbound))
         return nil unless text
 
-        outbound = Monadic::Utils::Privacy::Outbound
         unless words.empty?
           left = false
           outbound.each_text(text) { |value| left ||= outbound.leaks_word?(value, words) }
@@ -349,8 +350,7 @@ module Monadic
 
       # The data as plain JSON (what masking and the checks read), within
       # TEXT_LIMIT, or nil.
-      def json
-        data = @data
+      def json(data = @data)
         text = JSON.generate(data)
         while text.length > TEXT_LIMIT && (named_put_away(data).positive? || data.dig('work_screen', 'items').size > 1 ||
                                            recent_count(data) > 1)
@@ -370,6 +370,17 @@ module Monadic
         return nil unless text
 
         "<work_screen_observation>\n#{PREAMBLE}\n#{text.gsub('</', '<\\/')}\n</work_screen_observation>"
+      end
+
+      # data without the put-away names that hold a word the chat hides:
+      # those are left out and counted (withheld), so the rest of the desk is
+      # still told.
+      def without_hidden_names(data, words, outbound)
+        put_away = data.dig('work_screen', 'put_away') or return data
+        kept, hidden = put_away['items'].partition { |entry| !outbound.leaks_word?(entry['name'].to_s, words) }
+        return data if hidden.empty?
+
+        { 'work_screen' => data['work_screen'].merge('put_away' => put_away.merge('items' => kept, 'withheld' => hidden.size)) }
       end
 
       def named_put_away(data)

@@ -340,6 +340,23 @@ RSpec.describe Monadic::Workbench::Observation do
       open_file('say "x".txt', "b")
     end
 
+    it "leaves out only the put-away names that hold a word, counted, and tells the rest" do
+      FileUtils.mkdir_p(File.join(@data, "old"))
+      hidden = open_file("old/Ada Lovelace notes.txt", "c")
+      plain = open_file("old/plain.txt", "d")
+      [hidden, plain].each do |item|
+        board.accept(item_id: item["id"], action: "stash", operation_id: "op_#{SecureRandom.hex(4)}",
+                     epoch: Monadic::Workspace::Chats.epoch(chat), sha256: item.dig("file", "sha256"))
+      end
+      board.told!(board.observe(tab: "tab-1", generation: 1)[:events_tail])
+      text = observe.render_for(session_with(["Ada Lovelace"]))
+      expect(text).not_to be_nil
+      expect(text).not_to include("Ada Lovelace")
+      put_away = JSON.parse(text.lines[2])["work_screen"]["put_away"]
+      expect(put_away).to eq("items" => [{ "id" => plain["id"], "kind" => "text", "name" => "plain.txt" }],
+                             "count" => 2, "withheld" => 1)
+    end
+
     it "sends none of it when a word would be left" do
       expect(observe.render_for(session_with(words))).to be_nil
     end

@@ -150,7 +150,7 @@ RSpec.describe Monadic::Workbench::Observation do
   end
 
   it "keeps within its size by leaving out items other than the selected one, and is frozen through" do
-    items = (1..Monadic::Workbench::Board::ITEM_LIMIT).map do |i|
+    items = (1..Monadic::Workbench::Board::NOW_LIMIT).map do |i|
       open_file("#{'n' * 150}#{i}.txt", i.to_s)
     end
     stub_const("#{described_class}::TEXT_LIMIT", 1200)
@@ -207,7 +207,7 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(changes(observe)["recent"].map { |c| c["item"] }).to eq([second["id"]])
     end
 
-    it "tells an item taken off, by the user or to make room, also when the work screen is empty after it" do
+    it "tells an item taken off by the user, also when the work screen is empty after it" do
       item = open_file("a.txt", "a")
       tell(observe)
       board.accept(item_id: item["id"], action: "remove", operation_id: "op_remove_1", epoch: Monadic::Workspace::Chats.epoch(chat),
@@ -215,20 +215,18 @@ RSpec.describe Monadic::Workbench::Observation do
       observation = observe
       expect(observation).not_to be_nil
       expect(changes(observation)["recent"]).to eq([{ "change" => "removed", "by" => "user", "item" => item["id"], "kind" => "text", "name" => "a.txt" }])
-      tell(observation)
-      (1..Monadic::Workbench::Board::ITEM_LIMIT + 1).each { |i| open_file("f#{i}.txt", i.to_s) }
-      room = changes(observe)["recent"].find { |c| c["change"] == "removed" }
-      expect(room).to include("by" => "system", "reason" => "room")
     end
 
     it "tells the latest changes and counts the older ones, and that some were left out when the board no longer has them" do
-      (1..12).each do |i|
-        open_file("f#{i}.txt", i.to_s)
+      items = (1..10).map { |i| open_file("f#{i}.txt", i.to_s) }
+      items.first(2).each_with_index do |item, i|
+        board.accept(item_id: item["id"], action: "remove", operation_id: "op_remove_#{i}",
+                     epoch: Monadic::Workspace::Chats.epoch(chat), sha256: item.dig("file", "sha256"))
       end
       told = changes(observe)
       expect(told["recent"].size).to eq(described_class::CHANGE_LIMIT)
-      # 12 placed, and the oldest 4 taken off to make room: 16 in all.
-      expect(told["recent"].size + told["earlier"].values.sum).to eq(16)
+      # 10 placed and 2 taken off: 12 in all.
+      expect(told["recent"].size + told["earlier"].values.sum).to eq(12)
       expect(told["earlier"].keys).to include("placed")
       stub_const("Monadic::Workbench::Board::EVENT_LIMIT", 3)
       open_file("g.txt", "g")

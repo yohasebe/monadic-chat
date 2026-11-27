@@ -236,6 +236,15 @@ module WebSocketHelper
     nil
   end
 
+  # The work screen's turn changes; a failure here never keeps the reply
+  # from running.
+  private def desk_turn_begins(chat_id, request_id)
+    Monadic::Workbench::Board.begin_reply(chat_id, request_id)
+    Monadic::Workbench::Channel.changed(chat_id)
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] The turn was not begun on the work screen: #{e.class}" }
+  end
+
   private def handle_ws_streaming(connection, obj, session, queue)
     # Get session ID for targeted broadcasting throughout streaming
     ws_session_id = Thread.current[:websocket_session_id]
@@ -386,6 +395,9 @@ module WebSocketHelper
     handle, token = Replies.open(request_id: request_id, chat_id: chat_at_start, tab: ws_session_id,
                                  generation: session[:_ws_generation])
     reply_running(request_id, ws_session_id)
+    # The user's turn ends on the work screen and the reply's opens (its
+    # end is the reply's end, finish_reply).
+    desk_turn_begins(chat_at_start, request_id)
     give_reply_token(ws_session_id, session[:_ws_generation], chat_at_start, request_id, token) if token
     replied = false
 

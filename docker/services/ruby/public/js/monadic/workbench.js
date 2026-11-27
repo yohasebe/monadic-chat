@@ -3211,6 +3211,8 @@
   function onResult(data) {
     if (!data) return;
     if (data.action === 'remove' && ['accepted', 'same'].includes(data.status)) {
+      // What was sent or placed before this turn is put away, not removed.
+      if (data.state !== 'removed') return;
       removed.add(data.item_id);
       announce(t('ui.workbench.removed', 'Removed from the work screen'));
       return;

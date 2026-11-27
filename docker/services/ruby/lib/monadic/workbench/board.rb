@@ -37,20 +37,37 @@ module Monadic
     # Epochs (Chats.epoch) are kept in memory and start again at a restart,
     # so none is kept here: an operation is accepted only at the chat's
     # current epoch.
+    #
+    # The items are in four places, layered by turn: current (Now, what the
+    # speaker of this turn places), latest (what the last turn that placed
+    # anything put out), previous (the turn before that) and stash (put
+    # away, everything older). A turn ends when the user's message is
+    # accepted (begin_reply) or the reply ends (end_reply); when current
+    # holds anything then, the layers move down one: current to latest,
+    # latest to previous, previous to stash. While a reply runs the user
+    # does not change the desk (one writer for current).
     class Board
-      ITEM_LIMIT = 8
+      PLACES = %w[current latest previous stash].freeze
+      LAYERS = %w[latest previous].freeze
+      # The most items in current (Now); latest and previous were Nows.
+      NOW_LIMIT = 10
+      # The most items on the desk (current, latest, previous).
+      ITEM_LIMIT = NOW_LIMIT * 3
+      BUSY = 'the assistant is replying: the work screen can be changed when the reply ends'
+      FULL = "the work screen has #{NOW_LIMIT} items in Now: take one off or put one away first".freeze
       # What an origin keeps in the manifest (not the tab or connection).
       ORIGIN_KEYS = %i[actor source request_id].freeze
-      ACTIONS = %w[remove].freeze
+      # remove: off the board when the user placed it in this turn and it
+      # was not sent yet, else put away; stash: put away; bring: into Now.
+      ACTIONS = %w[remove stash bring].freeze
       # Removed items remembered, so that a removal sent again is answered.
       REMOVED_LIMIT = 50
       # What happened on the board (events): the most kept. Each has the
       # next number of the chat's board; the model is told those after the
       # last one a finished reply was told of (Observation).
       EVENT_LIMIT = 30
-      # Why an item was taken off when nobody chose to: making room, a
-      # deleted turn.
-      SYSTEM_REMOVALS = %w[room turn_deleted].freeze
+      # Why an item was taken off when nobody chose to: a deleted turn.
+      SYSTEM_REMOVALS = %w[turn_deleted].freeze
 
       class Refused < StandardError; end
 
@@ -68,8 +85,43 @@ module Monadic
 
       @boards = {}
       @boards_lock = Mutex.new
+      # The chat of each reply running on a board (begin_reply), so that
+      # its end (end_reply, by request only) finds the board.
+      @replies = {}
+      # Its own lock: a board made under @boards_lock reads it.
+      @replies_lock = Mutex.new
 
       class << self
+        # The reply request_id of chat_id begins: the user's turn ends (its
+        # Now moves down when it holds anything) and the reply's opens.
+        def begin_reply(chat_id, request_id)
+          return unless Monadic::Workspace::Ids.valid?(:chat, chat_id) && request_id
+
+          @replies_lock.synchronize do
+            @replies.delete_if { |_, chat| chat == chat_id }
+            @replies[request_id] = chat_id
+          end
+          board = existing(chat_id)
+          board&.begin_reply(request_id)
+        end
+
+        # The reply running for chat_id, or nil (a board loaded while it
+        # runs takes it).
+        def running_reply(chat_id)
+          @replies_lock.synchronize { @replies.key(chat_id) }
+        end
+
+        # The reply request_id ended (any outcome): its turn ends. Returns
+        # the chat of the board it ended on (its pages are told), or nil.
+        def end_reply(request_id)
+          chat_id = @replies_lock.synchronize { @replies.delete(request_id) }
+          board = chat_id && @boards_lock.synchronize { @boards[chat_id] }
+          return nil unless board
+
+          board.end_reply(request_id)
+          chat_id
+        end
+
         # The board of a chat, loaded from its manifest the first time.
         def for(chat_id, store: Store.default)
           @boards_lock.synchronize do
@@ -94,6 +146,7 @@ module Monadic
         # For tests (the socket layer's live check goes too).
         def reset!
           @boards_lock.synchronize { @boards.clear }
+          @replies_lock.synchronize { @replies.clear }
           @live = nil
         end
 
@@ -110,6 +163,10 @@ module Monadic
         @store = store
         @lock = Mutex.new
         @data = store.load(chat_id) || fresh
+        # The reply whose turn is open (begin_reply), in memory only: no
+        # reply outlives the server.
+        @reply = self.class.running_reply(chat_id)
+        recover_reply! unless @reply
         @selected = {}
         # Each selection a tab's connection makes (select, select_for_origin)
         # takes the next number, kept with it: a capture asked for one
@@ -133,9 +190,69 @@ module Monadic
         data = @lock.synchronize { deep_dup(@data) }
         {
           board_id: data['board_id'], chat_id: @chat_id, epoch: Monadic::Workspace::Chats.epoch(@chat_id),
-          revision: data['revision'],
+          revision: data['revision'], layers: public_layers(data), replying: !@reply.nil?,
           items: data['items'].values.map { |item| public_item(item) }
         }
+      end
+
+      # The user's message request_id was accepted: the user's turn ends
+      # and the reply's opens (its placements go into current).
+      def begin_reply(request_id)
+        quiet = @lock.synchronize do
+          next false if @data['items'].values.any? { |item| item['place'] == 'current' || item['fresh'] }
+
+          @reply = request_id
+          true
+        end
+        return if quiet
+
+        change do |data|
+          shift!(data, 'user', request_id)
+          data['items'].each_value { |item| item.delete('fresh') }
+          @reply = request_id
+          nil
+        end
+      end
+
+      # The reply request_id ended: its turn ends. Returns whether the desk
+      # changed.
+      def end_reply(request_id)
+        quiet = @lock.synchronize do
+          next true unless @reply == request_id
+          next false if @data['items'].values.any? { |item| item['place'] == 'current' }
+
+          @reply = nil
+          true
+        end
+        return false if quiet
+
+        changed = false
+        change do |data|
+          next unless @reply == request_id
+
+          @reply = nil
+          changed = shift!(data, 'agent', request_id)
+        end
+        changed
+      end
+
+      # Whether a reply's turn is open (the user does not change the desk).
+      def replying?
+        @lock.synchronize { !@reply.nil? }
+      end
+
+      # Moves the item into current (bring) or puts it away (stash) for the
+      # AI, in its reply. Refused for an item not on the board, and for
+      # current when it is full. Returns the item.
+      def move(item_id:, to:, origin:, epoch:)
+        raise Refused, 'unknown place' unless %w[current stash].include?(to)
+
+        change do |data|
+          check_epoch!(epoch)
+          item = data['items'][item_id.to_s] or raise Refused, 'that item is not on the work screen now'
+          to == 'current' ? into_current!(data, item, origin) : put_away!(data, item, origin)
+          deep_dup(data['items'][item['id']])
+        end
       end
 
       # What a message from the tab's connection (generation) tells of the
@@ -200,14 +317,14 @@ module Monadic
             next placed
           end
 
-          room_for_one!(data)
+          place = target_place!(data, origin)
           record = Artifact.place!(chat_id: @chat_id, app_name: app_name, bytes: bytes, image: image, name: name,
                                    run: run, request_id: origin[:request_id], derived_from: derived_from)
           item_id = "i_#{SecureRandom.hex(10)}"
-          data['items'][item_id] = {
-            'id' => item_id, 'kind' => 'image', 'origin' => kept_origin(origin), 'mid' => nil,
-            'artifact' => stringify(Artifact.entry(record).merge('width' => record[:width], 'height' => record[:height]))
-          }
+          placed!(data, {
+                    'id' => item_id, 'kind' => 'image', 'origin' => kept_origin(origin), 'mid' => nil,
+                    'artifact' => stringify(Artifact.entry(record).merge('width' => record[:width], 'height' => record[:height]))
+                  }, place, origin)
           select_for_origin(origin, item_id)
           deep_dup(data['items'][item_id])
         end
@@ -230,7 +347,7 @@ module Monadic
       # Shared Folder panel, :agent from a tool), and the tab and connection
       # it was opened for (tab:, generation:), which then selects it.
       # Returns [item, added]. Refused at another epoch, for a file the work
-      # screen does not show, or when every item is kept (room_for_one!);
+      # screen does not show, or when Now is full (FULL);
       # FileItem::Busy when no turn to read it came within wait.
       # wait: seconds to wait for a turn to read the file (FileItem.turn).
       # sha256: the version asked for (a message's record names it): another
@@ -262,15 +379,17 @@ module Monadic
             found['draft'] = stringify(draft) if draft
             @verdicts.delete(found['id'])
             @texts.delete(found['id'])
+            # Opened again (not an edit of it): it comes into Now.
+            into_current!(data, found, origin) unless event || late?(origin)
             select_for_origin(origin, found['id'])
             record!(data, event.merge('item_id' => found['id']), origin) if event
             next [deep_dup(found), false]
           end
 
-          room_for_one!(data)
+          place = target_place!(data, origin)
           item_id = "i_#{SecureRandom.hex(10)}"
-          data['items'][item_id] = { 'id' => item_id, 'kind' => 'file', 'origin' => kept_origin(origin), 'mid' => nil,
-                                     'file' => entry, 'draft' => (stringify(draft) if draft) }.compact
+          placed!(data, { 'id' => item_id, 'kind' => 'file', 'origin' => kept_origin(origin), 'mid' => nil,
+                          'file' => entry, 'draft' => (stringify(draft) if draft) }.compact, place, origin)
           select_for_origin(origin, item_id)
           record!(data, { 'kind' => 'placed', 'item_id' => item_id }, origin)
           [deep_dup(data['items'][item_id]), true]
@@ -294,10 +413,10 @@ module Monadic
             next deep_dup(found)
           end
 
-          room_for_one!(data)
+          place = target_place!(data, origin)
           item_id = "i_#{SecureRandom.hex(10)}"
-          data['items'][item_id] = { 'id' => item_id, 'kind' => 'browser', 'origin' => kept_origin(origin), 'mid' => nil,
-                                     'browser' => { 'instance' => instance } }
+          placed!(data, { 'id' => item_id, 'kind' => 'browser', 'origin' => kept_origin(origin), 'mid' => nil,
+                          'browser' => { 'instance' => instance } }, place, origin)
           select_for_origin(origin, item_id)
           deep_dup(data['items'][item_id])
         end
@@ -320,14 +439,15 @@ module Monadic
             item['kind'] == 'library' && item.dig('library', 'id') == record['id'] && item.dig('library', 'version') == record['version']
           end
           if found
+            into_current!(data, found, origin) unless late?(origin)
             select_for_origin(origin, found['id'])
             next [deep_dup(found), false]
           end
 
-          room_for_one!(data)
+          place = target_place!(data, origin)
           item_id = "i_#{SecureRandom.hex(10)}"
-          data['items'][item_id] = { 'id' => item_id, 'kind' => 'library', 'origin' => kept_origin(origin), 'mid' => nil,
-                                     'library' => record }
+          placed!(data, { 'id' => item_id, 'kind' => 'library', 'origin' => kept_origin(origin), 'mid' => nil,
+                          'library' => record }, place, origin)
           select_for_origin(origin, item_id)
           record!(data, { 'kind' => 'placed', 'item_id' => item_id }, origin)
           [deep_dup(data['items'][item_id]), true]
@@ -350,8 +470,9 @@ module Monadic
         change do |data|
           check_epoch!(epoch)
           item = data['items'][item_id.to_s] or raise Refused, 'that item is not on the work screen now'
+          into_current!(data, item, origin) unless late?(origin)
           select_for_origin(origin, item['id'])
-          deep_dup(item)
+          deep_dup(data['items'][item['id']])
         end
       end
 
@@ -568,14 +689,13 @@ module Monadic
 
           item = data['items'][item_id] or raise Refused, 'no such image'
           raise Refused, 'this item changed' unless version_of(item) == sha256
+          raise Refused, BUSY if @reply
 
+          state = user_operation!(data, item, action, operation_id)
           operation = { 'id' => operation_id, 'action' => action, 'item_id' => item_id, 'sha256' => sha256,
-                        'state' => 'removed', 'accepted_at' => Time.now.utc.iso8601 }
+                        'state' => state, 'accepted_at' => Time.now.utc.iso8601 }
           data['operations'][operation_id] = operation
           data['operations'].shift while data['operations'].size > REMOVED_LIMIT
-          take_off!(data, item, operation_id)
-          @browsers_off << item.dig('browser', 'instance') if item['kind'] == 'browser'
-          put_back_browser!(data)
           [:accepted, deep_dup(operation)]
         end
       end
@@ -686,21 +806,142 @@ module Monadic
         deep_dup(item)
       end
 
-      # Room for one more item: the oldest item that is not kept is taken
-      # off the board (its file stays in the shared folder). Kept: an item
-      # a tab's connection has selected, and the latest image (what an edit
-      # starts from). Refused when every item is kept.
-      def room_for_one!(data)
-        return if data['items'].size < ITEM_LIMIT
+      # Where a new item of origin goes, checked before anything is placed:
+      # current, or for the AI's placement after its reply ended (late?) the
+      # layer that reply made. Refused when the user acts while a reply runs
+      # (BUSY) and when the place is full (FULL): nothing is pushed out.
+      def target_place!(data, origin)
+        raise Refused, BUSY if user?(origin) && @reply
 
-        kept = @selected.select { |tab, held| live?(tab, held[:generation]) }.values.map { |held| held[:item_id] }
-        latest = data['items'].values.reverse.find { |item| item['artifact'] }
-        kept << latest['id'] if latest
-        kept.concat(data['items'].values.select { |item| browser_status(item) == 'open' }.map { |item| item['id'] })
-        oldest = data['items'].values.find { |item| !kept.include?(item['id']) }
-        raise Refused, 'the work screen is full: remove an item first' unless oldest
+        place = late?(origin) ? late_layer!(data, origin[:request_id] || origin['request_id']) : 'current'
+        raise Refused, FULL if count_in(data, place) >= NOW_LIMIT
 
-        take_off!(data, oldest, 'room')
+        place
+      end
+
+      # A new item in place, put there by origin's actor; the user's is
+      # fresh (taken off, not put away, until the turn ends).
+      def placed!(data, item, place, origin)
+        item['place'] = place
+        item['by'] = actor_of(origin)
+        item['fresh'] = true if place == 'current' && item['by'] == 'user'
+        data['items'][item['id']] = item
+      end
+
+      # The item comes into current (at its end), placed now by origin's
+      # actor. Refused while a reply runs for the user, and when current is
+      # full.
+      def into_current!(data, item, origin)
+        return if item['place'] == 'current'
+        raise Refused, BUSY if user?(origin) && @reply
+        raise Refused, FULL if count_in(data, 'current') >= NOW_LIMIT
+
+        moved!(data, item, 'current', origin)
+        item['by'] = actor_of(origin)
+      end
+
+      # The item is put away. Refused while a reply runs for the user.
+      def put_away!(data, item, origin)
+        return if item['place'] == 'stash'
+        raise Refused, BUSY if user?(origin) && @reply
+
+        moved!(data, item, 'stash', origin)
+        item.delete('fresh')
+      end
+
+      def moved!(data, item, place, origin)
+        data['items'].delete(item['id'])
+        item['place'] = place
+        data['items'][item['id']] = item
+        record!(data, { 'kind' => 'moved', 'item_id' => item['id'], 'to' => place }, origin)
+      end
+
+      # The user's operation on item (accept): its state. remove takes off
+      # what the user placed in this turn and did not send yet, and puts
+      # anything else away.
+      def user_operation!(data, item, action, operation_id)
+        origin = { actor: 'user' }
+        case action
+        when 'bring'
+          into_current!(data, item, origin)
+          'brought'
+        when 'stash'
+          put_away!(data, item, origin)
+          'stashed'
+        else
+          # A browser is not kept (it does not outlive the server): it goes.
+          unless (item['place'] == 'current' && item['fresh']) || item['kind'] == 'browser'
+            put_away!(data, item, origin)
+            return 'stashed'
+          end
+
+          take_off!(data, item, operation_id)
+          @browsers_off << item.dig('browser', 'instance') if item['kind'] == 'browser'
+          put_back_browser!(data)
+          'removed'
+        end
+      end
+
+      # The turn of by (request_id) ends: when current holds anything, the
+      # layers move down one. Returns whether they moved.
+      def shift!(data, by, request_id)
+        return false unless data['items'].values.any? { |item| item['place'] == 'current' }
+
+        down = { 'current' => 'latest', 'latest' => 'previous', 'previous' => 'stash' }
+        data['items'].each_value { |item| item['place'] = down.fetch(item['place'], item['place']) }
+        layers = (data['layers'] ||= {})
+        layers['previous'] = layers['latest']
+        layers['latest'] = { 'by' => by, 'request_id' => request_id }
+        layers.compact!
+        record!(data, { 'kind' => 'turn_ended' }, { actor: by })
+        true
+      end
+
+      # The layer of the AI's reply request_id that ended (its items there
+      # still); a new latest layer when that reply placed nothing yet (the
+      # layers move down one, current stays).
+      def late_layer!(data, request_id)
+        layers = (data['layers'] ||= {})
+        found = LAYERS.find { |layer| layers.dig(layer, 'by') == 'agent' && layers.dig(layer, 'request_id') == request_id }
+        return found if found
+
+        data['items'].each_value do |item|
+          item['place'] = { 'latest' => 'previous', 'previous' => 'stash' }.fetch(item['place'], item['place'])
+        end
+        layers['previous'] = layers['latest']
+        layers['latest'] = { 'by' => 'agent', 'request_id' => request_id }
+        layers.compact!
+        'latest'
+      end
+
+      # Whether origin is the AI's, placing after its reply's turn ended (a
+      # job that finished later): the item joins that reply's layer.
+      def late?(origin)
+        !user?(origin) && @reply.nil? && !(origin[:request_id] || origin['request_id']).nil?
+      end
+
+      def user?(origin)
+        actor_of(origin) == 'user'
+      end
+
+      def actor_of(origin)
+        (origin && (origin[:actor] || origin['actor'])).to_s == 'user' ? 'user' : 'agent'
+      end
+
+      def count_in(data, place)
+        data['items'].count { |_, item| item['place'] == place }
+      end
+
+      # After a restart no reply runs: the AI's items left in current end
+      # their turn (interrupted).
+      def recover_reply!
+        return unless @data['items'].values.any? { |item| item['place'] == 'current' && item['by'] == 'agent' }
+
+        shift!(@data, 'agent', nil)
+      end
+
+      def public_layers(data)
+        LAYERS.to_h { |layer| [layer, data.dig('layers', layer, 'by')] }.compact
       end
 
       # The chat's open browser, when it is not on the board (it opened
@@ -709,12 +950,12 @@ module Monadic
       def put_back_browser!(data)
         view = defined?(MonadicSharedTools::BrowserOwner) && MonadicSharedTools::BrowserOwner.view(@chat_id)
         return unless view && view.epoch == Monadic::Workspace::Chats.epoch(@chat_id)
-        return if @browsers_off.include?(view.instance) || data['items'].size >= ITEM_LIMIT
+        return if @browsers_off.include?(view.instance) || count_in(data, 'current') >= NOW_LIMIT
         return if data['items'].values.any? { |item| item.dig('browser', 'instance') == view.instance }
 
         item_id = "i_#{SecureRandom.hex(10)}"
-        data['items'][item_id] = { 'id' => item_id, 'kind' => 'browser', 'origin' => { 'actor' => 'agent', 'source' => 'browser' },
-                                   'mid' => nil, 'browser' => { 'instance' => view.instance } }
+        placed!(data, { 'id' => item_id, 'kind' => 'browser', 'origin' => { 'actor' => 'agent', 'source' => 'browser' },
+                        'mid' => nil, 'browser' => { 'instance' => view.instance } }, 'current', { actor: 'agent' })
       end
 
       # The item's content entry: the image's record or the file's version.
@@ -774,7 +1015,12 @@ module Monadic
         live.nil? || (!tab.nil? && live.call(tab.to_s) == generation)
       end
 
+      # What a view shows of an item: where it is on the desk with it.
       def public_item(item)
+        item_view(item).merge(place: item['place'] || 'stash', by: item['by'], fresh: item['fresh'] ? true : nil)
+      end
+
+      def item_view(item)
         return public_file(item) if item['kind'] == 'file'
         if item['kind'] == 'library'
           entry = item['library']

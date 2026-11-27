@@ -119,7 +119,8 @@ module Monadic
             item = names[e['item_id']]
             { 'change' => e['kind'], 'by' => e['by'], 'item' => e['item_id'],
               'kind' => item ? kind_of(item) : e['item_kind'], 'name' => clean(item ? (item[:name] || item[:kind]) : e['name']),
-              'added' => e['added'], 'changed' => e['changed'], 'removed' => e['removed'], 'reason' => e['reason'] }.compact
+              'added' => e['added'], 'changed' => e['changed'], 'removed' => e['removed'], 'reason' => e['reason'],
+              'to' => e['to'] }.compact
           end
           older = events[0...-CHANGE_LIMIT] || []
           out = { 'recent' => recent }

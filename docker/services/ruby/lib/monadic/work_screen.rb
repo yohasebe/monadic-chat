@@ -39,9 +39,8 @@ module Monadic
 
     # The chat's browser has just opened: it is put on the chat's workbench
     # (the tab whose message opened it selects it), and the pages of the
-    # tabs in that chat are told. Returns :full when every item of the
-    # workbench is kept (the browser is put on once the user removes one),
-    # otherwise nil.
+    # tabs in that chat are told. Returns :full when Now is full (the
+    # browser is put on once the user takes an item off), otherwise nil.
     def browser_opened(chat)
       view = MonadicSharedTools::BrowserOwner.view(chat)
       return unless view
@@ -61,8 +60,8 @@ module Monadic
       placed == :full ? :full : nil
     end
 
-    # A failure here never keeps the pages from being told. :full when the
-    # workbench had no room.
+    # A failure here never keeps the pages from being told. :full when Now
+    # had no room.
     def put_on_workbench(chat, view)
       return unless Monadic::Workspace::Ids.valid?(:chat, chat)
 
@@ -77,7 +76,7 @@ module Monadic
       :placed
     rescue Monadic::Workbench::Board::Refused => e
       Monadic::Utils::ExtraLogger.log { "[WorkScreen] The browser is not on the workbench: #{e.message}" }
-      e.message.start_with?('the work screen is full') ? :full : nil
+      e.message == Monadic::Workbench::Board::FULL ? :full : nil
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WorkScreen] The browser is not on the workbench: #{e.class}: #{e.message}" }
     end

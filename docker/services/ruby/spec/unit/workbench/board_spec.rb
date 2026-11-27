@@ -100,21 +100,22 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
       expect(File.binread(file_of(second))).to eq(png(64, 48, "2"))
     end
 
-    it "places a run once: the same run again gives its item, with no second file or tab, even on a full board" do
+    it "places a run once: the same run again gives its item, with no second file or tab, even when Now is full" do
+      board.begin_reply(request)
       run = run_id
       first = add("cat.png", "1", run: run)
-      (2..Monadic::Workbench::Board::ITEM_LIMIT).each { |i| add("i#{i}.png", i.to_s) }
+      (2..Monadic::Workbench::Board::NOW_LIMIT).each { |i| add("i#{i}.png", i.to_s) }
       before = board.snapshot[:items].map { |i| i[:id] }
       again = add("cat.png", "1", run: run)
       expect(again["id"]).to eq(first["id"])
       expect(board.snapshot[:items].map { |i| i[:id] }).to eq(before)
-      expect(shared_files.size).to eq(Monadic::Workbench::Board::ITEM_LIMIT)
+      expect(shared_files.size).to eq(Monadic::Workbench::Board::NOW_LIMIT)
     end
 
-    it "does not put back an image the user took off when its run comes again" do
+    it "does not put back an image taken off with its deleted turn when its run comes again" do
       run = run_id
       first = add("cat.png", "1", run: run)
-      remove(first)
+      board.drop_files([first.dig("artifact", "path")])
       expect { add("cat.png", "1", run: run) }.to raise_error(Monadic::Workbench::Board::PlacedOnly) { |e|
         expect(e.path).to eq(first.dig("artifact", "path"))
       }
@@ -216,13 +217,12 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
       expect(JSON.parse(File.read(ledger.path))["artifacts"].values.map { |r| r["kind"] }).to eq(["image"])
     end
 
-    it "makes room by taking the oldest image off the board; its file stays" do
-      items = (1..Monadic::Workbench::Board::ITEM_LIMIT).map { |i| add("i#{i}.png", i.to_s) }
-      add("new.png", "new")
-      ids = board.snapshot[:items].map { |i| i[:id] }
-      expect(ids).not_to include(items.first["id"])
-      expect(ids.size).to eq(Monadic::Workbench::Board::ITEM_LIMIT)
-      expect(File.file?(file_of(items.first))).to be(true)
+    it "refuses an 11th item in Now before anything is placed, and takes nothing off" do
+      board.begin_reply(request)
+      items = (1..Monadic::Workbench::Board::NOW_LIMIT).map { |i| add("i#{i}.png", i.to_s) }
+      expect { add("new.png", "new") }.to raise_error(Monadic::Workbench::Board::Refused, /Now/)
+      expect(board.snapshot[:items].map { |i| i[:id] }).to eq(items.map { |i| i["id"] })
+      expect(shared_files.size).to eq(Monadic::Workbench::Board::NOW_LIMIT)
     end
 
     it "finishes placing even when its thread is stopped right after the board is saved" do
@@ -288,13 +288,23 @@ RSpec.describe "the workbench (board, artifact, approvals, record)" do
   end
 
   describe "removing an image" do
-    it "takes it off the board only, answers a removal sent again, and refuses anything else on it" do
+    it "puts away what the assistant placed, keeps its file, and answers a removal sent again" do
+      board.begin_reply(request)
       item = add
-      expect(remove(item).first).to eq(:accepted)
-      expect(board.snapshot[:items]).to be_empty
+      board.end_reply(request)
+      status, operation = remove(item)
+      expect([status, operation["state"]]).to eq([:accepted, "stashed"])
+      expect(board.snapshot[:items].map { |i| [i[:id], i[:place]] }).to eq([[item["id"], "stash"]])
       expect(File.file?(file_of(item))).to be(true)
       expect(remove(item).first).to eq(:same)
-      expect { remove(item, "op-00000002") }.to raise_error(Monadic::Workbench::Board::Refused, /removed/)
+    end
+
+    it "refuses the user's operations while a reply runs" do
+      board.begin_reply(request)
+      item = add
+      expect { remove(item) }.to raise_error(Monadic::Workbench::Board::Refused, /replying/)
+      board.end_reply(request)
+      expect(remove(item).first).to eq(:accepted)
     end
 
     it "refuses an id used for another operation, other bytes than the token's, or another epoch" do

@@ -70,10 +70,31 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
       end
     end
 
-    context 'with Tavily-dependent provider (DeepSeek)' do
+    context 'with a DeepSeek app' do
+      let(:instance) do
+        Class.new do
+          include MonadicSharedTools::WebSearchTools
+
+          def deepseek_search(query:, count: 5)
+            { "query" => query, "count" => count, "websearch_agent" => "deepseek" }
+          end
+        end.new
+      end
+
+      it "routes to DeepSeek's search and never to Tavily, with or without a Tavily key" do
+        expect(instance).not_to receive(:tavily_search)
+        [nil, 'test-key'].each do |key|
+          allow(CONFIG).to receive(:[]).with('TAVILY_API_KEY').and_return(key)
+          result = instance.search_web(query: 'test query', max_results: 4)
+          expect(result).to eq({ "query" => "test query", "count" => 4, "websearch_agent" => "deepseek" })
+        end
+      end
+    end
+
+    context 'with Tavily-dependent provider (Mistral)' do
       let(:instance) do
         test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatDeepSeek')
+          allow(obj.class).to receive(:name).and_return('ChatMistral')
         end
       end
 

@@ -571,7 +571,7 @@ module MistralHelper
     request_id = SecureRandom.hex(4)
 
     # Handle both string and boolean values for websearch parameter.
-    # Proactively gate on TAVILY_API_KEY (mirrors Cohere / DeepSeek): if
+    # Proactively gate on TAVILY_API_KEY (mirrors Cohere / Ollama): if
     # the key is not configured, the UI websearch toggle is silently
     # treated as off so the LLM never registers tavily_* tools and the
     # user never sees a "Bearer token not found" tool error mid-session.

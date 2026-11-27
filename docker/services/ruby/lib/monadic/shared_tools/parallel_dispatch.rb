@@ -8,6 +8,7 @@ require_relative 'child_threads'
 require_relative '../utils/model_spec'
 require_relative '../workspace/request_context'
 require_relative '../utils/provider_response'
+require_relative 'deepseek_search'
 
 module MonadicSharedTools
   module ParallelDispatch
@@ -31,7 +32,7 @@ module MonadicSharedTools
       "CohereHelper"     => { type: :cohere,          websearch_strategy: :tavily,
                                endpoint: "https://api.cohere.ai/v2/chat",
                                api_key_env: "COHERE_API_KEY" },
-      "DeepSeekHelper"   => { type: :openai_compat,   websearch_strategy: :tavily,
+      "DeepSeekHelper"   => { type: :openai_compat,   websearch_strategy: :deepseek_search,
                                endpoint: "https://api.deepseek.com/chat/completions",
                                api_key_env: "DEEPSEEK_API_KEY" },
       "GrokHelper"       => { type: :openai_compat,   websearch_strategy: :responses_api,
@@ -95,8 +96,8 @@ module MonadicSharedTools
 
       # The subtasks search the web only when the call asks for it and the
       # message may search (the setting and the app, TurnSettings): a search
-      # is sent at once (Tavily's is made before the subtask runs), so it is
-      # never assumed.
+      # is sent at once (Tavily's and DeepSeek's are made before the subtask
+      # runs), so it is never assumed.
       ws_enabled = turn.websearch == true && [true, "true"].include?(websearch)
       parent_ws_session_id = Thread.current[:websocket_session_id]
       provider_cfg = resolve_provider_config
@@ -213,6 +214,9 @@ module MonadicSharedTools
           anthropic_websearch_sub_call(provider_cfg[:endpoint], api_key, model, prompt, timeout_secs)
         when :tavily
           enriched = tavily_prefetch_and_inject(prompt)
+          standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
+        when :deepseek_search
+          enriched = deepseek_prefetch_and_inject(prompt, api_key)
           standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
         else # fallback: provider that has no websearch path — call without enrichment
           standard_sub_call(provider_cfg, api_key, model, prompt, timeout_secs)
@@ -443,17 +447,37 @@ module MonadicSharedTools
                   .post("https://api.tavily.com/search", json: body)
         parsed = JSON.parse(res.body.to_s)
         results = parsed["results"]
-        return prompt unless results.is_a?(Array) && !results.empty?
+        return prompt unless results.is_a?(Array)
 
-        search_block = results.map do |r|
-          "### #{r["title"]}\nURL: #{r["url"]}\n#{r["content"]}"
-        end.join("\n\n")
-
-        "=== Web Search Results ===\n#{search_block}\n=== End Search Results ===\n\n#{prompt}"
+        with_search_results(prompt, results.map { |r| [r["title"], r["url"], r["content"]] })
       rescue StandardError
         # Tavily API error — fall back to original prompt
         prompt
       end
+    end
+
+    # Prefetch DeepSeek search results (DeepSeek's Search API, with the
+    # chat's DeepSeek key) and inject them into the prompt; the prompt as it
+    # is when the search fails or finds nothing.
+    def deepseek_prefetch_and_inject(prompt, api_key)
+      query = prompt.to_s.gsub(/\s+/, " ").strip.slice(0, Monadic::SharedTools::DeepSeekSearch::MAX_QUERY_LENGTH)
+      found = Monadic::SharedTools::DeepSeekSearch.search(query: query, count: 3, api_key: api_key)
+      return prompt if found.key?("error")
+
+      with_search_results(prompt, found["results"].map { |r| [r["title"], r["url"], r["summary"]] })
+    rescue StandardError
+      prompt
+    end
+
+    # The prompt with search results ([title, url, text] each) before it.
+    def with_search_results(prompt, results)
+      return prompt if results.empty?
+
+      search_block = results.map do |title, url, text|
+        "### #{title}\nURL: #{url}\n#{text}"
+      end.join("\n\n")
+
+      "=== Web Search Results ===\n#{search_block}\n=== End Search Results ===\n\n#{prompt}"
     end
 
     # Send progress update to the WebSocket for temp card display.

@@ -59,7 +59,7 @@ A conversation can be kept in the [Library](../apps/knowledge-base.md) as a docu
 | Mistral | ✅ | ✅ | ✅ Tavily |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ Native |
-| DeepSeek | ✅ | ✅ | ✅ Tavily |
+| DeepSeek | ✅ | ✅ | ✅ Native |
 | Ollama | Model-dependent | Model-dependent | ✅ Tavily |
 
 ## App Categories

@@ -42,6 +42,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
              :gemini_websearch_sub_call,
              :anthropic_websearch_sub_call,
              :tavily_prefetch_and_inject,
+             :deepseek_prefetch_and_inject,
              :standard_sub_call,
              :send_parallel_progress
     end
@@ -473,10 +474,14 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       expect(config["ClaudeHelper"][:websearch_strategy]).to eq(:native_tool)
     end
 
-    it "maps Mistral, Cohere, and DeepSeek to :tavily" do
-      %w[MistralHelper CohereHelper DeepSeekHelper].each do |name|
+    it "maps Mistral and Cohere to :tavily" do
+      %w[MistralHelper CohereHelper].each do |name|
         expect(config[name][:websearch_strategy]).to eq(:tavily)
       end
+    end
+
+    it "maps DeepSeek to :deepseek_search" do
+      expect(config["DeepSeekHelper"][:websearch_strategy]).to eq(:deepseek_search)
     end
   end
 
@@ -745,9 +750,10 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       app.sub_agent_api_call("mistral-large", "test", mistral_cfg, 120, websearch: true)
     end
 
-    it "routes DeepSeek to tavily_prefetch + openai_compat when websearch: true" do
-      expect(app).to receive(:tavily_prefetch_and_inject).with("test").and_return("enriched")
-      expect(app).to receive(:openai_compat_sub_call).and_return("result")
+    it "routes DeepSeek to deepseek_prefetch + openai_compat when websearch: true, never Tavily" do
+      expect(app).not_to receive(:tavily_prefetch_and_inject)
+      expect(app).to receive(:deepseek_prefetch_and_inject).with("test", CONFIG["DEEPSEEK_API_KEY"]).and_return("enriched")
+      expect(app).to receive(:openai_compat_sub_call).with(anything, anything, anything, "enriched", anything).and_return("result")
       app.sub_agent_api_call("deepseek-v4-flash", "test", deepseek_cfg, 120, websearch: true)
     end
 

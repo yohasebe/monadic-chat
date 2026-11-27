@@ -10,14 +10,15 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
   # (ProgressiveToolManager) derives the group from the Registry, so if a tool
   # is added to the web_search_tools group but not here, the two gates drift and
   # the new tool escapes the toggle. Lock them together.
-  it 'WEB_SEARCH_TOOL_NAMES matches the web_search_tools Registry group (no drift)' do
+  it 'WEB_SEARCH_TOOL_NAMES matches the web_search_tools Registry group and the DeepSeek tools (no drift)' do
     registry_names = MonadicSharedTools::Registry.tools_for(:web_search_tools).map { |t| t[:name] }
-    expect(described_class::WEB_SEARCH_TOOL_NAMES.sort).to eq(registry_names.sort)
+    expected = registry_names + Monadic::SharedTools::DeepSeekSearch::TOOL_NAMES
+    expect(described_class::WEB_SEARCH_TOOL_NAMES.sort).to eq(expected.sort)
   end
 
   describe '.web_search_tool?' do
-    it 'recognizes every web-search tool name (schema + Tavily primitives)' do
-      %w[search_web fetch_web_content tavily_search tavily_fetch].each do |name|
+    it 'recognizes every web-search tool name (schema, Tavily and DeepSeek primitives)' do
+      %w[search_web fetch_web_content tavily_search tavily_fetch deepseek_search deepseek_fetch].each do |name|
         expect(described_class.web_search_tool?(name)).to be(true), "expected #{name} to be a web-search tool"
       end
     end
@@ -84,7 +85,7 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
       expect(described_class.websearch_requested?('websearch' => '1')).to be false
     end
 
-    it 'is false when TAVILY_API_KEY is missing or blank (fixes DeepSeek empty-string truthy bug)' do
+    it 'is false when TAVILY_API_KEY is missing or blank' do
       stub_const('CONFIG', { 'TAVILY_API_KEY' => '' })
       expect(described_class.websearch_requested?('websearch' => true)).to be false
       stub_const('CONFIG', {})
@@ -124,7 +125,7 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
   end
 
   describe 'helper modules adopt the shared constants' do
-    # The four Tavily-fallback helpers must alias their local
+    # The Tavily-fallback helpers must alias their local
     # WEBSEARCH_TOOLS / WEBSEARCH_PROMPT to the shared module so
     # there's exactly one source of truth.
     let(:vendors_dir) do
@@ -133,7 +134,6 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
 
     {
       'cohere_helper.rb' => 'CohereHelper',
-      'deepseek_helper.rb' => 'DeepSeekHelper',
       'mistral_helper.rb' => 'MistralHelper',
       'ollama_helper.rb' => 'OllamaHelper'
     }.each do |filename, _label|

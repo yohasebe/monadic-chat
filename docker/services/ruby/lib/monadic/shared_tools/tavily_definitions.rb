@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "deepseek_search"
+
 module Monadic
   module SharedTools
     # Canonical definitions for the Tavily-backed web search tools.
@@ -7,20 +9,14 @@ module Monadic
     # Source of truth for:
     #   - The OpenAI-compatible function schemas (tavily_search /
     #     tavily_fetch) that get registered in body["tools"] when a
-    #     non-native-search provider has TAVILY_API_KEY configured AND
-    #     the user has enabled the web search toggle.
+    #     Tavily-fallback provider (Cohere, Mistral, Ollama) has
+    #     TAVILY_API_KEY configured AND the user has enabled the web
+    #     search toggle.
     #   - The system-prompt fragment that nudges the LLM to actually
     #     reach for those tools instead of fabricating answers.
     #
-    # Before consolidating here (2026-05-13), each of Cohere /
-    # DeepSeek / Mistral / Ollama helpers carried verbatim copies that
-    # had drifted in small ways — e.g. Cohere required both `query`
-    # AND `n`, while every other helper required only `query`. The
-    # divergence was a latent bug source whenever the Tavily tool
-    # surface changed.
-    #
-    # All four Tavily-fallback helpers now alias their local
-    # constants to these definitions; a structural spec
+    # The Tavily-fallback helpers alias their local constants to these
+    # definitions; a structural spec
     # (`spec/unit/shared_tools/tavily_definitions_spec.rb`) pins the
     # contract so drift cannot creep back in silently.
     module TavilyDefinitions
@@ -90,12 +86,8 @@ module Monadic
       TEXT
 
       # Single source of truth for "is Tavily-backed web search active for this
-      # request?". Replaces four subtly-divergent copies that lived in the
-      # Cohere / DeepSeek / Mistral / Ollama helpers — notably DeepSeek's bare
-      # `CONFIG["TAVILY_API_KEY"]` truthy check, which treated an empty-string
-      # key as configured. Centralizing it also makes every Tavily-fallback
-      # provider behave identically (important for headless callers that supply
-      # the `websearch` flag themselves).
+      # request?" in the Tavily-fallback helpers: the `websearch` flag, and a
+      # TAVILY_API_KEY that is not blank.
       def self.websearch_requested?(obj)
         return false if !defined?(CONFIG) || CONFIG["TAVILY_API_KEY"].to_s.strip.empty?
 
@@ -103,11 +95,15 @@ module Monadic
         value == true || value == "true"
       end
 
-      # Names of every tool that performs web search (the web_search_tools group
-      # plus the Tavily primitives). Used to gate web search at the execution
-      # point so a UI-disabled toggle is honored no matter how the model
-      # surfaced the call (schema, or a content-embedded JSON/DSML fallback).
-      WEB_SEARCH_TOOL_NAMES = %w[search_web fetch_web_content tavily_search tavily_fetch].freeze
+      # Names of the Tavily primitives.
+      TAVILY_TOOL_NAMES = %w[tavily_search tavily_fetch].freeze
+
+      # Names of every tool that performs web search (the web_search_tools group,
+      # the Tavily primitives and DeepSeek's). Used to gate web search at the
+      # execution point so a UI-disabled toggle is honored no matter how the
+      # model surfaced the call (schema, or a content-embedded JSON/DSML fallback).
+      WEB_SEARCH_TOOL_NAMES = (%w[search_web fetch_web_content] + TAVILY_TOOL_NAMES +
+                               DeepSeekSearch::TOOL_NAMES).freeze
 
       def self.web_search_tool?(name)
         WEB_SEARCH_TOOL_NAMES.include?(name.to_s)

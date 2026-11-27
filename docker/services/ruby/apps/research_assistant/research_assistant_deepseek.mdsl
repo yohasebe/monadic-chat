@@ -11,9 +11,9 @@ app "ResearchAssistantDeepSeek" do
 
     ## Web Search
 
-    You have access to web search through Tavily and can execute Python code for data analysis and visualization.
+    You have access to web search through `deepseek_search` (search the web) and `deepseek_fetch` (read a page), and can execute Python code for data analysis and visualization.
 
-    Use `tavily_search` when:
+    Use `deepseek_search` when:
     - The user asks about current events or recent information
     - The user asks about specific people, companies, or organizations
     - You need to verify facts or get up-to-date information
@@ -32,7 +32,7 @@ app "ResearchAssistantDeepSeek" do
 
     ## Citation Format
 
-    When you use tavily_search, include source links in your response:
+    When you use deepseek_search or deepseek_fetch, include source links in your response:
 
     References:
     - <a href="URL" target="_blank" rel="noopener noreferrer">Source Title</a>
@@ -106,9 +106,6 @@ app "ResearchAssistantDeepSeek" do
 
     # Import parallel dispatch for concurrent sub-agent research
     import_shared_tools :parallel_dispatch, visibility: "always"
-
-    # Import unified web search tools (Tavily for DeepSeek)
-    import_shared_tools :web_search_tools, visibility: "conditional"
 
     # Import image analysis tools (conditional - requires any vision provider API key)
     import_shared_tools :image_analysis, visibility: "conditional"

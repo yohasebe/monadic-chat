@@ -655,15 +655,16 @@
             <%# Stays under the side column's bar while the work screen scrolls. %>
             <div class="workbench-head">
             <div class="workbench-put mb-2">
-              <button type="button" class="btn btn-sm btn-secondary" id="workbench-put" title="Save a file from your computer in the chat's folder and show it here, for you and the AI to look at and point at. You can also drop files on the work screen." data-i18n-title="ui.workbench.putHelp">
-                <i class="fa-solid fa-file-arrow-up me-1" aria-hidden="true"></i><span data-i18n="ui.workbench.putFile">Put a file</span>
+              <%# Short labels; the full name is the accessible name and the tooltip says what each does. %>
+              <button type="button" class="btn btn-sm btn-secondary btn-outline" id="workbench-put" title="Save a file from your computer in the chat's folder and show it here, for you and the AI to look at and point at. You can also drop files on the work screen." data-i18n-title="ui.workbench.putHelp" aria-label="Put a file" data-i18n-aria-label="ui.workbench.putFile">
+                <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i><span data-i18n="ui.workbench.putShort">Put</span>
               </button>
               <input type="file" id="workbench-put-input" multiple hidden>
-              <button type="button" class="btn btn-sm btn-secondary ms-1" id="workbench-new-whiteboard" title="Make a new whiteboard in the chat's folder and show it here, to draw on with the AI." data-i18n-title="ui.workbench.wbNewHelp">
-                <i class="fa-solid fa-chalkboard me-1" aria-hidden="true"></i><span data-i18n="ui.workbench.wbNew">New whiteboard</span>
+              <button type="button" class="btn btn-sm btn-secondary btn-outline ms-1" id="workbench-new-whiteboard" title="Make a new whiteboard in the chat's folder and show it here, to draw on with the AI." data-i18n-title="ui.workbench.wbNewHelp" aria-label="New whiteboard" data-i18n-aria-label="ui.workbench.wbNew">
+                <i class="fa-solid fa-chalkboard" aria-hidden="true"></i><span data-i18n="ui.workbench.wbNewShort">Whiteboard</span>
               </button>
-              <button type="button" class="btn btn-sm btn-secondary ms-1" id="workbench-open-url" title="Open a page in the work screen, or take in its text" data-i18n-title="ui.importFromWeb">
-                <i class="fa-solid fa-globe me-1" aria-hidden="true"></i><span data-i18n="ui.fromURL">Open URL</span>
+              <button type="button" class="btn btn-sm btn-secondary btn-outline ms-1" id="workbench-open-url" title="Open a page in the work screen, or take in its text" data-i18n-title="ui.importFromWeb" aria-label="Open URL" data-i18n-aria-label="ui.fromURL">
+                <i class="fa-solid fa-globe" aria-hidden="true"></i><span data-i18n="ui.workbench.urlShort">URL</span>
               </button>
               <%# To the top and the end of the work screen, while it is longer than the column (workbench.js). %>
               <span class="workbench-jump" hidden>

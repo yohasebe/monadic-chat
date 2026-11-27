@@ -879,13 +879,20 @@ window.loadedApp = "Chat";
       }
 
       case "workbench_open_url": {
-        // An address the user opened in the chat's browser: said only when
-        // it did not open.
-        if (!data.success && typeof setAlert === 'function') {
-          const keys = { invalid_url: 'openUrlInvalid', browser_starting: 'openUrlStarting' };
-          const key = 'ui.modals.' + (keys[data.error] || 'openUrlFailed');
-          const text = typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : key;
-          setAlert(text, data.error === 'browser_starting' ? 'warning' : 'error');
+        // An address the user opened on the work screen: a PDF put there as
+        // a file, or the page in the chat's browser. What opened is selected
+        // in this tab; a PDF put as a file is said so, and an address that
+        // did not open says why.
+        const say = (key) => (typeof webUIi18n !== 'undefined' ? webUIi18n.t(key) : key);
+        if (data.success) {
+          if (data.item_id && window.Workbench && typeof window.Workbench.showOwn === 'function') {
+            window.Workbench.showOwn(data.item_id);
+          }
+          if (data.as_file && typeof setAlert === 'function') setAlert(say('ui.modals.openUrlAsFile'), 'info');
+        } else if (typeof setAlert === 'function') {
+          const keys = { invalid_url: 'ui.modals.openUrlInvalid', browser_starting: 'ui.modals.openUrlStarting',
+                         too_large: 'ui.workbench.putTooLarge', unreachable: 'ui.modals.openUrlUnreachable' };
+          setAlert(say(keys[data.error] || 'ui.modals.openUrlFailed'), data.error === 'browser_starting' ? 'warning' : 'error');
         }
         break;
       }

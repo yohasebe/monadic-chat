@@ -26,7 +26,7 @@ Enter a message in the text area and click the **Send** button to send it. For v
 
 ## Files for the AI :id=files-for-the-ai
 
-The message box is for what you say to the AI. Files you want to look at together (images, PDFs, documents, audio, video, MIDI) go on the [work screen](web-interface.md#work-screen), the desk between you and the AI: click **Put a file** at the top of the work screen, or drop files there. Each file is kept in the chat's folder, and the AI is told with your next message what is on the work screen and what is in view; it looks at a file when your question needs it.
+The message box is for what you say to the AI. Files you want to look at together (images, PDFs, documents, audio, video, MIDI) go on the [work screen](web-interface.md#work-screen), the desk between you and the AI: click **Put** at the top of the work screen, or drop files there. Each file is kept in the chat's folder, and the AI is told with your next message what is on the work screen and what is in view; it looks at a file when your question needs it.
 
 - **Images**: the AI looks at the image as it is. To point at a part of it, mark it on the work screen before you send.
 - **PDFs and documents**: the AI reads their text; with models that read files, a whole PDF (or, with OpenAI, a Word, Excel or PowerPoint document) is given as it is.
@@ -39,13 +39,13 @@ When you send again a message of an earlier chat that was sent with files, those
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 
-Put the document on the [work screen](web-interface.md#work-screen) (**Put a file**, or open it from the shared folder), then click **Text to the message** under it: its text, of the version shown, is added to the message box. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). A file you put is kept in the chat's folder (`conversations/…/inputs/`). If the file changes while its text is taken, nothing is added.
+Put the document on the [work screen](web-interface.md#work-screen) (**Put**, or open it from the shared folder), then click **To input** under it: its text, of the version shown, is added to the message box. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). A file you put is kept in the chat's folder (`conversations/…/inputs/`). If the file changes while its text is taken, nothing is added.
 
 ## Opening a URL :id=reading-text-from-urls
 
-Click **Open URL** at the top of the [work screen](web-interface.md#work-screen) and enter an address that starts with `http://` or `https://`.
+Click **URL** at the top of the [work screen](web-interface.md#work-screen) and enter an address that starts with `http://` or `https://`.
 
-- **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there.
+- **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there. An address that serves a PDF (up to 64 MB) is put on the work screen as a file instead: it is kept in the chat's folder (`inputs/`), as a file you put there, and shown as a PDF.
 - **Take in as text** reads the page's text into the message box in Markdown format.
 
 ![The Open URL dialog](../assets/images/figures/url-dialog.svg)

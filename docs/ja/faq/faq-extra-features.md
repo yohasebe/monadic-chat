@@ -24,7 +24,7 @@
 
 - **ネイティブWeb検索**: OpenAI、Claude、Gemini、Grok、DeepSeek、Mistralは各社自身のウェブ検索を使用。検索語はその提供元に送られ、その鍵で課金されます。DeepSeek はページも読み、Mistral は検索だけです
 - **Tavily検索**: Cohere、Ollamaは`~/monadic/config/env`に`TAVILY_API_KEY`を設定することでTavily APIを使用
-- **URLコンテンツ抽出**: どのプロバイダーでも、作業画面の上の **URLを開く** で、Web ページを作業画面に開くか、そのテキストをメッセージ欄に読み込めます（Selenium を使います）
+- **URLコンテンツ抽出**: どのプロバイダーでも、作業画面の上の **URL** で、Web ページを作業画面に開くか、そのテキストをメッセージ欄に読み込めます（Selenium を使います）
 
 Web 検索は、設定（**一般 › AI が使える情報源**）でオフにしない限り使えます。Monadic Help、Wikipedia、Voice Interpreter 以外の組み込みのアプリでは、頼まれたときや最新の情報が要るときに AI が検索します。Cohere、Ollama では `TAVILY_API_KEY` が要ります。
 

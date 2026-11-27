@@ -60,7 +60,6 @@ A rescue on the masking path must withhold or raise, never return the input text
 | `app` | `APP` | the app's `display_name` | expand | yes |
 | `lang` | `LANG` | `conversation_language`, or `ui_language` when it is `auto` | expand | yes |
 | `last_generated_image` | `LAST_GENERATED_IMAGE` | first file of the app's `last_images` state | expand | no |
-| `last_uploaded_image` | `LAST_UPLOADED_IMAGE` | last image of the latest user message with images | expand | no |
 | `notebook` | `NOTEBOOK` | `notebook_filename` in the app's `context` state | expand | no |
 
 A token whose value is nil is left as the literal `${TOKEN}`.
@@ -77,7 +76,7 @@ end
 vocabulary false              # no tokens at all
 ```
 
-`VocabularyConfiguration` (`lib/monadic/dsl/configurations.rb`) raises on an unknown name and stores `{ tokens: [...], enabled: true|false }` in `settings[:vocabulary]`. The Image Generator apps use `last_generated_image` and `last_uploaded_image`; the Jupyter Notebook apps use `notebook`.
+`VocabularyConfiguration` (`lib/monadic/dsl/configurations.rb`) raises on an unknown name and stores `{ tokens: [...], enabled: true|false }` in `settings[:vocabulary]`. The Image Generator apps use `last_generated_image`; the Jupyter Notebook apps use `notebook`.
 
 Every app also gets the shared-folder file tools: `MonadicDSL.inject_file_operations!` imports `:file_operations` unless the app already does.
 

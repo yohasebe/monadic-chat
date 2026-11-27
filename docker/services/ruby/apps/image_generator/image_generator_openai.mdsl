@@ -101,7 +101,6 @@ app "ImageGeneratorOpenAI" do
 
   vocabulary do
     use :last_generated_image
-    use :last_uploaded_image
   end
 
   features do

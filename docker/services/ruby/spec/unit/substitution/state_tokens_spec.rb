@@ -6,8 +6,7 @@ require "monadic/substitution/vocabulary"
 # Coverage for the session-state image/notebook vocabulary tokens.
 # These are NOT in DEFAULT_TOKENS — an app opts in via `vocabulary do; use
 # :last_generated_image; end`. ${LAST_GENERATED_IMAGE} = the image the assistant
-# produced (monadic_state "last_images" / legacy keys); ${LAST_UPLOADED_IMAGE} =
-# the image the user uploaded (latest user message's "images" attachment).
+# produced (monadic_state "last_images" / legacy keys).
 RSpec.describe "Monadic::Substitution::Vocabulary image/notebook tokens" do
   let(:described) { Monadic::Substitution::Vocabulary }
 
@@ -19,13 +18,6 @@ RSpec.describe "Monadic::Substitution::Vocabulary image/notebook tokens" do
       expect(meta[:description]).to be_a(String).and(satisfy { |d| !d.empty? })
     end
 
-    it "registers :last_uploaded_image as ${LAST_UPLOADED_IMAGE} with :expand display" do
-      meta = described::BUILTINS[:last_uploaded_image]
-      expect(meta[:token]).to eq("LAST_UPLOADED_IMAGE")
-      expect(meta[:display]).to eq(:expand)
-      expect(meta[:description]).to be_a(String).and(satisfy { |d| !d.empty? })
-    end
-
     it "registers :notebook as ${NOTEBOOK} with :expand display" do
       meta = described::BUILTINS[:notebook]
       expect(meta[:token]).to eq("NOTEBOOK")
@@ -33,7 +25,7 @@ RSpec.describe "Monadic::Substitution::Vocabulary image/notebook tokens" do
     end
 
     it "keeps the opt-in image/notebook tokens OUT of DEFAULT_TOKENS" do
-      %i[last_generated_image last_uploaded_image notebook].each do |t|
+      %i[last_generated_image notebook].each do |t|
         expect(described::DEFAULT_TOKENS).not_to include(t)
       end
     end
@@ -43,14 +35,13 @@ RSpec.describe "Monadic::Substitution::Vocabulary image/notebook tokens" do
     it "excludes the opt-in tokens for an app that does not declare them" do
       tokens = described.tokens_for(nil)
       expect(tokens).not_to include(:last_generated_image)
-      expect(tokens).not_to include(:last_uploaded_image)
       expect(tokens).not_to include(:notebook)
       expect(tokens).to include(:shared)
     end
 
     it "includes the image tokens when the app opts in via `use`" do
-      settings = { vocabulary: { tokens: [:last_generated_image, :last_uploaded_image], enabled: true } }
-      expect(described.tokens_for(settings)).to include(:last_generated_image, :last_uploaded_image)
+      settings = { vocabulary: { tokens: [:last_generated_image], enabled: true } }
+      expect(described.tokens_for(settings)).to include(:last_generated_image)
     end
   end
 
@@ -75,29 +66,6 @@ RSpec.describe "Monadic::Substitution::Vocabulary image/notebook tokens" do
     end
   end
 
-  describe ".last_uploaded_image (user upload)" do
-    it "returns the filename of the most recently user-uploaded image" do
-      session = { messages: [
-        { "role" => "user", "images" => [{ "title" => "old.png" }] },
-        { "role" => "assistant", "text" => "ok" },
-        { "role" => "user", "images" => [{ "title" => "first.png" }, { "title" => "diagram_v2.png" }] }
-      ] }
-      expect(described.last_uploaded_image(session)).to eq("diagram_v2.png")
-    end
-
-    it "tolerates a 'filename' key and basenames any path" do
-      session = { messages: [{ "role" => "user", "images" => [{ "filename" => "uploads/photo.jpg" }] }] }
-      expect(described.last_uploaded_image(session)).to eq("photo.jpg")
-    end
-
-    it "considers only user messages and returns nil when the user uploaded nothing" do
-      session = { messages: [
-        { "role" => "assistant", "images" => [{ "title" => "ai.png" }] },
-        { "role" => "user", "text" => "hi" }
-      ] }
-      expect(described.last_uploaded_image(session)).to be_nil
-    end
-  end
 
   describe ".current_notebook" do
     it "reads notebook_filename from the monadic_state context slot" do

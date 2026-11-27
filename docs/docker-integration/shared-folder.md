@@ -45,7 +45,6 @@ A few variables are available only in the apps where they are meaningful, rather
 | Variable | Available in | Resolves to |
 | --- | --- | --- |
 | `${LAST_GENERATED_IMAGE}` | Image Generator | The filename of the most recent image the assistant generated in the session. |
-| `${LAST_UPLOADED_IMAGE}` | Image Generator | The filename of the most recent image the user uploaded in the conversation. |
 | `${NOTEBOOK}` | Jupyter Notebook | The filename of the notebook currently in use. |
 
 These appear in the Available Variables panel only while you are in the corresponding app. Like the universal variables, they expand to their value in tool calls and displayed text. Until there is a value (before any image or notebook exists), the token is kept as written.

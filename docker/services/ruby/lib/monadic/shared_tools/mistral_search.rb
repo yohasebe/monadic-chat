@@ -102,11 +102,13 @@ module Monadic
 
       def result(query, parsed)
         outputs = Array(parsed["outputs"]).select { |o| o.is_a?(Hash) }
-        searched = outputs.any? { |o| o["type"] == "tool.execution" }
+        executions = outputs.select { |o| o["type"] == "tool.execution" }
+        searched = executions.any?
         sources = []
         answer = outputs.select { |o| o["type"] == "message.output" }.map do |output|
           message_text(output["content"], sources)
-        end.join("\n\n").strip
+        end.reject(&:empty?).join("\n\n").strip
+        executions.each { |execution| add_results(execution, sources) }
         return { "error" => "Mistral web search error: the search gave no answer." } if answer.empty? && sources.empty?
 
         found = { "query" => query, "answer" => answer, "sources" => sources, "websearch_agent" => "mistral" }
@@ -114,9 +116,30 @@ module Monadic
         found
       end
 
+      # The results a search returned (tool.execution's info.result, a JSON
+      # object of { url, title, description }), added to sources once each,
+      # so the model has them when the reply cites none or gives no text.
+      def add_results(execution, sources)
+        raw = execution.dig("info", "result")
+        found = raw.is_a?(String) ? (JSON.parse(raw) rescue nil) : raw
+        return unless found.is_a?(Hash)
+
+        found.each_value do |item|
+          next unless item.is_a?(Hash)
+
+          url = item["url"].to_s
+          next if url.empty? || sources.any? { |s| s["url"] == url }
+
+          source = { "title" => item["title"].to_s.empty? ? url : item["title"].to_s, "url" => url }
+          description = item["description"].to_s.strip
+          source["description"] = description unless description.empty? || description == "None"
+          sources << source
+        end
+      end
+
       # The text of a message's content (a string, or text and tool_reference
-      # chunks), each reference written as the number of its source, which is
-      # added to sources once.
+      # chunks; thinking is left out), each reference written as the number of
+      # its source, which is added to sources once.
       def message_text(content, sources)
         return content.to_s unless content.is_a?(Array)
 

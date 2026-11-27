@@ -100,6 +100,30 @@ RSpec.describe Monadic::SharedTools::MistralSearch do
       expect(found["note"]).to include("not searched")
     end
 
+    it "takes the results of the searches when the reply cites none, and leaves thinking out" do
+      results = { "search-result://a" => { "url" => "https://example.com/a", "title" => "A", "source" => "brave", "description" => "About A" },
+                  "search-result://b" => { "url" => "https://example.com/b", "title" => "", "source" => "wikipedia", "description" => "None" } }
+      reply = { "outputs" => [
+        { "type" => "message.output", "content" => [{ "type" => "thinking", "thinking" => [{ "type" => "text", "text" => "plan" }] }] },
+        { "type" => "tool.execution", "name" => "web_search", "info" => { "result" => JSON.generate(results) } },
+        { "type" => "message.output", "content" => [{ "type" => "thinking", "thinking" => [] }, { "type" => "text", "text" => "Answer." }] }
+      ] }
+      stub_requests([200, reply])
+      found = described_class.search(query: "ruby", api_key: api_key, model: "m")
+      expect(found["answer"]).to eq("Answer.")
+      expect(found["sources"]).to eq([{ "title" => "A", "url" => "https://example.com/a", "description" => "About A" },
+                                      { "title" => "https://example.com/b", "url" => "https://example.com/b" }])
+    end
+
+    it "gives the results of the searches when the reply has no text" do
+      results = { "search-result://a" => { "url" => "https://example.com/a", "title" => "A" } }
+      stub_requests([200, { "outputs" => [{ "type" => "tool.execution", "name" => "web_search", "info" => { "result" => JSON.generate(results) } }] }])
+      found = described_class.search(query: "ruby", api_key: api_key, model: "m")
+      expect(found["answer"]).to eq("")
+      expect(found["sources"]).to eq([{ "title" => "A", "url" => "https://example.com/a" }])
+      expect(found).not_to have_key("error")
+    end
+
     it "gives an error for a reply with no answer and no sources" do
       stub_requests([200, { "outputs" => [] }])
       expect(described_class.search(query: "ruby", api_key: api_key, model: "m"))

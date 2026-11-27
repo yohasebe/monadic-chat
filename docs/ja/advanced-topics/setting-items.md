@@ -70,7 +70,7 @@ featuresブロック内のすべての設定はオプションです：
 - `websearch` - アプリの会話が Web を検索してよいか（`websearch true` のときだけ。設定の **AI が使える情報源** はすべてのアプリの Web 検索を止めます）
 - `image_generation` - AI画像生成機能を有効化。以下の値を受け付けます：
   - `true` - 画像の生成と編集
-  - `"upload_only"` - 画像アップロードのみ（生成・編集なし）
+  - `"upload_only"` - 画像の入力のみ：AI は作業画面の画像を見る（生成・編集なし）
   - `false` - 無効（デフォルト）
 - `mermaid` - Mermaid の図の書き方をモデルに伝え、バッジを表示する（Mermaid の図はどのアプリでも描かれます）
 - `abc` - ABC音楽記譜法を有効化
@@ -148,7 +148,6 @@ app "ChatOpenAI" do
     easy_submit true
     auto_speech false
     context_size 20
-    # 注: 画像アップロードはビジョン機能を持つモデルで自動的に有効になります
     websearch true
   end
   

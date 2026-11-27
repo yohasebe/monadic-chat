@@ -46,7 +46,7 @@ The table below shows which apps are available for which AI model providers.
 
 ## The Library in Apps :id=kb-by-app
 
-A conversation can be kept in the Library as a document, and apps search the Library. The AI searches when you ask it to or when it clearly helps, not on every turn; **Sources the AI can use** in the General section of Settings turns this off. Live Conversation searches only while its **Search and compute** switch is on. A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation as a file, use **Export**. To see what is kept in the Library, open the **Library** tab of the sidebar.
+A conversation can be kept in the [Library](../apps/knowledge-base.md) as a document, and apps search all of the Library. The AI searches when you ask it to or when it clearly helps, not on every turn; **Sources the AI can use** in the General section of Settings turns this off. Live Conversation searches only while its **Search and compute** switch is on. A chat that hides words cannot be saved in any app ([Anonymization](../advanced-topics/anonymization.md#knowledge-base)). To keep a conversation as a file, use **Export**. To see what is kept in the Library, open the **Library** tab of the sidebar.
 
 
 ## Provider Capabilities Overview :id=provider-capabilities
@@ -123,10 +123,6 @@ Capture and interact with web pages through a controlled browser, and analyze th
 
 - Web Insight
 - Video Describer
-
-### Library :id=knowledge-base
-
-A unified, project-wide library of saved conversations and imported documents (PDF, Office, Markdown, source code). Every app searches every entry. See [Library](../apps/knowledge-base.md).
 
 ### Coding & Notebook Apps
 

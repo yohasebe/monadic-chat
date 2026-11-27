@@ -71,7 +71,7 @@ All settings in the features block are optional:
 - `websearch` - Let the app's chats search the web (only `websearch true` does; the setting in **Sources the AI can use** turns web search off for every app)
 - `image_generation` - Enable AI image generation capabilities. Accepts:
   - `true` - Image generation and editing
-  - `"upload_only"` - Image upload only (no generation/editing)
+  - `"upload_only"` - Image input only: the AI looks at images on the work screen (no generation/editing)
   - `false` - Disabled (default)
 - `mermaid` - Tell the model how to write Mermaid diagrams, and show the badge (Mermaid diagrams are drawn in every app)
 - `abc` - Enable ABC music notation
@@ -149,7 +149,6 @@ app "ChatOpenAI" do
     easy_submit true
     auto_speech false
     context_size 20
-    # Note: Image upload is automatically enabled for models with vision capability
     websearch true
   end
   

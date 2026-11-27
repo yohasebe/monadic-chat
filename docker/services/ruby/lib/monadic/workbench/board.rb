@@ -55,6 +55,9 @@ module Monadic
       ITEM_LIMIT = NOW_LIMIT * 3
       BUSY = 'the assistant is replying: the work screen can be changed when the reply ends'
       FULL = "the work screen has #{NOW_LIMIT} items in Now: take one off or put one away first".freeze
+      # What the AI is told of a put-away item it named: it reads only what
+      # is on the desk.
+      PUT_AWAY = 'that item is put away: bring it into Now first (show_on_workbench with its item), then use it'
       # What an origin keeps in the manifest (not the tab or connection).
       ORIGIN_KEYS = %i[actor source request_id].freeze
       # remove: off the board when the user placed it in this turn and it
@@ -262,7 +265,7 @@ module Monadic
 
         told = data['told'].to_i
         { epoch: Monadic::Workspace::Chats.epoch(@chat_id), selected: selected, text: text,
-          items: data['items'].values.map { |item| public_item(item) },
+          items: data['items'].values.map { |item| public_item(item) }, layers: public_layers(data),
           events: Array(data['events']).select { |e| e['seq'].to_i > told },
           events_tail: data['event_seq'].to_i, events_lost: data['events_lost'].to_i > told }
       end
@@ -624,9 +627,34 @@ module Monadic
         end
       end
 
-      # The image that arrived on the board last, or nil.
+      # The image on the desk (not put away) that arrived there last, or nil.
       def latest_image
-        @lock.synchronize { deep_dup(@data['items'].values.reverse.find { |item| item['artifact'] }) }
+        @lock.synchronize do
+          deep_dup(@data['items'].values.reverse.find { |item| item['artifact'] && item['place'] != 'stash' })
+        end
+      end
+
+      # The put-away items whose name holds query (any case), the newest
+      # first: { items: [{ 'id', 'kind', 'name' }] (at most limit), total: }.
+      def find_put_away(query, limit: 20)
+        needle = query.to_s.strip.downcase
+        found = @lock.synchronize do
+          @data['items'].values.reverse.filter_map do |item|
+            next unless item['place'] == 'stash'
+
+            name = name_of(item)
+            { 'id' => item['id'], 'kind' => kind_name(item), 'name' => name } if name.downcase.include?(needle)
+          end
+        end
+        { items: found.first(limit), total: found.size }
+      end
+
+      # Whether the item is on the board and not put away.
+      def on_desk?(item_id)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s]
+          !item.nil? && item['place'] != 'stash'
+        end
       end
 
       # The image of an item, read from the shared folder and checked
@@ -926,6 +954,15 @@ module Monadic
         return unless @data['items'].values.any? { |item| item['place'] == 'current' && item['by'] == 'agent' }
 
         shift!(@data, 'agent', nil)
+      end
+
+      # An item's name and kind from its record (no file is read).
+      def name_of(item)
+        (item.dig('file', 'name') || item.dig('artifact', 'name') || item.dig('library', 'title') || item['kind']).to_s
+      end
+
+      def kind_name(item)
+        item['kind'] == 'file' ? item.dig('file', 'preview').to_s : item['kind'].to_s
       end
 
       def public_layers(data)

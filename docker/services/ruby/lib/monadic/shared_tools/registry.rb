@@ -184,6 +184,24 @@ module MonadicSharedTools
               },
               { name: :item, type: "string", description: Monadic::Workbench::LookTool::ITEM_PARAM, required: false }
             ]
+          },
+          {
+            name: "put_away_on_workbench",
+            description: "Put an item of the work screen away (item: its id from the observation): it leaves the desk " \
+                         "the user and you share, and is told by name and kind only until it is brought back into Now " \
+                         "with show_on_workbench. Use it to make room in Now (it holds a limited number of items) " \
+                         "or to clear what no longer matters.",
+            parameters: [
+              { name: :item, type: "string", description: "An item's id from the work screen observation", required: true }
+            ]
+          },
+          {
+            name: "find_on_workbench",
+            description: "Find put-away items of the work screen by a part of their name (any case), the newest first: " \
+                         "their ids, kinds and names. Bring one into Now with show_on_workbench(item: its id) to look at it.",
+            parameters: [
+              { name: :name, type: "string", description: "A part of the item's name", required: true }
+            ]
           }
         ],
         default_hint: "Call request_tool(\"workbench\") to show a file or a text you made in the work screen."

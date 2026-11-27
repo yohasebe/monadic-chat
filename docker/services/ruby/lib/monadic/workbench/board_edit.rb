@@ -70,6 +70,7 @@ module Monadic
         unless target.is_a?(Board::Target) && whiteboard?(target.item) && (item_id.nil? || target.item['id'] == item_id.to_s)
           raise NoSource, 'open the whiteboard in the work screen, then ask again'
         end
+        raise NoSource, Board::PUT_AWAY if target.item['place'] == 'stash'
 
         target
       end

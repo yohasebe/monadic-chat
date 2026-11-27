@@ -359,6 +359,7 @@ module Monadic
           'fetch_text_from_pdf' => %w[file pdf],
           'fetch_text_from_office' => %w[file],
           'show_on_workbench' => %w[path],
+          'find_on_workbench' => %w[name],
           'library_search' => %w[query]
         }.freeze
 

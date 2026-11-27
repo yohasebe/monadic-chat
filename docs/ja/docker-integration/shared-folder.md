@@ -45,7 +45,6 @@ JupyterLab も `/monadic/data` で起動するので、JupyterLab からも共�
 | 変数 | 使えるアプリ | 置き換わる値 |
 | --- | --- | --- |
 | `${LAST_GENERATED_IMAGE}` | Image Generator | セッションの中でアシスタントが最後に生成した画像のファイル名。 |
-| `${LAST_UPLOADED_IMAGE}` | Image Generator | 会話の中で利用者が最後にアップロードした画像のファイル名。 |
 | `${NOTEBOOK}` | Jupyter Notebook | 今使っているノートブックのファイル名。 |
 
 これらは、対応するアプリを使っているときだけ Available Variables のパネルに表示されます。すべての会話で使える変数と同じく、ツールの呼び出しと表示される文の中で値に置き換わります。値がまだ無いうち（画像やノートブックがまだ無いとき）は、書かれたトークンのまま残ります。

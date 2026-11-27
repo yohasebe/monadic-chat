@@ -82,12 +82,6 @@ module Monadic
           display: :expand,
           resolve: ->(session) { Monadic::Substitution::Vocabulary.last_generated_image(session) }
         },
-        last_uploaded_image: {
-          token: "LAST_UPLOADED_IMAGE",
-          description: "The filename of the most recent image the user uploaded in this conversation.",
-          display: :expand,
-          resolve: ->(session) { Monadic::Substitution::Vocabulary.last_uploaded_image(session) }
-        },
         notebook: {
           token: "NOTEBOOK",
           description: "The filename of the Jupyter notebook currently in use.",
@@ -265,33 +259,6 @@ module Monadic
         data = app_state(session, "last_images")
         first = data.is_a?(Array) ? data.first : nil
         first && !first.to_s.empty? ? File.basename(first.to_s) : nil
-      end
-
-      # @param session [Hash]
-      # @return [String, nil] basename of the most recent image the USER uploaded
-      #   in this conversation, or nil. User uploads attach to the user message's
-      #   "images" array; scan session[:messages] newest-first and return the last
-      #   image of the most recent user message. Tolerant of string entries and of
-      #   "title"/"filename"/"name" keys.
-      def last_uploaded_image(session)
-        msgs = (session.respond_to?(:[]) && (session[:messages] || session["messages"]))
-        return nil unless msgs.is_a?(Array)
-        msgs.reverse_each do |m|
-          next unless m.is_a?(Hash)
-          role = m["role"] || m[:role]
-          next unless role.to_s == "user"
-          imgs = m["images"] || m[:images]
-          next unless imgs.is_a?(Array) && !imgs.empty?
-          img = imgs.last
-          name =
-            if img.is_a?(Hash)
-              img["title"] || img[:title] || img["filename"] || img[:filename] || img["name"] || img[:name]
-            else
-              img
-            end
-          return File.basename(name.to_s) if name && !name.to_s.empty?
-        end
-        nil
       end
 
       # @param session [Hash]

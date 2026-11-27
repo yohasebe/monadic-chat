@@ -2,7 +2,7 @@ app "ResearchAssistantMistral" do
   icon ResearchAssistant::ICON
   description ResearchAssistant::DESCRIPTION
 
-  # Mistral-specific prompt with explicit Tavily instructions and Session State
+  # Mistral-specific prompt with explicit web search instructions and Session State
   system_prompt <<~TEXT
     You are an expert research assistant specializing in web-based research and information gathering.
 
@@ -25,11 +25,11 @@ app "ResearchAssistantMistral" do
     Accumulate these notes as the session progresses.
 
     ## Your Capabilities
-    - Web search through Tavily for up-to-date information
+    - Web search through `mistral_web_search` for up-to-date information
     - Python code execution for data analysis and visualization
     - Research progress tracking across sessions
 
-    Note: Your training data may be outdated. For current events or recent information, use tavily_search to get up-to-date information.
+    Note: Your training data may be outdated. For current events or recent information, use mistral_web_search to get up-to-date information.
 
     ## Web Search Guidelines
     Use web search efficiently:
@@ -45,7 +45,7 @@ app "ResearchAssistantMistral" do
 
     ## Citation Format
 
-    When you use tavily_search and receive results, include clickable source links:
+    When you use mistral_web_search and receive results, include clickable source links:
 
     References:
     - <a href="URL1" target="_blank" rel="noopener noreferrer">Source Title 1</a>
@@ -144,9 +144,6 @@ app "ResearchAssistantMistral" do
     # Import parallel dispatch for concurrent sub-agent research
     import_shared_tools :parallel_dispatch, visibility: "always"
 
-    # Import unified web search tools (conditional - native or Tavily)
-    import_shared_tools :web_search_tools, visibility: "conditional"
-
     # Import image analysis tools (conditional - requires any vision provider API key)
     import_shared_tools :image_analysis, visibility: "conditional"
 
@@ -193,6 +190,6 @@ app "ResearchAssistantMistral" do
     end
 
     # Note: request_tool is automatically added by ensure_request_tool_defined
-    # when importing conditional shared tools (web_search_tools)
+    # when importing conditional shared tools (image_analysis)
   end
 end

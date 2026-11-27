@@ -49,7 +49,8 @@ module MonadicSharedTools
     # - Gemini: URL Context feature
     # - Grok: Grok Live Search
     # - DeepSeek: DeepSeek's Search API
-    # - Mistral/Cohere: Tavily API (requires TAVILY_API_KEY)
+    # - Mistral: Mistral's web search
+    # - Cohere: Tavily API (requires TAVILY_API_KEY)
     #
     # @param query [String] The search query
     # @param max_results [Integer] Maximum number of results to return (default: 5)
@@ -78,6 +79,8 @@ module MonadicSharedTools
 
       # A DeepSeek app searches through DeepSeek's own API, never Tavily.
       return deepseek_search(query: query, count: max_results) if respond_to?(:deepseek_search)
+      # A Mistral app searches through Mistral's own web search, never Tavily.
+      return mistral_web_search(query: query) if respond_to?(:mistral_web_search)
 
       # Prefer a real search backend whenever Tavily is configured.
       #

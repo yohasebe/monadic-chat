@@ -14,6 +14,7 @@ require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/extra_logger"
 require_relative "../../shared_tools/tavily_definitions"
+require_relative "../../shared_tools/mistral_search"
 require_relative "../../workbench/caller"
 
 module MistralHelper
@@ -38,11 +39,10 @@ module MistralHelper
     "mistral-tiny"
   ]
 
-  # Tavily-backed web search tools. SSOT is
-  # `Monadic::SharedTools::TavilyDefinitions` (consolidated 2026-05-13);
-  # local constants are aliases for backwards compat.
-  WEBSEARCH_TOOLS = Monadic::SharedTools::TavilyDefinitions::TOOLS
-  WEBSEARCH_PROMPT = Monadic::SharedTools::TavilyDefinitions::PROMPT
+  # Web search through Mistral's own web search (the Conversations API).
+  # SSOT is `Monadic::SharedTools::MistralSearch`.
+  WEBSEARCH_TOOLS = Monadic::SharedTools::MistralSearch::TOOLS
+  WEBSEARCH_PROMPT = Monadic::SharedTools::MistralSearch::PROMPT
 
   class << self
     attr_reader :cached_models
@@ -570,23 +570,12 @@ module MistralHelper
     context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    # Handle both string and boolean values for websearch parameter.
-    # Proactively gate on TAVILY_API_KEY (mirrors Cohere / Ollama): if
-    # the key is not configured, the UI websearch toggle is silently
-    # treated as off so the LLM never registers tavily_* tools and the
-    # user never sees a "Bearer token not found" tool error mid-session.
-    # The reactive `tavily_disabled` flag below remains as defense in
-    # depth (catches the case where the key is set at boot but Tavily
-    # rejects it at request time — e.g. revoked / rate-limited).
-    # A model that calls no tools is neither given the search tools nor
-    # told of them.
-    websearch = Monadic::SharedTools::TavilyDefinitions.websearch_requested?({ "websearch" => turn.websearch }) &&
+    # Whether the message may search (mistral_web_search?). A model that
+    # calls no tools is neither given the search tool nor told of it.
+    websearch = mistral_web_search?(obj) &&
                 (Monadic::Utils::ModelSpec.get_model_property(turn.model, "tool_capability") != false ||
                  ENV[MISTRAL_LEGACY_MODE_ENV] == "true")
-    if session[:parameters]["tavily_disabled"]
-      websearch = false
-    end
-    
+
     # Debug logging for websearch
     DebugHelper.debug("Mistral websearch enabled: #{websearch}", category: :api, level: :info) if websearch
 
@@ -928,7 +917,22 @@ module MistralHelper
     [res]
   end
 
+  # The web search tool offered when the message may search
+  # (WEBSEARCH_TOOLS), run on Mistral's own web search with the chat's
+  # Mistral key.
+  def mistral_web_search(query:, **)
+    Monadic::SharedTools::MistralSearch.search(query: query, api_key: CONFIG["MISTRAL_API_KEY"])
+  end
+
   private
+
+  # Whether the message being answered was sent with Web Search on (the
+  # setting and the app, TurnSettings): the same for every request and tool
+  # call of its answer. The search runs on Mistral's own API with the chat's
+  # key.
+  def mistral_web_search?(obj)
+    Monadic::TurnSettings.current(obj).websearch == true
+  end
 
   # Configure tools for the Mistral API request, including progressive tool
   # disclosure, websearch tools, and SSOT capability gates.
@@ -955,12 +959,15 @@ module MistralHelper
       end
     end
 
-    unless websearch
-      app_tools = Array(app_tools).select do |tool|
-        next false unless tool.is_a?(Hash)
-        name = tool.dig(:function, :name) || tool.dig("function", "name")
-        name && !name.start_with?("tavily_")
-      end
+    # A Mistral chat searches through Mistral's own web search: the Tavily
+    # tools an app or a request names are not offered, nor is
+    # mistral_web_search when the message may not search.
+    not_offered = Monadic::SharedTools::TavilyDefinitions::TAVILY_TOOL_NAMES
+    not_offered += Monadic::SharedTools::MistralSearch::TOOL_NAMES unless websearch
+    app_tools = Array(app_tools).select do |tool|
+      next false unless tool.is_a?(Hash)
+      name = tool.dig(:function, :name) || tool.dig("function", "name")
+      name && !not_offered.include?(name.to_s)
     end
 
     final_tools = nil
@@ -979,11 +986,11 @@ module MistralHelper
         request_tools = nil
       end
     end
-    if request_tools && !websearch
+    if request_tools
       request_tools = Array(request_tools).select do |tool|
         next false unless tool.is_a?(Hash)
         name = tool.dig(:function, :name) || tool.dig("function", "name")
-        name && !name.start_with?("tavily_")
+        name && !not_offered.include?(name.to_s)
       end
     end
 
@@ -1008,13 +1015,9 @@ module MistralHelper
         DebugHelper.debug("Mistral: skill visibility re-apply skipped due to #{e.message}", category: :api, level: :warning)
       end
 
-      # Web Search is the user's own toggle: in an app that names no search
-      # tools of its own (Chat), they are offered as they are, not behind
-      # request_tool. An app that has them keeps its own way of showing them.
-      names_search_tools = Array(app_settings && app_settings["tools"]).any? do |tool|
-        tool.is_a?(Hash) && (tool.dig(:function, :name) || tool.dig("function", "name")).to_s.start_with?("tavily_")
-      end
-      if websearch && !names_search_tools
+      # Web Search is the user's own toggle: the search tool is offered as it
+      # is, not behind request_tool.
+      if websearch
         merged += WEBSEARCH_TOOLS
         merged.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
       end
@@ -1028,9 +1031,6 @@ module MistralHelper
     else
       if request_tools && !request_tools.empty?
         base = Array(app_tools).select { |tool| tool.is_a?(Hash) } + Array(request_tools).select { |tool| tool.is_a?(Hash) }
-        # Add web search tools when enabled — this branch previously omitted
-        # them (unlike the app_tools / websearch-only branches below), so a
-        # request that carried obj["tools"] while websearch was on lost Tavily.
         base += WEBSEARCH_TOOLS if websearch
         base = base.flatten.compact
         base.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
@@ -1111,7 +1111,8 @@ module MistralHelper
     # The model is told of the search tools in the requests that carry them,
     # and in no other (Research Assistant's own prompt tells of them).
     search_told = !obj["app_name"].to_s.include?("ResearchAssistant") && Array(body["tools"]).any? do |tool|
-      tool.is_a?(Hash) && (tool.dig(:function, :name) || tool.dig("function", "name")).to_s.start_with?("tavily_")
+      tool.is_a?(Hash) &&
+        Monadic::SharedTools::MistralSearch::TOOL_NAMES.include?((tool.dig(:function, :name) || tool.dig("function", "name")).to_s)
     end
     # Defensive: `context` comes from session[:messages], which only ever holds
     # user/assistant/system turns — tool results live in obj["function_returns"]
@@ -1296,34 +1297,26 @@ module MistralHelper
     args_hash = {}
     args.each { |k, v| args_hash[k.to_sym] = v }
 
-    # Reactive Tavily gate (defense in depth — pairs with the proactive
-    # gate at the top of api_request). The proactive gate handles "key
-    # missing at session start"; this reactive branch handles the rarer
-    # "key valid at boot but rejected mid-session" cases: revoked key,
-    # rate-limit ban, billing lapse. Setting the session flag short-
-    # circuits subsequent tool emissions for this session so the model
-    # does not retry tavily_* on every turn.
-    tavily_key_rejected = lambda { |function_return|
-      next function_return unless function_name.to_s.start_with?("tavily_") &&
-                                  function_return.to_s.downcase.include?("bearer token not found")
+    # The Web Search toggle, asked where every call is run: the model can
+    # still call a search tool the request did not offer it. A Tavily tool
+    # never runs in a Mistral chat.
+    web_search_off = lambda {
+      next unless Monadic::SharedTools::TavilyDefinitions.web_search_tool?(function_name)
 
-      amended = {
-        error: "tavily_api_key_missing",
-        message: "Tavily API call failed with 'Bearer token not found'. Please verify that TAVILY_API_KEY is configured, or continue the research without live web search."
-      }
-      session[:parameters]["tavily_disabled"] = true
-      begin
-        Monadic::Utils::ProgressiveToolManager.trigger_event(
-          session: session,
-          app_name: app,
-          event: "tavily_missing"
-        )
-      rescue StandardError
+      unless mistral_web_search?(session[:parameters])
+        Monadic::Utils::ExtraLogger.log { "[Mistral] Web Search off — blocked #{function_name}" }
+        next "❌ Web search is turned off for this conversation. " \
+             "Do NOT attempt web search or fetching again. Answer the user directly from your own " \
+             "knowledge, and note that your information may not be up to date."
       end
-      amended
+      next unless Monadic::SharedTools::TavilyDefinitions::TAVILY_TOOL_NAMES.include?(function_name.to_s)
+
+      Monadic::Utils::ExtraLogger.log { "[Mistral] blocked #{function_name}" }
+      "❌ #{function_name} is not available in this conversation. " \
+        "Use mistral_web_search to search the web."
     }
     result = run_tool_call(
-      app, session, function_name, args_hash, call_id: tool_call["id"], amend: tavily_key_rejected,
+      app, session, function_name, args_hash, call_id: tool_call["id"], refuse: web_search_off,
       error_text: ->(e) { Monadic::Utils::ErrorFormatter.tool_error(provider: "Mistral", tool_name: function_name, message: e.message) },
       &block
     )

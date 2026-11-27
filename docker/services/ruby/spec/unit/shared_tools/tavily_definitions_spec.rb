@@ -10,15 +10,16 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
   # (ProgressiveToolManager) derives the group from the Registry, so if a tool
   # is added to the web_search_tools group but not here, the two gates drift and
   # the new tool escapes the toggle. Lock them together.
-  it 'WEB_SEARCH_TOOL_NAMES matches the web_search_tools Registry group and the DeepSeek tools (no drift)' do
+  it 'WEB_SEARCH_TOOL_NAMES matches the web_search_tools Registry group and the DeepSeek and Mistral tools (no drift)' do
     registry_names = MonadicSharedTools::Registry.tools_for(:web_search_tools).map { |t| t[:name] }
-    expected = registry_names + Monadic::SharedTools::DeepSeekSearch::TOOL_NAMES
+    expected = registry_names + Monadic::SharedTools::DeepSeekSearch::TOOL_NAMES +
+               Monadic::SharedTools::MistralSearch::TOOL_NAMES
     expect(described_class::WEB_SEARCH_TOOL_NAMES.sort).to eq(expected.sort)
   end
 
   describe '.web_search_tool?' do
-    it 'recognizes every web-search tool name (schema, Tavily and DeepSeek primitives)' do
-      %w[search_web fetch_web_content tavily_search tavily_fetch deepseek_search deepseek_fetch].each do |name|
+    it 'recognizes every web-search tool name (schema, Tavily, DeepSeek and Mistral primitives)' do
+      %w[search_web fetch_web_content tavily_search tavily_fetch deepseek_search deepseek_fetch mistral_web_search].each do |name|
         expect(described_class.web_search_tool?(name)).to be(true), "expected #{name} to be a web-search tool"
       end
     end
@@ -134,7 +135,6 @@ RSpec.describe Monadic::SharedTools::TavilyDefinitions do
 
     {
       'cohere_helper.rb' => 'CohereHelper',
-      'mistral_helper.rb' => 'MistralHelper',
       'ollama_helper.rb' => 'OllamaHelper'
     }.each do |filename, _label|
       it "#{filename} aliases WEBSEARCH_TOOLS to Monadic::SharedTools::TavilyDefinitions::TOOLS" do

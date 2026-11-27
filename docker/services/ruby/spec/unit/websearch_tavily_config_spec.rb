@@ -3,10 +3,10 @@ require 'spec_helper'
 RSpec.describe 'Websearch Tavily Configuration' do
   describe 'Provider categorization' do
     # These providers require Tavily API for web search
-    let(:tavily_required_providers) { ['mistral', 'cohere', 'ollama'] }
+    let(:tavily_required_providers) { ['cohere', 'ollama'] }
     
     # These providers have web search of their own
-    let(:native_websearch_providers) { ['openai', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic', 'deepseek'] }
+    let(:native_websearch_providers) { ['openai', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic', 'deepseek', 'mistral'] }
 
     it 'correctly identifies providers that require Tavily API' do
       # Verify the lists are comprehensive and mutually exclusive
@@ -78,7 +78,6 @@ RSpec.describe 'Websearch Tavily Configuration' do
 
     {
       'cohere_helper.rb' => 'CohereHelper',
-      'mistral_helper.rb' => 'MistralHelper',
       'ollama_helper.rb' => 'OllamaHelper'
     }.each do |filename, label|
       it "#{label} gates websearch on TAVILY_API_KEY presence" do

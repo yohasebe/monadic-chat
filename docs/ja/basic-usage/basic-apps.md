@@ -56,7 +56,7 @@
 | OpenAI | ✅ | ✅ | ✅ ネイティブ |
 | Claude | ✅ | ✅ | ✅ ネイティブ |
 | Gemini | ✅ | ✅ | ✅ ネイティブ |
-| Mistral | ✅ | ✅ | ✅ Tavily |
+| Mistral | ✅ | ✅ | ✅ ネイティブ |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ ネイティブ |
 | DeepSeek | ✅ | ✅ | ✅ ネイティブ |

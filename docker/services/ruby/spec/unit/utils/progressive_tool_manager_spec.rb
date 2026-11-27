@@ -373,9 +373,9 @@ RSpec.describe Monadic::Utils::ProgressiveToolManager do
       expect(msg).not_to include("Nothing to unlock")
     end
 
-    it "says web search is off for DeepSeek's search tools too" do
+    it "says web search is off for DeepSeek's and Mistral's search tools too" do
       allow(Monadic::WebSearchSetting).to receive(:on?).and_return(false)
-      %w[deepseek_search deepseek_fetch].each do |name|
+      %w[deepseek_search deepseek_fetch mistral_web_search].each do |name|
         msg = described_class.handle_request_tool(
           session: session, app_name: app_name, app_settings: app_settings,
           argument_hash: { tool_name: name }

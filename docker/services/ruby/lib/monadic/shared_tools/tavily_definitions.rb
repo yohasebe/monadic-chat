@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "deepseek_search"
+require_relative "mistral_search"
 
 module Monadic
   module SharedTools
@@ -9,9 +10,8 @@ module Monadic
     # Source of truth for:
     #   - The OpenAI-compatible function schemas (tavily_search /
     #     tavily_fetch) that get registered in body["tools"] when a
-    #     Tavily-fallback provider (Cohere, Mistral, Ollama) has
-    #     TAVILY_API_KEY configured AND the user has enabled the web
-    #     search toggle.
+    #     Tavily-fallback provider (Cohere, Ollama) has TAVILY_API_KEY
+    #     configured AND the user has enabled the web search toggle.
     #   - The system-prompt fragment that nudges the LLM to actually
     #     reach for those tools instead of fabricating answers.
     #
@@ -99,11 +99,12 @@ module Monadic
       TAVILY_TOOL_NAMES = %w[tavily_search tavily_fetch].freeze
 
       # Names of every tool that performs web search (the web_search_tools group,
-      # the Tavily primitives and DeepSeek's). Used to gate web search at the
-      # execution point so a UI-disabled toggle is honored no matter how the
-      # model surfaced the call (schema, or a content-embedded JSON/DSML fallback).
+      # the Tavily primitives, DeepSeek's and Mistral's). Used to gate web search
+      # at the execution point so a UI-disabled toggle is honored no matter how
+      # the model surfaced the call (schema, or a content-embedded JSON/DSML
+      # fallback).
       WEB_SEARCH_TOOL_NAMES = (%w[search_web fetch_web_content] + TAVILY_TOOL_NAMES +
-                               DeepSeekSearch::TOOL_NAMES).freeze
+                               DeepSeekSearch::TOOL_NAMES + MistralSearch::TOOL_NAMES).freeze
 
       def self.web_search_tool?(name)
         WEB_SEARCH_TOOL_NAMES.include?(name.to_s)

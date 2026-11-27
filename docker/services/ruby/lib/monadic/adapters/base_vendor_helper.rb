@@ -459,11 +459,12 @@ module BaseVendorHelper
   # value as a log may show it: what a look of the work screen read is
   # named, not written. Found by its shape, so that it is named in a later
   # request too: a tool result of a look (it says "status":"looked"), and
-  # an image's data (a data URL, or the base64 data of Claude's, Gemini's
-  # and Ollama's image parts). Anything else is left as it is.
+  # a file's data (a data URL, named with its media type, or the base64
+  # data of Claude's, Gemini's and Ollama's parts). Anything else is left
+  # as it is.
   LOOK_RESULT = /\\?"status\\?"\s*:\s*\\?"looked\\?"/
-  IMAGE_DATA_URL = %r{data:(?:image|application)/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+}i
-  IMAGE_DATA_KEYS = %w[data images].freeze
+  DATA_URL = %r{data:((?:image|application)/[a-z0-9.+-]+);base64,[A-Za-z0-9+/=]+}i
+  DATA_KEYS = %w[data images].freeze
 
   def workbench_loggable(value, key = nil)
     case value
@@ -473,10 +474,10 @@ module BaseVendorHelper
       if value.match?(LOOK_RESULT)
         id = value[Monadic::Workbench::Look::Ledger::ID]
         "[#{Monadic::Workbench::Look::TOOL} result #{id}]"
-      elsif IMAGE_DATA_KEYS.include?(key.to_s) && value.length >= 64 && value.match?(%r{\A[A-Za-z0-9+/=\s]+\z})
-        "[image data, #{value.length} characters]"
+      elsif DATA_KEYS.include?(key.to_s) && value.length >= 64 && value.match?(%r{\A[A-Za-z0-9+/=\s]+\z})
+        "[base64 data, #{value.length} characters]"
       else
-        value.gsub(IMAGE_DATA_URL) { |url| "[image data URL, #{url.length} characters]" }
+        value.gsub(DATA_URL) { |url| "[#{Regexp.last_match(1)} data URL, #{url.length} characters]" }
       end
     when Hash then value.to_h { |k, v| [k, workbench_loggable(v, k)] }
     when Array then value.map { |v| workbench_loggable(v, key) }

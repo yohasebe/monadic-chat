@@ -677,14 +677,14 @@ def analyze_audio(params):
     try:
         tempo_result = librosa.beat.beat_track(y=y, sr=sr)
         if isinstance(tempo_result[0], np.ndarray):
-            bpm = float(tempo_result[0][0])
+            bpm = _tempo_bpm(tempo_result[0][0])
         else:
-            bpm = float(tempo_result[0])
+            bpm = _tempo_bpm(tempo_result[0])
         beat_frames = tempo_result[1]
         beat_times = librosa.frames_to_time(beat_frames, sr=sr)
         beats = [round(float(t), 3) for t in beat_times]
     except Exception:
-        bpm = 0.0
+        bpm = None
         beats = []
 
     # --- Key detection (using harmonic signal for better accuracy) ---
@@ -732,7 +732,7 @@ def analyze_audio(params):
     unique_chords = len(set(c["chord"] for c in chords if c["chord"] != "N.C."))
 
     desc_parts = [
-        f"BPM {bpm:.0f}",
+        f"BPM {bpm:.0f}" if bpm else "BPM unknown",
         f"Key: {key_name} {key_mode}",
         f"{beats_per_bar}/{note_value} time",
     ]
@@ -747,7 +747,7 @@ def analyze_audio(params):
         "file_name": file_name,
         "duration_seconds": round(duration, 1),
         "tempo": {
-            "bpm": round(bpm, 1),
+            "bpm": bpm,
         },
         "key": {
             "key": key_name,
@@ -783,6 +783,13 @@ def analyze_audio(params):
 ACTIONS = {
     "analyze": analyze_audio,
 }
+
+
+def _tempo_bpm(value):
+    """The tempo found, or None when no steady beat was found (the beat
+    tracker then gives 0)."""
+    bpm = float(value)
+    return round(bpm, 1) if bpm > 0 else None
 
 
 def _track_name(name):

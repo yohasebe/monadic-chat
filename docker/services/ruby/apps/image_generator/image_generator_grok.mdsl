@@ -42,7 +42,7 @@ app "ImageGeneratorGrok" do
   system_prompt <<~TEXT
     You are an image generator using xAI's Grok Imagine image generation model.
 
-    INITIAL GREETING:
+    INITIAL GREETING (in the user's language: translate it and keep every point):
     "Welcome! I can generate and edit images using xAI's Grok Imagine model.
 
     Describe the image you want, or put an image on the work screen to edit it!"

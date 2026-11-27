@@ -113,7 +113,7 @@ module MusicLabTools
     dur_min = (duration / 60).to_i
     dur_sec = (duration % 60).to_i
 
-    tempo = result.dig("tempo", "bpm") || 0
+    tempo = result.dig("tempo", "bpm")
     key_name = result.dig("key", "key") || "Unknown"
     key_mode = result.dig("key", "mode") || "unknown"
     beats_per_bar = result.dig("time_signature", "beats_per_bar") || 4
@@ -123,7 +123,7 @@ module MusicLabTools
     heading = file_type == "midi" ? "MIDI Analysis" : "Audio Analysis"
     lines << "## #{heading}: #{file_name}"
     lines << "- Duration: #{dur_min}:#{format('%02d', dur_sec)}"
-    lines << "- Tempo: #{tempo.round(1)} BPM"
+    lines << (tempo.to_f.positive? ? "- Tempo: #{tempo.to_f.round(1)} BPM" : "- Tempo: unknown (no steady beat found)")
 
     if file_type == "midi"
       key_source = result.dig("key", "source") || "unknown"

@@ -70,8 +70,10 @@
     if (!data || _pendingExport) return;
     const bytes = Number(data.image_bytes) || 0;
     if (bytes <= 0) return;
-    const mb = Math.max(1, Math.round(bytes / (1024 * 1024)));
-    let text = t('ui.exportImagesSize', 'The images sent in this chat take about {size} MB in the file.').replace('{size}', String(mb));
+    const mb = Math.round(bytes / (1024 * 1024));
+    let text = mb < 1
+      ? t('ui.exportImagesSizeSmall', 'The images sent in this chat take less than 1 MB in the file.')
+      : t('ui.exportImagesSize', 'The images sent in this chat take about {size} MB in the file.').replace('{size}', String(mb));
     if (data.near) text += ' ' + t('ui.exportImagesNear', 'This is close to what a file may hold.');
     setExportStatus(text, data.near ? 'text-warning' : 'text-muted');
   }

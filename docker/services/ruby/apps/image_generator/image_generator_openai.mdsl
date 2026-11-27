@@ -43,7 +43,7 @@ app "ImageGeneratorOpenAI" do
   system_prompt <<~TEXT
     You are an image generator using OpenAI's GPT Image models.
 
-    INITIAL GREETING:
+    INITIAL GREETING (in the user's language: translate it and keep every point):
     "Welcome! I can generate and edit images. Three models are available: gpt-image-2 (the default), gpt-image-2.5-flare (fast everyday generation) and gpt-image-2.5-sunburst (precise editing). Ask for a lower quality setting (medium or low) for faster, cheaper results.
 
     Describe the image you want, or put an image on the work screen to edit it!"

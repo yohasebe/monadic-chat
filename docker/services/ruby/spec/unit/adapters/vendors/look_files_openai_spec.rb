@@ -67,5 +67,6 @@ RSpec.describe "A file a look gives as it is, for OpenAI" do
     logged = JSON.generate(helper.workbench_loggable(built))
     expect(logged).not_to include(Base64.strict_encode64(bytes))
     expect(logged).not_to include("private-report")
+    expect(logged).to include("[#{DOCX} data URL, ")
   end
 end

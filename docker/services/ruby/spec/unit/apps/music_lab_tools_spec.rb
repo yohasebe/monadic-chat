@@ -542,6 +542,14 @@ RSpec.describe 'MusicLabTools' do
       expect(text).to include("Duration: 0:00")
     end
 
+    it 'says the tempo is unknown when no steady beat was found' do
+      [nil, 0].each do |bpm|
+        text = instance.send(:format_analysis_result, audio_result.merge("tempo" => { "bpm" => bpm }))
+        expect(text).to include("Tempo: unknown")
+        expect(text).not_to include("Tempo: 0")
+      end
+    end
+
     it 'renders many chords as bar-aligned chart with bar count' do
       many_chords = (0..90).step(2).map { |t| { "time" => t.to_f, "duration" => 2.0, "chord" => "C" } }
       result = audio_result.merge("chords" => many_chords)

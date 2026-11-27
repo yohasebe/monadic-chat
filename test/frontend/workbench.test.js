@@ -52,7 +52,7 @@ describe('Workbench', () => {
 
   function shown() {
     const pane = document.getElementById('workbench-view');
-    return pane && !pane.hidden ? pane.dataset.item : null;
+    return pane && !pane.hidden ? (pane.dataset.item || null) : null;
   }
 
   function entry(overrides = {}) {
@@ -74,7 +74,6 @@ describe('Workbench', () => {
     document.body.innerHTML = `
       <div id="discourse"></div>
       <div id="workbench-status"></div>
-      <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
       <textarea id="message"></textarea>
@@ -96,6 +95,7 @@ describe('Workbench', () => {
     delete window.electronAPI;
     delete global.webUIi18n;
     require(js('monadic/dom-helpers.js'));
+    require(js('monadic/workbench-places.js'));
     require(js('monadic/workbench.js'));
   });
 
@@ -362,7 +362,6 @@ describe('Workbench', () => {
     expect(el.querySelector('.workbench-open')).toBeNull();
     expect(el.querySelector('.workbench-save')).not.toBeNull();
     expect(shown()).toBeNull();
-    expect(document.getElementById('workbench-items').hidden).toBe(true);
     expect(document.getElementById('workbench-status').textContent).not.toContain('older item');
   });
 
@@ -397,28 +396,21 @@ describe('Workbench', () => {
     expect(shown()).not.toBeNull();
   });
 
-  test('names a long image by its start and end in the list, with the whole name on hover', () => {
+  test('names each item by its head, with its whole name', () => {
     view([item({ name: '20261106-091233_generate_gpt-image-2_0.png' })]);
-    const tab = document.querySelector('#workbench-items [data-item="i_1"]');
-    expect(tab.querySelector('.workbench-item-name').textContent).toBe('generate_…image-2_0.png');
-    expect(tab.title).toBe('20261106-091233_generate_gpt-image-2_0.png');
-    expect(tab.getAttribute('aria-label')).toBe('20261106-091233_generate_gpt-image-2_0.png');
+    const head = document.querySelector('#workbench-view .workbench-section[data-item="i_1"] .workbench-section-head');
+    expect(head.textContent).toBe('20261106-091233_generate_gpt-image-2_0.png');
   });
 
-  test('names the item chosen by its tab alone: its full name is the tab\'s tooltip, not a line over the item', () => {
-    window.MonadicTip = { attach: jest.fn(), disposeWithin: jest.fn() };
-    try {
-      const long = '20261106-091233_compressed-survey-pldi-09.pdf';
-      view([item({ name: long })]);
-      const tab = document.querySelector('#workbench-items [data-item="i_1"]');
-      expect(window.MonadicTip.attach).toHaveBeenCalledWith(tab, expect.any(Object));
-      expect(tab.getAttribute('aria-label')).toBe(long);
-      const part = document.querySelector('#workbench-view .workbench-section[data-item="i_1"]');
-      expect(part.classList.contains('is-focus')).toBe(true);
-      expect(part.querySelector('.workbench-section-head').hidden).toBe(true);
-    } finally {
-      delete window.MonadicTip;
-    }
+  test('names the item chosen by its head, still shown, and marks it as the current one', () => {
+    view([item(), item({ id: 'i_2', artifact_id: 'r_2', name: 'dog.png', sha256: 'b'.repeat(64) })], { selected: 'i_1' });
+    const part = document.querySelector('#workbench-view .workbench-section[data-item="i_1"]');
+    const head = part.querySelector('.workbench-section-head');
+    expect(part.classList.contains('is-focus')).toBe(true);
+    expect(head.hidden).toBe(false);
+    expect(head.getAttribute('aria-current')).toBe('true');
+    expect(document.querySelector('#workbench-view .workbench-section[data-item="i_2"] .workbench-section-head')
+      .getAttribute('aria-current')).toBe('false');
   });
 
   test('ignores an older revision of the board, and starts over for another chat', () => {
@@ -483,15 +475,16 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-view').textContent).toContain('Only the beginning');
     });
 
-    test('moves along the row with its names and the arrow keys, telling the server what the tab shows', () => {
+    test('moves along the items with their heads and the arrow keys, telling the server what the tab shows', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       document.body.insertAdjacentHTML('beforeend', '<div id="work-screen-pane" tabindex="0"></div>');
       jest.resetModules();
+      require(js('monadic/workbench-places.js'));
       require(js('monadic/workbench.js'));
       view([item(), file()]);
       expect(shown()).not.toBeNull();
       sent.length = 0;
-      document.querySelector('#workbench-items .workbench-item[data-item="i_1"]').click();
+      document.querySelector('#workbench-view .workbench-section[data-item="i_1"] .workbench-section-head').click();
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
       expect(document.querySelector('#workbench-view img')).not.toBeNull();
       const pane = document.getElementById('work-screen-pane');
@@ -502,15 +495,15 @@ describe('Workbench', () => {
       expect(payloads()).toEqual([]);
     });
 
-    test('leaves the item shown as it is when its own tab is pressed again', () => {
+    test('leaves the item shown as it is when its own head is pressed again', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       view([item(), file()]);
       const before = shown();
       sent.length = 0;
-      document.querySelector('.workbench-item[data-item="i_f"]').click();
+      document.querySelector('#workbench-view .workbench-section[data-item="i_f"] .workbench-section-head').click();
       expect(payloads()).toEqual([]);
       expect(shown()).toBe(before);
-      document.querySelector('.workbench-item[data-item="i_1"]').click();
+      document.querySelector('#workbench-view .workbench-section[data-item="i_1"] .workbench-section-head').click();
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_1' }]);
     });
 
@@ -644,7 +637,14 @@ describe('Workbench', () => {
       view([browser()]);
       expect(window.Workbench.showsBrowser()).toBe(true);
       expect(document.getElementById('work-screen-browser').hidden).toBe(false);
-      expect(document.querySelector('#workbench-items .workbench-item').textContent).toBe('Browser');
+      // A way back to the work screen's places while the browser is shown.
+      const back = document.querySelector('#work-screen-browser .workbench-back');
+      expect(back.hidden).toBe(false);
+      sent.length = 0;
+      back.click();
+      expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: null }]);
+      expect(document.getElementById('work-screen-browser').hidden).toBe(true);
+      expect(document.getElementById('workbench-view').hidden).toBe(false);
       view([browser({ status: 'closed' })], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [browser({ status: 'closed' })] } });
       expect(window.Workbench.showsBrowser()).toBe(false);
       expect(document.getElementById('work-screen-browser').hidden).toBe(true);
@@ -658,10 +658,11 @@ describe('Workbench', () => {
       expect(payloads()).toContainEqual({ message: 'WORKBENCH_SELECT', item_id: 'i_b' });
     });
 
-    test('with nothing selected, shows the empty area', () => {
+    test('with nothing selected, shows the places and no browser area', () => {
       view([item()], { selected: null });
       expect(shown()).toBeNull();
-      expect(document.getElementById('work-screen-browser').hidden).toBe(false);
+      expect(document.getElementById('work-screen-browser').hidden).toBe(true);
+      expect(document.querySelectorAll('#workbench-view .workbench-place').length).toBe(4);
     });
   });
   describe('the mark on the work screen tab', () => {
@@ -930,7 +931,7 @@ describe('Workbench', () => {
       sent.length = 0;
       view([], { initial: true, selected: null, board: { board_id: null, chat_id: 'c_2', revision: 0, items: [] } });
       expect(shown()).toBeNull();
-      expect(document.getElementById('workbench-view').hidden).toBe(true);
+      expect(document.querySelectorAll('#workbench-view .workbench-section').length).toBe(0);
       expect(payloads()).toEqual([]);
     });
   });
@@ -1073,7 +1074,7 @@ describe('Workbench', () => {
       const c = item({ id: 'i_c', artifact_id: 'r_c', name: 'c.png', sha256: 'c'.repeat(64), version: 'c'.repeat(64) });
       layout.pane = 'work';
       view([a, b, c], { selected: 'i_c' });
-      const part = (id) => Array.from(document.querySelectorAll('#workbench-view > .workbench-section')).find((n) => n.dataset.item === id);
+      const part = (id) => Array.from(document.querySelectorAll('#workbench-view .workbench-section')).find((n) => n.dataset.item === id);
       part('i_a').getBoundingClientRect = () => ({ top: -300, bottom: -10, left: 0, right: 400 });
       part('i_b').getBoundingClientRect = () => ({ top: -10, bottom: 200, left: 0, right: 400 });
       part('i_c').getBoundingClientRect = () => ({ top: 200, bottom: 500, left: 0, right: 400 });
@@ -1692,7 +1693,7 @@ describe('Workbench', () => {
       try {
         view([paper], { assets: { i_p: '/workbench/asset/p' } });
         await flush();
-        const part = document.querySelector('#workbench-view > .workbench-section');
+        const part = document.querySelector('#workbench-view .workbench-section');
         part.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400 });
         window.innerHeight = 600;
         // A model that can look itself: nothing unmarked.
@@ -2185,6 +2186,7 @@ describe('Workbench', () => {
       document.getElementById('work-screen-pane').insertAdjacentHTML('beforeend', '<button id="workbench-new-whiteboard"></button>');
       jest.resetModules();
       require(js('monadic/dom-helpers.js'));
+      require(js('monadic/workbench-places.js'));
       require(js('monadic/workbench.js'));
       document.getElementById('workbench-new-whiteboard').click();
       expect(sent.at(-1).payload).toMatchObject({ message: 'WORKBENCH_WHITEBOARD_NEW' });
@@ -2226,11 +2228,12 @@ describe('Workbench', () => {
         near(node) { this.callback([{ target: node, isIntersecting: true }]); }
       };
       jest.resetModules();
+      require(js('monadic/workbench-places.js'));
       require(js('monadic/workbench.js'));
     });
     afterEach(() => { delete global.IntersectionObserver; });
 
-    const parts = () => Array.from(document.querySelectorAll('#workbench-view > .workbench-section'));
+    const parts = () => Array.from(document.querySelectorAll('#workbench-view .workbench-section'));
     const partOf = (id) => parts().find((n) => n.dataset.item === id);
 
     test('shows every item in order, draws another once near, and moves the buttons to the one chosen without drawing again', () => {
@@ -2239,9 +2242,9 @@ describe('Workbench', () => {
       view([a, b], { selected: 'i_b' });
       expect(parts().map((n) => n.dataset.item)).toEqual(['i_a', 'i_b']);
       expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
-      // The one chosen is named by its tab; the others under their names.
-      expect(partOf('i_b').querySelector('.workbench-section-head').hidden).toBe(true);
-      expect(partOf('i_a').querySelector('.workbench-section-head').hidden).toBe(false);
+      // Each is named by its head; the one chosen is marked as the current one.
+      expect(partOf('i_b').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('true');
+      expect(partOf('i_a').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('false');
       expect(partOf('i_a').querySelector('.workbench-section-head').textContent).toBe('a.png');
       expect(partOf('i_b').querySelector('.workbench-info .workbench-item-save')).not.toBeNull();
       // Not drawn until it comes near the view.
@@ -2270,9 +2273,10 @@ describe('Workbench', () => {
       expect(clicked).toHaveBeenCalledTimes(1);
     });
 
-    test('keeps one mark: choosing another item takes the mark on the one before away', () => {
+    test('keeps the mark on the one before when another is chosen, where it can no longer be moved', () => {
       jest.isolateModules(() => { require(js('monadic/workbench-pointer.js')); });
       jest.resetModules();
+      require(js('monadic/workbench-places.js'));
       require(js('monadic/workbench.js'));
       const a = item({ id: 'i_a', artifact_id: 'r_a', name: 'a.png' });
       const b = item({ id: 'i_b', artifact_id: 'r_b', name: 'b.png', sha256: 'b'.repeat(64) });
@@ -2288,7 +2292,17 @@ describe('Workbench', () => {
       expect(mark.hidden).toBe(false);
       partOf('i_b').dispatchEvent(new Event('pointerdown', { bubbles: true }));
       expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
-      expect(mark.hidden).toBe(true);
+      expect(mark.hidden).toBe(false);
+      // Once it is Before, its mark stays and cannot be moved, also when it is chosen.
+      const before = Object.assign({}, a, { place: 'previous' });
+      view([before, b], { selected: 'i_b', board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [before, b] } });
+      window.Workbench.select('i_a');
+      expect(partOf('i_a').classList.contains('is-focus')).toBe(true);
+      expect(mark.hidden).toBe(false);
+      expect(partOf('i_a').querySelector('.workbench-pointer-controls').hidden).toBe(true);
+      mark.dispatchEvent(new MouseEvent('pointerdown', { clientX: 40, clientY: 30, button: 0, bubbles: true }));
+      expect(mark.classList.contains('workbench-pointer-held')).toBe(false);
+      expect(partOf('i_a').querySelector('.workbench-info').textContent).toContain('Bring it into Now to mark it.');
       delete window.WorkbenchPointer;
     });
 
@@ -2342,36 +2356,179 @@ describe('Workbench', () => {
     });
   });
 
-  describe('to the top and the end of the work screen', () => {
-    test('shows the two while the column is longer than it shows, each kept from where it would not move', () => {
-      document.body.insertAdjacentHTML('beforeend', `<div id="menu"><div id="work-screen-pane"><div class="workbench-put">
-        <span class="workbench-jump" hidden><button id="workbench-top"></button><button id="workbench-bottom"></button></span>
-        </div></div></div>`);
-      const column = document.getElementById('menu');
-      const size = { scrollHeight: 300, clientHeight: 300 };
-      Object.defineProperty(column, 'scrollHeight', { get: () => size.scrollHeight });
-      Object.defineProperty(column, 'clientHeight', { get: () => size.clientHeight });
-      column.scrollTo = jest.fn(({ top }) => { column.scrollTop = top; column.dispatchEvent(new Event('scroll')); });
+  describe('the four places', () => {
+    const at = (place) => Array.from(document.querySelectorAll(`.workbench-place-body[data-place="${place}"] > *`))
+      .map((n) => n.dataset.item);
+    const a = () => item({ id: 'i_a', artifact_id: 'r_a', name: 'a.png', place: 'current', by: 'user', fresh: true });
+    const b = () => item({ id: 'i_b', artifact_id: 'r_b', name: 'b.png', sha256: 'b'.repeat(64), place: 'latest', by: 'agent' });
+    const c = () => item({ id: 'i_c', artifact_id: 'r_c', name: 'c.png', sha256: 'c'.repeat(64), place: 'previous', by: 'user' });
+    const d = () => item({ id: 'i_d', artifact_id: 'r_d', name: 'd.png', sha256: 'd'.repeat(64), place: 'stash', by: 'user' });
+    const board = (items, revision, extra = {}) => ({
+      board: Object.assign({ board_id: 'b1', chat_id: 'c_1', revision, items, layers: { latest: 'agent', previous: 'user' },
+        now_limit: 10 }, extra), selected: null
+    });
+    const actions = () => payloads().filter((p) => p.message === 'WORKBENCH_ACTION');
+
+    test('puts each item in its place, put-away ones as rows, and says who placed each layer', () => {
+      view([a(), b(), c(), d()], board([a(), b(), c(), d()], 1));
+      expect(at('current')).toEqual(['i_a']);
+      expect(at('latest')).toEqual(['i_b']);
+      expect(at('previous')).toEqual(['i_c']);
+      expect(at('stash')).toEqual(['i_d']);
+      expect(document.querySelector('.workbench-place-body[data-place="stash"] > .workbench-stash-row')).not.toBeNull();
+      expect(document.querySelector('.workbench-place-body[data-place="stash"] img')).toBeNull();
+      const count = (place) => document.querySelector(`.workbench-place[data-place="${place}"] .workbench-place-count`).textContent;
+      expect(count('current')).toBe('1 / 10');
+      expect(count('latest')).toBe('AI · 1');
+      expect(count('previous')).toBe('You · 1');
+    });
+
+    test('moves an item with its buttons, each operation with an id of its own', () => {
+      view([b()], board([b()], 1));
+      const bar = () => document.querySelector('.workbench-section[data-item="i_b"] .workbench-section-moves');
+      sent.length = 0;
+      bar().querySelector('.workbench-bring').click();
+      bar().querySelector('.workbench-stash').click();
+      bar().querySelector('.workbench-bring').click();
+      const ops = actions();
+      expect(ops.map((p) => p.action)).toEqual(['bring', 'stash', 'bring']);
+      expect(ops.every((p) => p.item_id === 'i_b' && p.token === 'tok-i_b')).toBe(true);
+      expect(new Set(ops.map((p) => p.operation_id)).size).toBe(3);
+      // A move button acts at once on an item that is not the one chosen.
+      expect(payloads().some((p) => p.message === 'WORKBENCH_SELECT')).toBe(false);
+    });
+
+    test('names × by what it does: removed when placed in this turn, else put away', () => {
+      view([a(), b()], board([a(), b()], 1));
+      const remove = (id) => document.querySelector(`.workbench-section[data-item="${id}"] .workbench-item-remove`);
+      expect(remove('i_a').title).toBe('Remove from the work screen');
+      expect(remove('i_b').title).toBe('Put away');
+      expect(document.querySelector('.workbench-section[data-item="i_a"] .workbench-bring')).toBeNull();
+    });
+
+    test('takes an item dragged onto Now or Put away, once, and leaves files from the computer to the pane', () => {
+      view([b(), d()], board([b(), d()], 1));
+      sent.length = 0;
+      const types = ['application/x-monadic-workbench-item'];
+      const drop = (place, id) => {
+        const root = document.querySelector(`.workbench-place[data-place="${place}"]`);
+        const event = new Event('drop', { bubbles: true, cancelable: true });
+        event.dataTransfer = { types, getData: () => id };
+        root.dispatchEvent(event);
+      };
+      drop('current', 'i_d');
+      drop('stash', 'i_b');
+      drop('current', 'i_b');
+      expect(actions().map((p) => [p.item_id, p.action])).toEqual([['i_d', 'bring'], ['i_b', 'stash'], ['i_b', 'bring']]);
+      // An item dropped where it already is: nothing.
+      sent.length = 0;
+      drop('stash', 'i_d');
+      expect(actions()).toEqual([]);
+      // Files from the computer are not this kind of drop.
+      const files = new Event('drop', { bubbles: true, cancelable: true });
+      files.dataTransfer = { types: ['Files'], getData: () => '' };
+      document.querySelector('.workbench-place[data-place="current"]').dispatchEvent(files);
+      expect(actions()).toEqual([]);
+    });
+
+    test('keeps a drawn item as it is when it moves to another place', () => {
+      view([a(), b()], board([a(), b()], 1));
+      window.Workbench.select('i_b');
+      const img = document.querySelector('.workbench-section[data-item="i_b"] img');
+      expect(img).not.toBeNull();
+      const moved = Object.assign(b(), { place: 'previous' });
+      view([a(), moved], board([a(), moved], 2));
+      expect(at('previous')).toEqual(['i_b']);
+      expect(document.querySelector('.workbench-section[data-item="i_b"] img')).toBe(img);
+    });
+
+    test('while a reply runs, says so and offers nothing that changes the work screen, checked again when used', () => {
+      document.getElementById('work-screen-pane').insertAdjacentHTML('afterbegin', '<div class="workbench-head"></div>');
+      view([b()], board([b()], 1, { replying: true }));
+      expect(document.getElementById('workbench-lock').hidden).toBe(false);
+      expect(document.getElementById('workbench-put').disabled).toBe(true);
+      expect(document.querySelector('.workbench-section[data-item="i_b"] .workbench-stash').disabled).toBe(true);
+      sent.length = 0;
+      document.querySelector('.workbench-section[data-item="i_b"] .workbench-stash').dispatchEvent(new Event('click'));
+      expect(actions()).toEqual([]);
+      view([b()], board([b()], 2, { replying: false }));
+      expect(document.getElementById('workbench-lock').hidden).toBe(true);
+      expect(document.getElementById('workbench-put').disabled).toBe(false);
+    });
+
+    test('opens a put-away item here to read, and sends nothing of it with a message', () => {
+      layout.pane = 'work';
+      view([d()], board([d()], 1));
+      document.querySelector('.workbench-stash-row[data-item="i_d"] .workbench-stash-open').click();
+      expect(shown()).toBe('i_d');
+      const part = document.querySelector('.workbench-place-body[data-place="stash"] .workbench-section[data-item="i_d"]');
+      expect(part.querySelector('img')).not.toBeNull();
+      expect(part.querySelector('.workbench-info').textContent).toContain('the AI does not read it');
+      expect(window.Workbench.rangeNow()).toBeNull();
+      expect(window.Workbench.pictureNow()).toBeNull();
+    });
+
+    test('names in view the items of the desk only, place by place', () => {
+      layout.pane = 'work';
+      view([a(), b(), d()], board([a(), b(), d()], 1));
+      window.Workbench.select('i_a');
+      const box = { top: 0, bottom: 200, left: 0, right: 400 };
+      document.querySelectorAll('#workbench-view .workbench-section, #workbench-view .workbench-stash-row')
+        .forEach((n) => { n.getBoundingClientRect = () => box; });
+      expect(window.Workbench.rangeNow().in_view.map((v) => v.item_id)).toEqual(['i_a', 'i_b']);
+    });
+
+    test('says why an operation was not taken', () => {
+      window.Workbench.onResult({ status: 'refused', reason: 'now_full' });
+      expect(window.setAlert).toHaveBeenLastCalledWith(expect.stringContaining('Now is full'), expect.anything());
+      window.Workbench.onResult({ status: 'refused', reason: 'replying' });
+      expect(window.setAlert).toHaveBeenLastCalledWith(expect.stringContaining('when the reply ends'), expect.anything());
+    });
+  });
+
+  describe('to the top and the end of a place', () => {
+    test('shows the two while the place of the item chosen is longer than it shows, each kept from where it would not move', () => {
+      document.getElementById('work-screen-pane').insertAdjacentHTML('beforeend',
+        '<span class="workbench-jump" hidden><button id="workbench-top"></button><button id="workbench-bottom"></button></span>');
       jest.resetModules();
+      require(js('monadic/workbench-places.js'));
       require(js('monadic/workbench.js'));
-      const group = document.querySelector('#menu .workbench-jump');
+      const old = item({ id: 'i_o', artifact_id: 'r_o', name: 'old.png', sha256: 'b'.repeat(64), place: 'stash' });
+      view([item(), old], { selected: 'i_1' });
+      const bodyOf = (place) => document.querySelector(`.workbench-place-body[data-place="${place}"]`);
+      const sizes = new Map();
+      ['current', 'stash'].forEach((place) => {
+        const body = bodyOf(place);
+        const size = { scrollHeight: 300, clientHeight: 300 };
+        sizes.set(place, size);
+        Object.defineProperty(body, 'scrollHeight', { get: () => size.scrollHeight });
+        Object.defineProperty(body, 'clientHeight', { get: () => size.clientHeight });
+        body.scrollTo = jest.fn(({ top }) => { body.scrollTop = top; body.dispatchEvent(new Event('scroll')); });
+      });
+      const group = document.querySelector('.workbench-jump');
       const top = document.getElementById('workbench-top');
       const bottom = document.getElementById('workbench-bottom');
+      window.dispatchEvent(new Event('resize'));
       expect(group.hidden).toBe(true);
-      size.scrollHeight = 1000;
+      sizes.get('current').scrollHeight = 1000;
       window.dispatchEvent(new Event('resize'));
       expect(group.hidden).toBe(false);
       expect(top.disabled).toBe(true);
       expect(bottom.disabled).toBe(false);
+      expect(bottom.getAttribute('aria-label')).toContain('Now');
       bottom.click();
-      expect(column.scrollTo).toHaveBeenLastCalledWith({ top: 1000, behavior: 'smooth' });
-      column.scrollTop = 700;
-      column.dispatchEvent(new Event('scroll'));
+      expect(bodyOf('current').scrollTo).toHaveBeenLastCalledWith({ top: 1000, behavior: 'smooth' });
+      bodyOf('current').scrollTop = 700;
+      bodyOf('current').dispatchEvent(new Event('scroll'));
       expect(top.disabled).toBe(false);
       expect(bottom.disabled).toBe(true);
-      top.click();
-      expect(column.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'smooth' });
-      expect(top.disabled).toBe(true);
+      // The item chosen is put away: the two act on Put away.
+      sizes.get('stash').scrollHeight = 900;
+      window.Workbench.select('i_o');
+      expect(bottom.getAttribute('aria-label')).toContain('Put away');
+      bottom.click();
+      expect(bodyOf('stash').scrollTo).toHaveBeenLastCalledWith({ top: 900, behavior: 'smooth' });
+      expect(bodyOf('current').scrollTo).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -2641,6 +2798,7 @@ describe('Workbench', () => {
     test('is kept from the switch in the menu', () => {
       document.body.insertAdjacentHTML('beforeend', '<input type="checkbox" id="work-screen-auto-switch" checked>');
       jest.resetModules();
+      require(js('monadic/workbench-places.js'));
       require(js('monadic/workbench.js'));
       const box = document.getElementById('work-screen-auto-switch');
       expect(box.checked).toBe(true);

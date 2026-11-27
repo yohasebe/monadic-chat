@@ -73,9 +73,6 @@
   const looks = new Map();
   // What each message records its reply showed on the work screen.
   const shownRecords = new Map();
-  // One operation id per removal, so the same removal sent again (a retry,
-  // a reconnect) is the same operation on the server.
-  const operations = new Map();
   let askedViewAt = 0;
   // What the server last said this tab has selected, and the number of
   // that selection (a capture names it).
@@ -241,23 +238,40 @@
     return el;
   }
 
-  // A name without the time it starts with (the tab's title has it), and
-  // when long, with its start and its end kept (names often differ only
-  // near the end).
-  function shortName(name) {
-    const text = String(name || '').replace(/^\d{8}-\d{6}_/, '');
-    return text.length <= 24 ? text : `${text.slice(0, 9)}…${text.slice(-13)}`;
+  // The user's operation on an item (remove, stash: put away, bring: into
+  // Now), with a new id: the same id is sent again only when the same
+  // message is resent. Nothing is asked while a reply runs.
+  function act(item, action) {
+    const token = item && approvals[item.id];
+    if (!token || typeof window.safeWsSend !== 'function') return;
+    if (locked()) {
+      warn(lockText());
+      return;
+    }
+    window.safeWsSend({
+      message: 'WORKBENCH_ACTION', item_id: item.id, action: action, token: token, operation_id: newOperationId()
+    }, { idempotent: true });
   }
 
-  function remove(item) {
-    const token = approvals[item.id];
-    if (!token || typeof window.safeWsSend !== 'function') return;
-    const key = `${item.id}:${item.sha256}`;
-    if (!operations.has(key)) operations.set(key, newOperationId());
-    window.safeWsSend({
-      message: 'WORKBENCH_ACTION', item_id: item.id, action: 'remove', token: token,
-      operation_id: operations.get(key)
-    }, { idempotent: true });
+  // While a reply runs, the user does not change the work screen.
+  function locked() {
+    return !!(board && board.replying);
+  }
+
+  function lockText() {
+    return t('ui.workbench.replyingLock', 'The work screen can be changed when the reply ends.');
+  }
+
+  // Where an item is: a place of the desk, or put away (an item the board
+  // names no place for is in Now).
+  function placeOf(item) {
+    if (!item) return 'stash';
+    return item.place === 'stash' ? 'stash' : (DESK.includes(item.place) ? item.place : 'current');
+  }
+
+  // Whether marks can be made on the item now (Now or Latest, no reply).
+  function markable(item) {
+    return !locked() && ['current', 'latest'].includes(placeOf(item));
   }
 
   // Asks the server for an address to save an image (artifact_id) or a
@@ -296,50 +310,6 @@
   // A document is named by its title; every other file by its name.
   function label(item) {
     return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.title || item.name || '');
-  }
-
-  // An item's tab names it: shortened when long, its full name the tab's
-  // accessible name and its tooltip (on hover and on focus).
-  function tab(id, label) {
-    const wrap = element('span', 'workbench-item-wrap');
-    const el = element('button', 'workbench-item');
-    el.type = 'button';
-    el.setAttribute('role', 'tab');
-    el.setAttribute('aria-selected', id === selected ? 'true' : 'false');
-    el.setAttribute('aria-label', label);
-    el.dataset.item = id;
-    el.title = label;
-    const shownItem = itemById(id);
-    el.appendChild(element('span', 'workbench-item-name', shownItem && shownItem.kind === 'browser' ? label : shortName(label)));
-    if (window.MonadicTip) window.MonadicTip.attach(el, { delay: { show: 500, hide: 0 } });
-    // The item shown already stays as it is (nothing is drawn again).
-    el.addEventListener('click', () => { if (id !== selected) select(id); });
-    wrap.appendChild(el);
-    const item = itemById(id);
-    if (item && approvals[item.id]) {
-      const close = element('button', 'workbench-item-remove');
-      close.appendChild(element('i', 'fa-solid fa-xmark'));
-      close.type = 'button';
-      close.title = t('ui.workbench.remove', 'Remove from the work screen');
-      close.setAttribute('aria-label', `${close.title}: ${label}`);
-      close.addEventListener('click', (e) => {
-        e.currentTarget.disabled = true;
-        remove(item);
-      });
-      wrap.appendChild(close);
-    }
-    return wrap;
-  }
-
-  function drawList() {
-    const list = $id('workbench-items');
-    if (!list) return;
-    if (window.MonadicTip) window.MonadicTip.disposeWithin(list);
-    list.replaceChildren();
-    const shown = rowItems();
-    list.hidden = shown.length === 0;
-    if (list.hidden) return;
-    shown.forEach((item) => list.appendChild(tab(item.id, label(item))));
   }
 
   // The board as it is now, with new addresses (an address is
@@ -391,42 +361,221 @@
     }
     const item = selected ? itemById(selected) : null;
     const live = liveBrowser(item);
-    // Nothing selected: the area says there is nothing to show.
-    if (browserArea) browserArea.hidden = !!item && !live;
+    // The browser in use takes the place of the desk; a button goes back.
+    if (browserArea) browserArea.hidden = !live;
+    drawBack(live);
     if (!view) return;
-    view.hidden = !item || live;
-    if (!item || live) {
-      view.replaceChildren();
-      return;
-    }
-    view.dataset.item = item.id;
+    view.hidden = live;
+    if (live) return;
+    if (item) view.dataset.item = item.id;
+    else delete view.dataset.item;
     drawSections(view, item);
   }
 
-  // Every item of the row, in the order it came, one under another: the
-  // one chosen (the tab's focus) with its buttons and its pointer, the
-  // others as they are, drawn once they come near the view.
+  // While a reply runs: a line says so, and what changes the work screen
+  // is not offered (each of those checks again when used).
+  function drawLock() {
+    const pane = $id('work-screen-pane');
+    const on = locked();
+    if (pane) pane.classList.toggle('workbench-replying', on);
+    ['workbench-put', 'workbench-new-whiteboard', 'workbench-open-url'].forEach((id) => {
+      const el = $id(id);
+      if (el) el.disabled = on;
+    });
+    let line = $id('workbench-lock');
+    const head = document.querySelector('#work-screen-pane .workbench-head');
+    if (!line && head && on) {
+      line = element('div', 'workbench-lock text-secondary mb-2', lockText());
+      line.id = 'workbench-lock';
+      line.setAttribute('role', 'status');
+      head.appendChild(line);
+    }
+    if (line) line.hidden = !on;
+  }
+
+  // Back from the browser to the desk.
+  function drawBack(shown) {
+    const area = $id('work-screen-browser');
+    if (!area) return;
+    let back = area.querySelector(':scope > .workbench-back');
+    if (!shown) {
+      if (back) back.hidden = true;
+      return;
+    }
+    if (!back) {
+      back = button(t('ui.workbench.backToDesk', 'Back to the work screen'), 'btn-secondary btn-outline workbench-back mb-2',
+        () => select(null));
+      area.insertBefore(back, area.firstChild);
+    }
+    back.hidden = false;
+  }
+
+  // The four places in view (WorkbenchPlaces), made once for it.
+  const DESK = ['current', 'latest', 'previous'];
+  let places = null;
+  function placesIn(view) {
+    if (!places || !view.contains(places.regions.current.root)) {
+      places = window.WorkbenchPlaces.build(view, t);
+      nearObservers.clear();
+      wirePlaces(places);
+    }
+    return places;
+  }
+
+  function layoutMode() {
+    return document.body.classList.contains('side-pane-only') ? 'right' : 'side';
+  }
+
+  function sectionOf(id) {
+    const view = $id('workbench-view');
+    if (!view) return null;
+    return Array.from(view.querySelectorAll('.workbench-section')).find((node) => node.dataset.item === id) || null;
+  }
+
+  // Every item in its place, in the order it came there: on the desk (Now,
+  // Latest, Before) one under another, the one chosen (the tab's focus)
+  // with its buttons and its pointer, the others as they are, drawn once
+  // they come near the view; put away, a row each (the one chosen opened
+  // in its place, to read). A drawn item moves between places as it is.
   function drawSections(view, focus) {
+    const at = placesIn(view);
     const row = rowItems();
-    const onRow = (id) => row.some((i) => i.id === id);
+    const opened = (item) => placeOf(item) !== 'stash' || (!!focus && item.id === focus.id);
+    const shownIds = new Set(row.filter(opened).map((item) => item.id));
     const kept = new Map();
-    Array.from(view.children).forEach((node) => {
-      if (node.classList.contains('workbench-section') && onRow(node.dataset.item)) kept.set(node.dataset.item, node);
-      else node.remove();
+    window.WorkbenchPlaces.PLACES.forEach((place) => {
+      Array.from(at.regions[place].body.children).forEach((node) => {
+        if (node.classList.contains('workbench-section') && shownIds.has(node.dataset.item)) kept.set(node.dataset.item, node);
+        else node.remove();
+      });
     });
     others.forEach((drawn, id) => {
-      if (onRow(id)) return;
+      if (shownIds.has(id)) return;
       letGo(drawn);
       others.delete(id);
     });
-    const nodes = row.map((item) => kept.get(item.id) || section(item));
-    nodes.forEach((node, index) => {
-      if (view.children[index] !== node) view.insertBefore(node, view.children[index] || null);
+    const counts = {};
+    window.WorkbenchPlaces.PLACES.forEach((place) => {
+      const body = at.regions[place].body;
+      const list = row.filter((item) => placeOf(item) === place);
+      counts[place] = list.length;
+      list.forEach((item, index) => {
+        const node = opened(item) ? (kept.get(item.id) || section(item)) : stashRow(item);
+        if (body.children[index] !== node) body.insertBefore(node, body.children[index] || null);
+        if (opened(item)) nearby(node, body);
+      });
     });
+    at.fill(counts, { layers: board && board.layers, limit: board && board.now_limit, mode: layoutMode() });
     // The one chosen first: what was drawn for the one before is kept for
     // it among the others.
-    drawFocus(focus, nodes[row.findIndex((i) => i.id === focus.id)]);
-    row.forEach((item, index) => { if (item.id !== focus.id) drawOther(item, nodes[index]); });
+    if (focus && shownIds.has(focus.id)) drawFocus(focus, kept.get(focus.id) || sectionOf(focus.id));
+    row.forEach((item) => {
+      if ((focus && item.id === focus.id) || !opened(item)) return;
+      drawOther(item, sectionOf(item.id));
+    });
+  }
+
+  // A put-away item: its kind, its name (opening it here, to read) and
+  // a button that brings it into Now.
+  function stashRow(item) {
+    const node = element('div', 'workbench-stash-row');
+    node.dataset.item = item.id;
+    const grip = gripOf(item);
+    if (grip) node.appendChild(grip);
+    const open = element('button', 'workbench-stash-open');
+    open.type = 'button';
+    open.appendChild(element('i', `fa-solid ${kindIcon(item)} me-1`));
+    open.appendChild(element('span', 'workbench-stash-name', label(item)));
+    open.title = t('ui.workbench.stashOpen', 'Open it here to read (the AI does not read it)');
+    open.addEventListener('click', () => select(item.id));
+    node.appendChild(open);
+    node.appendChild(movesOf(item));
+    return node;
+  }
+
+  function kindIcon(item) {
+    if (item.kind === 'image' || item.preview === 'image') return 'fa-image';
+    if (item.kind === 'browser') return 'fa-globe';
+    if (item.kind === 'library') return 'fa-book';
+    if (item.preview === 'pdf') return 'fa-file-pdf';
+    if (item.preview === 'audio') return 'fa-file-audio';
+    if (item.preview === 'video') return 'fa-file-video';
+    return 'fa-file-lines';
+  }
+
+  // The buttons that move an item: into Now, put away, and × (taken off
+  // when the user placed it in this turn, else put away).
+  function movesOf(item) {
+    const group = element('span', 'workbench-section-moves');
+    if (!approvals[item.id]) return group;
+    const place = placeOf(item);
+    const add = (text, icon, className, action) => {
+      const b = element('button', `btn btn-sm btn-tool btn-icon ${className}`);
+      b.type = 'button';
+      b.title = text;
+      b.setAttribute('aria-label', `${text}: ${label(item)}`);
+      b.appendChild(element('i', `fa-solid ${icon}`));
+      b.disabled = locked();
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        act(item, action);
+      });
+      group.appendChild(b);
+    };
+    if (place !== 'current') add(t('ui.workbench.bring', 'Into Now'), 'fa-arrow-up-from-bracket', 'workbench-bring', 'bring');
+    if (place !== 'stash') {
+      add(t('ui.workbench.stash', 'Put away'), 'fa-box-archive', 'workbench-stash', 'stash');
+      const goes = item.fresh || item.kind === 'browser';
+      add(goes ? t('ui.workbench.remove', 'Remove from the work screen') : t('ui.workbench.stash', 'Put away'),
+        'fa-xmark', 'workbench-item-remove', 'remove');
+    }
+    return group;
+  }
+
+  // What an item is dragged by: into Now or to Put away.
+  const DRAG_TYPE = 'application/x-monadic-workbench-item';
+  function gripOf(item) {
+    if (!approvals[item.id]) return null;
+    const grip = element('span', 'workbench-grip');
+    grip.draggable = true;
+    grip.title = t('ui.workbench.dragToMove', 'Drag into Now or Put away');
+    grip.appendChild(element('i', 'fa-solid fa-grip-vertical'));
+    grip.addEventListener('dragstart', (e) => {
+      if (!e.dataTransfer || locked()) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.setData(DRAG_TYPE, item.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    return grip;
+  }
+
+  // Now and Put away take a dragged item; a file from the computer is the
+  // pane's (wirePut).
+  function wirePlaces(at) {
+    [['current', 'bring'], ['stash', 'stash']].forEach(([place, action]) => {
+      const root = at.regions[place].root;
+      const carries = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes(DRAG_TYPE);
+      root.addEventListener('dragover', (e) => {
+        if (!carries(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+      root.addEventListener('drop', (e) => {
+        if (!carries(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const item = itemById(e.dataTransfer.getData(DRAG_TYPE));
+        if (item && placeOf(item) !== place) act(item, action);
+      });
+    });
+    DESK.concat(['stash']).forEach((place) => {
+      $on(at.regions[place].body, 'scroll', () => {
+        unpin();
+        placeJump();
+      }, { passive: true });
+    });
   }
 
   // An item's part of the view: its name (choosing it; the one chosen is
@@ -434,13 +583,19 @@
   function section(item) {
     const node = element('section', 'workbench-section');
     node.dataset.item = item.id;
+    const bar = element('div', 'workbench-section-bar');
     const head = element('button', 'workbench-section-head');
     head.type = 'button';
     head.addEventListener('click', () => choose(node));
-    node.append(head, element('div', 'workbench-body'), element('div', 'workbench-info'));
+    bar.appendChild(head);
+    node.append(bar, element('div', 'workbench-body'), element('div', 'workbench-info'));
     // Touching another item, or moving to it with the keyboard, makes it
-    // the one chosen (where the pointer and the buttons are).
-    node.addEventListener('pointerdown', () => { if (choose(node)) node.dataset.chosenBy = 'touch'; }, true);
+    // the one chosen (where the pointer and the buttons are). Its move
+    // buttons and grip act at once.
+    node.addEventListener('pointerdown', (e) => {
+      if (e.target.closest && e.target.closest('.workbench-section-moves, .workbench-grip')) return;
+      if (choose(node)) node.dataset.chosenBy = 'touch';
+    }, true);
     node.addEventListener('click', (e) => {
       if (node.dataset.chosenBy !== 'touch') return;
       delete node.dataset.chosenBy;
@@ -462,30 +617,42 @@
   }
 
   function headOf(node, item, focused) {
-    const head = node.querySelector(':scope > .workbench-section-head');
+    const bar = node.querySelector(':scope > .workbench-section-bar');
+    const head = bar && bar.querySelector(':scope > .workbench-section-head');
     if (!head) return;
     head.textContent = label(item);
-    head.hidden = focused;
+    head.setAttribute('aria-current', focused ? 'true' : 'false');
+    Array.from(bar.querySelectorAll(':scope > .workbench-grip, :scope > .workbench-section-moves')).forEach((el) => el.remove());
+    const grip = gripOf(item);
+    if (grip) bar.insertBefore(grip, head);
+    bar.appendChild(movesOf(item));
   }
 
-  // The others are drawn once near the view (an image, a PDF, a text read
-  // only when it may be seen).
-  let nearObserver = null;
-  function nearby(node) {
-    if (typeof IntersectionObserver !== 'function') return;
-    if (!nearObserver) {
-      nearObserver = new IntersectionObserver((entries) => {
+  // The others are drawn once near the view of their place (an image, a
+  // PDF, a text read only when it may be seen): one watcher for each place,
+  // whose body scrolls on its own; an item moved to another place is
+  // watched there.
+  const nearObservers = new Map();
+  function nearby(node, body) {
+    if (typeof IntersectionObserver !== 'function' || node.dataset.near === 'true') return;
+    if (node.nearIn === body) return;
+    if (node.nearIn && nearObservers.has(node.nearIn)) nearObservers.get(node.nearIn).unobserve(node);
+    let observer = nearObservers.get(body);
+    if (!observer) {
+      observer = new IntersectionObserver((entries) => {
         let came = false;
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+          if (!entry.isIntersecting || entry.target.nearIn !== body) return;
           entry.target.dataset.near = 'true';
-          nearObserver.unobserve(entry.target);
+          observer.unobserve(entry.target);
           came = true;
         });
         if (came) drawView();
-      }, { root: column(), rootMargin: '400px 0px' });
+      }, { root: body, rootMargin: '400px 0px' });
+      nearObservers.set(body, observer);
     }
-    nearObserver.observe(node);
+    node.nearIn = body;
+    observer.observe(node);
   }
 
   function drawOther(item, node) {
@@ -530,18 +697,27 @@
   }
 
   // What was drawn for the one chosen before goes among the others (its
-  // mark taken away: one mark at a time), a whiteboard let go (one is shown
-  // at a time).
+  // mark kept, only the chosen one's goes with a message), a whiteboard let
+  // go (one is shown at a time).
   function park(drawn) {
     if (!drawn) return;
     if (drawn.whiteboard || !drawn.itemId || !itemById(drawn.itemId)) {
       letGo(drawn);
       return;
     }
-    if (drawn.image && typeof drawn.image.clear === 'function') drawn.image.clear();
-    if (drawn.pdf && typeof drawn.pdf.clearPointer === 'function') drawn.pdf.clearPointer();
+    // Its mark stays shown; it can no longer be changed there.
+    setMarkable(drawn, false);
     if (others.get(drawn.itemId) !== drawn) letGo(others.get(drawn.itemId));
     others.set(drawn.itemId, drawn);
+  }
+
+  // Whether the drawing's marks can be made or changed (its mark, if any,
+  // stays shown either way).
+  function setMarkable(drawn, flag) {
+    if (!drawn) return;
+    if (drawn.image && typeof drawn.image.setPointable === 'function') drawn.image.setPointable(flag);
+    if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(flag);
+    drawn.markable = flag;
   }
 
   // The chosen item shows no drawing (a file only held, a file changed or
@@ -563,6 +739,14 @@
     headOf(node, item, true);
     if (window.MonadicTip) window.MonadicTip.disposeWithin(info);
     info.replaceChildren();
+    const place = placeOf(item);
+    if (place === 'stash') {
+      info.appendChild(element('div', 'text-secondary mt-1',
+        t('ui.workbench.stashReading', 'Put away: you can read it here; the AI does not read it. Bring it into Now to use it.')));
+    } else if (place === 'previous') {
+      info.appendChild(element('div', 'text-secondary mt-1',
+        t('ui.workbench.beforeNoMarks', 'Bring it into Now to mark it.')));
+    }
     if (item.kind === 'browser') {
       show(held, element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
       return;
@@ -572,7 +756,9 @@
       dropFocusBody(item);
       show(held, heldFileBody(item));
     } else if (item.status === 'ok' && assets[item.id]) {
-      show(held, drawnFor(item).node);
+      const drawn = drawnFor(item);
+      setMarkable(drawn, markable(item));
+      show(held, drawn.node);
     } else if (item.status !== 'ok') {
       dropFocusBody(item);
       show(held, element('div', 'alert alert-warning small mb-2', statusText(item.status, item)));
@@ -1042,6 +1228,10 @@
   // version shown).
   function newWhiteboard(image) {
     if (typeof window.safeWsSend !== 'function') return;
+    if (locked()) {
+      warn(lockText());
+      return;
+    }
     whiteboardRequest += 1;
     const message = { message: 'WORKBENCH_WHITEBOARD_NEW', request: whiteboardRequest };
     whiteboardNews.add(whiteboardRequest);
@@ -1143,7 +1333,7 @@
     // Dragging over the image draws a mark, not the browser's drag of it.
     img.draggable = false;
     const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1 });
-    pointing.setPointable(true);
+    pointing.setPointable(drawn.markable !== false);
     const bar = element('div', 'workbench-image-bar');
     bar.append(pointing.controls);
     box.tabIndex = 0;
@@ -1156,6 +1346,7 @@
       pointer: () => pointing.pointer(),
       pointerSeq: () => pointing.pointerSeq(),
       clear: () => pointing.clear(),
+      setPointable: (flag) => pointing.setPointable(flag),
       dispose: () => pointing.dispose()
     };
     return box;
@@ -1317,7 +1508,7 @@
       drawn.pdf = window.WorkbenchPdf.show(box, bytes, (now) => {
         if (now && now.status === 'ready') showAiPoint();
       });
-      if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(true);
+      if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(drawn.markable !== false);
       showSelectionChip();
     });
     return box;
@@ -1558,7 +1749,7 @@
   }
 
   function draw() {
-    drawList();
+    drawLock();
     drawView();
     drawNotes();
     placeJump();
@@ -1566,37 +1757,45 @@
 
   // ---- to the top and the end ----------------------------------------
 
-  // The side column, which scrolls the work screen.
-  function column() {
-    return $id('menu');
+  // The two buttons, while the place of the item chosen (Now when none is)
+  // is longer than its view: each kept from where it would not move.
+  const AT_END = 4;
+  function jumpPlace() {
+    const item = selected ? itemById(selected) : null;
+    const place = item ? placeOf(item) : 'current';
+    return places ? { place: place, scroller: places.regions[place].body } : null;
   }
 
-  // The two buttons, while the work screen is longer than the column:
-  // each kept from where it would not move.
-  const AT_END = 4;
   function placeJump() {
     const group = document.querySelector('#work-screen-pane .workbench-jump');
-    const scroller = column();
-    if (!group || !scroller) return;
-    const room = scroller.scrollHeight - scroller.clientHeight;
+    const at = jumpPlace();
+    if (!group) return;
+    const scroller = at && at.scroller;
+    const room = scroller ? scroller.scrollHeight - scroller.clientHeight : 0;
     group.hidden = !(room > AT_END);
     if (group.hidden) return;
     const top = $id('workbench-top');
     const bottom = $id('workbench-bottom');
-    if (top) top.disabled = scroller.scrollTop <= AT_END;
-    if (bottom) bottom.disabled = room - scroller.scrollTop <= AT_END;
+    const name = places.regions[at.place].name;
+    if (top) {
+      top.disabled = scroller.scrollTop <= AT_END;
+      top.setAttribute('aria-label', `${t('ui.workbench.toTop', 'To the top of the work screen')}: ${name}`);
+    }
+    if (bottom) {
+      bottom.disabled = room - scroller.scrollTop <= AT_END;
+      bottom.setAttribute('aria-label', `${t('ui.workbench.toBottom', 'To the end of the work screen')}: ${name}`);
+    }
   }
 
   function jump(toEnd) {
-    const scroller = column();
-    if (!scroller) return;
-    scroller.scrollTo({ top: toEnd ? scroller.scrollHeight : 0, behavior: 'smooth' });
+    const at = jumpPlace();
+    if (!at) return;
+    at.scroller.scrollTo({ top: toEnd ? at.scroller.scrollHeight : 0, behavior: 'smooth' });
   }
 
   function wireJump() {
     $on($id('workbench-top'), 'click', () => jump(false));
     $on($id('workbench-bottom'), 'click', () => jump(true));
-    $on(column(), 'scroll', placeJump, { passive: true });
     window.addEventListener('resize', placeJump);
     // What is drawn grows after it is placed (an image, a PDF's pages).
     const pane = $id('work-screen-pane');
@@ -1606,7 +1805,7 @@
         placeJump();
       }).observe(pane);
     }
-    ['wheel', 'touchstart', 'keydown'].forEach((type) => $on(column(), type, unpin, { passive: true }));
+    ['wheel', 'touchstart', 'keydown'].forEach((type) => $on(pane, type, unpin, { passive: true }));
     placeJump();
   }
 
@@ -1627,17 +1826,12 @@
     if (selected && into !== false) bringIntoView(selected);
   }
 
-  // The item's part at the top of what the column shows, under the work
-  // screen's head.
+  // The item's part at the top of its place's view.
   function bringIntoView(id) {
-    const view = $id('workbench-view');
-    const node = view && !view.hidden
-      ? Array.from(view.children).find((n) => n.classList.contains('workbench-section') && n.dataset.item === id) : null;
-    const scroller = column();
+    const node = sectionOf(id) || (places && Array.from(places.regions.stash.body.children).find((n) => n.dataset.item === id));
+    const scroller = node && node.parentElement;
     if (!node || !scroller || typeof scroller.scrollBy !== 'function') return;
-    const head = document.querySelector('#work-screen-pane .workbench-head');
-    const under = head ? head.getBoundingClientRect().bottom : scroller.getBoundingClientRect().top;
-    const by = node.getBoundingClientRect().top - under - 8;
+    const by = node.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 4;
     if (Math.abs(by) > 1) scroller.scrollBy({ top: by, behavior: pinned ? 'auto' : 'smooth' });
     // Items above it may still grow (an image, a PDF drawn): it is kept
     // there a moment, until the user moves the view.
@@ -1768,7 +1962,6 @@
     seen.clear();
     firsts.clear();
     removed.clear();
-    operations.clear();
     records.clear();
     // What was drawn for the chat before goes; what the chat now shown
     // records as made is drawn again from its messages.
@@ -1877,7 +2070,7 @@
     // model is told of none.
     if (local) return null;
     const item = selected ? itemById(selected) : null;
-    if (!item) return null;
+    if (!item || placeOf(item) === 'stash') return null;
     const version = item.version || item.sha256 || '';
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     const kind = previewed(item) ? item.preview : item.kind;
@@ -1923,10 +2116,11 @@
     const of = (i) => ({ item_id: i.id, version: i.version || i.sha256 || '' });
     if (liveBrowser(item)) return [of(item)];
     const view = $id('workbench-view');
-    if (!view || view.hidden) return [];
-    return Array.from(view.children)
+    if (!view || view.hidden || !places) return [];
+    // What is in view now on the desk, place by place (never put away).
+    return DESK.flatMap((place) => Array.from(places.regions[place].body.children))
       .filter((node) => node.classList.contains('workbench-section') && visibleRect(node))
-      .map((node) => itemById(node.dataset.item)).filter(Boolean).map(of);
+      .map((node) => itemById(node.dataset.item)).filter((item) => item && placeOf(item) !== 'stash').map(of);
   }
 
   // Whether the chat's model takes images (the page's model spec; a model it
@@ -2011,7 +2205,7 @@
   function pictureNow() {
     if (local || !paneShown() || !takesImages()) return null;
     const item = selected ? itemById(selected) : null;
-    if (!item || item.kind !== 'file') return null;
+    if (!item || item.kind !== 'file' || placeOf(item) === 'stash') return null;
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     if (item.preview === 'image') return drawn && drawn.image ? imagePictureNow(item, drawn.image) : null;
     if (item.preview !== 'pdf') return null;
@@ -2277,7 +2471,7 @@
   // set aside: the one offered to send.
   function offeredSelection() {
     const shown = shownPdf() || shownLines();
-    if (!heldSelection || !shown) return null;
+    if (!heldSelection || !shown || placeOf(shown.item) === 'stash') return null;
     if (heldSelection.key === selectionSetAside || heldSelection.key === selectionSent) return null;
     const version = shown.item.version || shown.item.sha256 || '';
     return heldSelection.item_id === shown.item.id && heldSelection.version === version ? heldSelection : null;
@@ -2933,6 +3127,10 @@
 
   async function putFile(file) {
     if (!window.monadicFetch || typeof window.monadicFetch.postJson !== 'function') return;
+    if (locked()) {
+      warn(lockText());
+      return;
+    }
     const form = new FormData();
     form.append('file', file);
     form.append('purpose', 'workbench');
@@ -3210,14 +3408,26 @@
 
   function onResult(data) {
     if (!data) return;
-    if (data.action === 'remove' && ['accepted', 'same'].includes(data.status)) {
-      // What was sent or placed before this turn is put away, not removed.
-      if (data.state !== 'removed') return;
-      removed.add(data.item_id);
-      announce(t('ui.workbench.removed', 'Removed from the work screen'));
+    if (['accepted', 'same'].includes(data.status)) {
+      if (data.state === 'removed') {
+        removed.add(data.item_id);
+        announce(t('ui.workbench.removed', 'Removed from the work screen'));
+      } else if (data.state === 'stashed') {
+        announce(t('ui.workbench.stashed', 'Put away'));
+      } else if (data.state === 'brought') {
+        announce(t('ui.workbench.brought', 'Brought into Now'));
+      }
       return;
     }
-    if (data.status === 'refused') warn(t('ui.workbench.refused', 'This was not accepted.'));
+    if (data.status === 'refused') warn(refusalText(data.reason));
+  }
+
+  // Why an operation was not taken (Channel::REFUSALS).
+  function refusalText(reason) {
+    if (reason === 'replying') return lockText();
+    if (reason === 'now_full') return t('ui.workbench.nowFull', 'Now is full: take an item off or put one away first.');
+    if (reason === 'this item changed') return t('ui.workbench.changedSinceShown', 'The file changed after it was shown.');
+    return t('ui.workbench.refused', 'This was not accepted.');
   }
 
   // A file the user asked to open: it is shown (the column too), or the
@@ -3613,7 +3823,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, locked, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

@@ -2891,6 +2891,8 @@ document.addEventListener("DOMContentLoaded", function () {
   // The work screen's Open URL: a page opened in it, or its text taken in.
   $on($id("workbench-open-url"), "click", function(event) {
     event.preventDefault();
+    // Not while a reply runs (the work screen says so).
+    if (window.Workbench && typeof window.Workbench.locked === "function" && window.Workbench.locked()) return;
     { const el = $id("urlLabel"); if (el) el.value = ""; }
     { const el = $id("pageURL"); if (el) el.value = ""; }
     

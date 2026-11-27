@@ -40,6 +40,8 @@ module Monadic
         seen = board.observe(tab: tab.to_s, generation: generation) or raise Refused, 'not_this_tab'
         item = seen[:items].find { |i| i[:id] == seen[:selected] }
         raise Refused, 'not_selected' unless item && item[:id] == data['item_id']
+        # A put-away item is out of the model's reach, whatever the page sends.
+        raise Refused, 'put_away' if item[:place] == 'stash'
         raise Refused, refused unless item[:kind] == 'file' && previews.include?(item[:preview].to_s)
         raise Refused, 'changed' unless data['version'] == item[:version]
 

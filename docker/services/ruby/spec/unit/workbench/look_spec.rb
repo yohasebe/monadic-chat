@@ -12,6 +12,8 @@ require_relative "../../../lib/monadic/workbench/look/record"
 require_relative "../../../lib/monadic/shared_tools/workbench_tools"
 require_relative "../../../lib/monadic/workbench/image_tool"
 require_relative "../../../lib/monadic/workbench/media_item"
+require_relative "../../../lib/monadic/workbench/selection"
+require_relative "../../../lib/monadic/workbench/picture"
 
 RSpec.describe "looking at the work screen (look_at_workbench)" do
   let(:look) { Monadic::Workbench::Look }
@@ -418,6 +420,25 @@ RSpec.describe "looking at the work screen (look_at_workbench)" do
       allow(Monadic::Utils::Privacy::Outbound).to receive(:chat_session!)
       found = JSON.parse(tools.find_on_workbench(name: "plan", workbench: caller_for))
       expect(found).to eq("put_away" => [], "matches" => 1, "withheld" => 1)
+    end
+
+    it "is refused by the server as the selection or the picture sent with a message, whatever the page sends" do
+      write("notes.txt", "one\ntwo\n")
+      notes = open_file("notes.txt")
+      write("cat.png", png(8, 8))
+      cat = open_file("cat.png")
+      [notes, cat].each { |item| put_away(item) }
+      selection = { "item_id" => notes["id"], "version" => notes.dig("file", "sha256"), "first" => 1, "last" => 2 }
+      board.choose(tab: "tab-1", generation: 1, item_id: notes["id"])
+      expect do
+        Monadic::Workbench::Selection.accept(selection, chat_id: chat, request_id: request_id, tab: "tab-1", generation: 1)
+      end.to raise_error(Monadic::Workbench::Pointing::Refused) { |e| expect(e.reason).to eq("put_away") }
+      board.choose(tab: "tab-1", generation: 1, item_id: cat["id"])
+      picture = { "item_id" => cat["id"], "version" => cat.dig("file", "sha256"), "image" => Base64.strict_encode64(png(8, 8)),
+                  "mark" => { "shape" => "rect", "color" => "red", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 } }
+      expect do
+        Monadic::Workbench::Picture.accept(picture, chat_id: chat, request_id: request_id, tab: "tab-1", generation: 1)
+      end.to raise_error(Monadic::Workbench::Pointing::Refused) { |e| expect(e.reason).to eq("put_away") }
     end
 
     it "is not taken by the image and media tools" do

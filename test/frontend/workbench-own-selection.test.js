@@ -36,8 +36,8 @@ describe('An item this tab puts, makes or opens', () => {
   }
 
   const selectedTab = () => {
-    const tab = document.querySelector('.workbench-item[aria-selected="true"]');
-    return tab ? tab.dataset.item : null;
+    const head = document.querySelector('.workbench-section-head[aria-current="true"]');
+    return head ? head.closest('.workbench-section').dataset.item : null;
   };
   const lastSelect = () => sent.filter((x) => x.payload.message === 'WORKBENCH_SELECT').pop();
   const lastOf = (message) => sent.filter((x) => x.payload.message === message).pop();
@@ -70,7 +70,6 @@ describe('An item this tab puts, makes or opens', () => {
         <button id="workbench-put"></button><input type="file" id="workbench-put-input" hidden>
         <button id="workbench-new-whiteboard"></button>
         <div id="workbench-status"></div>
-        <div id="workbench-items" hidden></div>
         <div id="work-screen-browser"></div>
         <div id="workbench-view" hidden></div>
       </div>
@@ -94,6 +93,7 @@ describe('An item this tab puts, makes or opens', () => {
     delete window.electronAPI;
     delete global.webUIi18n;
     require(js('monadic/dom-helpers.js'));
+    require(js('monadic/workbench-places.js'));
     require(js('monadic/workbench.js'));
     view([NOTES], 'i_a');
   });

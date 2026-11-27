@@ -55,7 +55,6 @@ describe('Opening a notebook in JupyterLab', () => {
       <div id="discourse"></div>
       <div id="workbench-status"></div>
       <div id="workbench-drafts" hidden></div>
-      <div id="workbench-items" hidden></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>`;
     sent = [];
@@ -72,6 +71,7 @@ describe('Opening a notebook in JupyterLab', () => {
     global.fetch = jest.fn(() => new Promise(() => {}));
     delete global.webUIi18n;
     require(js('monadic/dom-helpers.js'));
+    require(js('monadic/workbench-places.js'));
     require(js('monadic/workbench.js'));
   });
 

@@ -2086,9 +2086,10 @@ run_jupyter() {
   fi
 }
 
-# Export the Qdrant data volume to ~/monadic/data/monadic-qdrant.tar.gz.
-# Stops the qdrant container temporarily so the on-disk state is consistent
-# (Qdrant flushes WAL on shutdown), then restarts it.
+# Export the Library to ~/monadic/data/monadic-qdrant.tar.gz: the Qdrant
+# data volume under qdrant/ and the Library's original files under
+# library/originals/. Stops the qdrant container temporarily so the on-disk
+# state is consistent (Qdrant flushes WAL on shutdown), then restarts it.
 export_db() {
   local container_name="monadic-chat-qdrant-container"
   local volume_name="monadic-chat-qdrant-data"
@@ -2105,13 +2106,16 @@ export_db() {
     ${DOCKER} stop "${container_name}" >/dev/null 2>&1
   fi
 
-  # Use a one-shot alpine container to read from the qdrant volume and write
-  # a gzip tarball into the host shared data directory.
+  # Use a one-shot alpine container to read the qdrant volume and the
+  # Library's folder and write a gzip tarball into the host shared data
+  # directory.
+  mkdir -p "${HOME_DIR}/monadic/library"
   ${DOCKER} run --rm \
-    -v "${volume_name}:/source:ro" \
+    -v "${volume_name}:/export/qdrant:ro" \
+    -v "${HOME_DIR}/monadic/library:/export/library:ro" \
     -v "${HOME_DIR}/monadic/data:/dest" \
     alpine:latest \
-    sh -c "cd /source && tar czf /dest/monadic-qdrant.tar.gz ."
+    sh -c 'cd /export && set -- qdrant; [ -d library/originals ] && set -- "$@" library/originals; tar czf /dest/monadic-qdrant.tar.gz "$@"'
   local exit_code=$?
 
   if [ "$was_running" = true ]; then
@@ -2125,7 +2129,10 @@ export_db() {
   fi
 }
 
-# Import a previously exported Qdrant tarball, replacing the current volume.
+# Import a previously exported Library tarball, replacing the current
+# Qdrant volume and, when the tarball has them, the Library's original
+# files. Only regular files named by a SHA-256 are taken as originals. A
+# tarball of the Qdrant volume alone (an older export) is taken as it was.
 # Stops the container, wipes the volume, untars, and restarts.
 import_db() {
   local container_name="monadic-chat-qdrant-container"
@@ -2149,12 +2156,29 @@ import_db() {
     ${DOCKER} stop "${container_name}" >/dev/null 2>&1
   fi
 
-  # Wipe the volume and untar the export into it.
+  # Untar the export aside first, so a damaged file changes nothing; then
+  # replace the volume's contents and, with originals, the Library's
+  # originals/ with the regular files named by a SHA-256, owned as the
+  # Library's folder is.
+  mkdir -p "${HOME_DIR}/monadic/library"
   ${DOCKER} run --rm \
     -v "${volume_name}:/dest" \
+    -v "${HOME_DIR}/monadic/library:/library" \
     -v "${HOME_DIR}/monadic/data:/source:ro" \
     alpine:latest \
-    sh -c "rm -rf /dest/* /dest/.* 2>/dev/null; cd /dest && tar xzf /source/monadic-qdrant.tar.gz"
+    sh -c '
+      set -e
+      mkdir /tmp/in && tar xzf /source/monadic-qdrant.tar.gz -C /tmp/in
+      if [ -d /tmp/in/qdrant ]; then db=/tmp/in/qdrant; else db=/tmp/in; fi
+      rm -rf /dest/* /dest/.[!.]* 2>/dev/null || true
+      cp -a "$db"/. /dest/
+      if [ -d /tmp/in/qdrant ]; then
+        rm -rf /library/originals && mkdir /library/originals
+        if [ -d /tmp/in/library/originals ]; then
+          find /tmp/in/library/originals -maxdepth 1 -type f | grep -E "/[0-9a-f]{64}$" | while read -r f; do cp "$f" /library/originals/; done
+        fi
+        chown -R "$(stat -c %u:%g /library)" /library/originals
+      fi'
   local exit_code=$?
 
   if [ "$was_running" = true ]; then

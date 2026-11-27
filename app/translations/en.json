@@ -282,7 +282,7 @@
     "seleniumWillNotStartOnNextLaunch": "Selenium container will NOT start on next launch of Monadic Chat.",
     "exportDbConfirmTitle": "Export Document DB",
     "exportDbConfirmMessage": "Export the entire Document DB?",
-    "exportDbConfirmDetail": "The export contains every conversation saved to the Library and every PDF document. The chat history is not included. Encrypting the output is strongly recommended — without encryption the file is plaintext and includes any personal information stored in the database.",
+    "exportDbConfirmDetail": "The export contains every conversation saved to the Library and every imported document, with its original file. The chat history is not included. Encrypting the output is strongly recommended — without encryption the file is plaintext and includes any personal information stored in the database.",
     "exportDbEncrypted": "Encrypt and Export",
     "exportDbPlain": "Export Plain",
     "exportDbPassphraseTitle": "Set Passphrase for Encrypted DB Export",

@@ -167,7 +167,7 @@
     "seleniumWillNotStartOnNextLaunch": "El contenedor Selenium NO se iniciará en el próximo arranque de Monadic Chat.",
     "exportDbConfirmTitle": "Exportar Base de Datos de Documentos",
     "exportDbConfirmMessage": "¿Exportar toda la base de datos de documentos?",
-    "exportDbConfirmDetail": "La exportación contiene todas las conversaciones guardadas en la biblioteca y todos los documentos PDF. No incluye el historial de conversaciones. Se recomienda encarecidamente cifrar la salida — sin cifrado, toda la información personal almacenada se escribe en texto plano en el archivo.",
+    "exportDbConfirmDetail": "La exportación contiene todas las conversaciones guardadas en la biblioteca y todos los documentos importados, con su archivo original. No incluye el historial de conversaciones. Se recomienda encarecidamente cifrar la salida — sin cifrado, toda la información personal almacenada se escribe en texto plano en el archivo.",
     "exportDbEncrypted": "Cifrar y Exportar",
     "exportDbPlain": "Exportar en Texto Plano",
     "exportDbPassphraseTitle": "Establecer contraseña para la exportación cifrada",

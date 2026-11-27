@@ -167,7 +167,7 @@
     "seleniumWillNotStartOnNextLaunch": "Selenium容器将不会在下次启动Monadic Chat时启动。",
     "exportDbConfirmTitle": "导出文档数据库",
     "exportDbConfirmMessage": "导出整个文档数据库？",
-    "exportDbConfirmDetail": "导出文件包含所有保存到资料库的对话和PDF文档。不包含对话历史。强烈建议加密输出 — 不加密时，数据库中存储的所有个人信息都将以明文写入文件。",
+    "exportDbConfirmDetail": "导出文件包含所有保存到资料库的对话，以及所有导入的文档（含原始文件）。不包含对话历史。强烈建议加密输出 — 不加密时，数据库中存储的所有个人信息都将以明文写入文件。",
     "exportDbEncrypted": "加密并导出",
     "exportDbPlain": "明文导出",
     "exportDbPassphraseTitle": "为加密导出设置密码",

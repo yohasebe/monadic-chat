@@ -91,10 +91,31 @@ RSpec.describe MonadicSharedTools::WebSearchTools do
       end
     end
 
-    context 'with Tavily-dependent provider (Mistral)' do
+    context 'with a Mistral app' do
+      let(:instance) do
+        Class.new do
+          include MonadicSharedTools::WebSearchTools
+
+          def mistral_web_search(query:)
+            { "query" => query, "websearch_agent" => "mistral" }
+          end
+        end.new
+      end
+
+      it "routes to Mistral's web search and never to Tavily, with or without a Tavily key" do
+        expect(instance).not_to receive(:tavily_search)
+        [nil, 'test-key'].each do |key|
+          allow(CONFIG).to receive(:[]).with('TAVILY_API_KEY').and_return(key)
+          result = instance.search_web(query: 'test query', max_results: 4)
+          expect(result).to eq({ "query" => "test query", "websearch_agent" => "mistral" })
+        end
+      end
+    end
+
+    context 'with Tavily-dependent provider (Cohere)' do
       let(:instance) do
         test_class.new.tap do |obj|
-          allow(obj.class).to receive(:name).and_return('ChatMistral')
+          allow(obj.class).to receive(:name).and_return('ChatCohere')
         end
       end
 

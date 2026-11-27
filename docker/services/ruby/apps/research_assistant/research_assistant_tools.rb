@@ -270,8 +270,6 @@ end
 class ResearchAssistantMistral < MonadicApp
   include MistralHelper
   include ResearchAssistantBaseTools
-  include MonadicSharedTools::WebSearchTools
-  include TavilyHelper
 end
 
 class ResearchAssistantDeepSeek < MonadicApp

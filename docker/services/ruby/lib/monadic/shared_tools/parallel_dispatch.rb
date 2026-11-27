@@ -9,6 +9,7 @@ require_relative '../utils/model_spec'
 require_relative '../workspace/request_context'
 require_relative '../utils/provider_response'
 require_relative 'deepseek_search'
+require_relative 'mistral_search'
 
 module MonadicSharedTools
   module ParallelDispatch
@@ -39,7 +40,7 @@ module MonadicSharedTools
                                endpoint: "https://api.x.ai/v1/chat/completions",
                                responses_endpoint: "https://api.x.ai/v1/responses",
                                api_key_env: "XAI_API_KEY" },
-      "MistralHelper"    => { type: :openai_compat,   websearch_strategy: :tavily,
+      "MistralHelper"    => { type: :openai_compat,   websearch_strategy: :mistral_search,
                                endpoint: "https://api.mistral.ai/v1/chat/completions",
                                api_key_env: "MISTRAL_API_KEY" },
       "OpenAIHelper"     => { type: :openai_compat,   websearch_strategy: :responses_api,
@@ -96,8 +97,8 @@ module MonadicSharedTools
 
       # The subtasks search the web only when the call asks for it and the
       # message may search (the setting and the app, TurnSettings): a search
-      # is sent at once (Tavily's and DeepSeek's are made before the subtask
-      # runs), so it is never assumed.
+      # is sent at once (Tavily's, DeepSeek's and Mistral's are made before
+      # the subtask runs), so it is never assumed.
       ws_enabled = turn.websearch == true && [true, "true"].include?(websearch)
       parent_ws_session_id = Thread.current[:websocket_session_id]
       provider_cfg = resolve_provider_config
@@ -217,6 +218,9 @@ module MonadicSharedTools
           standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
         when :deepseek_search
           enriched = deepseek_prefetch_and_inject(prompt, api_key)
+          standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
+        when :mistral_search
+          enriched = mistral_prefetch_and_inject(prompt, api_key)
           standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
         else # fallback: provider that has no websearch path — call without enrichment
           standard_sub_call(provider_cfg, api_key, model, prompt, timeout_secs)
@@ -469,12 +473,30 @@ module MonadicSharedTools
       prompt
     end
 
-    # The prompt with search results ([title, url, text] each) before it.
+    # Prefetch an answer from Mistral's web search (the Conversations API,
+    # with the chat's Mistral key) for the start of the prompt, and inject it
+    # with its sources into the prompt; the prompt as it is when the search
+    # fails or finds nothing.
+    def mistral_prefetch_and_inject(prompt, api_key)
+      query = prompt.to_s.gsub(/\s+/, " ").strip.slice(0, Monadic::SharedTools::MistralSearch::PREFETCH_QUERY_LENGTH)
+      found = Monadic::SharedTools::MistralSearch.search(query: query, api_key: api_key)
+      return prompt if found.key?("error")
+
+      results = []
+      results << ["Answer from the search", nil, found["answer"]] unless found["answer"].to_s.empty?
+      results.concat(found["sources"].map { |s| [s["title"], s["url"], nil] })
+      with_search_results(prompt, results)
+    rescue StandardError
+      prompt
+    end
+
+    # The prompt with search results ([title, url, text] each, url or text
+    # nil when there is none) before it.
     def with_search_results(prompt, results)
       return prompt if results.empty?
 
       search_block = results.map do |title, url, text|
-        "### #{title}\nURL: #{url}\n#{text}"
+        ["### #{title}", ("URL: #{url}" if url), text].compact.join("\n")
       end.join("\n\n")
 
       "=== Web Search Results ===\n#{search_block}\n=== End Search Results ===\n\n#{prompt}"

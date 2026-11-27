@@ -120,7 +120,7 @@ parallel beta-header handling.**
 
 | Provider | Feature | Notes |
 |---|---|---|
-| Mistral | Tavily web search | Shared adapter |
+| Mistral | Web search (Mistral web search on the Conversations API) | `mistral_web_search` in `mistral_helper.rb` and `shared_tools/mistral_search.rb`, with `MISTRAL_API_KEY`; no Tavily |
 | Cohere | Tavily web search, reasoning-model detection | Name-based detection |
 
 ## Web Search Setting
@@ -140,7 +140,7 @@ considered for its counterpart.
 | **Long-conversation compaction** | Context editing (`clear_*`), default-on, opt-out via `context_management false` | Compaction API (default-on, threshold `150_000`), opt-out via `compaction false` | xAI: client-driven compaction (`grok_compaction.rb`). Others fall back to `context_size` sliding window. Unified MDSL pattern: both providers accept `<feature> false` to fall back to client-side trimming only |
 | **Extended thinking / reasoning** | `thinking.type` + `budget_tokens` | `reasoning.effort` | `thinking_level` / `thinking_budget` | DeepSeek thinking, Ollama `think` |
 | **Prompt caching** | `cache_control: ephemeral` | Automatic (Responses API) | — | — |
-| **Server-side web search** | `web_search_20250305` | Responses API web_search | — | Grok live/x search; Tavily fallback for others |
+| **Server-side web search** | `web_search_20250305` | Responses API web_search | — | Grok live/x search; DeepSeek and Mistral search through a function tool backed by their own APIs; Tavily fallback for Cohere and Ollama |
 | **File inputs** | Files API (`files-api-2025-04-14`) | File Inputs API + `file_id` cache | — | — |
 | **Structured output** | `output_format` | `response_format` (`json_schema`) | `response_schema` | Ollama `format` |
 

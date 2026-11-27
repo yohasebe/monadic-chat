@@ -371,7 +371,7 @@ module OllamaHelper
     context_size = turn.context_size.to_i
     request_id = SecureRandom.hex(4)
 
-    # Proactive Tavily gate (mirrors Cohere / Mistral). If
+    # Proactive Tavily gate (mirrors Cohere). If
     # TAVILY_API_KEY is absent the UI toggle is silently treated as
     # off — the tools are never registered, the system prompt does
     # not advertise them, and the LLM cannot try to call them. The

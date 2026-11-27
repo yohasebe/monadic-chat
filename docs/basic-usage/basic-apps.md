@@ -56,7 +56,7 @@ A conversation can be kept in the [Library](../apps/knowledge-base.md) as a docu
 | OpenAI | ✅ | ✅ | ✅ Native |
 | Claude | ✅ | ✅ | ✅ Native |
 | Gemini | ✅ | ✅ | ✅ Native |
-| Mistral | ✅ | ✅ | ✅ Tavily |
+| Mistral | ✅ | ✅ | ✅ Native |
 | Cohere | ✅ | ✅ | ✅ Tavily |
 | xAI Grok | ✅ | ✅ | ✅ Native |
 | DeepSeek | ✅ | ✅ | ✅ Native |

@@ -102,7 +102,7 @@ RSpec.describe 'MDSL Web Search Default Settings' do
       end
     end
 
-    it 'lets Chat search with the Tavily providers too (they search when Tavily has its key)' do
+    it 'lets Chat search with the other providers too (DeepSeek and Mistral through their own search, Cohere and Ollama when Tavily has its key)' do
       apps_dir = File.join(__dir__, '../../apps/chat')
       %w[chat_cohere.mdsl chat_deepseek.mdsl chat_mistral.mdsl chat_ollama.mdsl].each do |app_file|
         expect(parse_mdsl_websearch(File.join(apps_dir, app_file))).to eq(true), "#{app_file} should have websearch true"
@@ -127,7 +127,7 @@ RSpec.describe 'MDSL Web Search Default Settings' do
 
   # Apps whose conversations may search the web (MDSL `websearch true`) with
   # every provider: whether a search is made is the model's choice, and
-  # whether it can be is the provider's (a native search tool, or Tavily
+  # whether it can be is the provider's (a search of its own, or Tavily
   # with its key). An app that does not say `websearch true` does not search.
   CHAT_STYLE_APPS_AND_PROVIDERS = {
     'voice_chat' => %w[claude cohere deepseek gemini grok mistral ollama openai],

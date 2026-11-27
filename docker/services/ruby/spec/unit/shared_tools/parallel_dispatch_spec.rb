@@ -43,6 +43,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
              :anthropic_websearch_sub_call,
              :tavily_prefetch_and_inject,
              :deepseek_prefetch_and_inject,
+             :mistral_prefetch_and_inject,
              :standard_sub_call,
              :send_parallel_progress
     end
@@ -474,14 +475,16 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       expect(config["ClaudeHelper"][:websearch_strategy]).to eq(:native_tool)
     end
 
-    it "maps Mistral and Cohere to :tavily" do
-      %w[MistralHelper CohereHelper].each do |name|
-        expect(config[name][:websearch_strategy]).to eq(:tavily)
-      end
+    it "maps Cohere to :tavily" do
+      expect(config["CohereHelper"][:websearch_strategy]).to eq(:tavily)
     end
 
     it "maps DeepSeek to :deepseek_search" do
       expect(config["DeepSeekHelper"][:websearch_strategy]).to eq(:deepseek_search)
+    end
+
+    it "maps Mistral to :mistral_search" do
+      expect(config["MistralHelper"][:websearch_strategy]).to eq(:mistral_search)
     end
   end
 
@@ -744,9 +747,10 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       app.sub_agent_api_call("claude-sonnet-4-6", "test", claude_cfg, 120, websearch: true)
     end
 
-    it "routes Mistral to tavily_prefetch + openai_compat when websearch: true" do
-      expect(app).to receive(:tavily_prefetch_and_inject).with("test").and_return("enriched")
-      expect(app).to receive(:openai_compat_sub_call).and_return("result")
+    it "routes Mistral to mistral_prefetch + openai_compat when websearch: true, never Tavily" do
+      expect(app).not_to receive(:tavily_prefetch_and_inject)
+      expect(app).to receive(:mistral_prefetch_and_inject).with("test", CONFIG["MISTRAL_API_KEY"]).and_return("enriched")
+      expect(app).to receive(:openai_compat_sub_call).with(anything, anything, anything, "enriched", anything).and_return("result")
       app.sub_agent_api_call("mistral-large", "test", mistral_cfg, 120, websearch: true)
     end
 
@@ -774,7 +778,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       CONFIG.delete("TAVILY_API_KEY")
       begin
         expect {
-          app.sub_agent_api_call("mistral-large", "test", mistral_cfg, 120, websearch: true)
+          app.sub_agent_api_call("command-a-08-2025", "test", cohere_cfg, 120, websearch: true)
         }.to raise_error(RuntimeError, /TAVILY_API_KEY/)
       ensure
         CONFIG["TAVILY_API_KEY"] = original

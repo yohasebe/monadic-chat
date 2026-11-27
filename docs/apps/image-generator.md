@@ -6,7 +6,7 @@ Generate and edit images from natural-language descriptions using provider image
 
 Generate images from text descriptions, and edit images on the work screen or images generated earlier in the conversation. Image Generator is available with OpenAI, Google Gemini, and xAI (Grok).
 
-A generated image is saved in the chat's folder (`conversations/` in the shared folder) and shown in the [work screen](../basic-usage/web-interface.md#work-screen); the reply shows one line with its path in the shared folder. The image stays in the work screen while you go on: ask for changes, and the last image in the work screen is edited. **Save as…** (**Download** in a web browser) saves a copy anywhere you choose. If an image's file is changed, moved or deleted in the shared folder, the work screen says so, and that image is no longer shown, edited or saved.
+A generated image is saved in the chat's folder (`conversations/` in the shared folder) and shown in the [work screen](../basic-usage/web-interface.md#work-screen); the reply shows one line with its path in the shared folder. The image stays in the work screen while you go on: ask for changes, and the last image in the work screen is edited. **Save** under the image in the work screen saves a copy anywhere you choose. If an image's file is changed, moved or deleted in the shared folder, the work screen says so, and that image is no longer shown, edited or saved.
 
 
 ## Image Editing

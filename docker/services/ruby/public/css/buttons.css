@@ -10,6 +10,7 @@
  *   btn-warning   yellow a standing main action (the side column, the console)
  * and may have a form, whatever its meaning:
  *   btn-tool  clear on its group's panel (btn-panel), the chosen one filled
+ *   btn-outline  a grey line and no fill, for a row of quieter actions
  *   btn-fab   floating over the page
  *   btn-link  text only
  *   btn-icon  an icon alone: at least as wide as it is tall
@@ -133,6 +134,14 @@
     --btn-bg: var(--tool-active-bg);
     --btn-hover-fg: var(--tool-active-fg);
     --btn-hover-bg: var(--tool-active-bg);
+  }
+  .btn.btn-outline {
+    --btn-fg: var(--text-primary);
+    --btn-bg: transparent;
+    --btn-border-color: var(--pal-grey-mid);
+    --btn-hover-fg: var(--text-primary);
+    --btn-hover-bg: var(--tool-hover-bg);
+    --btn-hover-border-color: var(--pal-grey-strong);
   }
   .btn.btn-tool.btn-danger {
     --btn-fg: var(--tool-danger-fg);

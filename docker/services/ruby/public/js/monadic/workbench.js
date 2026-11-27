@@ -272,8 +272,25 @@
     return button(saveLabel(), className, () => download({ artifact_id: artifactId }));
   }
 
-  function fileSaveButton(item, className) {
-    return button(saveLabel(), className, () => download({ item_id: item.id, sha256: item.sha256 }));
+  // A button among an item's actions (buttons.css: a grey line, no fill):
+  // its short label after an icon, its full name as its accessible name and
+  // in the tooltip (on hover and on focus), or tip there.
+  function actionButton(short, full, icon, className, onClick, tip) {
+    const el = button(short, `btn-secondary btn-outline ${className}`.trim(), onClick);
+    const mark = element('i', `fa-solid ${icon}`);
+    mark.setAttribute('aria-hidden', 'true');
+    el.prepend(mark);
+    el.setAttribute('aria-label', full);
+    el.title = tip || full;
+    if (window.MonadicTip) window.MonadicTip.attach(el, { delay: { show: 500, hide: 0 } });
+    return el;
+  }
+
+  // An item's save among its actions: "Save", "Download" or "Save as…" in
+  // full.
+  function itemSaveButton(what) {
+    return actionButton(t('ui.workbench.saveShort', 'Save'), saveLabel(), 'fa-floppy-disk', 'workbench-item-save',
+      () => download(what));
   }
 
   // A document is named by its title; every other file by its name.
@@ -471,6 +488,7 @@
     node.classList.remove('is-focus');
     headOf(node, item, false);
     const { held, info } = viewParts(node);
+    if (window.MonadicTip) window.MonadicTip.disposeWithin(info);
     info.replaceChildren();
     show(held, otherBody(item, node));
   }
@@ -539,6 +557,7 @@
     const { held, info } = viewParts(node);
     node.classList.add('is-focus');
     headOf(node, item, true);
+    if (window.MonadicTip) window.MonadicTip.disposeWithin(info);
     info.replaceChildren();
     if (item.kind === 'browser') {
       show(held, element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
@@ -569,25 +588,25 @@
     const actions = element('div', 'workbench-actions');
     info.appendChild(actions);
     if (item.status === 'ok' && item.artifact_id) {
-      actions.appendChild(saveButton(item.artifact_id, 'btn-primary'));
+      actions.appendChild(itemSaveButton({ artifact_id: item.artifact_id }));
     } else if (item.status === 'ok' && item.kind === 'file' && item.sha256 &&
                !(Number(item.size) > WHOLE_LIMIT)) {
-      actions.appendChild(fileSaveButton(item, 'btn-primary'));
+      actions.appendChild(itemSaveButton({ item_id: item.id, sha256: item.sha256 }));
     }
     // A document's text can be taken for the message (as this version).
     if (item.status === 'ok' && item.kind === 'file' && item.text && item.sha256) {
-      actions.appendChild(button(t('ui.workbench.itemText', 'Text to the message'), 'btn-secondary workbench-item-text',
-        () => askItemText(item)));
+      actions.appendChild(actionButton(t('ui.workbench.itemTextShort', 'To input'), t('ui.workbench.itemText', 'Text to the message'),
+        'fa-right-to-bracket', 'workbench-item-text', () => askItemText(item)));
     }
     // A document the Library takes is kept there as this version.
     if (item.status === 'ok' && item.kind === 'file' && item.library && item.sha256) {
-      actions.appendChild(button(t('ui.workbench.toLibrary', 'Keep in the Library'), 'btn-secondary workbench-to-library',
-        () => keepInLibrary(item)));
+      actions.appendChild(actionButton(t('ui.workbench.toLibraryShort', 'To Library'), t('ui.workbench.toLibrary', 'Keep in the Library'),
+        'fa-book', 'workbench-to-library', () => keepInLibrary(item)));
     }
     // An image can be drawn on: a whiteboard with it laid under (as this
     // version of it).
     if (item.status === 'ok' && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
-      actions.appendChild(button(t('ui.workbench.wb_drawOn', 'Draw on it'), 'btn-secondary workbench-draw-on',
+      actions.appendChild(button(t('ui.workbench.wb_drawOn', 'Draw on it'), 'btn-secondary btn-outline workbench-draw-on',
         () => newWhiteboard(item)));
     }
     // A whiteboard is also written out as a picture to keep or pass on.
@@ -608,19 +627,21 @@
     // A file is read again where it is shown (the board takes it at the
     // version it has now): after it changed, or whenever the user asks.
     if (item.kind === 'file' && item.status === 'changed') {
-      actions.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary',
+      actions.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary btn-outline',
         () => openFile(item.path)));
     } else if (item.kind === 'file' && item.status === 'ok') {
-      actions.appendChild(button(t('ui.workbench.reload', 'Reload'), 'btn-secondary', () => openFile(item.path)));
+      actions.appendChild(actionButton(t('ui.workbench.reloadShort', 'Reload'), t('ui.workbench.reload', 'Reload'),
+        'fa-rotate-right', 'workbench-reload', () => openFile(item.path),
+        t('ui.workbench.reloadHelp', 'Read the file again as it is in the shared folder now')));
     }
     if (item.kind === 'file' && item.status === 'ok' && /\.ipynb$/i.test(item.path || '')) {
-      actions.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary',
+      actions.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary btn-outline',
         () => openInJupyter(item.path)));
     }
     // A document put together from sections (Workbench::Document): its
     // earlier versions can be listed and opened as files of their own.
     if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
-      actions.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-secondary', () => askVersions(item.path)));
+      actions.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-secondary btn-outline', () => askVersions(item.path)));
       info.appendChild(element('div', 'workbench-versions mt-2'));
     }
   }
@@ -720,6 +741,9 @@
   // The whiteboard drawings waiting for the server's answer to a save, by
   // its request number.
   const whiteboardSaves = new Map();
+  // The new whiteboards this tab asked for, by request number: the one
+  // made is selected here.
+  const whiteboardNews = new Set();
 
   function isWhiteboard(item) {
     return !!(item && item.kind === 'file' && item.preview === 'text' && item.render === 'whiteboard');
@@ -790,6 +814,8 @@
   function onWhiteboard(data) {
     const drawn = data && whiteboardSaves.get(data.request);
     if (!drawn) {
+      const made = !!data && whiteboardNews.delete(data.request);
+      if (made && data.status === 'saved' && data.item_id) showOwn(data.item_id);
       const onImage = !!data && drawOnRequests.delete(data.request);
       if (data && data.status === 'refused') {
         if (onImage) drawOnRefused(data.reason);
@@ -1014,6 +1040,7 @@
     if (typeof window.safeWsSend !== 'function') return;
     whiteboardRequest += 1;
     const message = { message: 'WORKBENCH_WHITEBOARD_NEW', request: whiteboardRequest };
+    whiteboardNews.add(whiteboardRequest);
     if (image && image.id) {
       drawOnRequests.add(whiteboardRequest);
       Object.assign(message, { item_id: image.id, version: image.sha256 });
@@ -2880,8 +2907,8 @@
       return;
     }
     clearLocal();
-    if (data.item_id && itemById(data.item_id)) showOpened(data.item_id);
-    else pendingOpen = data.item_id || null;
+    pendingOpen = null;
+    showOwn(data.item_id);
   }
 
   // ---- A file from the computer -----------------------------------------
@@ -2943,6 +2970,14 @@
   const carriesFiles = (e) => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files'));
 
   function wirePut() {
+    // The short buttons above the work screen say what each does (their
+    // titles) on hover and on focus.
+    if (window.MonadicTip) {
+      ['workbench-put', 'workbench-new-whiteboard', 'workbench-open-url'].forEach((id) => {
+        const el = $id(id);
+        if (el) window.MonadicTip.attach(el, { delay: { show: 500, hide: 0 } });
+      });
+    }
     $on($id('workbench-new-whiteboard'), 'click', () => newWhiteboard());
     const button = $id('workbench-put');
     const input = $id('workbench-put-input');
@@ -3214,6 +3249,15 @@
       if (lc.selectedPane() !== 'work') lc.setPane('work');
     }
     select(id);
+  }
+
+  // An item this tab's user put, made or opened (a whiteboard, an address):
+  // it is selected here once it is on the board, as a click on its tab
+  // selects it, whatever was selected before.
+  function showOwn(id) {
+    if (!id) return;
+    if (itemById(id)) showOpened(id);
+    else pendingOpen = id;
   }
 
   // The server's answer to this tab's latest selection: what it holds now
@@ -3564,7 +3608,7 @@
 
   window.Workbench = {
     onView, expectResumed, onResult, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
-    showAttachment, onAttachmentOpened, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
+    showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),

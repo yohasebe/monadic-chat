@@ -126,7 +126,10 @@ describe('Workbench', () => {
     expect(pane.hidden).toBe(false);
     expect(pane.querySelector('img').getAttribute('src')).toBe('/workbench/asset/i_1');
     expect(pane.querySelector('code').textContent).toBe(PATH);
-    expect(pane.querySelector('.btn-primary').textContent).toBe('Download');
+    const save = pane.querySelector('.workbench-item-save');
+    expect(save.textContent).toBe('Save');
+    expect(save.getAttribute('aria-label')).toBe('Download');
+    expect(save.classList.contains('btn-outline')).toBe(true);
     expect(document.getElementById('work-screen-browser').hidden).toBe(true);
     expect(shown()).not.toBeNull();
     expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
@@ -204,7 +207,7 @@ describe('Workbench', () => {
   test('says Save as… in the desktop app', () => {
     window.electronAPI = {};
     view([item()]);
-    expect(document.querySelector('#workbench-view .btn-primary').textContent).toBe('Save as…');
+    expect(document.querySelector('#workbench-view .workbench-item-save').getAttribute('aria-label')).toBe('Save as…');
   });
 
   test('shows no image for a file that changed or is gone, says which, and offers no save', () => {
@@ -214,7 +217,7 @@ describe('Workbench', () => {
     const pane = document.getElementById('workbench-view');
     expect(pane.querySelector('img')).toBeNull();
     expect(pane.textContent).toContain('changed in the shared folder');
-    expect(pane.querySelector('.btn-primary')).toBeNull();
+    expect(pane.querySelector('.workbench-item-save')).toBeNull();
     expect(el.querySelector('.workbench-note').textContent).toContain('changed in the shared folder');
     view([item({ status: 'missing' })], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item({ status: 'missing' })] } });
     expect(pane.textContent).toContain('no longer in the shared folder');
@@ -245,7 +248,7 @@ describe('Workbench', () => {
     const el = card('m-1');
     window.Workbench.drawRecord('m-1', [entry()]);
     view([item()]);
-    document.querySelector('#workbench-view .btn-primary').click();
+    document.querySelector('#workbench-view .workbench-item-save').click();
     el.querySelector('.workbench-save').click();
     expect(sent.map((s) => s.payload)).toEqual([
       { message: 'WORKBENCH_DOWNLOAD', artifact_id: 'r_1' }, { message: 'WORKBENCH_DOWNLOAD', artifact_id: 'r_1' }
@@ -256,10 +259,10 @@ describe('Workbench', () => {
     const clip = { id: 'i_a', kind: 'file', actor: 'user', name: '曲 1.mp3', path: 'music/曲 1.mp3', preview: 'audio',
       sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
     view([clip]);
-    document.querySelector('#workbench-view .btn-primary').click();
+    document.querySelector('#workbench-view .workbench-item-save').click();
     expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_DOWNLOAD', item_id: 'i_a', sha256: 'd'.repeat(64) }]);
     view([Object.assign({}, clip, { status: 'changed' })]);
-    expect(document.querySelector('#workbench-view .btn-primary')).toBeNull();
+    expect(document.querySelector('#workbench-view .workbench-item-save')).toBeNull();
   });
 
   test('says on its tab and above its items that the notes are being updated, without touching the reply\'s status', () => {
@@ -555,7 +558,14 @@ describe('Workbench', () => {
       const pane = document.getElementById('workbench-view');
       const row = pane.querySelector('.workbench-actions');
       const labels = Array.from(row.querySelectorAll('button')).map((b) => b.textContent);
-      expect(labels).toEqual(['Download', 'Reload', 'Versions']);
+      expect(labels).toEqual(['Save', 'Reload', 'Versions']);
+      // Short labels, each with an icon and the full name for the reader and the tooltip, all quiet.
+      const [save, reload] = row.querySelectorAll('button');
+      expect(save.getAttribute('aria-label')).toBe('Download');
+      expect(reload.getAttribute('aria-label')).toBe('Reload');
+      expect(reload.title).toBe('Read the file again as it is in the shared folder now');
+      expect(save.querySelector('i.fa-floppy-disk').getAttribute('aria-hidden')).toBe('true');
+      row.querySelectorAll('button').forEach((b) => expect(b.className).toContain('btn-outline'));
       expect(getComputedStyle(row).display).toBe('flex');
       expect(getComputedStyle(row).gap).not.toBe('');
       style.remove();
@@ -2167,10 +2177,10 @@ describe('Workbench', () => {
         expect(card.textContent).toContain('2.0 MB');
         expect(card.querySelector('.fa-file-word')).not.toBeNull();
         expect(global.fetch).not.toHaveBeenCalled();
-        expect(document.querySelector('#workbench-view .workbench-actions .btn-primary')).not.toBeNull();
+        expect(document.querySelector('#workbench-view .workbench-actions .workbench-item-save')).not.toBeNull();
         const big = Object.assign({}, doc, { size: 100 * 1024 * 1024 });
         view([big], { selected: 'i_d' });
-        expect(document.querySelector('#workbench-view .workbench-actions .btn-primary')).toBeNull();
+        expect(document.querySelector('#workbench-view .workbench-actions .workbench-item-save')).toBeNull();
       } finally {
         delete global.fetch;
       }
@@ -2203,7 +2213,7 @@ describe('Workbench', () => {
       expect(parts().map((n) => n.dataset.item)).toEqual(['i_a', 'i_b']);
       expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
       expect(partOf('i_b').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('true');
-      expect(partOf('i_b').querySelector('.workbench-info .btn-primary')).not.toBeNull();
+      expect(partOf('i_b').querySelector('.workbench-info .workbench-item-save')).not.toBeNull();
       // Not drawn until it comes near the view.
       expect(partOf('i_a').querySelector('img')).toBeNull();
       expect(partOf('i_a').querySelector('.workbench-later')).not.toBeNull();
@@ -2217,7 +2227,7 @@ describe('Workbench', () => {
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_a' }]);
       expect(partOf('i_a').classList.contains('is-focus')).toBe(true);
       expect(partOf('i_b').classList.contains('is-focus')).toBe(false);
-      expect(partOf('i_a').querySelector('.workbench-info .btn-primary')).not.toBeNull();
+      expect(partOf('i_a').querySelector('.workbench-info .workbench-item-save')).not.toBeNull();
       // Both stay as they were drawn.
       expect(partOf('i_a').querySelector('img')).toBe(imgA);
       expect(partOf('i_b').querySelector('img')).toBe(imgB);
@@ -2293,9 +2303,9 @@ describe('Workbench', () => {
         const clip = item({ id: 'i_v', kind: 'file', artifact_id: undefined, preview: 'video', name: 'talk.mp4', path: 'c/talk.mp4',
           sha256: 'e'.repeat(64), size: 10 * 1024 * 1024 });
         view([clip], { selected: 'i_v' });
-        expect(document.querySelector('#workbench-view .workbench-info .btn-primary')).not.toBeNull();
+        expect(document.querySelector('#workbench-view .workbench-info .workbench-item-save')).not.toBeNull();
         view([Object.assign({}, clip, { size: 65 * 1024 * 1024 })], { selected: 'i_v' });
-        expect(document.querySelector('#workbench-view .workbench-info .btn-primary')).toBeNull();
+        expect(document.querySelector('#workbench-view .workbench-info .workbench-item-save')).toBeNull();
       } finally {
         delete global.fetch;
       }
@@ -2361,7 +2371,10 @@ describe('Workbench', () => {
         view([pic, doc], { selected: 'i_q' });
         expect(document.querySelector('#workbench-view .workbench-to-library')).toBeNull();
         window.Workbench.select('i_m');
-        document.querySelector('#workbench-view .workbench-to-library').click();
+        const keep = document.querySelector('#workbench-view .workbench-to-library');
+        expect([keep.textContent, keep.getAttribute('aria-label'), keep.title])
+          .toEqual(['To Library', 'Keep in the Library', 'Keep in the Library']);
+        keep.click();
         expect(sent.at(-1).payload).toEqual({ message: 'LIBRARY_FROM_WORKBENCH', item_id: 'i_m', sha256: 'c'.repeat(64) });
         window.Workbench.onToLibrary({ item_id: 'i_m', import_id: 'imp-1' });
         expect(followImport).toHaveBeenCalledWith('imp-1', 'notes.md');
@@ -2433,7 +2446,9 @@ describe('Workbench', () => {
         view([pic, doc], { selected: 'i_p' });
         expect(document.querySelector('#workbench-view .workbench-item-text')).toBeNull();
         window.Workbench.select('i_t');
-        document.querySelector('#workbench-view .workbench-item-text').click();
+        const toInput = document.querySelector('#workbench-view .workbench-item-text');
+        expect([toInput.textContent, toInput.getAttribute('aria-label')]).toEqual(['To input', 'Text to the message']);
+        toInput.click();
         const asked = sent.at(-1).payload;
         expect(asked).toMatchObject({ message: 'WORKBENCH_ITEM_TEXT', item_id: 'i_t', sha256: 'f'.repeat(64) });
         window.Workbench.onItemText({ request: asked.request, item_id: 'i_t', content: '\n---\nFilename: paper.pdf\n---\nHello' });

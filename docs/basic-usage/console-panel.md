@@ -199,7 +199,7 @@ For what each key enables and which apps require it, see [Configuration](../refe
 
 **Check** under a key sends the key in that field to that field's provider and shows whether the provider accepted it. For providers with a model list, it also lists the provider's default model for each kind of task (chat, code, image, and so on) and whether that model is in the key's list. Apps that name their own model are not listed. A key written as a 1Password reference (`op://...`) is read from 1Password for the check. The key is checked as typed, so it can be checked before saving; checking saves nothing. For `ELEVENLABS_API_KEY` and `TAVILY_API_KEY` only the key is checked.
 
-`TAVILY_API_KEY` is the one key not tied to a single provider: it backs taking in a page's text from **Open URL** as an alternative to Selenium, and web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
+`TAVILY_API_KEY` is the one key not tied to a single provider: it backs taking in a page's text from **URL** on the work screen as an alternative to Selenium, and web search in apps whose provider has no native search — see the [Provider Capabilities table](../basic-usage/basic-apps.md#provider-capabilities).
 
 ### Voice & Audio
 

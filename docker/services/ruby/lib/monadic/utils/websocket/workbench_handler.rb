@@ -12,11 +12,12 @@ require_relative '../../workbench/sent'
 require_relative '../tool_image_utils'
 require_relative '../../workbench/point'
 require_relative '../../workbench/whiteboard'
+require_relative '../../workbench/url_file'
 
 # The workbench over the main socket (Monadic::Workbench::Channel): the
 # view a page is sent, the user's removal of an item from the board, a file
-# the user opens on it, an address the user opens in the chat's browser, the
-# item a tab selects, and the address to save a copy of an image, always for this connection's tab,
+# the user opens on it, an address the user opens on it (a PDF as a file,
+# any other in the chat's browser), the item a tab selects, and the address to save a copy of an image, always for this connection's tab,
 # generation and chat, and sent back to this connection only. All of it
 # runs in the connection's own loop, one message after another.
 module WebSocketHelper
@@ -39,34 +40,55 @@ module WebSocketHelper
     @page_browser_host ||= Class.new(MonadicApp) { include MonadicSharedTools::WebAutomation }
   end
 
-  # The user opens an address (http or https) in the chat's browser on the
-  # work screen. The browser starts as it does for the browser tools, for
-  # this tab's chat, in a thread of its own; the page is told how it went.
+  # The user opens an address (http or https) on the work screen, in a
+  # thread of its own: an address that serves a PDF puts it on the work
+  # screen as a file of the chat (Workbench::UrlFile); any other opens in
+  # the chat's browser, started as it is for the browser tools, for this
+  # tab's chat. The page is told how it went (as_file: put as a file, with
+  # its item).
   private def handle_ws_workbench_open_url(connection, obj, session)
     url = obj['url'].to_s.strip
     reply = { 'type' => 'workbench_open_url' }
     unless url.length <= WORKBENCH_URL_MAX && url.match?(/\A#{URI::DEFAULT_PARSER.make_regexp(%w[http https])}\z/)
       return send_to_client(connection, reply.merge('success' => false, 'error' => 'invalid_url'))
     end
-    unless MonadicSharedTools::WebAutomation.available?
-      %i[python selenium].each do |service|
-        Monadic::Utils::ContainerDependencies.start_service_async(service, reason: 'opening a page on the work screen')
-      end
-      return send_to_client(connection, reply.merge('success' => false, 'error' => 'browser_starting'))
-    end
 
-    tab = Thread.current[:websocket_session_id]
+    tab, generation = workbench_connection(session).values_at(:tab, :generation)
     Thread.new do
       Thread.current[:websocket_session_id] = tab
       Thread.current[:rack_session] = session
-      result = WebSocketHelper.page_browser_host.new.start_browser(url: url)
-      opened = result.is_a?(Hash) && result[:success] == true
-      send_or_broadcast(reply.merge('success' => opened, 'error' => opened ? nil : 'open_failed').to_json, tab)
+      put = begin
+        Monadic::Workbench::UrlFile.put(url, session, tab: tab, generation: generation, live: WORKBENCH_LIVE)
+      rescue Monadic::Workbench::UrlFile::Failed => e
+        { 'as_file' => true, 'error' => e.reason }
+      end
+      answer = put ? put.merge('success' => !put['error']) : workbench_open_in_browser(url, session)
+      send_or_broadcast(reply.merge(answer).to_json, tab)
     rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[Workbench] Page not opened: #{e.class}" }
       send_or_broadcast(reply.merge('success' => false, 'error' => 'open_failed').to_json, tab)
     end
     nil
+  end
+
+  # The address in the chat's browser (started when it is not running): the
+  # answer for the page, with the browser's item on the board.
+  private def workbench_open_in_browser(url, session)
+    unless MonadicSharedTools::WebAutomation.available?
+      %i[python selenium].each do |service|
+        Monadic::Utils::ContainerDependencies.start_service_async(service, reason: 'opening a page on the work screen')
+      end
+      return { 'success' => false, 'error' => 'browser_starting' }
+    end
+
+    result = WebSocketHelper.page_browser_host.new.start_browser(url: url)
+    opened = result.is_a?(Hash) && result[:success] == true
+    return { 'success' => false, 'error' => 'open_failed' } unless opened
+
+    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
+    board = Monadic::Workspace::Ids.valid?(:chat, chat_id) && Monadic::Workbench::Board.existing(chat_id)
+    browser = board && board.snapshot[:items].reverse.find { |item| item[:kind] == 'browser' }
+    { 'success' => true, 'item_id' => browser && browser[:id] }.compact
   end
 
   # The text of a document on the work screen (its item and the version the

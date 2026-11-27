@@ -29,7 +29,7 @@ Create Draw.io diagrams by describing your requirements. The AI writes Draw.io X
 **Key Features:**
 - **XML check and repair**: The generated Draw.io XML is checked, and common structural problems are repaired
 - **Diagram types**: Flowcharts, UML diagrams (class, sequence, activity), ER diagrams, network diagrams, org charts, mind maps, BPMN, Venn diagrams, wireframes, and more
-- **Files**: Each diagram is a new `.drawio` file, so earlier diagrams stay. It can be opened in Draw.io for further editing. To keep a copy somewhere else, use **Save as…** (**Download** in a web browser) on the diagram in the work screen
+- **Files**: Each diagram is a new `.drawio` file, so earlier diagrams stay. It can be opened in Draw.io for further editing. To keep a copy somewhere else, use **Save** under the diagram in the work screen
 
 DrawIO Grapher is available for the providers marked in the [availability table](../basic-usage/basic-apps.md#app-availability).
 

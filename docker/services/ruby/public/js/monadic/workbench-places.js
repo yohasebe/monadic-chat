@@ -2,7 +2,9 @@
  * The work screen's four places, one under another (workbench.js fills
  * them): Now (current), Latest, Before (previous) and Put away (stash).
  * Each has a head (its name, who placed it, how many items) and a body
- * that scrolls on its own. An empty place folds to its head; between two
+ * that scrolls on its own. An empty Now or Put away folds to its head (Now
+ * takes what is placed, Put away what is dragged there); an empty Latest
+ * or Before is not shown at all. Between two
  * open places a separator changes their heights (dragged, or with the
  * arrow keys), kept per layout mode.
  *
@@ -17,6 +19,8 @@
 
   const PLACES = ['current', 'latest', 'previous', 'stash'];
   const DESK = ['current', 'latest', 'previous'];
+  // The places a turn's layer is in: not shown while empty.
+  const LAYERS = ['latest', 'previous'];
   const STORE_KEY = 'monadic.workbench.places.';
   // The least share of the open height a place keeps while resized.
   const MIN_WEIGHT = 0.1;
@@ -184,6 +188,7 @@
         const region = regions[name];
         const n = Number(counts && counts[name]) || 0;
         region.root.classList.toggle('is-empty', n === 0);
+        region.root.hidden = n === 0 && LAYERS.includes(name);
         let text = name === 'current' && given.limit ? `${n} / ${given.limit}` : String(n);
         const by = layers[name];
         if (by) text = `${by === 'agent' ? say('ui.workbench.placeByAgent', 'AI') : say('ui.workbench.placeByUser', 'You')} · ${text}`;

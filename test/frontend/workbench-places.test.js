@@ -45,6 +45,14 @@ describe('WorkbenchPlaces', () => {
     places.fill({ current: 1, latest: 0, previous: 2, stash: 0 }, {});
     expect(places.regions.latest.root.classList.contains('is-empty')).toBe(true);
     expect(grow(places, 'latest')).toBe(0);
+    // An empty Latest or Before is not shown; an empty Now or Put away is its head.
+    expect(places.regions.latest.root.hidden).toBe(true);
+    expect(places.regions.stash.root.hidden).toBe(false);
+    places.fill({ current: 0, latest: 0, previous: 0, stash: 0 }, {});
+    expect(places.regions.current.root.hidden).toBe(false);
+    expect(places.regions.previous.root.hidden).toBe(true);
+    places.fill({ current: 1, latest: 0, previous: 2, stash: 0 }, {});
+    expect(places.regions.previous.root.hidden).toBe(false);
     expect(grow(places, 'current') + grow(places, 'previous')).toBeCloseTo(1);
     const shown = open(places);
     expect(shown).toHaveLength(1);

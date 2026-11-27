@@ -442,8 +442,9 @@
     render();
   }
 
-  // Continued: on a narrow screen the conversation is shown (the side
-  // column and the conversation take turns there).
+  // Continued: the conversation is shown (on a narrow screen the side
+  // column and the conversation take turns; with the side column alone,
+  // both are shown).
   function onResumed(data) {
     // One request is on its way at a time on this connection, so this is
     // its answer, whatever chat it names (a failure may name none).
@@ -452,8 +453,7 @@
     setStatus('');
     if (data.success || data.error === 'history_chat_here') {
       const lc = window.LayoutController;
-      const narrow = window.UIConfig && typeof window.UIConfig.isTabletView === 'function' ? window.UIConfig.isTabletView() : window.innerWidth < 768;
-      if (data.success && lc && narrow) lc.setMenuHidden(true);
+      if (data.success && lc) lc.showConversation();
       if (data.success && window.Workbench && typeof window.Workbench.expectResumed === 'function') {
         window.Workbench.expectResumed(data.chat_id);
       }

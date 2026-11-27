@@ -283,9 +283,12 @@
               status line keeps its place (the group is aligned right). %>
           <span id="sts-usage-indicator" class="me-2" style="display:none;"></span>
           <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
-          <button id="toggle-menu" type="button" class="btn btn-sm btn-tool btn-icon" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
-            <i class="fas fa-bars"></i>
-          </button>
+          <%# How the columns are shown; layout-controller.js presses the mode chosen. %>
+          <div id="layout-mode" class="btn-panel layout-mode" role="group" aria-label="Layout" data-i18n-aria-label="ui.layout.label">
+            <button type="button" class="btn btn-sm btn-tool btn-icon" data-layout="both" aria-pressed="true" aria-label="Side by side" data-i18n-aria-label="ui.layout.both" title="Show the conversation and the side panel side by side" data-i18n-title="ui.layout.bothHelp"><i class="fa-solid fa-table-columns" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-tool btn-icon" data-layout="left" aria-pressed="false" aria-label="Left only" data-i18n-aria-label="ui.layout.left" title="Show only the conversation, at the full width" data-i18n-title="ui.layout.leftHelp"><i class="fa-solid fa-square-caret-left" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-tool btn-icon" data-layout="right" aria-pressed="false" aria-label="Right only" data-i18n-aria-label="ui.layout.right" title="Show only the side panel, at the full width" data-i18n-title="ui.layout.rightHelp"><i class="fa-solid fa-square-caret-right" aria-hidden="true"></i></button>
+          </div>
         </div>
       </div>
     </nav>

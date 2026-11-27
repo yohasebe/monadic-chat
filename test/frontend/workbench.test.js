@@ -392,6 +392,23 @@ describe('Workbench', () => {
     const tab = document.querySelector('#workbench-items [data-item="i_1"]');
     expect(tab.querySelector('.workbench-item-name').textContent).toBe('generate_…image-2_0.png');
     expect(tab.title).toBe('20261106-091233_generate_gpt-image-2_0.png');
+    expect(tab.getAttribute('aria-label')).toBe('20261106-091233_generate_gpt-image-2_0.png');
+  });
+
+  test('names the item chosen by its tab alone: its full name is the tab\'s tooltip, not a line over the item', () => {
+    window.MonadicTip = { attach: jest.fn(), disposeWithin: jest.fn() };
+    try {
+      const long = '20261106-091233_compressed-survey-pldi-09.pdf';
+      view([item({ name: long })]);
+      const tab = document.querySelector('#workbench-items [data-item="i_1"]');
+      expect(window.MonadicTip.attach).toHaveBeenCalledWith(tab, expect.any(Object));
+      expect(tab.getAttribute('aria-label')).toBe(long);
+      const part = document.querySelector('#workbench-view .workbench-section[data-item="i_1"]');
+      expect(part.classList.contains('is-focus')).toBe(true);
+      expect(part.querySelector('.workbench-section-head').hidden).toBe(true);
+    } finally {
+      delete window.MonadicTip;
+    }
   });
 
   test('ignores an older revision of the board, and starts over for another chat', () => {
@@ -2212,7 +2229,10 @@ describe('Workbench', () => {
       view([a, b], { selected: 'i_b' });
       expect(parts().map((n) => n.dataset.item)).toEqual(['i_a', 'i_b']);
       expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
-      expect(partOf('i_b').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('true');
+      // The one chosen is named by its tab; the others under their names.
+      expect(partOf('i_b').querySelector('.workbench-section-head').hidden).toBe(true);
+      expect(partOf('i_a').querySelector('.workbench-section-head').hidden).toBe(false);
+      expect(partOf('i_a').querySelector('.workbench-section-head').textContent).toBe('a.png');
       expect(partOf('i_b').querySelector('.workbench-info .workbench-item-save')).not.toBeNull();
       // Not drawn until it comes near the view.
       expect(partOf('i_a').querySelector('img')).toBeNull();

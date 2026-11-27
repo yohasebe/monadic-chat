@@ -93,6 +93,15 @@ describe('The columns in a browser', () => {
     expect(r.back.menu.width).toBe(r.dragged.menu.width);
   });
 
+  test('gives the side column the whole row when shown alone, and the kept width back side by side', () => {
+    expect(r.rightOnly.main.shown).toBe(false);
+    expect(r.rightOnly.handle.shown).toBe(false);
+    near(r.rightOnly.menu.width, r.hidden.main.width);
+    expect(r.rightOnly.width).toBe(r.dragged.width);
+    expect(r.bothAgain.menu.width).toBe(r.dragged.menu.width);
+    expect(r.bothAgain.main.width).toBe(r.dragged.main.width);
+  });
+
   test('takes turns at full width below 768 px, with no border, and is side by side at 768', () => {
     expect(r.narrow.handle.shown).toBe(false);
     expect(r.narrow.main.shown !== r.narrow.menu.shown).toBe(true);

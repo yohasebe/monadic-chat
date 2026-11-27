@@ -183,13 +183,14 @@ async function main() {
     for (const [name, options] of Object.entries({ wide: {}, narrow: { width: 390 }, dark: { dark: true } })) {
       await look(page, `${base}/view`, [], options);
       out.view[name] = await page.evaluate(everyButton);
-      // The top bar: the status label beside its buttons.
-      out.view[name].bar = await page.evaluate(() => ['status-message', 'cancel_query', 'toggle-menu'].map((id) => {
-        const el = document.getElementById(id);
-        if (el.style.display === 'none') el.style.removeProperty('display');
-        const r = el.getBoundingClientRect();
-        return { id, height: r.height, middle: r.top + r.height / 2 };
-      }));
+      // The top bar: the status label beside its buttons, the layout
+      // buttons' group and each of them.
+      out.view[name].bar = await page.evaluate(() => ['#status-message', '#cancel_query', '#layout-mode', '#layout-mode > button']
+        .flatMap((selector) => Array.from(document.querySelectorAll(selector))).map((el) => {
+          if (el.style.display === 'none') el.style.removeProperty('display');
+          const r = el.getBoundingClientRect();
+          return { id: el.id || el.getAttribute('data-layout'), height: r.height, middle: r.top + r.height / 2 };
+        }));
     }
     // The floating groups at the bottom right.
     await look(page, `${base}/view`, []);

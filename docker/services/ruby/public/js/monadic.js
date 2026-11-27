@@ -1197,27 +1197,16 @@ document.addEventListener("DOMContentLoaded", function () {
   // Function to fix layout after window resize
   function fixLayoutAfterResize() {
     try {
-      const windowWidth = window.innerWidth;
-      const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : windowWidth < 600;
-      const toggleBtn = $id("toggle-menu");
       const mainPanel = $id("main");
       const menuPanel = $id("menu");
 
       // Check if essential elements exist
-      if (!toggleBtn || !mainPanel || !menuPanel) {
+      if (!mainPanel || !menuPanel) {
         console.warn("fixLayoutAfterResize: Required elements not found");
         return;
       }
 
       window.LayoutController.apply();
-
-      if (isMobile) {
-        // Reset any inline styles that might have been applied
-        toggleBtn.style.position = "";
-        toggleBtn.style.top = "";
-        toggleBtn.style.right = "";
-        $show(toggleBtn);
-      }
 
     // Force reflow to ensure proper rendering
     document.body.offsetHeight;
@@ -1239,31 +1228,19 @@ document.addEventListener("DOMContentLoaded", function () {
         console.error("Error in fixLayoutAfterResize:", error);
       }
       // Attempt basic recovery
-      var mainEl = $id("main");
-      $show(mainEl); var toggleEl = $id("toggle-menu");
-      $show(toggleEl); }
+      $show($id("main"));
+    }
   }
 
   // Fallback function for scroll buttons when uiUtils is not available
   function adjustScrollButtonsFallback() {
     const mainPanel = $id("main");
-    const windowWidth = window.innerWidth;
-    const isMobile = windowWidth < 600;
-    const isMedium = windowWidth < 768; // Bootstrap md breakpoint
     var backToTop = $id("back_to_top");
     var backToBottom = $id("back_to_bottom");
 
-    // On mobile and medium screens where menu/content are exclusive, check toggle state
-    if (isMobile || isMedium) {
-      // Check if toggle button has menu-hidden class
-      const toggleBtn = $id("toggle-menu");
-      const isMenuHidden = window.LayoutController ? window.LayoutController.isMenuHidden()
-        : (toggleBtn && toggleBtn.classList.contains("menu-hidden"));
-
-      if (!isMenuHidden) {
-        // Menu is showing, hide scroll buttons
-        $hide(backToTop); $hide(backToBottom); return;
-      }
+    // The conversation is not shown (the side column alone): no scroll buttons
+    if (window.LayoutController && window.LayoutController.isMainHidden()) {
+      $hide(backToTop); $hide(backToBottom); return;
     }
 
     // Also check for menu-visible class (mobile menu state)
@@ -2367,100 +2344,42 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Handle toggle-menu button click with comprehensive error handling
-  $on($id("toggle-menu"), "click", function(e) {
-    try {
-      // Prevent any default behavior
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Get required elements with safety checks
-      const $toggleBtn = this;
-      const $menu = $id("menu");
-      const $main = $id("main");
-      const $spinner = $id("monadic-spinner");
+  // After a layout button of the top bar (layout-controller.js sets the
+  // mode): the columns from their tops, and the scroll buttons for what is
+  // shown.
+  $on($id("layout-mode"), "layoutmodechosen", function() {
+    window.scrollTo({ top: 0 });
 
-      if (!$toggleBtn || !$menu || !$main) {
-        console.error('Required elements missing for menu toggle');
-        return false;
-      }
-
-      // Check if we're on mobile with fallback
-      const isMobile = window.UIConfig ?
-        window.UIConfig.isMobileView() :
-        window.innerWidth < 600;
-
-      // Show or hide the menu, and keep the choice (layout-controller.js)
-      window.LayoutController.toggleMenu();
-      
-      // Reset scroll position
-      window.scrollTo({ top: 0 });
-      
-      // Update scroll buttons visibility after menu toggle (with slight delay for DOM update)
-      const updateDelay = window.UIConfig ? 
-        window.UIConfig.TIMING.LAYOUT_FIX_DELAY : 50;
-      
-      setTimeout(function() {
-        try {
-          if (window.uiUtils && window.uiUtils.adjustScrollButtons) {
-            window.uiUtils.adjustScrollButtons();
-          } else if (typeof adjustScrollButtonsFallback === 'function') {
-            adjustScrollButtonsFallback();
-          }
-        } catch (error) {
-          console.error('Error adjusting scroll buttons:', error);
+    const updateDelay = window.UIConfig ? window.UIConfig.TIMING.LAYOUT_FIX_DELAY : 50;
+    setTimeout(function() {
+      try {
+        if (window.uiUtils && window.uiUtils.adjustScrollButtons) {
+          window.uiUtils.adjustScrollButtons();
+        } else if (typeof adjustScrollButtonsFallback === 'function') {
+          adjustScrollButtonsFallback();
         }
-      }, updateDelay);
-      
-      // Basic scroll position maintenance - use a very small timeout
-      setTimeout(function() {
-        // Reset scroll positions
+      } catch (error) {
+        console.error('Error adjusting scroll buttons:', error);
+      }
+    }, updateDelay);
+
+    setTimeout(function() {
       document.querySelectorAll("#main, #menu").forEach(function(_el) { _el.scrollTop = 0; });
-
-      // On mobile, force elements to maintain their positions
-      if (isMobile) {
-        // Fix toggle button position with exact coordinates
-        var _tmEl = $id("toggle-menu");
-        if (_tmEl) {
-          _tmEl.style.position = "fixed";
-          _tmEl.style.top = "12px";
-          _tmEl.style.right = "10px";
-          _tmEl.style.height = "30px";
-          _tmEl.style.width = "30px";
-          _tmEl.style.padding = "6px";
-          _tmEl.style.transform = "none";
-        }
-      }
 
       // Run scrollable area optimization for all mobile devices
       if (window.innerWidth < 768) {
         optimizeMobileScrolling();
       }
 
-      // iOS Safari specific fix to ensure proper layout after toggle
+      // iOS Safari specific fix to ensure proper layout after the change
       if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
         // Force a repaint
         document.querySelectorAll("#main, #menu").forEach(function(_el) { _el.style.transform = "translateZ(0)"; });
-        
+
         // Run optimization again after a short delay for iOS
         setTimeout(optimizeMobileScrolling, window.UIConfig ? window.UIConfig.TIMING.LAYOUT_FIX_DELAY : 100);
       }
-      }, 10); // Very small timeout
-      
-      return false; // Prevent event bubbling
-      
-    } catch (error) {
-      console.error('Error in menu toggle:', error);
-      // Attempt recovery
-      try {
-        $show($id("main"));
-        $show($id("toggle-menu"));
-        document.body.classList.remove("menu-visible");
-      } catch (recoveryError) {
-        console.error('Recovery failed:', recoveryError);
-      }
-      return false;
-    }
+    }, 10);
   });
 
   $on($id("start"), "click", function() {

@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-// The page's column layout comes from one place: what the user chose, or the
-// default for the window's width.
+// The page's column layout comes from one place: the mode the user chose
+// with the top bar's layout buttons, or the default for the window's width.
 const path = require('path');
 
 const js = (f) => path.join(__dirname, '../../docker/services/ruby/public/js', f);
@@ -11,17 +11,28 @@ function setWidth(width) {
   Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width });
 }
 
+const clearCookie = (name) => { document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`; };
+
 describe('LayoutController', () => {
   let LC;
 
-  beforeEach(() => {
+  const load = () => {
     jest.resetModules();
+    require(js('monadic/dom-helpers.js'));
+    require(js('monadic/cookie-utils.js'));
+    LC = require(js('monadic/layout-controller.js'));
+  };
+
+  beforeEach(() => {
     localStorage.clear();
-    document.cookie = 'menu-hidden-preference=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'side-pane-preference=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    ['layout-mode-preference', 'menu-hidden-preference', 'side-pane-preference'].forEach(clearCookie);
     document.body.className = '';
     document.body.innerHTML =
-      '<button id="toggle-menu" aria-expanded="true"></button>' +
+      '<div id="layout-mode" role="group">' +
+        '<button type="button" data-layout="both" aria-pressed="true" title="Side by side"></button>' +
+        '<button type="button" data-layout="left" aria-pressed="false" title="Left only"></button>' +
+        '<button type="button" data-layout="right" aria-pressed="false" title="Right only"></button>' +
+      '</div>' +
       '<div class="row">' +
       '<div id="menu">' +
         '<div id="side-pane-tabs" role="tablist">' +
@@ -36,14 +47,14 @@ describe('LayoutController', () => {
       '</div>';
     delete window.UIConfig;
     delete window.StorageHelper;
-    require(js('monadic/dom-helpers.js'));
-    require(js('monadic/cookie-utils.js'));
-    LC = require(js('monadic/layout-controller.js'));
+    delete window.MonadicTip;
+    load();
   });
 
   const menu = () => document.getElementById('menu');
   const main = () => document.getElementById('main');
-  const btn = () => document.getElementById('toggle-menu');
+  const modeButton = (m) => document.querySelector(`#layout-mode [data-layout="${m}"]`);
+  const pressed = () => ['both', 'left', 'right'].filter((m) => modeButton(m).getAttribute('aria-pressed') === 'true');
   const shown = (el) => el.style.display !== 'none';
   const handle = () => document.getElementById('side-pane-splitter');
   const sideWidth = () => menu().parentElement.style.getPropertyValue('--side-pane-width');
@@ -56,13 +67,13 @@ describe('LayoutController', () => {
   test('with no choice yet, a wide window shows the menu beside the conversation', () => {
     setWidth(1280);
     LC.apply();
+    expect(LC.mode()).toBe('both');
     expect(LC.isMenuHidden()).toBe(false);
     expect(shown(menu())).toBe(true);
     expect(shown(main())).toBe(true);
     expect(sideWidth()).toBe('40%');
     draggable(true);
-    expect(btn().classList.contains('menu-hidden')).toBe(false);
-    expect(btn().getAttribute('aria-expanded')).toBe('true');
+    expect(pressed()).toEqual(['both']);
   });
 
   test('with no choice yet, a narrow window shows the conversation alone', () => {
@@ -74,29 +85,178 @@ describe('LayoutController', () => {
     expect(document.body.classList.contains('menu-visible')).toBe(false);
   });
 
-  test('hiding the menu in a wide window widens the conversation and keeps the choice', () => {
+  test('the three buttons switch the mode, press the one chosen and keep the choice', () => {
     setWidth(1280);
     LC.apply();
-    expect(LC.toggleMenu()).toBe(true);
+    modeButton('left').click();
+    expect(pressed()).toEqual(['left']);
     expect(shown(menu())).toBe(false);
+    expect(shown(main())).toBe(true);
     draggable(false);
-    expect(btn().classList.contains('menu-hidden')).toBe(true);
-    expect(btn().getAttribute('aria-expanded')).toBe('false');
-    expect(window.getCookie('menu-hidden-preference')).toBe('true');
+    expect(window.getCookie('layout-mode-preference')).toBe('left');
 
-    expect(LC.toggleMenu()).toBe(false);
+    modeButton('right').click();
+    expect(pressed()).toEqual(['right']);
     expect(shown(menu())).toBe(true);
+    expect(shown(main())).toBe(false);
+    expect(LC.isMainHidden()).toBe(true);
+    expect(document.body.classList.contains('side-pane-only')).toBe(true);
+    draggable(false);
+    expect(window.getCookie('layout-mode-preference')).toBe('right');
+
+    modeButton('both').click();
+    expect(pressed()).toEqual(['both']);
+    expect(shown(menu())).toBe(true);
+    expect(shown(main())).toBe(true);
+    expect(document.body.classList.contains('side-pane-only')).toBe(false);
     draggable(true);
-    expect(window.getCookie('menu-hidden-preference')).toBe('false');
+    expect(window.getCookie('layout-mode-preference')).toBe('both');
+  });
+
+  test('the buttons are buttons: the keyboard reaches them, and Enter and Space click them', () => {
+    setWidth(1280);
+    LC.apply();
+    ['both', 'left', 'right'].forEach((m) => {
+      expect(modeButton(m).tagName).toBe('BUTTON');
+      expect(modeButton(m).tabIndex).toBe(0);
+    });
+  });
+
+  test('a chosen button tells the page (the scroll buttons follow)', () => {
+    setWidth(1280);
+    LC.apply();
+    const chosen = jest.fn();
+    document.getElementById('layout-mode').addEventListener('layoutmodechosen', chosen);
+    modeButton('left').click();
+    expect(chosen).toHaveBeenCalledTimes(1);
+  });
+
+  test('the buttons have their tooltips when the page has them', () => {
+    window.MonadicTip = { attach: jest.fn() };
+    load();
+    setWidth(1280);
+    LC.apply();
+    expect(window.MonadicTip.attach).toHaveBeenCalledTimes(3);
+    expect(window.MonadicTip.attach.mock.calls.map((c) => c[0])).toEqual(['both', 'left', 'right'].map(modeButton));
+    LC.apply();
+    expect(window.MonadicTip.attach).toHaveBeenCalledTimes(3);
+  });
+
+  test('side by side again has the width the user kept; one column alone leaves it as it was', () => {
+    setWidth(1280);
+    LC.apply();
+    LC.setSideWidth(52);
+    modeButton('right').click();
+    expect(sideWidth()).toBe('52%');
+    modeButton('left').click();
+    expect(sideWidth()).toBe('52%');
+    expect(localStorage.getItem('monadic-side-pane-width')).toBe('52');
+    modeButton('both').click();
+    expect(sideWidth()).toBe('52%');
+    expect(LC.sideWidth()).toBe(52);
+  });
+
+  test('the page works when its storage throws', () => {
+    const denied = () => { throw new Error('denied'); };
+    const spies = ['getItem', 'setItem'].map((name) => jest.spyOn(Storage.prototype, name).mockImplementation(denied));
+    try {
+      load();
+      setWidth(1280);
+      LC.apply();
+      expect(sideWidth()).toBe('40%');
+      modeButton('right').click();
+      expect(shown(main())).toBe(false);
+      LC.setSideWidth(50);
+      modeButton('both').click();
+      expect(sideWidth()).toBe('50%');
+      expect(shown(main())).toBe(true);
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+    }
+  });
+
+  test('the mode is remembered when the page loads again', () => {
+    setWidth(1280);
+    LC.apply();
+    modeButton('right').click();
+    load();
+    LC.apply();
+    expect(LC.mode()).toBe('right');
+    expect(pressed()).toEqual(['right']);
+    expect(shown(main())).toBe(false);
+  });
+
+  test('a choice kept by the menu switch is taken over once', () => {
+    document.cookie = 'menu-hidden-preference=true; path=/';
+    load();
+    setWidth(1280);
+    LC.apply();
+    expect(LC.mode()).toBe('left');
+    expect(window.getCookie('layout-mode-preference')).toBe('left');
+    expect(window.getCookie('menu-hidden-preference')).toBeNull();
+  });
+
+  test('showing the work screen from "left only" shows it side by side', () => {
+    setWidth(1280);
+    LC.apply();
+    modeButton('left').click();
+    // As workbench.js does for what the user opens
+    if (LC.isMenuHidden()) LC.setMenuHidden(false);
+    LC.setPane('work');
+    expect(LC.mode()).toBe('both');
+    expect(pressed()).toEqual(['both']);
+    expect(shown(menu())).toBe(true);
+    expect(shown(main())).toBe(true);
+    expect(document.getElementById('work-screen-pane').hidden).toBe(false);
+  });
+
+  test('showing the side column on a narrow window gives it its turn, in any mode', () => {
+    setWidth(500);
+    LC.apply();
+    modeButton('left').click();
+    LC.setMenuHidden(false);
+    expect(LC.mode()).toBe('both');
+    expect(shown(menu())).toBe(true);
+    expect(shown(main())).toBe(false);
+    expect(document.body.classList.contains('menu-visible')).toBe(true);
+  });
+
+  test('showing the conversation leaves "right only" for side by side', () => {
+    setWidth(1280);
+    LC.apply();
+    modeButton('right').click();
+    LC.showConversation();
+    expect(LC.mode()).toBe('both');
+    expect(shown(main())).toBe(true);
+    expect(shown(menu())).toBe(true);
   });
 
   test('in a narrow window the menu and the conversation take turns', () => {
     setWidth(500);
     LC.apply();
-    LC.toggleMenu();
+    modeButton('right').click();
     expect(shown(menu())).toBe(true);
     expect(shown(main())).toBe(false);
     expect(document.body.classList.contains('menu-visible')).toBe(true);
+    modeButton('left').click();
+    expect(shown(menu())).toBe(false);
+    expect(shown(main())).toBe(true);
+    expect(document.body.classList.contains('menu-visible')).toBe(false);
+  });
+
+  test('in a narrow window side by side shows the conversation, and pressing it again switches the turn', () => {
+    setWidth(500);
+    LC.apply();
+    modeButton('right').click();
+    modeButton('both').click();
+    expect(shown(main())).toBe(true);
+    expect(shown(menu())).toBe(false);
+    modeButton('both').click();
+    expect(shown(main())).toBe(false);
+    expect(shown(menu())).toBe(true);
+    expect(pressed()).toEqual(['both']);
+    modeButton('both').click();
+    expect(shown(main())).toBe(true);
   });
 
   // Below 768 px the CSS shows #menu only with body.menu-visible.
@@ -104,7 +264,7 @@ describe('LayoutController', () => {
     setWidth(width);
     LC.apply();
     expect(LC.isMenuHidden()).toBe(true);
-    LC.toggleMenu();
+    LC.setMenuHidden(false);
     expect(document.body.classList.contains('menu-visible')).toBe(true);
     expect(shown(main())).toBe(false);
   });
@@ -120,6 +280,7 @@ describe('LayoutController', () => {
   test('the choice holds when the window is resized', () => {
     setWidth(1280);
     LC.setMenuHidden(true);
+    expect(LC.mode()).toBe('left');
     setWidth(500);
     LC.apply();
     expect(shown(menu())).toBe(false);
@@ -376,7 +537,7 @@ describe('who sets the column layout', () => {
   test('only layout-controller.js stores the choice or sets the column widths', () => {
     const offenders = files.filter((f) => {
       const src = fs.readFileSync(f, 'utf8');
-      return /menu-hidden-preference|monadic-menu-hidden|monadic-side-pane-width|--side-pane-width/.test(src) ||
+      return /layout-mode-preference|menu-hidden-preference|monadic-menu-hidden|monadic-side-pane-width|--side-pane-width/.test(src) ||
         /\$id\(\s*["']main["']\s*\)[\s\S]{0,40}classList\.(add|remove)\(\s*["']col-md-(8|12)["']/.test(src) ||
         /\$main\.classList\.(add|remove)\(\s*["']col-md-(8|12)["']/.test(src) ||
         /mainPanel\.classList\.(add|remove)\(\s*["']col-md-(8|12)["']/.test(src);

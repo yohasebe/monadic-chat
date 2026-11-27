@@ -1,26 +1,34 @@
 /**
  * layout-controller.js
  *
- * The one owner of the page's column layout: whether the settings column
- * (#menu) is shown next to the conversation (#main), and the classes and
- * visibility that follow from it. Other code asks it (isMenuHidden) and
- * changes it (setMenuHidden, toggleMenu, apply) instead of reading or setting
- * the DOM itself; the classes it sets (menu-hidden on #toggle-menu,
- * body.menu-visible) are what other code may read.
+ * The one owner of the page's column layout: how the conversation (#main)
+ * and the side column (#menu) are shown, and the classes and visibility
+ * that follow from it. Other code asks it (mode, isMenuHidden,
+ * isMainHidden) and changes it (setMode, setMenuHidden, showConversation,
+ * apply) instead of reading or setting the DOM itself; the classes it sets
+ * (body.menu-visible, body.side-pane-only) are what other code may read.
  *
- * What the user chose is a display preference kept in a cookie, like the
- * theme, so resetting the Web UI (which clears the page's storage) keeps it.
- * Until they choose, the menu is shown on wide screens and hidden on narrow
- * ones.
+ * The layout is one of three modes, chosen with the buttons of #layout-mode
+ * in the top bar: "both" (side by side), "left" (the conversation alone)
+ * and "right" (the side column alone, at the full width). The choice is a
+ * display preference kept in a cookie, like the theme, so resetting the Web
+ * UI (which clears the page's storage) keeps it. Until the user chooses,
+ * the mode is "both".
  *
  *   - Narrow (below Bootstrap's md breakpoint, 768 px): the menu and the
  *     conversation take turns; body.menu-visible is set while the menu is
- *     shown.
- *   - Wide: the side column is beside the conversation, at the width the
- *     user set by dragging the border between them (#side-pane-splitter,
- *     the same for every pane, kept in localStorage), or the conversation
- *     is alone. The width is the CSS variable --side-pane-width on the row,
- *     which the CSS uses only at 768 px and wider.
+ *     shown. "left" and "right" show one of them; in "both" the
+ *     conversation is shown first, and pressing "both" again, or anything
+ *     that shows the side column, gives the side column its turn.
+ *   - Wide: in "both" the side column is beside the conversation, at the
+ *     width the user set by dragging the border between them
+ *     (#side-pane-splitter, the same for every pane, kept in localStorage);
+ *     in "left" and "right" one column takes the full width and the kept
+ *     width stays as it was. The width is the CSS variable --side-pane-width
+ *     on the row, which the CSS uses only at 768 px and wider.
+ *
+ * Code that shows something in the side column for the user
+ * (setMenuHidden(false)) changes "left" to "both".
  *
  * The side column holds four panes, Settings, the work screen, the shared
  * folder's files (shared-folder-panel.js) and the kept chats
@@ -33,8 +41,13 @@
 (function() {
   'use strict';
 
-  var COOKIE_NAME = 'menu-hidden-preference';
+  var COOKIE_NAME = 'layout-mode-preference';
+  // Earlier versions kept whether the menu was hidden ("true" or "false").
+  var OLD_COOKIE_NAME = 'menu-hidden-preference';
   var COOKIE_DAYS = 30;
+  var MODES = ['both', 'left', 'right'];
+  // In "both" on a narrow window: which column has its turn.
+  var narrowTurn = 'main';
   var PANES = ['settings', 'work', 'files', 'history', 'library'];
   var pane = 'settings';
   // The side column's width, in % of the row: the user's (by dragging or
@@ -50,15 +63,29 @@
     window.setCookie('side-pane-preference', '', -1);
   }
 
-  function storedChoice() {
-    var value = typeof window.getCookie === 'function' ? window.getCookie(COOKIE_NAME) : null;
-    return value === 'true' ? true : (value === 'false' ? false : null);
+  function readCookie(name) {
+    return typeof window.getCookie === 'function' ? window.getCookie(name) : null;
   }
 
-  function storeChoice(hidden) {
+  function storeMode(value) {
     if (typeof window.setCookie === 'function') {
-      window.setCookie(COOKIE_NAME, hidden ? 'true' : 'false', COOKIE_DAYS);
+      window.setCookie(COOKIE_NAME, value, COOKIE_DAYS);
     }
+  }
+
+  // The mode the user chose, "both" until they choose; a choice kept by an
+  // earlier version (whether the menu was hidden) is taken over once.
+  function mode() {
+    var value = readCookie(COOKIE_NAME);
+    if (MODES.indexOf(value) !== -1) return value;
+    var old = readCookie(OLD_COOKIE_NAME);
+    if (old === 'true' || old === 'false') {
+      value = old === 'true' ? 'left' : 'both';
+      storeMode(value);
+      if (typeof window.setCookie === 'function') window.setCookie(OLD_COOKIE_NAME, '', -1);
+      return value;
+    }
+    return 'both';
   }
 
   function clampWidth(value) {
@@ -100,38 +127,63 @@
   }
 
   function isMenuHidden() {
-    var choice = storedChoice();
-    return choice === null ? isNarrow() : choice;
+    var m = mode();
+    if (m === 'left') return true;
+    if (m === 'right') return false;
+    return isNarrow() && narrowTurn !== 'menu';
   }
 
-  // Puts the DOM in the state the choice and the width call for.
+  function isMainHidden() {
+    var m = mode();
+    if (m === 'right') return true;
+    if (m === 'left') return false;
+    return isNarrow() && narrowTurn === 'menu';
+  }
+
+  // Puts the DOM in the state the mode and the width call for.
   function apply() {
-    var toggleBtn = $id('toggle-menu');
     var menu = $id('menu');
     var main = $id('main');
-    if (!toggleBtn || !menu || !main) return;
+    if (!menu || !main) return;
 
-    var hidden = isMenuHidden();
+    var m = mode();
+    var menuHidden = isMenuHidden();
     applyPanes();
-    toggleBtn.classList.toggle('menu-hidden', hidden);
-    toggleBtn.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+    applyButtons(m);
 
     var narrow = isNarrow();
-    if (narrow) {
-      $toggle(menu, !hidden);
-      $toggle(main, hidden);
-      document.body.classList.toggle('menu-visible', !hidden);
-    } else {
-      document.body.classList.remove('menu-visible');
-      $show(main);
-      $toggle(menu, !hidden);
-    }
-    applyWidth(narrow || hidden);
+    $toggle(menu, !menuHidden);
+    $toggle(main, !isMainHidden());
+    document.body.classList.toggle('menu-visible', narrow && !menuHidden);
+    document.body.classList.toggle('side-pane-only', !narrow && m === 'right');
+    applyWidth(narrow || m !== 'both');
 
     if (window.UIConfig && window.UIConfig.STATE) {
-      window.UIConfig.STATE.isMenuVisible = !hidden;
+      window.UIConfig.STATE.isMenuVisible = !menuHidden;
     }
     $dispatch(document, 'layoutchange');
+  }
+
+  // The buttons of the top bar: the mode chosen is pressed.
+  var buttonsBound = false;
+  function applyButtons(m) {
+    var group = $id('layout-mode');
+    if (!group) return;
+    group.querySelectorAll('[data-layout]').forEach(function(btn) {
+      btn.setAttribute('aria-pressed', btn.getAttribute('data-layout') === m ? 'true' : 'false');
+    });
+    if (buttonsBound) return;
+    buttonsBound = true;
+    group.querySelectorAll('[data-layout]').forEach(function(btn) {
+      if (window.MonadicTip) window.MonadicTip.attach(btn, { placement: 'bottom', delay: { show: 500, hide: 0 } });
+    });
+    // A button is a <button>: Enter and Space click it.
+    group.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-layout]');
+      if (!btn || !group.contains(btn)) return;
+      setMode(btn.getAttribute('data-layout'));
+      $dispatch(group, 'layoutmodechosen');
+    });
   }
 
   // The side column's width on the row, and the border to drag: shown only
@@ -172,7 +224,7 @@
   function shownWidth() {
     var menu = $id('menu');
     var row = menuRow();
-    if (!menu || !row || isNarrow() || isMenuHidden()) return null;
+    if (!menu || !row || isNarrow() || mode() !== 'both') return null;
     var whole = row.getBoundingClientRect().width;
     var side = menu.getBoundingClientRect().width;
     return whole > 0 && side > 0 ? (side / whole) * 100 : null;
@@ -296,21 +348,53 @@
     });
   }
 
-  function setMenuHidden(hidden) {
-    storeChoice(!!hidden);
+  // On a narrow window, choosing "both" again gives the other column its
+  // turn; choosing it from another mode starts with the conversation.
+  function setMode(value) {
+    if (MODES.indexOf(value) === -1) return;
+    var was = mode();
+    if (value === 'both' && was === 'both' && isNarrow()) {
+      narrowTurn = narrowTurn === 'menu' ? 'main' : 'menu';
+    } else {
+      narrowTurn = 'main';
+    }
+    storeMode(value);
     apply();
   }
 
-  function toggleMenu() {
-    setMenuHidden(!isMenuHidden());
-    return isMenuHidden();
+  // Shows the side column (hidden: false), as for something the user asked
+  // to see there, or hides it.
+  function setMenuHidden(hidden) {
+    var m = mode();
+    if (hidden) {
+      if (isNarrow()) {
+        showConversation();
+        return;
+      }
+      if (m !== 'left') storeMode('left');
+    } else {
+      if (m === 'left') storeMode('both');
+      if (isNarrow()) narrowTurn = 'menu';
+    }
+    apply();
+  }
+
+  // Shows the conversation, keeping the side column beside it where there
+  // is room.
+  function showConversation() {
+    if (mode() === 'right') storeMode('both');
+    narrowTurn = 'main';
+    apply();
   }
 
   window.LayoutController = {
     apply: apply,
+    mode: mode,
+    setMode: setMode,
     isMenuHidden: isMenuHidden,
+    isMainHidden: isMainHidden,
     setMenuHidden: setMenuHidden,
-    toggleMenu: toggleMenu,
+    showConversation: showConversation,
     selectedPane: selectedPane,
     setPane: setPane,
     sideWidth: sideWidth,

@@ -1,6 +1,6 @@
 # Stage 1: Build environment
 
-FROM docker.io/library/ruby:3.4.7-slim-bookworm AS build
+FROM docker.io/library/ruby:3.4.13-slim-bookworm AS build
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
 
@@ -45,7 +45,7 @@ RUN BUNDLE_FROZEN=true bundle install -j4 && \
 
 # Stage 2: Runtime environment
 
-FROM docker.io/library/ruby:3.4.7-slim-bookworm
+FROM docker.io/library/ruby:3.4.13-slim-bookworm
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
 

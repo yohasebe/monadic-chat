@@ -26,7 +26,7 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
       include MonadicSharedTools::ParallelDispatch
 
       public :responses_api_sub_call, :gemini_websearch_sub_call,
-             :anthropic_websearch_sub_call, :tavily_prefetch_and_inject,
+             :anthropic_websearch_sub_call, :tavily_prefetch_and_inject, :deepseek_prefetch_and_inject,
              :openai_compat_sub_call, :cohere_sub_call
     end
   end
@@ -181,17 +181,16 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
     end
   end
 
-  # --- DeepSeek via Tavily + openai_compat ---
-  describe "DeepSeek with Tavily prefetch" do
+  # --- DeepSeek via its Search API + openai_compat ---
+  describe "DeepSeek with DeepSeek search prefetch" do
     before do
       skip "RUN_API not set" if @skip_api
       skip "DEEPSEEK_API_KEY not configured" unless CONFIG["DEEPSEEK_API_KEY"] && !CONFIG["DEEPSEEK_API_KEY"].empty?
-      skip "TAVILY_API_KEY not configured" unless CONFIG["TAVILY_API_KEY"] && !CONFIG["TAVILY_API_KEY"].empty?
     end
 
-    it "returns text after Tavily-enriched prompt" do
+    it "returns text after a DeepSeek-search-enriched prompt" do
       with_api_retry(max_attempts: 2, wait: 3, backoff: :exponential) do
-        enriched = app.tavily_prefetch_and_inject(query)
+        enriched = app.deepseek_prefetch_and_inject(query, CONFIG["DEEPSEEK_API_KEY"])
         result = app.openai_compat_sub_call(
           "https://api.deepseek.com/chat/completions",
           CONFIG["DEEPSEEK_API_KEY"],

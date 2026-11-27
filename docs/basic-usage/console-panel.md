@@ -158,7 +158,7 @@ Select the theme for code syntax highlighting. The default is `github-light`.
 
 **Sources the AI can use** <br />
 **The Library, in chats**: when on, the AI consults the [Library](../apps/knowledge-base.md) when you ask for it or it clearly helps, and what it reads is shown on the work screen.<br />
-**Web search, in chats**: when on, the AI searches the web when you ask for it or current information is needed, in apps that search. The search words go to the model provider's search service or, when its key is set, to Tavily; Live Conversation searches through Tavily.<br />
+**Web search, in chats**: when on, the AI searches the web when you ask for it or current information is needed, in apps that search. The search words go to the chat's provider (with DeepSeek, also the address of a page the AI reads), or with Cohere and Ollama to Tavily when its key is set; Live Conversation searches through Tavily. The service that searches charges for it on its key.<br />
 Both are on by default. A change takes effect when Monadic Chat starts again.
 
 ### System

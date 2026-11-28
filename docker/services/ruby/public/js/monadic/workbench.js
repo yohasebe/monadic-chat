@@ -3238,18 +3238,33 @@
     return [chars.slice(0, SELECTED_TEXT_LIMIT).join(''), chars.length > SELECTED_TEXT_LIMIT];
   }
 
-  // A capture of an image: when the user marked a part of it and an image
-  // is asked for, the whole image as the tab has it, with the mark drawn on
-  // it, and where the mark is; else nothing more (the server has the image
-  // itself).
-  function imageAnswer(data, handle) {
+  // A capture of an image: when an image is asked for and the user marked
+  // a part of it or earlier messages drew on it, the whole image as the tab
+  // has it, with what was sent drawn on it (as sent: not lighter, not this
+  // turn's draft, whose texts the server has not checked) and the mark,
+  // where the mark is, and which drawings were painted (drawing); 'drawn'
+  // (an edit's reference) asks for the drawing alone. Else nothing more
+  // (the server has the image itself).
+  function imageAnswer(data, handle, item) {
     const out = { range: {}, note: null };
     const wants = Array.isArray(data.wants) ? data.wants : [];
+    const earlier = earlierDrawingOf(item);
+    const drawing = earlier.length > 0 ? { earlier: earlier, earlierAlpha: 1, shapes: [] } : null;
+    if (wants.includes('drawn')) {
+      if (!drawing) return out;
+      const painted = markedImage(handle, [], drawing);
+      Object.assign(out, painted);
+      delete out.marks;
+      if (painted.image) out.drawing = item.drawing.digests;
+      return out;
+    }
     const pointer = handle.pointer();
-    if (!wants.includes('image') || !pointer) return out;
-    const part = markedImage(handle, pointer);
+    if (!wants.includes('image') || (!pointer && !drawing)) return out;
+    const part = markedImage(handle, pointer ? [pointer] : [], drawing);
     Object.assign(out, part);
+    delete out.marks;
     if (!part.image) delete out.mark;
+    if (drawing && part.image) out.drawing = item.drawing.digests;
     return out;
   }
 
@@ -3286,7 +3301,8 @@
     if (!size) return;
     const of = (shapes) => Object.assign({ shapes: shapes }, size);
     if (Array.isArray(drawing.earlier) && drawing.earlier.length > 0) {
-      board.paintShapes(of(drawing.earlier), context, frame.width, frame.height, board.EARLIER_ALPHA);
+      const alpha = typeof drawing.earlierAlpha === 'number' ? drawing.earlierAlpha : board.EARLIER_ALPHA;
+      board.paintShapes(of(drawing.earlier), context, frame.width, frame.height, alpha);
     }
     if (Array.isArray(drawing.shapes) && drawing.shapes.length > 0) {
       board.paintShapes(of(drawing.shapes), context, frame.width, frame.height);
@@ -3355,7 +3371,7 @@
     const wants = Array.isArray(data.wants) ? data.wants : [];
     const drawn = drawnBody && drawnBody.key === drawKey(item) ? drawnBody : null;
     if (drawn && drawn.pdf && now.range && Number.isInteger(now.range.page)) return pdfAnswer(data, drawn);
-    if (drawn && drawn.image) return imageAnswer(data, drawn.image);
+    if (drawn && drawn.image) return imageAnswer(data, drawn.image, item);
     if (drawn && drawn.whiteboard) return whiteboardAnswer(data, drawn);
     const lines = now.range && Number.isInteger(now.range.first_line) && Number.isInteger(now.range.last_line);
     if (wants.includes('range') && lines) {

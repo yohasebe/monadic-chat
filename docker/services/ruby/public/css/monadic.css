@@ -6108,6 +6108,13 @@ body.side-pane-resizing {
   position: relative;
   margin-top: var(--spacing-sm);
 }
+.workbench-turn-drawing {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
 .card.is-turn-shown {
   outline: 2px solid var(--pal-accent-mid);
   outline-offset: 2px;

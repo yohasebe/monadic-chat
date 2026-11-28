@@ -34,6 +34,12 @@ module Monadic
         digest
       end
 
+      # The texts written in shapes (a text's, and the label of a box, an
+      # ellipse, a line or an arrow).
+      def texts(shapes)
+        Array(shapes).filter_map { |shape| shape['text'] if shape.is_a?(Hash) && shape['text'].is_a?(String) && !shape['text'].empty? }
+      end
+
       # The shapes kept as digest, or nil.
       def read(chat_id, digest, store: Store.default)
         return nil unless digest.is_a?(String) && digest.match?(DIGEST)

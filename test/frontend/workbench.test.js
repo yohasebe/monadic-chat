@@ -1482,6 +1482,36 @@ describe('Workbench', () => {
         expect(window.Workbench.picturesNow().data[0].marks[0].rect).toEqual({ x: 0.25, y: 0.5, w: 0.5, h: 0.25 });
       });
 
+      test('gives the image with what earlier messages drew, as sent, and which drawings it painted', async () => {
+        const drawing = { digests: ['d'.repeat(64)], shapes: [{ id: 'e1', type: 'rect', x: 10, y: 10, w: 100, h: 50 }] };
+        jest.isolateModules(() => { require(js('monadic/workbench-whiteboard.js')); });
+        // A canvas that takes every call the board's painter makes.
+        HTMLCanvasElement.prototype.getContext.mockImplementation(() => new Proxy({}, {
+          get: (_t, name) => (name === 'drawImage' ? drawImage : (...args) => {
+            if (name === 'rect' || name === 'ellipse') drawnShapes.push([name, ...args]);
+            return { width: 10 };
+          }),
+          set: () => true
+        }));
+        try {
+          view([Object.assign({}, photo, { drawing })], { assets: { i_g: '/workbench/asset/g' }, selected: 'i_g', selection_serial: 3 });
+          await flush();
+          const img = document.querySelector('#workbench-view .workbench-image-frame img');
+          Object.defineProperty(img, 'complete', { value: true });
+          Object.defineProperty(img, 'naturalWidth', { value: 800 });
+          Object.defineProperty(img, 'naturalHeight', { value: 600 });
+          drawnShapes.length = 0;
+          const forEdit = await answer(['drawn']);
+          expect(forEdit).toMatchObject({ image: 'QUJD', drawing: ['d'.repeat(64)] });
+          expect(forEdit.mark).toBeUndefined();
+          expect(drawnShapes.map((d) => d[0])).toContain('rect');
+          const forLook = await answer(['image']);
+          expect(forLook).toMatchObject({ image: 'QUJD', drawing: ['d'.repeat(64)] });
+        } finally {
+          delete window.WorkbenchWhiteboard;
+        }
+      });
+
       test('gives no image when nothing is marked, or when no image is asked for', async () => {
         expect((await answer()).image).toBeUndefined();
         pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };

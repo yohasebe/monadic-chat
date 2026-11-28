@@ -59,6 +59,29 @@ describe('WorkbenchTurn', () => {
     expect(box.querySelector('.workbench-turn-item[data-item="i_b"] img')).toBeNull();
   });
 
+  test('paints what an image had drawn on it then over the image', () => {
+    require(js('monadic/workbench-whiteboard.js'));
+    const painted = [];
+    const getContext = jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => new Proxy({}, {
+      get: (_t, name) => (...args) => { painted.push(String(name)); return { width: 10 }; }, set: () => true
+    }));
+    try {
+      const drawnData = Object.assign({}, data, { items: [Object.assign({}, data.items[0],
+        { drawing: { digests: ['d'.repeat(64)], shapes: [{ id: 's1', type: 'rect', x: 10, y: 10, w: 100, h: 50 }] } })] });
+      window.WorkbenchTurn.show(box, drawnData, {});
+      const img = box.querySelector('.workbench-turn-item img');
+      Object.defineProperty(img, 'naturalWidth', { value: 300 });
+      Object.defineProperty(img, 'naturalHeight', { value: 400 });
+      img.dispatchEvent(new Event('load'));
+      const canvas = box.querySelector('.workbench-turn-drawing');
+      expect([canvas.width, canvas.height]).toEqual([300, 400]);
+      expect(painted).toContain('rect');
+    } finally {
+      getContext.mockRestore();
+      delete window.WorkbenchWhiteboard;
+    }
+  });
+
   test('brings into Now only what can be, never what is gone', () => {
     const bring = jest.fn();
     window.WorkbenchTurn.show(box, data, { bring, canBring: (id) => id !== 'i_b' });

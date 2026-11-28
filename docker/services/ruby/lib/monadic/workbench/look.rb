@@ -8,6 +8,7 @@ require 'time'
 require_relative 'whiteboard'
 require_relative 'look_tool'
 require_relative 'board'
+require_relative 'drawings'
 require_relative 'capture'
 require_relative 'image_check'
 require_relative 'artifact'
@@ -317,8 +318,15 @@ module Monadic
         if item['artifact']
           entry = item['artifact']
           read = Artifact.read(entry['id'], chat_id: board.chat_id)
-          return seen(item, 'image', entry['name'], entry['path'], read[:record][:sha256],
-                      image: ImageValue.checked(read[:bytes], source: 'workbench_image'))
+          image = ImageValue.checked(read[:bytes], source: 'workbench_image')
+          # What was drawn on it, as for an image file (below).
+          drawing = board.drawing_on(item['id'])
+          return seen(item, 'image', entry['name'], entry['path'], read[:record][:sha256], image: image) unless drawing && !named
+
+          filtered(caller.session, Drawings.texts(drawing[:shapes]).join("\n"))
+          marked = marked_image(board, selection, caller, deadline, image, drawing: drawing)
+          return seen(item, 'image', entry['name'], entry['path'], read[:record][:sha256], image: marked[:image] || image,
+                      mark: marked[:mark], mark_drawn: !marked[:image].nil? && !marked[:mark].nil?, drawn: marked[:drawn])
         end
         if item['browser']
           content = Browser.look(item, caller, deadline)
@@ -335,11 +343,17 @@ module Monadic
         case file['preview']
         when 'image'
           board_words!(board, item, caller)
+          # What was drawn on it goes with it only when none of its texts
+          # holds a word the chat hides.
+          drawing = board.drawing_on(item['id'])
+          filtered(caller.session, Drawings.texts(drawing[:shapes]).join("\n")) if drawing
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
           image = ImageValue.checked(bytes, source: 'workbench_file')
-          marked = scope == 'visible' ? marked_image(board, selection, caller, deadline, image) : {}
+          asks = scope == 'visible' || (drawing && !named)
+          marked = asks ? marked_image(board, selection, caller, deadline, image, drawing: drawing) : {}
           seen(item, 'image', file['name'], file['path'], file['sha256'], image: marked[:image] || image,
-                                                                            mark: marked[:mark], mark_drawn: !marked[:image].nil?)
+                                                                            mark: marked[:mark], mark_drawn: !marked[:image].nil? && !marked[:mark].nil?,
+                                                                            drawn: marked[:drawn])
         when 'pdf'
           bytes = -> { board.file_read(item['id'], sha256: file['sha256'])[:bytes] }
           # The whole PDF goes as it is where the provider and the model
@@ -543,15 +557,23 @@ module Monadic
       # has it with the mark drawn on it: { mark:, image: } (image nil when
       # the tab could not give it, or gave one of another shape than the
       # file's), or {} when nothing is marked or the tab does not answer.
-      def marked_image(board, selection, caller, deadline, original)
+      # The image as the tab shows it, with the user's mark and what was
+      # drawn on it (drawing: the board's, { digests, shapes }): { mark:,
+      # image:, drawn: }. The tab's image is taken only when it painted the
+      # drawings the board has (drawn) or a mark; else nothing.
+      def marked_image(board, selection, caller, deadline, original, drawing: nil)
         item = selection.item
         answer = Capture.request(tab: caller.tab, generation: caller.generation, chat_id: caller.chat_id,
                                  request_id: caller.request_id, item_id: item['id'],
-                                 version: item.dig('file', 'sha256'), serial: selection.serial, wants: ['image'],
+                                 version: item.dig('file', 'sha256') || item.dig('artifact', 'sha256'),
+                                 serial: selection.serial, wants: ['image'],
                                  deadline: deadline, valid: still(board, selection, caller))
-        mark = Pointing.mark_of(answer['mark']) or return {}
+        mark = Pointing.mark_of(answer['mark'])
+        drawn = !drawing.nil? && answer['drawing'] == drawing[:digests]
+        return {} unless mark || drawn
+
         image, = Pdf.image_of(answer)
-        { mark: mark, image: image && same_shape?(image, original) ? image : nil }
+        { mark: mark, image: image && same_shape?(image, original) ? image : nil, drawn: drawn || nil }
       rescue Capture::Failed
         {}
       end
@@ -730,6 +752,7 @@ module Monadic
         elsif seen[:image]
           out['image'] = 'The image is attached after this result.'
           out['marked'] = image_marked(seen) if seen[:mark]
+          out['drawn'] = DRAWN if seen[:drawn]
         else
           out['lines'] = { 'first' => seen[:first_line], 'last' => seen[:last_line], 'total' => seen[:total_lines],
                            'last_line_cut' => seen[:partial_line] }
@@ -766,6 +789,10 @@ module Monadic
         out['empty'] = true if seen[:shapes].empty?
         out
       end
+
+      # Said of an image the user drew on, attached with the drawing.
+      DRAWN = 'The user drew on it (lines, arrows, shapes and text); the image attached is the one the tab shows, ' \
+              'with the drawing on it.'
 
       # Where the user marked an image, and whether the mark is drawn on the
       # image the model gets.

@@ -339,6 +339,15 @@ module Monadic
         texts.none? { |text| Monadic::Utils::Privacy::Outbound.leaks_word?(text, words) }
       end
 
+      # What was drawn on item_id ({ digests, shapes }: every drawing shown
+      # on its version, in order), or nil.
+      def drawing_on(item_id)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s]
+          item ? deep_dup(shown_drawing(@data, item)) : nil
+        end
+      end
+
       # The image a page painted of the whiteboard item_id at version: the
       # first taken is the board's from then on. The block writes the bytes
       # under each of names in turn until one is free (it returns the path

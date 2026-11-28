@@ -50,7 +50,10 @@ module Monadic
       # What an answer may hold, by what was asked for (wants); anything
       # else is left out.
       FIELDS = {
-        nil => %w[range note], 'image' => %w[image image_note crop mark], 'selection' => %w[selection_text selection_cut mark_text mark_cut selected_lines]
+        nil => %w[range note], 'image' => %w[image image_note crop mark drawing],
+        # An image with what was drawn on it and no mark (an edit's reference).
+        'drawn' => %w[image image_note crop drawing],
+        'selection' => %w[selection_text selection_cut mark_text mark_cut selected_lines]
       }.freeze
 
       @pending = {}
@@ -72,7 +75,7 @@ module Monadic
         def request(tab:, generation:, chat_id:, request_id:, item_id:, version:, serial:, wants:, deadline:, valid:)
           now = clock
           ends = [deadline, now + WAIT].min
-          limit = wants.include?('image') ? IMAGE_LIMIT + BODY_LIMIT : BODY_LIMIT
+          limit = wants.include?('image') || wants.include?('drawn') ? IMAGE_LIMIT + BODY_LIMIT : BODY_LIMIT
           pending = register(tab, generation, chat_id, request_id, ends, wants, limit)
           payload = { 'type' => 'workbench_capture', 'id' => pending.id, 'item_id' => item_id, 'version' => version,
                       'serial' => serial, 'wants' => wants, 'wait_ms' => ((ends - now) * 1000).floor }

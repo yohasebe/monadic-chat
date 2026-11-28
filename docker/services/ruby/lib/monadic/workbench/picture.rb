@@ -7,6 +7,7 @@ require 'json'
 require_relative 'pointing'
 require_relative 'whiteboard'
 require_relative 'whiteboard_background'
+require_relative 'drawings'
 require_relative 'store'
 require_relative '../utils/privacy/outbound'
 
@@ -135,6 +136,9 @@ module Monadic
             item = items[data['item_id']] or raise Refused, 'not_on_screen'
             raise Refused, 'put_away' if item[:place] == 'stash'
             board_words!(chat_id, item[:id], words)
+            # What earlier messages drew on it is painted into the picture:
+            # its texts are checked with the words of now.
+            texts_clear!(Drawings.texts(board.drawing_on(item[:id])&.dig(:shapes)), words)
             raise Refused, 'not_markable' unless MARKABLE_PLACES.include?(item[:place].to_s)
 
             kind = kind_of(item) or raise Refused, 'not_pointable'
@@ -303,13 +307,20 @@ module Monadic
           shapes = Whiteboard.clean({ 'version' => 2, 'shapes' => given['shapes'] }, background: record)['shapes']
           raise Refused, 'bad_drawing' if shapes.empty?
 
-          texts = shapes.filter_map { |shape| shape['text'] if shape['text'].is_a?(String) && !shape['text'].empty? }
-          leaks = ->(text) { Monadic::Utils::Privacy::Outbound.leaks_word?(text, words) }
-          raise Refused, 'hides_words' if !texts.empty? && (words.nil? || (!words.empty? && texts.any?(&leaks)))
-
+          texts_clear!(Drawings.texts(shapes), words)
           shapes
         rescue Whiteboard::Refused, WhiteboardBackground::Refused
           raise Refused, 'bad_drawing'
+        end
+
+        # Refused 'hides_words' when one of texts holds a word the chat hides,
+        # or the words are not known (nil) and there is a text.
+        def texts_clear!(texts, words)
+          return if texts.empty?
+          raise Refused, 'hides_words' if words.nil?
+          return if words.empty?
+
+          raise Refused, 'hides_words' if texts.any? { |text| Monadic::Utils::Privacy::Outbound.leaks_word?(text, words) }
         end
 
         # An image made of a whiteboard whose texts hold a word the chat hides

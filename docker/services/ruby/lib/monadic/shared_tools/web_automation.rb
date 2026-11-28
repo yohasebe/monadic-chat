@@ -506,6 +506,22 @@ module MonadicSharedTools
       nil
     end
 
+    # [board, token] of the running reply's one address in chat, nil when no
+    # reply of that chat runs here (the user's button takes its own), or
+    # [reason, nil] when the reply opened one already (or cannot place one).
+    def reply_url_slot(chat)
+      return nil unless defined?(Monadic::Workspace::RequestContext) && defined?(Monadic::Workbench::Board)
+
+      request = Monadic::Workspace::RequestContext.current
+      return nil unless request && request.chat_id == chat
+
+      board = Monadic::Workbench::Board.for(chat)
+      origin = { actor: 'agent', source: 'browser', request_id: request.request_id }
+      [board, board.reserve_slot('url', origin: origin, epoch: Monadic::Workspace::Chats.epoch(chat))]
+    rescue Monadic::Workbench::Board::Refused => e
+      ["❌ #{e.message.sub(/\A./, &:upcase)}."]
+    end
+
     def start_browser(url:, headless: true)
       if error = check_selenium_or_error
         return error
@@ -525,6 +541,11 @@ module MonadicSharedTools
 
       chat, epoch = BrowserOwner.current_work
       return browser_state_error(:no_chat) unless chat
+
+      # In a reply, the reply's one address is taken before the browser it
+      # has is closed (and given back when no page opens).
+      board, slot = reply_url_slot(chat)
+      return { success: false, error: board } if board.is_a?(String)
 
       result = BrowserOwner.acting(chat, recovery: true) do
         # A new start replaces the chat's browser: the old one is closed first.
@@ -553,7 +574,10 @@ module MonadicSharedTools
         end
         started
       end
-      return result unless result[:success]
+      unless result[:success]
+        board&.release_slot('url', slot)
+        return result
+      end
 
       placed = Monadic::WorkScreen.browser_opened(chat) if defined?(Monadic::WorkScreen)
 

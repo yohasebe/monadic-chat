@@ -910,6 +910,13 @@
   // made is selected here.
   const whiteboardNews = new Set();
 
+  // A whiteboard only looked at: one kept as it was (it left Now), and any
+  // while a reply runs (the user does not change the work screen then; a
+  // stroke would not be saved).
+  function whiteboardStill(item) {
+    return !!item.frozen || locked();
+  }
+
   function isWhiteboard(item) {
     return !!(item && item.kind === 'file' && item.preview === 'text' && item.render === 'whiteboard');
   }
@@ -933,9 +940,12 @@
       } catch (_) {
         data = null;
       }
-      // A board that left Now is kept as it was: shown, not drawn on.
+      // A board that left Now is kept as it was, and none is drawn on while
+      // a reply runs: shown, with why.
+      const still = whiteboardStill(item);
       drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next),
-        name: item.name, save: saveBlob, loadPicture: () => whiteboardPicture(drawn, item.id), frozen: !!item.frozen });
+        name: item.name, save: saveBlob, loadPicture: () => whiteboardPicture(drawn, item.id), frozen: still,
+        frozenNote: still && !item.frozen ? lockText() : undefined });
       // The version what is drawn is (the board read at it).
       drawn.loadedVersion = drawn.whiteboardVersion;
       drawn.loaded = true;
@@ -1215,7 +1225,7 @@
   function drawKey(item) {
     // A whiteboard stays drawn across its versions (each save makes one):
     // the board takes a new version in place (syncWhiteboard).
-    if (isWhiteboard(item)) return `${item.id}|whiteboard${item.frozen ? '|frozen' : ''}`;
+    if (isWhiteboard(item)) return `${item.id}|whiteboard${whiteboardStill(item) ? '|still' : ''}`;
     const mode = modeOf(item);
     return mode ? `${versionKey(item)}|${mode}` : versionKey(item);
   }

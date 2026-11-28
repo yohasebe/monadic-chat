@@ -2236,6 +2236,16 @@ describe('Workbench', () => {
       expect(document.querySelector('#workbench-view .workbench-whiteboard-frozen-note')).not.toBeNull();
     });
 
+    test('draws no stroke on a board while a reply runs, and says why', async () => {
+      view([Object.assign({}, wb, { place: 'current' })], { renders: { i_w: '/workbench/asset/render-i_w' }, selected: 'i_w',
+        selection_serial: 3, board: { board_id: 'b1', chat_id: 'c_1', revision: 5, replying: true,
+          items: [Object.assign({}, wb, { place: 'current' })] } });
+      await flushAll();
+      expect(document.querySelector('#workbench-view .workbench-whiteboard [data-tool]')).toBeNull();
+      expect(document.querySelector('#workbench-view .workbench-whiteboard-frozen-note').textContent)
+        .toBe('The work screen can be changed when the reply ends.');
+    });
+
     test('says why a whiteboard was not placed or saved', () => {
       window.setAlert.mockClear();
       window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: 999, status: 'refused', reason: 'whiteboard_used' });

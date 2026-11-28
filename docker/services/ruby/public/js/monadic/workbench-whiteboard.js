@@ -16,7 +16,7 @@
  * WorkbenchWhiteboard.show(box, data, { onChange, loadPicture, frozen })
  * draws data in box and returns a handle (loadPicture() gives the picture
  * under a board drawn on one, as a Blob; frozen: a board only looked at,
- * with no tools to draw):
+ * with no tools to draw, frozenNote saying why when not the default):
  * - data(): the board as it is now
  * - load(data): the board drawn again as data has it (the undo history is
  *   let go)
@@ -667,7 +667,7 @@
     try { return window.localStorage.getItem(GRID_KEY) === '1'; } catch (_) { return false; }
   }
 
-  function show(box, data, { onChange, name, save, loadPicture, frozen = false } = {}) {
+  function show(box, data, { onChange, name, save, loadPicture, frozen = false, frozenNote } = {}) {
     let board = boardOf(data);
     const past = [];
     const future = [];
@@ -807,7 +807,7 @@
     // buttons, and a line saying why there is nothing to draw with.
     if (frozen) {
       const note = element('span', 'workbench-whiteboard-frozen-note text-secondary',
-        t('ui.workbench.wbFrozenNote', 'Kept as it was when it left Now.'));
+        frozenNote || t('ui.workbench.wbFrozenNote', 'Kept as it was when it left Now.'));
       bar.append(group(t('ui.workbench.wb_view', 'View'), zoomOut, zoomLevel, zoomIn, grid), note);
     } else {
       bar.append(group(t('ui.workbench.wb_tools', 'Tools'), ...toolButtons),

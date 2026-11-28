@@ -79,6 +79,14 @@ RSpec.describe Monadic::Workbench::WhiteboardBackground do
 
   def kept(item) = JSON.parse(File.read(File.join(@data, item.dig("file", "path"))))
 
+  # The user's turn and the reply after it end: the next turn may place a
+  # whiteboard again.
+  def next_turn!
+    request = Monadic::Workspace::Ids.generate(:request)
+    Monadic::Workbench::Board.for(chat).begin_reply(request)
+    Monadic::Workbench::Board.for(chat).end_reply(request)
+  end
+
   def save(item, data)
     whiteboard.save(chat, item_id: item["id"], version: item.dig("file", "sha256"), data: data, app_name: "ChatOpenAI",
                           origin: origin, epoch: epoch)
@@ -133,13 +141,16 @@ RSpec.describe Monadic::Workbench::WhiteboardBackground do
     it "keeps one copy for two boards on the same picture, and the board when the image's file goes" do
       photo = opened("photos/a.png", png(300, 400))
       first = draw_on(photo)
+      next_turn!
       second = draw_on(photo)
       expect([first, second].map { |i| File.basename(i.dig("file", "path")) }).to eq(%w[whiteboard-1.wb.json whiteboard-2.wb.json])
       assets = File.join(File.dirname(File.join(@data, first.dig("file", "path"))), "assets")
       expect(Dir.children(assets).size).to eq(1)
       File.delete(File.join(@data, "photos/a.png"))
-      saved = save(first, { "version" => 2, "shapes" => [{ "id" => "a", "type" => "rect", "x" => 1, "y" => 1, "w" => 9, "h" => 9 }] })
+      saved = save(second, { "version" => 2, "shapes" => [{ "id" => "a", "type" => "rect", "x" => 1, "y" => 1, "w" => 9, "h" => 9 }] })
       expect(kept(saved)["background"]).to eq(kept(first)["background"])
+      # The first left Now when the turn ended: it is kept as it was.
+      expect { save(first, { "version" => 2, "shapes" => [] }) }.to raise_error(whiteboard::Refused, /left Now/)
     end
 
     it "takes an image made in the chat too" do
@@ -162,11 +173,19 @@ RSpec.describe Monadic::Workbench::WhiteboardBackground do
       expect(Dir.glob(File.join(@data, "**", "*.wb.json"))).to be_empty
     end
 
-    it "numbers boards made at once one after another" do
+    it "makes one of the boards asked for at once in a turn, and writes no file for the others" do
       photo = opened("photos/a.png", png(300, 400))
-      made = Array.new(4) { Thread.new { draw_on(photo) } }.map(&:value)
-      expect(made.map { |i| File.basename(i.dig("file", "path")) }.sort)
-        .to eq(%w[whiteboard-1.wb.json whiteboard-2.wb.json whiteboard-3.wb.json whiteboard-4.wb.json])
+      made = Array.new(4) do
+        Thread.new do
+          draw_on(photo)
+        rescue whiteboard::Refused => e
+          e.message
+        end
+      end.map(&:value)
+      boards, refused = made.partition { |m| m.is_a?(Hash) }
+      expect(boards.map { |i| File.basename(i.dig("file", "path")) }).to eq(%w[whiteboard-1.wb.json])
+      expect(refused).to all(include("placed in this turn already"))
+      expect(Dir.glob(File.join(@data, "**", "*.wb.json")).size).to eq(1)
     end
   end
 
@@ -252,6 +271,7 @@ RSpec.describe Monadic::Workbench::WhiteboardBackground do
 
     it "serves nothing for a plain board, a copy gone, or a copy that is not the picture" do
       plain = whiteboard.create(chat, app_name: "ChatOpenAI", origin: origin, epoch: epoch)
+      next_turn!
       expect(fetch(addresses.fetch(plain["id"])).first).to eq(404)
       item = draw_on(opened("photos/a.png", bytes))
       File.binwrite(copy_of(item), png(300, 400, "another"))

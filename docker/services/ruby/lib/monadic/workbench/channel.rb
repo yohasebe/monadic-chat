@@ -28,7 +28,8 @@ module Monadic
     # server's token and the ledger hold them.
     module Channel
       # The reasons the page tells apart, for the board's refusals.
-      REFUSALS = { Board::BUSY => 'replying', Board::FULL => 'now_full' }.freeze
+      REFUSALS = { Board::BUSY => 'replying', Board::FULL => 'now_full', Board::WHITEBOARD_USED => 'whiteboard_used',
+                   Board::FROZEN => 'whiteboard_frozen' }.freeze
 
       module_function
 

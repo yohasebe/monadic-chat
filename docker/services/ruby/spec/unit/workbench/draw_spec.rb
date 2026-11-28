@@ -46,6 +46,10 @@ RSpec.describe Monadic::Workbench::Draw do
 
   after { Monadic::Workspace::Ledger.clear_unsettled! }
 
+  # The reply is open: what the AI places goes into Now (the user's turn
+  # ended when the message was accepted).
+  before { Monadic::Workbench::Board.for(chat).begin_reply(request_id) }
+
   def caller_for
     Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: request_id, session: session, tab: "tab-1",
                                    generation: 1)
@@ -76,12 +80,9 @@ RSpec.describe Monadic::Workbench::Draw do
     expect(described_class.seal(request_id)).to eq([{ "path" => path, "ids" => %w[order ship link] }])
   end
 
-  it "draws on the whiteboard the tab shows: changes and removes by id, keeping only what it added" do
-    board = whiteboard.create(chat, app_name: "ChatOpenAI", origin: user, epoch: epoch)
-    board = whiteboard.save(chat, item_id: board["id"], version: board.dig("file", "sha256"), app_name: "ChatOpenAI",
-                                  origin: user, epoch: epoch,
-                                  data: { "shapes" => [{ "id" => "u1", "type" => "rect", "x" => 0, "y" => 0, "w" => 50, "h" => 50 },
-                                                       { "id" => "u2", "type" => "line", "x1" => 0, "y1" => 0, "x2" => 9, "y2" => 9 }] })
+  it "draws again on the whiteboard of this reply in Now: changes and removes by id" do
+    board = described_class.run(caller_for, shapes: [{ "id" => "u1", "type" => "rect", "x" => 0, "y" => 0, "w" => 50, "h" => 50 },
+                                                     { "id" => "u2", "type" => "line", "x1" => 0, "y1" => 0, "x2" => 9, "y2" => 9 }])[:item]
     done = described_class.run(caller_for, shapes: [{ "id" => "u1", "x" => 300 }, { "type" => "text", "x" => 5, "y" => 5,
                                                                                     "text" => "Note" }],
                                            remove: ["u2"])
@@ -92,8 +93,27 @@ RSpec.describe Monadic::Workbench::Draw do
     expect(done[:added].first).to start_with("ai-")
     shapes = shapes_of(done[:item])
     expect(shapes.map { |s| s["id"] }).to eq(["u1", done[:added].first])
-    expect(shapes[0]).to include("x" => 300.0, "by" => "user", "w" => 50.0)
-    expect(described_class.seal(request_id).first["ids"]).to eq(done[:added])
+    expect(shapes[0]).to include("x" => 300.0, "w" => 50.0)
+  end
+
+  it "does not draw on a whiteboard that left Now, nor place a second one in its reply" do
+    turn = Monadic::Workbench::Board.for(chat)
+    turn.end_reply(request_id)
+    mine = whiteboard.create(chat, app_name: "ChatOpenAI", origin: user, epoch: epoch)
+    # The user's message ends the user's turn: the board goes to Latest, kept as it was.
+    turn.begin_reply(request_id)
+    expect(turn.item(mine["id"])).to include("place" => "latest", "frozen" => true)
+    expect { described_class.run(caller_for, shapes: diagram) }.to raise_error(described_class::Refused, /left Now/)
+    made = described_class.run(caller_for, shapes: diagram, new_board: true)[:item]
+    expect(made["id"]).not_to eq(mine["id"])
+    expect(turn.item(made["id"])).to include("place" => "current", "by" => "agent")
+    expect { described_class.run(caller_for, shapes: diagram, new_board: true) }
+      .to raise_error(described_class::Refused, /placed in this turn already/)
+    # The user does not draw on the reply's board while it runs.
+    expect do
+      whiteboard.save(chat, item_id: made["id"], version: turn.item(made["id"]).dig("file", "sha256"), app_name: "ChatOpenAI",
+                            origin: user, epoch: epoch, data: { "shapes" => [] })
+    end.to raise_error(whiteboard::Refused, /reply/)
   end
 
   describe "where the shapes go" do
@@ -116,10 +136,8 @@ RSpec.describe Monadic::Workbench::Draw do
       expect { described_class.run(caller_for, shapes: flow, layout: "diagonal") }.to raise_error(described_class::Refused, /layout/)
     end
 
-    it "moves a new box off what the user drew, grows a box to its text, and tells both" do
-      board = whiteboard.create(chat, app_name: "ChatOpenAI", origin: user, epoch: epoch)
-      whiteboard.save(chat, item_id: board["id"], version: board.dig("file", "sha256"), app_name: "ChatOpenAI", origin: user,
-                            epoch: epoch, data: { "shapes" => [{ "id" => "mine", "type" => "rect", "x" => 400, "y" => 400, "w" => 200, "h" => 100 }] })
+    it "moves a new box off what is drawn, grows a box to its text, and tells both" do
+      described_class.run(caller_for, shapes: [{ "id" => "mine", "type" => "rect", "x" => 400, "y" => 400, "w" => 200, "h" => 100 }])
       done = described_class.run(caller_for, shapes: [{ "id" => "n", "type" => "box", "x" => 450, "y" => 420, "w" => 60, "h" => 30,
                                                         "text" => "A rather long label" }])
       shapes = shapes_of(done[:item]).to_h { |sh| [sh["id"], sh] }
@@ -130,10 +148,8 @@ RSpec.describe Monadic::Workbench::Draw do
     end
 
     it "tells the shapes it had no time to move, and leaves them where they were given" do
+      described_class.run(caller_for, shapes: [{ "id" => "mine", "type" => "rect", "x" => 400, "y" => 400, "w" => 200, "h" => 100 }])
       stub_const("#{described_class}::TIDY_SECONDS", -1.0)
-      board = whiteboard.create(chat, app_name: "ChatOpenAI", origin: user, epoch: epoch)
-      whiteboard.save(chat, item_id: board["id"], version: board.dig("file", "sha256"), app_name: "ChatOpenAI", origin: user,
-                            epoch: epoch, data: { "shapes" => [{ "id" => "mine", "type" => "rect", "x" => 400, "y" => 400, "w" => 200, "h" => 100 }] })
       done = described_class.run(caller_for, shapes: [{ "id" => "n", "type" => "box", "x" => 450, "y" => 420 }])
       expect(done[:issues]).to include("n was not moved off what it covers: no time left")
       expect(shapes_of(done[:item]).find { |sh| sh["id"] == "n" }).to include("x" => 450.0, "y" => 420.0)
@@ -156,9 +172,10 @@ RSpec.describe Monadic::Workbench::Draw do
 
   it "describes the tool whole, from the board to deleting a message" do
     text = Monadic::Workbench::DrawTool::DESCRIPTION
-    expect(text).to start_with("Draw on a whiteboard in the work screen")
+    expect(text).to start_with("Draw on a whiteboard in Now on the work screen")
+    expect(text).to include("A whiteboard that left Now is kept as it was")
     expect(text).to include('give layout "right"')
-    expect(text).to end_with("what the user drew stays.")
+    expect(text).to end_with("what was there before stays.")
   end
 
   it "refuses what it cannot draw, and draws nothing of it" do
@@ -173,13 +190,13 @@ RSpec.describe Monadic::Workbench::Draw do
     expect(shapes_of(item).map { |s| s["id"] }).to eq(["a"])
   end
 
-  it "takes off what a deleted message added, and leaves what the user drew" do
+  it "takes off what a deleted message added, and leaves what it did not add" do
     done = described_class.run(caller_for, shapes: diagram)
     path = done[:item].dig("file", "path")
-    item = Monadic::Workbench::Board.existing(chat).item_at(path)
-    whiteboard.save(chat, item_id: item["id"], version: item.dig("file", "sha256"), app_name: "ChatOpenAI", origin: user,
-                          epoch: epoch, data: { "shapes" => kept(path) + [{ "id" => "mine", "type" => "line", "x1" => 0,
-                                                                            "y1" => 0, "x2" => 9, "y2" => 9 }] })
+    # A shape the message did not add (as an older board may hold).
+    File.write(File.join(@data, path), JSON.generate(JSON.parse(File.read(File.join(@data, path)))
+      .merge("shapes" => kept(path) + [{ "id" => "mine", "type" => "line", "x1" => 0, "y1" => 0, "x2" => 9, "y2" => 9 }])))
+    Monadic::Workbench::Board.existing(chat).add_file(path: path, origin: caller_for.origin, epoch: epoch, wait: 0)
     drawn = described_class.clean(described_class.seal(request_id))
     expect(described_class.undo(chat, drawn, app_name: "ChatOpenAI")).to eq([path])
     expect(kept(path).map { |s| s["id"] }).to eq(["mine"])
@@ -234,10 +251,10 @@ RSpec.describe Monadic::Workbench::Draw do
   it "answers the tool with what it drew, or why nothing was" do
     out = JSON.parse(MonadicSharedTools::WorkbenchTools.draw(caller_for, shapes: diagram, remove: nil, new_whiteboard: false))
     expect(out).to eq("status" => "drawn", "name" => "whiteboard-1.wb.json", "added" => %w[order ship link])
-    again = JSON.parse(MonadicSharedTools::WorkbenchTools.draw(caller_for, shapes: [{ "id" => "x", "type" => "box", "x" => 1,
-                                                                                         "y" => 1, "w" => 9, "h" => 9 }],
-                                                                           remove: nil, new_whiteboard: "true"))
-    expect(again["name"]).to eq("whiteboard-2.wb.json")
+    again = MonadicSharedTools::WorkbenchTools.draw(caller_for, shapes: [{ "id" => "x", "type" => "box", "x" => 1,
+                                                                            "y" => 1, "w" => 9, "h" => 9 }],
+                                                              remove: nil, new_whiteboard: "true")
+    expect(again).to start_with("❌").and include("placed in this turn already")
     expect(MonadicSharedTools::WorkbenchTools.draw(caller_for, shapes: "", remove: nil, new_whiteboard: false))
       .to start_with("❌ Nothing was drawn")
   end

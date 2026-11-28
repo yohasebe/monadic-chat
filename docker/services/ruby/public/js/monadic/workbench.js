@@ -910,6 +910,13 @@
   // made is selected here.
   const whiteboardNews = new Set();
 
+  // A whiteboard only looked at: one kept as it was (it left Now), and any
+  // while a reply runs (the user does not change the work screen then; a
+  // stroke would not be saved).
+  function whiteboardStill(item) {
+    return !!item.frozen || locked();
+  }
+
   function isWhiteboard(item) {
     return !!(item && item.kind === 'file' && item.preview === 'text' && item.render === 'whiteboard');
   }
@@ -933,8 +940,12 @@
       } catch (_) {
         data = null;
       }
+      // A board that left Now is kept as it was, and none is drawn on while
+      // a reply runs: shown, with why.
+      const still = whiteboardStill(item);
       drawn.whiteboard = window.WorkbenchWhiteboard.show(box, data, { onChange: (next) => whiteboardChanged(drawn, next),
-        name: item.name, save: saveBlob, loadPicture: () => whiteboardPicture(drawn, item.id) });
+        name: item.name, save: saveBlob, loadPicture: () => whiteboardPicture(drawn, item.id), frozen: still,
+        frozenNote: still && !item.frozen ? lockText() : undefined });
       // The version what is drawn is (the board read at it).
       drawn.loadedVersion = drawn.whiteboardVersion;
       drawn.loaded = true;
@@ -958,6 +969,14 @@
     drawn.whiteboardPending = data;
     clearTimeout(drawn.whiteboardTimer);
     drawn.whiteboardTimer = setTimeout(() => saveWhiteboardNow(drawn), WHITEBOARD_SAVE_DELAY);
+  }
+
+  // Every board drawn on and not saved yet is sent now: before a message,
+  // which ends the turn (its boards leave Now and are kept as saved).
+  function flushWhiteboards() {
+    [drawnBody].concat(Array.from(others.values())).forEach((drawn) => {
+      if (drawn && drawn.whiteboardPending) saveWhiteboardNow(drawn);
+    });
   }
 
   // Sends the board waiting to be saved, unless a save of it is still on
@@ -998,8 +1017,9 @@
       return;
     }
     whiteboardRefused(data.reason);
-    // Saved meanwhile from elsewhere: the board as it is now is drawn again.
-    if (data.reason === 'changed' && !drawn.gone) {
+    // Saved meanwhile from elsewhere, or no longer drawn on: the board as it
+    // is now is drawn again.
+    if ((data.reason === 'changed' || data.reason === 'whiteboard_frozen') && !drawn.gone) {
       drawn.whiteboardPending = null;
       drawn.whiteboardVersion = '';
       askView(true);
@@ -1018,9 +1038,9 @@
 
   function whiteboardRefused(reason) {
     if (typeof window.setAlert !== 'function') return;
-    const text = reason === 'changed'
-      ? t('ui.workbench.wbChanged', 'The whiteboard was changed elsewhere; it is shown as it is now.')
-      : t('ui.workbench.wbNotSaved', 'The whiteboard could not be saved.');
+    let text = t('ui.workbench.wbNotSaved', 'The whiteboard could not be saved.');
+    if (reason === 'changed') text = t('ui.workbench.wbChanged', 'The whiteboard was changed elsewhere; it is shown as it is now.');
+    else if (['replying', 'now_full', 'whiteboard_used', 'whiteboard_frozen'].includes(reason)) text = refusalText(reason);
     window.setAlert(text, 'warning');
   }
 
@@ -1205,7 +1225,7 @@
   function drawKey(item) {
     // A whiteboard stays drawn across its versions (each save makes one):
     // the board takes a new version in place (syncWhiteboard).
-    if (isWhiteboard(item)) return `${item.id}|whiteboard`;
+    if (isWhiteboard(item)) return `${item.id}|whiteboard${whiteboardStill(item) ? '|still' : ''}`;
     const mode = modeOf(item);
     return mode ? `${versionKey(item)}|${mode}` : versionKey(item);
   }
@@ -3639,6 +3659,12 @@
   function refusalText(reason) {
     if (reason === 'replying') return lockText();
     if (reason === 'now_full') return t('ui.workbench.nowFull', 'Now is full: take an item off or put one away first.');
+    if (reason === 'whiteboard_used') {
+      return t('ui.workbench.wbUsed', 'A whiteboard was placed in this turn already: draw on it, or place another after your next message.');
+    }
+    if (reason === 'whiteboard_frozen') {
+      return t('ui.workbench.wbFrozen', 'This whiteboard left Now and is kept as it was. Place a new whiteboard to draw.');
+    }
     if (reason === 'this item changed') return t('ui.workbench.changedSinceShown', 'The file changed after it was shown.');
     return t('ui.workbench.refused', 'This was not accepted.');
   }
@@ -4043,7 +4069,7 @@
   window.Workbench = {
     onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksKeptErased, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
+    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard, flushWhiteboards,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

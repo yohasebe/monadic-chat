@@ -303,7 +303,8 @@ module WebSocketHelper
                                            'version' => item.dig('file', 'sha256')))
     send_workbench_view(connection, session)
   rescue Monadic::Workbench::Whiteboard::Refused, Monadic::Workbench::Board::Refused => e
-    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => e.message))
+    reason = Monadic::Workbench::Channel::REFUSALS.fetch(e.message, e.message)
+    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => reason))
   rescue Monadic::Workbench::FileItem::Busy
     send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'busy'))
   rescue Monadic::Workspace::Folders::Unavailable, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e

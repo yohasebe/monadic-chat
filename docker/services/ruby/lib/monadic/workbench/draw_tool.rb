@@ -7,8 +7,10 @@ module Monadic
     module DrawTool
       NAME = 'draw_on_whiteboard'
       DESCRIPTION =
-        'Draw on a whiteboard in the work screen beside the chat: on the one the user\'s tab shows, or on a new one ' \
-        '(new_whiteboard, or when the tab shows none). The board is 1600 wide and 1000 high; x goes right and y down ' \
+        'Draw on a whiteboard in Now on the work screen beside the chat: the one the user\'s tab shows, else the one ' \
+        'in Now, or a new one (new_whiteboard, or when there is none). A whiteboard that left Now is kept as it was ' \
+        'and is not drawn on; one new whiteboard can be placed in your reply. ' \
+        'The board is 1600 wide and 1000 high; x goes right and y down ' \
         'from its top left. shapes is a JSON array of shapes, each with a type: ' \
         '"box" (a rectangle) or "ellipse" with x, y, and optionally w, h (it grows to hold its text), a text written in ' \
         'its middle (\n starts a new line), size (20, 32, 48 or 72) and fill ("none", "light" or "solid"); ' \
@@ -27,7 +29,7 @@ module Monadic
         'result lists what was moved or grown (adjusted) and what is still wrong (issues: an overlap, an arrow through a ' \
         'box); fix an issue with another call if it matters. ' \
         'Use it to explain with a diagram, or when the user asks you to draw. Deleting your message takes off the ' \
-        'shapes it added; what the user drew stays.'
+        'shapes it added; what was there before stays.'
       SHAPES = 'A JSON array of the shapes to add or change'
       REMOVE = 'The ids of shapes to take off the whiteboard'
       NEW_BOARD = 'true to draw on a new whiteboard instead of the one the tab shows'

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'uri'
 require_relative 'board'
 require_relative '../workspace/chats'
 require_relative '../workspace/request_context'
@@ -351,7 +352,7 @@ module Monadic
 
       def checked(words)
         outbound = Monadic::Utils::Privacy::Outbound
-        text = json(words.empty? ? @data : without_hidden_names(@data, words, outbound))
+        text = json(words.empty? ? @data : without_hidden_addresses(without_hidden_names(@data, words, outbound), words, outbound))
         return nil unless text
 
         unless words.empty?
@@ -395,6 +396,48 @@ module Monadic
         return data if hidden.empty?
 
         { 'work_screen' => data['work_screen'].merge('put_away' => put_away.merge('items' => kept, 'withheld' => hidden.size)) }
+      end
+
+      # data with the addresses of pages that hold a word the chat hides, as
+      # an address writes it (percent-encoded, with _ or - for spaces, in
+      # any case), cut to their site, or left out when the site holds it too.
+      def without_hidden_addresses(data, words, outbound)
+        screen = data['work_screen']
+        checked = screen.merge('items' => Array(screen['items']).map { |entry| address_checked(entry, words, outbound) })
+        checked['selected'] = address_checked(screen['selected'], words, outbound) if screen['selected']
+        { 'work_screen' => checked }
+      end
+
+      def address_checked(entry, words, outbound)
+        url = entry['url'] or return entry
+        return entry unless address_leaks?(url, words, outbound)
+
+        site = site_of(url)
+        site && !address_leaks?(site, words, outbound) ? entry.merge('url' => site) : entry.except('url')
+      end
+
+      def address_leaks?(url, words, outbound)
+        decoded = begin
+          URI.decode_www_form_component(url)
+        rescue ArgumentError
+          url
+        end
+        # An address's case is not the word's (hosts are lower case).
+        lower = words.map(&:downcase)
+        [url, decoded, decoded.tr('_-', '  ')].any? do |form|
+          outbound.leaks_word?(form, words) || outbound.leaks_word?(form.downcase, lower)
+        end
+      end
+
+      # The scheme, host and port of url, or nil.
+      def site_of(url)
+        uri = URI.parse(url)
+        return nil unless uri.is_a?(URI::HTTP) && uri.host
+
+        port = uri.port == uri.default_port ? '' : ":#{uri.port}"
+        "#{uri.scheme}://#{uri.host}#{port}/"
+      rescue URI::InvalidURIError
+        nil
       end
 
       def named_put_away(data)

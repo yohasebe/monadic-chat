@@ -1,9 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-// The work screen's four places: their heads, an empty one folded, and the
-// separators between open places, moved with the keys and kept per layout
-// mode.
+// The work screen's present desk: Now and Latest in one panel, and a drawer
+// of what was put away, folded by hand and narrowed by name.
 const path = require('path');
 
 const js = (f) => path.join(__dirname, '../../docker/services/ruby/public/js', f);
@@ -19,112 +18,72 @@ describe('WorkbenchPlaces', () => {
     require(js('monadic/workbench-places.js'));
   });
 
-  const open = (places) => Array.from(places.separators).filter((s) => !s.hidden);
-  const grow = (places, name) => Number(places.regions[name].root.style.flexGrow);
+  const row = (name) => {
+    const node = document.createElement('div');
+    node.className = 'workbench-stash-row';
+    const span = document.createElement('span');
+    span.className = 'workbench-stash-name';
+    span.textContent = name;
+    node.appendChild(span);
+    return node;
+  };
 
-  test('makes the four places in order, each with a head and a body of its own', () => {
+  test('makes the desk and the drawer, each a panel with a head and a body of its own', () => {
     const places = window.WorkbenchPlaces.build(container);
-    expect(Array.from(container.querySelectorAll('.workbench-place')).map((n) => n.dataset.place))
-      .toEqual(['current', 'latest', 'previous', 'stash']);
-    expect(places.regions.current.title.textContent.trim()).toBe('Now');
+    expect(Array.from(container.querySelectorAll('.workbench-place')).map((n) => n.dataset.place)).toEqual(['desk', 'stash']);
+    expect(places.regions.desk.title.textContent.trim()).toBe('On the desk');
     expect(places.regions.stash.title.textContent.trim()).toBe('Put away');
-    // Each a panel as the side column's others, its head with an icon and the arrow that folds it.
-    expect(places.regions.current.root.classList.contains('shaded-panel')).toBe(true);
-    expect(places.regions.current.head.tagName).toBe('H5');
-    expect(places.regions.current.head.querySelector('.fa-pencil')).not.toBeNull();
-    expect(places.regions.current.head.querySelector('.sidebar-collapse-icon')).not.toBeNull();
-    expect(places.regionOf(places.regions.latest.body.appendChild(document.createElement('p')))).toBe('latest');
+    expect(places.regions.desk.root.classList.contains('shaded-panel')).toBe(true);
+    expect(places.regions.desk.head.tagName).toBe('H5');
+    // The desk does not fold; the drawer does.
+    expect(places.regions.desk.head.querySelector('.sidebar-collapse-icon')).toBeNull();
+    expect(places.regions.stash.head.querySelector('.sidebar-collapse-icon')).not.toBeNull();
+    expect(places.regionOf(places.regions.stash.body.appendChild(document.createElement('p')))).toBe('stash');
   });
 
-  test('says who placed a layer and how many items it holds, Now against its limit', () => {
-    const places = window.WorkbenchPlaces.build(container);
-    places.fill({ current: 2, latest: 1, previous: 3, stash: 0 }, { layers: { latest: 'agent', previous: 'user' }, limit: 10 });
-    expect(places.regions.current.count.textContent).toBe('2 / 10');
-    expect(places.regions.latest.count.textContent).toBe('AI · 1');
-    expect(places.regions.previous.count.textContent).toBe('You · 3');
-    expect(places.regions.stash.count.textContent).toBe('0');
+  test('shows Now and Latest on the desk, Put away in the drawer, and Before nowhere', () => {
+    const regionOf = window.WorkbenchPlaces.regionOf;
+    expect(['current', 'latest', 'previous', 'stash'].map(regionOf)).toEqual(['desk', 'desk', null, 'stash']);
   });
 
-  test('folds an empty place to its head and gives its height to the others, with one separator per open pair', () => {
+  test('counts Now against its limit, says when the desk holds nothing, and counts the drawer', () => {
     const places = window.WorkbenchPlaces.build(container);
-    places.fill({ current: 1, latest: 0, previous: 2, stash: 0 }, {});
-    expect(places.regions.latest.root.classList.contains('is-empty')).toBe(true);
-    expect(grow(places, 'latest')).toBe(0);
-    // An empty Latest or Before is not shown; an empty Now or Put away is its head.
-    expect(places.regions.latest.root.hidden).toBe(true);
-    expect(places.regions.stash.root.hidden).toBe(false);
-    places.fill({ current: 0, latest: 0, previous: 0, stash: 0 }, {});
-    expect(places.regions.current.root.hidden).toBe(false);
-    expect(places.regions.previous.root.hidden).toBe(true);
-    places.fill({ current: 1, latest: 0, previous: 2, stash: 0 }, {});
-    expect(places.regions.previous.root.hidden).toBe(false);
-    expect(grow(places, 'current') + grow(places, 'previous')).toBeCloseTo(1);
-    const shown = open(places);
-    expect(shown).toHaveLength(1);
-    expect(shown[0].getAttribute('aria-label')).toBe('Now / Before');
-    expect(shown[0].tabIndex).toBe(0);
+    places.fill({ current: 0, latest: 0, stash: 0 }, { limit: 10 });
+    expect(places.regions.desk.count.textContent).toBe('Now 0 / 10');
+    expect(places.regions.desk.body.querySelector('.workbench-place-none').textContent).toBe('Nothing here');
+    places.fill({ current: 2, latest: 1, stash: 4 }, { limit: 10 });
+    expect(places.regions.desk.count.textContent).toBe('Now 2 / 10');
+    expect(places.regions.desk.body.querySelector('.workbench-place-none')).toBeNull();
+    expect(places.regions.stash.count.textContent).toBe('4');
   });
 
-  test('moves a separator with the arrow keys between its two places only, and keeps it for the layout mode', () => {
-    const places = window.WorkbenchPlaces.build(container);
-    places.fill({ current: 1, latest: 1, previous: 1, stash: 1 }, { mode: 'side' });
-    const first = open(places)[0];
-    const before = { current: grow(places, 'current'), latest: grow(places, 'latest'), previous: grow(places, 'previous') };
-    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-    expect(grow(places, 'current')).toBeGreaterThan(before.current);
-    expect(grow(places, 'latest')).toBeLessThan(before.latest);
-    expect(grow(places, 'previous')).toBeCloseTo(before.previous);
-    const kept = JSON.parse(window.localStorage.getItem('monadic.workbench.places.side'));
-    expect(kept.current).toBeGreaterThan(0.4);
-    // Another mode has its own; coming back takes the kept one.
-    places.fill({ current: 1, latest: 1, previous: 1, stash: 1 }, { mode: 'right' });
-    expect(grow(places, 'current')).toBeCloseTo(before.current);
-    places.fill({ current: 1, latest: 1, previous: 1, stash: 1 }, { mode: 'side' });
-    expect(grow(places, 'current')).toBeGreaterThan(before.current);
+  test('keeps the drawer folded at first, opens and folds it from its head, with the keys too, and keeps that', () => {
+    let places = window.WorkbenchPlaces.build(container);
+    const drawer = places.regions.stash;
+    expect(drawer.root.classList.contains('is-folded')).toBe(true);
+    expect(drawer.head.getAttribute('aria-expanded')).toBe('false');
+    drawer.head.click();
+    expect(drawer.root.classList.contains('is-folded')).toBe(false);
+    expect(drawer.head.getAttribute('aria-expanded')).toBe('true');
+    // The next page opens it as it was left.
+    places = window.WorkbenchPlaces.build(container);
+    expect(places.regions.stash.root.classList.contains('is-folded')).toBe(false);
+    places.regions.stash.head.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(places.regions.stash.root.classList.contains('is-folded')).toBe(true);
   });
 
-  test('folds a place by hand from its head, with the keys too, and keeps that for the next page', () => {
+  test('narrows the drawer to the rows whose name holds what is typed, in any case, also after a fill', () => {
     const places = window.WorkbenchPlaces.build(container);
-    places.fill({ current: 1, latest: 1, previous: 0, stash: 0 }, {});
-    const head = places.regions.latest.head;
-    expect(head.getAttribute('aria-expanded')).toBe('true');
-    head.click();
-    expect(places.regions.latest.root.classList.contains('is-folded')).toBe(true);
-    expect(head.getAttribute('aria-expanded')).toBe('false');
-    expect(grow(places, 'latest')).toBe(0);
-    expect(grow(places, 'current')).toBeCloseTo(1);
-    expect(open(places)).toHaveLength(0);
-    head.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(places.regions.latest.root.classList.contains('is-folded')).toBe(false);
-    head.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-    const again = window.WorkbenchPlaces.build(container);
-    again.fill({ current: 1, latest: 1, previous: 0, stash: 0 }, {});
-    expect(again.regions.latest.root.classList.contains('is-folded')).toBe(true);
-  });
-
-  test('folds an empty place by hand too, its arrow saying whether it is folded, and says when an open one holds nothing', () => {
-    const places = window.WorkbenchPlaces.build(container);
-    places.fill({ current: 0, latest: 0, previous: 0, stash: 0 }, {});
-    const now = places.regions.current;
-    expect(now.head.getAttribute('aria-expanded')).toBe('true');
-    expect(now.body.querySelector('.workbench-place-none').textContent).toBe('Nothing here');
-    now.head.click();
-    expect(now.head.getAttribute('aria-expanded')).toBe('false');
-    expect(now.root.classList.contains('is-folded')).toBe(true);
-    now.head.click();
-    expect(now.head.getAttribute('aria-expanded')).toBe('true');
-    places.fill({ current: 1, latest: 0, previous: 0, stash: 0 }, {});
-    expect(now.body.querySelector('.workbench-place-none')).toBeNull();
-  });
-
-  test('keeps each place a least share, and starts from the defaults when what was kept is broken', () => {
-    window.localStorage.setItem('monadic.workbench.places.side', '{not json');
-    const places = window.WorkbenchPlaces.build(container);
-    places.fill({ current: 1, latest: 1, previous: 0, stash: 0 }, { mode: 'side' });
-    expect(grow(places, 'current')).toBeGreaterThan(0);
-    const separator = open(places)[0];
-    for (let i = 0; i < 40; i += 1) separator.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-    expect(grow(places, 'current')).toBeGreaterThan(0.05);
-    expect(grow(places, 'latest')).toBeLessThan(0.95);
+    const body = places.regions.stash.body;
+    body.append(row('Plan.pdf'), row('notes.txt'), row('whiteboard-1.png'));
+    places.regions.stash.filter.value = 'PL';
+    places.regions.stash.filter.dispatchEvent(new Event('input'));
+    expect(Array.from(body.children).map((n) => n.hidden)).toEqual([false, true, true]);
+    body.appendChild(row('plain.md'));
+    places.fill({ current: 0, latest: 0, stash: 4 }, {});
+    expect(Array.from(body.children).map((n) => n.hidden)).toEqual([false, true, true, false]);
+    places.regions.stash.filter.value = '';
+    places.regions.stash.filter.dispatchEvent(new Event('input'));
+    expect(Array.from(body.children).every((n) => !n.hidden)).toBe(true);
   });
 });

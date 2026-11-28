@@ -662,7 +662,7 @@ describe('Workbench', () => {
       view([item()], { selected: null });
       expect(shown()).toBeNull();
       expect(document.getElementById('work-screen-browser').hidden).toBe(true);
-      expect(document.querySelectorAll('#workbench-view .workbench-place').length).toBe(4);
+      expect(document.querySelectorAll('#workbench-view .workbench-place').length).toBe(2);
     });
   });
   describe('the mark on the work screen tab', () => {
@@ -1434,11 +1434,10 @@ describe('Workbench', () => {
         expect(erasures.data).toEqual([{ item_id: 'i_g', version: 'e'.repeat(64), targets: [['m_aaaaaa', 1]] }]);
         erasures.sent();
         expect(window.Workbench.erasuresNow()).toBeNull();
-        // Before: drawn, and not erased from there.
+        // Before: no longer on the present desk (its turn's card shows it).
         const before = Object.assign({}, marked, { place: 'previous' });
         view([before], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [before] } });
-        expect(document.querySelectorAll('.workbench-section[data-item="i_g"] .workbench-mark-earlier')).toHaveLength(1);
-        expect(menuOf('i_g').some((e) => e.label.startsWith('Erase marks'))).toBe(false);
+        expect(document.querySelector('.workbench-section[data-item="i_g"]')).toBeNull();
       });
 
       test('sends the marks of an image in one picture, numbered, and forgets those drawn as earlier ones', () => {
@@ -2510,8 +2509,8 @@ describe('Workbench', () => {
       partOf('i_b').dispatchEvent(new Event('pointerdown', { bubbles: true }));
       expect(partOf('i_b').classList.contains('is-focus')).toBe(true);
       expect(mark.hidden).toBe(false);
-      // Once it is Before, its mark stays and cannot be moved, also when it is chosen.
-      const before = Object.assign({}, a, { place: 'previous' });
+      // Once it is put away, opened in the drawer to read, its mark stays and cannot be moved.
+      const before = Object.assign({}, a, { place: 'stash' });
       view([before, b], { selected: 'i_b', board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [before, b] } });
       window.Workbench.select('i_a');
       expect(partOf('i_a').classList.contains('is-focus')).toBe(true);
@@ -2519,7 +2518,7 @@ describe('Workbench', () => {
       expect(partOf('i_a').querySelector('.workbench-pointer-controls').hidden).toBe(true);
       mark.dispatchEvent(new MouseEvent('pointerdown', { clientX: 40, clientY: 30, button: 0, bubbles: true }));
       expect(mark.classList.contains('workbench-pointer-held')).toBe(false);
-      expect(partOf('i_a').querySelector('.workbench-info').textContent).toContain('Bring it into Now to mark it.');
+      expect(partOf('i_a').querySelector('.workbench-info').textContent).toContain('Bring it into Now to use it.');
       delete window.WorkbenchPointer;
     });
 
@@ -2573,7 +2572,7 @@ describe('Workbench', () => {
     });
   });
 
-  describe('the four places', () => {
+  describe('the present desk and the drawer', () => {
     const at = (place) => Array.from(document.querySelectorAll(`.workbench-place-body[data-place="${place}"] > *`))
       .map((n) => n.dataset.item);
     const a = () => item({ id: 'i_a', artifact_id: 'r_a', name: 'a.png', place: 'current', by: 'user', fresh: true });
@@ -2586,18 +2585,20 @@ describe('Workbench', () => {
     });
     const actions = () => payloads().filter((p) => p.message === 'WORKBENCH_ACTION');
 
-    test('puts each item in its place, put-away ones as rows, and says who placed each layer', () => {
-      view([a(), b(), c(), d()], board([a(), b(), c(), d()], 1));
-      expect(at('current')).toEqual(['i_a']);
-      expect(at('latest')).toEqual(['i_b']);
-      expect(at('previous')).toEqual(['i_c']);
-      expect(at('stash')).toEqual(['i_d']);
+    test('shows Now then Latest on the desk, each tagged, Before nowhere, and put away as rows, newest first', () => {
+      const e = () => item({ id: 'i_e', artifact_id: 'r_e', name: 'e.png', sha256: 'e'.repeat(64), place: 'stash', by: 'agent' });
+      view([b(), a(), c(), d(), e()], board([b(), a(), c(), d(), e()], 1));
+      expect(at('desk').filter(Boolean)).toEqual(['i_a', 'i_b']);
+      expect(document.querySelector('[data-item="i_c"]')).toBeNull();
+      expect(at('stash')).toEqual(['i_e', 'i_d']);
       expect(document.querySelector('.workbench-place-body[data-place="stash"] > .workbench-stash-row')).not.toBeNull();
       expect(document.querySelector('.workbench-place-body[data-place="stash"] img')).toBeNull();
-      const count = (place) => document.querySelector(`.workbench-place[data-place="${place}"] .workbench-place-count`).textContent;
-      expect(count('current')).toBe('1 / 10');
-      expect(count('latest')).toBe('AI · 1');
-      expect(count('previous')).toBe('You · 1');
+      const tag = (id) => document.querySelector(`.workbench-section[data-item="${id}"] .workbench-item-tag`).textContent;
+      expect(tag('i_a')).toBe('You · Now');
+      expect(tag('i_b')).toBe('AI · Latest');
+      const count = (region) => document.querySelector(`.workbench-place[data-place="${region}"] .workbench-place-count`).textContent;
+      expect(count('desk')).toBe('Now 1 / 10');
+      expect(count('stash')).toBe('2');
     });
 
     test('moves an item with its buttons, each operation with an id of its own', () => {
@@ -2623,7 +2624,7 @@ describe('Workbench', () => {
       expect(menuEntry('i_a', 'Into Now')).toBeNull();
     });
 
-    test('takes an item dragged onto Now or Put away, once, and leaves files from the computer to the pane', () => {
+    test('takes an item dragged onto the desk (into Now) or the drawer, once, and leaves files from the computer to the pane', () => {
       view([b(), d()], board([b(), d()], 1));
       sent.length = 0;
       const types = ['application/x-monadic-workbench-item'];
@@ -2633,9 +2634,9 @@ describe('Workbench', () => {
         event.dataTransfer = { types, getData: () => id };
         root.dispatchEvent(event);
       };
-      drop('current', 'i_d');
+      drop('desk', 'i_d');
       drop('stash', 'i_b');
-      drop('current', 'i_b');
+      drop('desk', 'i_b');
       expect(actions().map((p) => [p.item_id, p.action])).toEqual([['i_d', 'bring'], ['i_b', 'stash'], ['i_b', 'bring']]);
       // An item dropped where it already is: nothing.
       sent.length = 0;
@@ -2644,19 +2645,22 @@ describe('Workbench', () => {
       // Files from the computer are not this kind of drop.
       const files = new Event('drop', { bubbles: true, cancelable: true });
       files.dataTransfer = { types: ['Files'], getData: () => '' };
-      document.querySelector('.workbench-place[data-place="current"]').dispatchEvent(files);
+      document.querySelector('.workbench-place[data-place="desk"]').dispatchEvent(files);
       expect(actions()).toEqual([]);
     });
 
-    test('keeps a drawn item as it is when it moves to another place', () => {
+    test('keeps a drawn item as it is when it moves on the desk, and lets it go when it leaves', () => {
       view([a(), b()], board([a(), b()], 1));
       window.Workbench.select('i_b');
       const img = document.querySelector('.workbench-section[data-item="i_b"] img');
       expect(img).not.toBeNull();
-      const moved = Object.assign(b(), { place: 'previous' });
-      view([a(), moved], board([a(), moved], 2));
-      expect(at('previous')).toEqual(['i_b']);
+      const brought = Object.assign(b(), { place: 'current' });
+      view([a(), brought], board([a(), brought], 2));
+      expect(at('desk').filter(Boolean)).toEqual(['i_a', 'i_b']);
       expect(document.querySelector('.workbench-section[data-item="i_b"] img')).toBe(img);
+      const before = Object.assign(b(), { place: 'previous' });
+      view([a(), before], board([a(), before], 3));
+      expect(document.querySelector('.workbench-section[data-item="i_b"]')).toBeNull();
     });
 
     test('while a reply runs, says so and offers nothing that changes the work screen, checked again when used', () => {
@@ -2714,7 +2718,7 @@ describe('Workbench', () => {
       view([item(), old], { selected: 'i_1' });
       const bodyOf = (place) => document.querySelector(`.workbench-place-body[data-place="${place}"]`);
       const sizes = new Map();
-      ['current', 'stash'].forEach((place) => {
+      ['desk', 'stash'].forEach((place) => {
         const body = bodyOf(place);
         const size = { scrollHeight: 300, clientHeight: 300 };
         sizes.set(place, size);
@@ -2727,16 +2731,16 @@ describe('Workbench', () => {
       const bottom = document.getElementById('workbench-bottom');
       window.dispatchEvent(new Event('resize'));
       expect(group.hidden).toBe(true);
-      sizes.get('current').scrollHeight = 1000;
+      sizes.get('desk').scrollHeight = 1000;
       window.dispatchEvent(new Event('resize'));
       expect(group.hidden).toBe(false);
       expect(top.disabled).toBe(true);
       expect(bottom.disabled).toBe(false);
-      expect(bottom.getAttribute('aria-label')).toContain('Now');
+      expect(bottom.getAttribute('aria-label')).toContain('On the desk');
       bottom.click();
-      expect(bodyOf('current').scrollTo).toHaveBeenLastCalledWith({ top: 1000, behavior: 'smooth' });
-      bodyOf('current').scrollTop = 700;
-      bodyOf('current').dispatchEvent(new Event('scroll'));
+      expect(bodyOf('desk').scrollTo).toHaveBeenLastCalledWith({ top: 1000, behavior: 'smooth' });
+      bodyOf('desk').scrollTop = 700;
+      bodyOf('desk').dispatchEvent(new Event('scroll'));
       expect(top.disabled).toBe(false);
       expect(bottom.disabled).toBe(true);
       // The item chosen is put away: the two act on Put away.
@@ -2745,7 +2749,7 @@ describe('Workbench', () => {
       expect(bottom.getAttribute('aria-label')).toContain('Put away');
       bottom.click();
       expect(bodyOf('stash').scrollTo).toHaveBeenLastCalledWith({ top: 900, behavior: 'smooth' });
-      expect(bodyOf('current').scrollTo).toHaveBeenCalledTimes(1);
+      expect(bodyOf('desk').scrollTo).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -50,6 +50,8 @@ module WebSocketHelper
     # and the images sent that no message names any more.
     remove_workbench_picture(rack_session, deleted)
     release_sent_images(rack_session)
+    # The work screen its turn left is no longer shown from its card.
+    forget_turn_record(rack_session, deleted)
 
     # Invalidate any Grok compaction blob: it summarized the pre-edit history,
     # so a delete makes the cached covered_count and summary stale. Dropping it
@@ -133,6 +135,19 @@ module WebSocketHelper
 
   # What a deleted message drew on whiteboards (Workbench::Draw) is taken
   # off them; what else is on them stays.
+  # The record of the work screen at the message's turn (the user's message:
+  # its request; a reply: the request it answers) goes with it; the other
+  # side's card keeps its own.
+  def forget_turn_record(rack_session, message)
+    return unless message.is_a?(Hash)
+
+    chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
+    request_id, by = message['role'] == 'user' ? [message['request_id'], 'user'] : [message['reply_to'], 'agent']
+    return unless chat_id && request_id
+
+    Monadic::Workbench::TurnRecords.delete(chat_id, request_id, by)
+  end
+
   def take_off_drawn(rack_session, message)
     drawn = message.is_a?(Hash) && Monadic::Workbench::Draw.clean(message[Monadic::Workbench::Draw::KEY])
     chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]

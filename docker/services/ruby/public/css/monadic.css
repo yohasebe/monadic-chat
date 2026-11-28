@@ -5954,42 +5954,48 @@ body.side-pane-resizing {
   display: none;
 }
 /* The work screen's four places (workbench-places.js): Now, Latest,
-   Before and Put away, one under another, each scrolling on its own; an
-   empty one is only its head. */
+   Before and Put away, one under another, each a panel as the side
+   column's others are, scrolling on its own; an empty or folded one is
+   only its head. */
 .workbench-place {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
-.workbench-place.is-empty {
+.workbench-place.is-empty,
+.workbench-place.is-folded {
   flex: 0 0 auto !important;
 }
 .workbench-place-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: var(--spacing-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+.workbench-place-side {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   color: var(--text-secondary);
-  font-weight: 600;
-  border-bottom: var(--border-width) solid var(--border-light);
+  font-size: inherit;
+  font-weight: normal;
 }
 .workbench-place.is-empty > .workbench-place-head {
-  font-weight: normal;
+  color: var(--text-secondary);
 }
 .workbench-place-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--spacing-sm) var(--spacing-xs);
+  padding: 0 var(--spacing-md) var(--spacing-md);
 }
-.workbench-place.is-empty > .workbench-place-body {
+.workbench-place.is-empty > .workbench-place-body,
+.workbench-place.is-folded > .workbench-place-body {
   display: none;
 }
 .workbench-place-separator {
   flex: 0 0 auto;
-  height: 0.5rem;
+  height: 0.375rem;
   cursor: row-resize;
   border-radius: var(--border-radius);
 }
@@ -6071,6 +6077,7 @@ body.side-pane-resizing {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
+    gap: var(--spacing-xs);
     min-height: 0;
   }
   #work-screen-pane > #work-screen-browser:not([hidden]) {

@@ -26,8 +26,13 @@ describe('WorkbenchPlaces', () => {
     const places = window.WorkbenchPlaces.build(container);
     expect(Array.from(container.querySelectorAll('.workbench-place')).map((n) => n.dataset.place))
       .toEqual(['current', 'latest', 'previous', 'stash']);
-    expect(places.regions.current.title.textContent).toBe('Now');
-    expect(places.regions.stash.title.textContent).toBe('Put away');
+    expect(places.regions.current.title.textContent.trim()).toBe('Now');
+    expect(places.regions.stash.title.textContent.trim()).toBe('Put away');
+    // Each a panel as the side column's others, its head with an icon and the arrow that folds it.
+    expect(places.regions.current.root.classList.contains('shaded-panel')).toBe(true);
+    expect(places.regions.current.head.tagName).toBe('H5');
+    expect(places.regions.current.head.querySelector('.fa-pencil')).not.toBeNull();
+    expect(places.regions.current.head.querySelector('.sidebar-collapse-icon')).not.toBeNull();
     expect(places.regionOf(places.regions.latest.body.appendChild(document.createElement('p')))).toBe('latest');
   });
 
@@ -76,6 +81,25 @@ describe('WorkbenchPlaces', () => {
     expect(grow(places, 'current')).toBeCloseTo(before.current);
     places.fill({ current: 1, latest: 1, previous: 1, stash: 1 }, { mode: 'side' });
     expect(grow(places, 'current')).toBeGreaterThan(before.current);
+  });
+
+  test('folds a place by hand from its head, with the keys too, and keeps that for the next page', () => {
+    const places = window.WorkbenchPlaces.build(container);
+    places.fill({ current: 1, latest: 1, previous: 0, stash: 0 }, {});
+    const head = places.regions.latest.head;
+    expect(head.getAttribute('aria-expanded')).toBe('true');
+    head.click();
+    expect(places.regions.latest.root.classList.contains('is-folded')).toBe(true);
+    expect(head.getAttribute('aria-expanded')).toBe('false');
+    expect(grow(places, 'latest')).toBe(0);
+    expect(grow(places, 'current')).toBeCloseTo(1);
+    expect(open(places)).toHaveLength(0);
+    head.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(places.regions.latest.root.classList.contains('is-folded')).toBe(false);
+    head.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    const again = window.WorkbenchPlaces.build(container);
+    again.fill({ current: 1, latest: 1, previous: 0, stash: 0 }, {});
+    expect(again.regions.latest.root.classList.contains('is-folded')).toBe(true);
   });
 
   test('keeps each place a least share, and starts from the defaults when what was kept is broken', () => {

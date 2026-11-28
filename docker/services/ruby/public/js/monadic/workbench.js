@@ -2297,12 +2297,12 @@
     return { data: data, sent: () => erasures.clear() };
   }
 
-  // A message the user asked to delete was kept: deleting it would bring
-  // back more marks than an item shows.
-  function onMarksRefused(data) {
-    warn(t('ui.workbench.marksRefused',
-      'The message was not deleted: {n} marks it erased could not come back. Erase some marks on the item first.')
-      .replace('{n}', String(data && data.over ? data.over : '')));
+  // A message the user deleted had erased marks that could not come back
+  // (more than an item shows): they stay erased.
+  function onMarksKeptErased(data) {
+    announce(t('ui.workbench.marksKeptErased',
+      'The message was deleted. {n} marks it had erased stay erased: bringing them back would show more than an item takes.')
+      .replace('{n}', String(data && data.count ? data.count : '')));
   }
 
   // ---- marks sent with a message -------------------------------------
@@ -4058,7 +4058,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksRefused, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksKeptErased, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

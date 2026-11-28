@@ -669,17 +669,12 @@ module Monadic
       end
 
       # Takes out what the message request_id recorded of the marks (it was
-      # deleted). Returns how many marks it could not bring back (more than
-      # are shown at most): nothing is changed then.
+      # deleted). Returns how many marks it erased stayed erased (bringing
+      # them back would show more than an item shows at most).
       def undo_marks(request_id)
-        over = @lock.synchronize { Marks.undo!(deep_dup(@data), request_id) }
-        return over if over.positive?
+        return 0 unless @lock.synchronize { Marks.recorded?(@data, request_id) }
 
-        change do |data|
-          Marks.undo!(data, request_id)
-          nil
-        end
-        0
+        change { |data| Marks.undo!(data, request_id) }
       end
 
       # Whether the item is on the board and not put away.

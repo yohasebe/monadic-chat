@@ -213,6 +213,15 @@ RSpec.describe "The picture of the work screen sent with a message" do
     end
   end
 
+  it "deletes the message whatever its marks, and says how many of the marks it erased stay erased" do
+    board = Monadic::Workbench::Board.existing(chat_id)
+    message = send_message("workbench_picture" => picture_data)
+    allow(board).to receive(:undo_marks).with(message["request_id"]).and_return(33)
+    host.handle_delete_message(nil, { "mid" => message["mid"] })
+    expect(session[:messages].map { |m| m["mid"] }).not_to include(message["mid"])
+    expect(sent).to include(include("type" => "workbench_marks_kept_erased", "count" => 33))
+  end
+
   describe "with text selected" do
     def selection_data(overrides = {})
       { "item_id" => "i_1", "version" => "v" * 64, "page" => 2, "pages" => 4, "text" => "the eastern library" }

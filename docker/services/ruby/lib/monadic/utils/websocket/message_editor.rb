@@ -35,9 +35,8 @@ module WebSocketHelper
     # Delete the message, and move what it made to the chat's trash
     deleted = message_index && messages[message_index]
     # The marks a user's message recorded on the work screen are taken out
-    # with it; when that would show more marks again than an item takes, it
-    # is not deleted and the user is told why.
-    return unless undo_message_marks(rack_session, deleted, ws_session_id)
+    # with it (always: a message can be deleted whatever its marks).
+    undo_message_marks(rack_session, deleted, ws_session_id)
 
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
     # The app state is made again without the deleted turn's changes.
@@ -72,24 +71,19 @@ module WebSocketHelper
   end
   
   # Takes out what the user's message recorded of the marks on the work
-  # screen. false (and the page is told) when it could not.
+  # screen; the page is told how many marks it erased stayed erased.
   def undo_message_marks(rack_session, message, ws_session_id)
-    return true unless message.is_a?(Hash) && message["role"] == "user" && message["request_id"]
+    return unless message.is_a?(Hash) && message["role"] == "user" && message["request_id"]
 
     chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
     board = chat_id && Monadic::Workbench::Board.existing(chat_id)
-    return true unless board
+    return unless board
 
-    over = board.undo_marks(message["request_id"])
-    if over.positive?
-      send_or_broadcast({ "type" => "workbench_marks_refused", "over" => over }.to_json, ws_session_id)
-      return false
-    end
+    stayed = board.undo_marks(message["request_id"])
+    send_or_broadcast({ "type" => "workbench_marks_kept_erased", "count" => stayed }.to_json, ws_session_id) if stayed.positive?
     Monadic::Workbench::Channel.changed(chat_id)
-    true
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Marks not taken out: #{e.class}" }
-    true
   end
 
   def remove_workbench_picture(rack_session, message)

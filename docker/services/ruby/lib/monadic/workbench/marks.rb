@@ -70,21 +70,32 @@ module Monadic
         end
       end
 
-      # The operations of request_id taken out (its message was deleted).
-      # Refused (returns the count) when what would be shown again then is
-      # more than SHOWN_LIMIT on a version; otherwise 0.
+      # The operations of request_id taken out (its message was deleted):
+      # what it added goes, what it erased comes back. On a version where
+      # bringing that back would show more than SHOWN_LIMIT, its erasures stay
+      # (none of those marks comes back). Returns how many marks stayed erased.
       def undo!(data, request_id)
-        tables = data[KEY] || {}
-        over = tables.sum do |_origin, versions|
-          versions.sum do |_version, ops|
-            kept = ops.reject { |op| op['request_id'] == request_id }
-            [replay(kept).size - SHOWN_LIMIT, 0].max
+        (data[KEY] || {}).each_value.sum do |versions|
+          versions.each_value.sum do |ops|
+            mine = ->(op) { op['request_id'] == request_id }
+            if replay(ops.reject(&mine)).size <= SHOWN_LIMIT
+              ops.reject!(&mine)
+              next 0
+            end
+
+            stayed = replay(ops.reject { |op| mine.call(op) && op['kind'] != 'erase' })
+            restored = replay(ops.reject(&mine))
+            ops.reject! { |op| mine.call(op) && op['kind'] != 'erase' }
+            (restored.keys - stayed.keys).size
           end
         end
-        return over if over.positive?
+      end
 
-        tables.each_value { |versions| versions.each_value { |ops| ops.reject! { |op| op['request_id'] == request_id } } }
-        0
+      # Whether the message request_id recorded anything of the marks.
+      def recorded?(data, request_id)
+        (data[KEY] || {}).each_value.any? do |versions|
+          versions.each_value.any? { |ops| ops.any? { |op| op['request_id'] == request_id } }
+        end
       end
 
       # How many marks on version of origin the message request_id recorded

@@ -49,7 +49,7 @@ RSpec.describe Monadic::Workbench::Marks do
     expect(described_class.shown(data, "file:notes/other.pdf", version)).to eq([])
   end
 
-  it "records no new mark past the most shown, and refuses a deletion that would show more again" do
+  it "records no new mark past the most shown, and leaves erased what a deleted message erased when it would show more" do
     limit = described_class::SHOWN_LIMIT
     ids = (1..limit).map { |i| format("m_%06d", i) }
     recorded = described_class.record!(data, "q_a", sent: ids.map { |id| mark(id) } + [mark("m_extra1")])
@@ -57,7 +57,11 @@ RSpec.describe Monadic::Workbench::Marks do
     described_class.record!(data, "q_b", erased: [{ origin: origin, version: version, targets: ids.map { |id| [id, 1] } }])
     described_class.record!(data, "q_c", sent: (1..limit).map { |i| mark(format("m_new%03d", i)) })
     expect(described_class.undo!(data, "q_b")).to eq(limit)
+    expect(shown.map(&:first)).to all(start_with("m_new"))
     expect(shown.size).to eq(limit)
+    # The new marks' message deleted: nothing would be past the most now, so all of it goes.
+    expect(described_class.undo!(data, "q_c")).to eq(0)
+    expect(shown).to eq([])
   end
 
   it "counts the marks a message sent as new, and the others as earlier" do

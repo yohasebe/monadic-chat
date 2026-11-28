@@ -3,6 +3,7 @@
 require 'digest'
 require 'securerandom'
 require 'time'
+require 'json'
 require_relative 'store'
 require_relative 'image_check'
 require_relative 'artifact'
@@ -265,19 +266,67 @@ module Monadic
         end
       end
 
-      # Runs the block (a write of the whiteboard item_id's file, by origin)
-      # while the board can be drawn on: in Now and never out of it since.
-      # The board is held meanwhile, so that it does not leave Now halfway.
-      # Refused (FROZEN) otherwise, and for the user while a reply runs
-      # (BUSY).
-      def while_editable(item_id, origin)
-        @lock.synchronize do
-          item = @data['items'][item_id.to_s] or raise Refused, 'the whiteboard is not on the work screen'
+      # Writes the whiteboard item_id (the block writes its file, by origin)
+      # and takes its new version, in one step with the board held: the
+      # board cannot leave Now between the check, the write and the version
+      # it is frozen at. Refused (FROZEN) when it cannot be drawn on, and for
+      # the user while a reply runs (BUSY). event: what changed, told as an
+      # edit. Returns the item.
+      def write_whiteboard(item_id, origin:, epoch:, event: nil)
+        change do |data|
+          check_epoch!(epoch)
+          item = data['items'][item_id.to_s] or raise Refused, 'the whiteboard is not on the work screen'
           raise Refused, BUSY if user?(origin) && @reply
           raise Refused, FROZEN unless editable_whiteboard?(item)
 
           yield
+          item['file'] = FileItem.entry_for(item.dig('file', 'path'), wait: 0)
+          @verdicts.delete(item['id'])
+          @texts.delete(item['id'])
+          record!(data, event.merge('item_id' => item['id']), origin) if event
+          deep_dup(item)
         end
+      rescue FileItem::Refused => e
+        raise Refused, e.message
+      end
+
+      # A whiteboard that left Now and waits for its image (a plain board,
+      # Whiteboard version 1: one drawn on a picture stays a board): the
+      # version of its file to be painted, or nil.
+      def image_pending(item_id)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s]
+          item && pending_image?(item) ? item.dig('file', 'sha256') : nil
+        end
+      end
+
+      # The image a page painted of the whiteboard item_id at version: the
+      # first taken is the board's from then on. The block writes the bytes
+      # under each of names in turn until one is free (it returns the path
+      # written, or nil for a name taken), the board held so that no two are
+      # written; the item becomes that
+      # image file (its id, place and who placed it kept; source: the board
+      # file and version it was made from). Refused 'done' when the board is
+      # an image already, 'stale' when it is not one waiting at version.
+      # Returns the item.
+      def take_whiteboard_image(item_id, version:, names:, epoch:)
+        change do |data|
+          check_epoch!(epoch)
+          item = data['items'][item_id.to_s] or raise Refused, 'stale'
+          raise Refused, 'done' if item.dig('board_source', 'sha256') == version
+          raise Refused, 'stale' unless pending_image?(item) && item.dig('file', 'sha256') == version
+
+          board_path = item.dig('file', 'path')
+          written = names.lazy.map { |name| yield name }.find(&:itself) or raise Refused, 'no free name'
+          item['file'] = FileItem.entry_for(written, wait: 0)
+          item['board_source'] = { 'path' => board_path, 'sha256' => version }
+          @verdicts.delete(item['id'])
+          @texts.delete(item['id'])
+          record!(data, { 'kind' => 'whiteboard_image', 'item_id' => item['id'] }, { actor: 'user' })
+          deep_dup(item)
+        end
+      rescue FileItem::Refused => e
+        raise Refused, e.message
       end
 
       # The whiteboard in Now that can be drawn on, the one made last first;
@@ -1037,6 +1086,25 @@ module Monadic
         whiteboard?(item) && item['place'] == 'current' && !item['frozen']
       end
 
+      # A board out of Now not yet made an image: a plain one (version 1).
+      def pending_image?(item)
+        whiteboard?(item) && !editable_whiteboard?(item) && plain_board?(item)
+      end
+
+      # A plain whiteboard (not drawn on a picture), as its file says;
+      # remembered on the item once read.
+      def plain_board?(item)
+        return item['board_kind'] == 'plain' if item.key?('board_kind')
+
+        kind = begin
+          JSON.parse(FileItem.read_whole(item.dig('file', 'path'), wait: 0)[:bytes].to_s)['version'] == 2 ? 'picture' : 'plain'
+        rescue StandardError
+          nil
+        end
+        item['board_kind'] = kind if kind
+        kind == 'plain'
+      end
+
       # Whiteboards out of Now are kept as they are, also when brought back.
       def freeze_left!(data)
         data['items'].each_value { |item| item['frozen'] = true if item['place'] != 'current' && whiteboard?(item) }
@@ -1230,8 +1298,10 @@ module Monadic
           title: defined?(Document) ? Document.shown_title(entry['path']) : nil,
           # A record of a conversation, to keep in the Library as one.
           draft: item['draft'] ? true : nil,
-          # A whiteboard no longer drawn on (it left Now).
-          frozen: (true if whiteboard?(item) && !editable_whiteboard?(item))
+          # A whiteboard no longer drawn on (it left Now), and the version of
+          # it a page is to paint as its image (a plain board).
+          frozen: (true if whiteboard?(item) && !editable_whiteboard?(item)),
+          image_pending: (entry['sha256'] if pending_image?(item))
         }
       end
 

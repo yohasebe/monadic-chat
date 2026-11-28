@@ -285,6 +285,8 @@ module WebSocketHelper
           handle_ws_workbench_open_url(connection, obj, session)
         when "WORKBENCH_WHITEBOARD_NEW", "WORKBENCH_WHITEBOARD_SAVE"
           handle_ws_workbench_whiteboard(connection, obj, session)
+        when "WORKBENCH_WHITEBOARD_IMAGE"
+          handle_ws_workbench_whiteboard_image(connection, obj, session)
         when "JUPYTER_OPEN"
           handle_ws_jupyter_open(connection, obj, session)
         when "WORKBENCH_SELECT"

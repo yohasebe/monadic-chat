@@ -35,6 +35,8 @@ module Monadic
       DRAWN_NOTE = 'Edit the first image. The second image is the same picture with marks the user drew on it, ' \
                    'showing what to change and where; leave the marks themselves out of the result. '
 
+      PENDING = 'The whiteboard is being made an image (it left Now): try again once it is one; nothing is edited.'
+
       # An edit that cannot start: the message says why.
       class NoSource < StandardError; end
 
@@ -113,6 +115,9 @@ module Monadic
         board = workbench && Board.existing(workbench.chat_id)
         item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is edited.'
         raise NoSource, "❌ #{Board::PUT_AWAY.sub(/\A./, &:upcase)}: nothing is edited." if item['place'] == 'stash'
+        # A whiteboard that left Now is made an image by a page first: nothing
+        # is edited in its place meanwhile.
+        raise NoSource, "❌ #{PENDING}" if board.image_pending(item['id'])
         return drawn_source(workbench, item_id) if BoardEdit.whiteboard?(item)
         unless item['artifact'] || item.dig('file', 'preview') == 'image'
           raise NoSource, '❌ That item is not an image or a whiteboard drawn on one: nothing is edited.'

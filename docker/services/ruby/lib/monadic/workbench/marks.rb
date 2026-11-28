@@ -23,6 +23,8 @@ module Monadic
       # shown go first).
       OPS_LIMIT = 400
       SHAPES = %w[rect ellipse].freeze
+      # The operations of marks (the others are of drawings).
+      MARK_KINDS = %w[add change use].freeze
       ID = /\Am_[a-z0-9]{6,32}\z/
 
       module_function
@@ -48,7 +50,20 @@ module Monadic
       # and the erasures it carried ({ origin, version, targets: [[id, rev]] }).
       # A new mark past SHOWN_LIMIT is not recorded. Returns how many marks
       # were recorded.
-      def record!(data, request_id, sent: [], erased: [])
+      def record!(data, request_id, sent: [], erased: [], drawn: [], drawing_erased: [])
+        # What the message drew (each { origin, version, digest }), and the
+        # drawings it erased (each { origin, version, digests }: those the
+        # user saw).
+        Array(drawn).each do |draw|
+          ops_for!(data, draw[:origin], draw[:version]) << { 'kind' => 'draw', 'request_id' => request_id, 'digest' => draw[:digest] }
+        end
+        Array(drawing_erased).each do |erase|
+          digests = Array(erase[:digests]).grep(String)
+          next if digests.empty?
+
+          ops_for!(data, erase[:origin], erase[:version]) << { 'kind' => 'erase_drawing', 'request_id' => request_id,
+                                                                'digests' => digests }
+        end
         Array(erased).each do |erase|
           ops = ops_for!(data, erase[:origin], erase[:version])
           targets = Array(erase[:targets]).select { |pair| pair.is_a?(Array) && pair.size == 2 }
@@ -108,6 +123,17 @@ module Monadic
         { 'new' => new, 'earlier' => shown.size - new }
       end
 
+      # The drawings shown on version of origin: the digests of what each
+      # message drew, in order, those erased left out.
+      def drawn(data, origin, version)
+        ops_of(data, origin, version).each_with_object([]) do |op, shown|
+          case op['kind']
+          when 'draw' then shown << op['digest'] unless shown.include?(op['digest'])
+          when 'erase_drawing' then shown.reject! { |digest| op['digests'].include?(digest) }
+          end
+        end
+      end
+
       # The shown marks the operations give, by id.
       def replay(ops)
         ops.each_with_object({}) do |op, now|
@@ -135,7 +161,10 @@ module Monadic
         return if ops.size <= OPS_LIMIT
 
         live = replay(ops).keys
-        ops.reject!.with_index { |op, i| i < ops.size - OPS_LIMIT && !live.include?(op['id']) && op['kind'] != 'erase' }
+        # What was drawn and its erasures are kept: only marks' operations go.
+        ops.reject!.with_index do |op, i|
+          i < ops.size - OPS_LIMIT && MARK_KINDS.include?(op['kind']) && !live.include?(op['id'])
+        end
       end
     end
   end

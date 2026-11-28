@@ -58,6 +58,8 @@
   const MARKER_WIDTH = 3;
   const MARKER_ALPHA = 0.35;
   const GRID = 40;
+  // How light an earlier turn's drawing is under this turn's.
+  const EARLIER_ALPHA = 0.45;
   // How near a grid line (on screen, in pixels) a point is drawn to it.
   const SNAP_PX = 8;
   // The margin around a chosen shape, and the size of its handles.
@@ -119,8 +121,13 @@
   // The sheet of data: a board drawn on a picture (version 2) takes the
   // width and height the server gave it, and the picture's sha256 tells
   // which picture it is; any other board is the plain sheet.
-  function sheetOf(data) {
+  function sheetOf(data, overlay) {
     const side = (v) => Number.isInteger(v) && v >= 1 && v <= LONG_SIDE;
+    // Drawn over an image: the image's proportions (overlayFrame), no sheet
+    // of its own.
+    if (overlay && side(overlay.width) && side(overlay.height)) {
+      return { version: 'overlay', width: overlay.width, height: overlay.height, picture: null };
+    }
     const picture = data && data.background && typeof data.background === 'object' ? data.background : null;
     if (data && data.version === 2 && picture && typeof picture.sha256 === 'string' && side(data.width) &&
         side(data.height)) {
@@ -130,9 +137,17 @@
   }
 
   // The board taken from data as far as it is one (the server keeps it so).
-  function boardOf(data) {
+  function boardOf(data, overlay) {
     const shapes = data && Array.isArray(data.shapes) ? data.shapes.filter((s) => s && typeof s === 'object' && s.id) : [];
-    return Object.assign(sheetOf(data), { shapes: shapes.map((s) => Object.assign({}, s)) });
+    return Object.assign(sheetOf(data, overlay), { shapes: shapes.map((s) => Object.assign({}, s)) });
+  }
+
+  // The sheet drawn over an image of width × height pixels: its longer side
+  // LONG_SIDE, the other as the image has it (Workbench::Whiteboard.frame_of).
+  function overlayFrame(width, height) {
+    const long = Math.max(width, height);
+    if (!(long > 0)) return null;
+    return { width: Math.max(1, Math.round(width * LONG_SIDE / long)), height: Math.max(1, Math.round(height * LONG_SIDE / long)) };
   }
 
   // ---- where a shape is -----------------------------------------------
@@ -504,6 +519,17 @@
     context.fillRect(0, 0, width, height);
     context.scale(scale, scale);
     if (picture) context.drawImage(picture, 0, 0, board.width, board.height);
+    context.restore();
+    paintShapes(board, context, width, height);
+  }
+
+  // Paints the board's shapes alone (nothing under them) on a canvas
+  // context of width × height, as they are shown; alpha makes them all
+  // lighter (an earlier turn's, under this turn's).
+  function paintShapes(board, context, width, height, alpha = 1) {
+    const scale = Math.min(width / board.width, height / board.height);
+    context.save();
+    context.scale(scale, scale);
     context.lineCap = 'round';
     context.lineJoin = 'round';
     const shapes = byId(board.shapes);
@@ -514,7 +540,7 @@
       context.strokeStyle = stroke;
       context.fillStyle = stroke;
       context.lineWidth = lineWidth;
-      context.globalAlpha = shape.type === 'marker' ? MARKER_ALPHA : 1;
+      context.globalAlpha = (shape.type === 'marker' ? MARKER_ALPHA : 1) * alpha;
       context.beginPath();
       switch (shape.type) {
         case 'pen':
@@ -667,11 +693,14 @@
     try { return window.localStorage.getItem(GRID_KEY) === '1'; } catch (_) { return false; }
   }
 
-  function show(box, data, { onChange, name, save, loadPicture, frozen = false, frozenNote } = {}) {
-    let board = boardOf(data);
+  function show(box, data, { onChange, name, save, loadPicture, frozen = false, frozenNote, overlay = null } = {}) {
+    // Over an image (overlay { width, height, earlier }): the image's
+    // proportions, a clear sheet, and the shapes earlier turns drew under
+    // this turn's, lighter and never chosen.
+    let board = boardOf(data, overlay);
     const past = [];
     const future = [];
-    const state = { zoom: 1, tool: 'pen', color: 'black', stroke: STROKES[1], size: SIZES[1], fill: 'none', grid: gridKept(),
+    const state = { zoom: 1, tool: 'pen', color: 'black', stroke: STROKES[1], size: SIZES[1], fill: 'none', grid: overlay ? false : gridKept(),
       disposed: false };
     const tips = [];
 
@@ -809,6 +838,11 @@
       const note = element('span', 'workbench-whiteboard-frozen-note text-secondary',
         frozenNote || t('ui.workbench.wbFrozenNote', 'Kept as it was when it left Now.'));
       bar.append(group(t('ui.workbench.wb_view', 'View'), zoomOut, zoomLevel, zoomIn, grid), note);
+    } else if (overlay) {
+      // Over an image: the view follows the image's (no zoom or grid).
+      bar.append(group(t('ui.workbench.wb_tools', 'Tools'), ...toolButtons),
+        group(t('ui.workbench.wb_style', 'Color, size and fill'), colorPicker.wrap, strokePicker.wrap, fillPicker.wrap),
+        group(t('ui.workbench.wb_history', 'Undo and redo'), undo, redo, clear));
     } else {
       bar.append(group(t('ui.workbench.wb_tools', 'Tools'), ...toolButtons),
         group(t('ui.workbench.wb_style', 'Color, size and fill'), colorPicker.wrap, strokePicker.wrap, fillPicker.wrap),
@@ -827,7 +861,14 @@
     const preview = svg('g', { class: 'workbench-whiteboard-preview' });
     const chrome = svg('g', { class: 'workbench-whiteboard-chrome' });
     canvas.setAttribute('tabindex', '0');
-    canvas.append(pictureLayer, gridLayer, layer, preview, chrome);
+    const earlierLayer = svg('g', { class: 'workbench-whiteboard-earlier', 'pointer-events': 'none', opacity: String(EARLIER_ALPHA) });
+    canvas.append(pictureLayer, gridLayer, earlierLayer, layer, preview, chrome);
+    if (overlay) {
+      sheet.classList.add('is-overlay');
+      const earlier = Array.isArray(overlay.earlier) ? overlay.earlier.filter((s) => s && typeof s === 'object' && s.id) : [];
+      const earlierById = byId(earlier);
+      earlierLayer.replaceChildren(...earlier.map((s) => shapeElement(s, earlierById, board.height)).filter(Boolean));
+    }
     // Says while the picture under the board is being had, or that it
     // could not be.
     const pictureNote = element('div', 'workbench-whiteboard-picture-note');
@@ -1400,7 +1441,7 @@
         shapes: board.shapes.map((s) => Object.assign({}, s)) }),
       load: (next) => {
         const was = `${board.version}|${board.picture}`;
-        board = boardOf(next);
+        board = boardOf(next, overlay);
         selected = null;
         past.length = 0;
         future.length = 0;
@@ -1432,6 +1473,12 @@
     return handle;
   }
 
-  window.WorkbenchWhiteboard = { show: show, svgText: svgText, pdfOf: pdfOf, route: route, textSize: textSize, WIDTH: WIDTH, HEIGHT: HEIGHT, COLORS: COLORS };
+  window.WorkbenchWhiteboard = {
+    show: show, svgText: svgText, pdfOf: pdfOf, route: route, textSize: textSize, WIDTH: WIDTH, HEIGHT: HEIGHT, COLORS: COLORS,
+    // Drawing over an image: its sheet, and its shapes painted alone.
+    overlayFrame: overlayFrame, EARLIER_ALPHA: EARLIER_ALPHA,
+    paintShapes: (data, context, width, height, alpha) => paintShapes(boardOf(data, { width: data.width, height: data.height }),
+      context, width, height, alpha)
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = window.WorkbenchWhiteboard;
 })(typeof window !== 'undefined' ? window : globalThis);

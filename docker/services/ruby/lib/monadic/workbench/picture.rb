@@ -3,7 +3,10 @@
 require 'base64'
 require 'fileutils'
 require 'securerandom'
+require 'json'
 require_relative 'pointing'
+require_relative 'whiteboard'
+require_relative 'whiteboard_background'
 require_relative 'store'
 require_relative '../utils/privacy/outbound'
 
@@ -61,6 +64,11 @@ module Monadic
                           '%<shape>s to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
       # Marks on one picture at most.
       MARKS_LIMIT = 8
+      # An image the user drew on, with no mark, and the words added when it
+      # has marks too.
+      NOTE_DRAWN_IMAGE = 'Work screen picture %<n>d attached to this message is the image%<named>s (work screen item %<item>s). ' \
+                         'The user drew on it (lines, arrows, shapes and text, as drawn) to show you what they mean.'
+      NOTE_DRAWN_TOO = 'The user also drew on it (lines, arrows, shapes and text, as drawn).'
       NOTE_SEVERAL = 'Work screen picture %<n>d attached to this message is the part of page %<page>d of the PDF%<named>s ' \
                      '(work screen item %<item>s) the user had in view when marking it. The user marked %<count>d parts of it, ' \
                      'each translucent and numbered on the picture: %<marks>s (as fractions of the picture).'
@@ -78,7 +86,7 @@ module Monadic
       Refused = Pointing::Refused
 
       attr_reader :id, :chat_id, :request_id, :item_id, :version, :kind, :page, :pages, :mark, :bytes,
-                  :name, :mark_id, :mark_rev, :position, :rect, :mark_list
+                  :name, :mark_id, :mark_rev, :position, :rect, :mark_list, :drawing
 
       class << self
         # The picture the page sent with a message (data), checked against
@@ -136,14 +144,17 @@ module Monadic
             raise Refused, 'twice' if taken[[item[:id], page]]
 
             taken[[item[:id], page]] = true
-            # The marks on it, numbered as drawn (marks), or the one mark of a
-            # page from before (mark, mark_id, mark_rev, rect).
-            marks = marks_of(data)
-            first = marks.first
+            # What the user drew on an image (checked against it), and the
+            # marks on it, numbered as drawn (marks), or the one mark of a
+            # page from before (mark, mark_id, mark_rev, rect). A drawing
+            # may go with no mark.
+            drawing = drawing_of(data, kind, board, item, words)
+            marks = drawing && data['marks'] == [] ? [] : marks_of(data)
+            first = marks.first || {}
             new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
                 version: item[:version], kind: kind, page: page, pages: pages, mark: first['mark'], bytes: png_of(data['image']),
                 name: name_for(item, words), mark_id: first['id'], mark_rev: first['rev'], position: index + 1,
-                rect: first['rect'], marks: marks)
+                rect: first['rect'], marks: marks, drawing: drawing)
           end
         end
 
@@ -173,6 +184,8 @@ module Monadic
 
           marked = if value['unmarked'] == true
                      { 'unmarked' => true }
+                   elsif value['drawn'] == true && !value.key?('mark')
+                     {}
                    else
                      mark = Pointing.mark_of(value['mark']) or return nil
                      { 'mark' => mark }
@@ -180,6 +193,7 @@ module Monadic
           return nil unless value['item_id'].is_a?(String) && value['version'].is_a?(String)
 
           out = { 'id' => value['id'], 'item_id' => value['item_id'][0, 64], 'version' => value['version'][0, 128] }
+          out['drawn'] = true if value['drawn'] == true
           out['sha256'] = value['sha256'] if value['sha256'].is_a?(String) && value['sha256'].match?(/\A\h{64}\z/)
           if value['mark_id'].is_a?(String) && value['mark_id'].match?(MARK_ID) &&
              value['mark_rev'].is_a?(Integer) && value['mark_rev'].between?(0, REV_LIMIT)
@@ -272,6 +286,32 @@ module Monadic
         # space as a space, cut at a word's end; nil when the whole name holds
         # a word the chat hides (the picture is then named by its item only,
         # as the observation leaves such a name out).
+        # The shapes the user drew on an image item (data['drawing']['shapes']),
+        # as a board drawn on that image keeps them (Whiteboard.clean, the
+        # sheet from the image's own size), or nil when none was sent.
+        # Refused: 'bad_drawing' for none that is one, or not on an image;
+        # 'hides_words' when a text of it holds a word the chat hides, or
+        # the words are not known.
+        def drawing_of(data, kind, board, item, words)
+          return nil unless data.key?('drawing')
+
+          given = data['drawing']
+          raise Refused, 'bad_drawing' unless kind == 'image' && given.is_a?(Hash) && given['shapes'].is_a?(Array) && !given['shapes'].empty?
+          raise Refused, 'bad_drawing' if JSON.generate(given['shapes']).bytesize > Whiteboard::BYTES_LIMIT
+
+          record = WhiteboardBackground.record_for(WhiteboardBackground.bytes_of(board, item[:id], item[:version]))
+          shapes = Whiteboard.clean({ 'version' => 2, 'shapes' => given['shapes'] }, background: record)['shapes']
+          raise Refused, 'bad_drawing' if shapes.empty?
+
+          texts = shapes.filter_map { |shape| shape['text'] if shape['text'].is_a?(String) && !shape['text'].empty? }
+          leaks = ->(text) { Monadic::Utils::Privacy::Outbound.leaks_word?(text, words) }
+          raise Refused, 'hides_words' if !texts.empty? && (words.nil? || (!words.empty? && texts.any?(&leaks)))
+
+          shapes
+        rescue Whiteboard::Refused, WhiteboardBackground::Refused
+          raise Refused, 'bad_drawing'
+        end
+
         # An image made of a whiteboard whose texts hold a word the chat hides
         # (or whose words are not known) is not taken: 'hides_words'.
         def board_words!(chat_id, item_id, words)
@@ -308,7 +348,7 @@ module Monadic
       end
 
       def initialize(id:, chat_id:, request_id:, item_id:, version:, page:, pages:, mark:, bytes:, kind: 'pdf',
-                     name: nil, mark_id: nil, mark_rev: nil, position: 1, rect: nil, marks: nil)
+                     name: nil, mark_id: nil, mark_rev: nil, position: 1, rect: nil, marks: nil, drawing: nil)
         @id = id
         @chat_id = chat_id
         @request_id = request_id
@@ -325,6 +365,8 @@ module Monadic
         @position = position
         @rect = rect&.freeze
         @mark_list = (marks || (mark_id ? [{ 'id' => mark_id, 'rev' => mark_rev, 'mark' => mark, 'rect' => rect }] : [])).freeze
+        # The shapes the user drew on the image with this message, or nil.
+        @drawing = drawing&.freeze
         freeze
       end
 
@@ -352,7 +394,11 @@ module Monadic
           out['mark_id'] = mark_id
           out['mark_rev'] = mark_rev
         end
-        marked = mark ? { 'mark' => mark.dup } : { 'unmarked' => true }
+        out['drawn'] = true if drawing
+        marked = if mark then { 'mark' => mark.dup }
+                 elsif drawing then {}
+                 else { 'unmarked' => true }
+                 end
         return out.merge('kind' => 'image').merge(marked) if kind == 'image'
 
         out.merge('page' => page, 'pages' => pages).merge(marked)
@@ -364,8 +410,16 @@ module Monadic
           'data' => "data:image/png;base64,#{Base64.strict_encode64(bytes)}", 'workbench_picture' => true }
       end
 
-      # What the model is told with it.
+      # What the model is told with it: its marks, and that the user drew on
+      # it (the drawing is read in the picture).
       def note
+        return marks_note unless drawing
+        return "#{marks_note} #{NOTE_DRAWN_TOO}" if mark
+
+        format(NOTE_DRAWN_IMAGE, n: position, named: name ? %( "#{name}") : '', item: item_id)
+      end
+
+      def marks_note
         return format(kind == 'image' ? NOTE_IMAGE_PLAIN : NOTE_PLAIN, page: page) unless mark
 
         if mark_id

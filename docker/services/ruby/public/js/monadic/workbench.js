@@ -563,7 +563,7 @@
     if (movable && place !== 'stash') {
       add(t('ui.workbench.stash', 'Put away'), 'fa-box-archive', () => act(item, 'stash'), { disabled: busy });
     }
-    const kept = earlierMarksOf(item).length;
+    const kept = earlierMarksOf(item).length + (earlierDrawingOf(item).length > 0 ? item.drawing.digests.length : 0);
     if (movable && kept > 0 && ['current', 'latest'].includes(place)) {
       add(t('ui.workbench.eraseMarks', 'Erase marks ({n})').replace('{n}', String(kept)), 'fa-eraser', () => eraseMarks(item),
         { disabled: busy });
@@ -580,7 +580,7 @@
     }
     // An image can be drawn on: a whiteboard with it laid under.
     if (ok && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
-      add(t('ui.workbench.wb_drawOn', 'Draw on it'), 'fa-pen', () => newWhiteboard(item), { disabled: busy });
+      add(t('ui.workbench.wb_drawOn', 'Draw on it'), 'fa-pen', () => drawOn(item), { disabled: busy });
     }
     // A whiteboard shown here is also written out as a picture.
     if (ok && isWhiteboard(item) && drawnBody && drawnBody.key === drawKey(item) && drawnBody.whiteboard) {
@@ -1113,11 +1113,7 @@
     if (!drawn) {
       const made = !!data && whiteboardNews.delete(data.request);
       if (made && data.status === 'saved' && data.item_id) showOwn(data.item_id);
-      const onImage = !!data && drawOnRequests.delete(data.request);
-      if (data && data.status === 'refused') {
-        if (onImage) drawOnRefused(data.reason);
-        else whiteboardRefused(data.reason);
-      }
+      if (data && data.status === 'refused') whiteboardRefused(data.reason);
       return;
     }
     whiteboardSaves.delete(data.request);
@@ -1203,16 +1199,6 @@
   function onWhiteboardImage(data) {
     if (!data || data.status === 'made' || data.status === 'done') return;
     painting.delete(`${data.item_id}:${data.version}`);
-  }
-
-  // An image could not be drawn on: it changed since it was shown (open
-  // it again, as it is now), or it is not one that can be.
-  function drawOnRefused(reason) {
-    if (typeof window.setAlert !== 'function') return;
-    const text = /changed/.test(String(reason || ''))
-      ? t('ui.workbench.wb_drawOnChanged', 'The image changed since it was shown; open it again to draw on it.')
-      : t('ui.workbench.wb_drawOnRefused', 'This image could not be drawn on.');
-    window.setAlert(text, 'warning');
   }
 
   function whiteboardRefused(reason) {
@@ -1360,14 +1346,22 @@
     warn(reason ? t(reason[0], reason[1]) : t('ui.workbench.toLibraryFailed', 'The document could not be kept in the Library.'));
   }
 
-  // The new whiteboards asked for on an image, by request number (a
-  // refusal of one says the image could not be drawn on).
-  const drawOnRequests = new Set();
-
   // A new whiteboard for this chat (the server makes it and shows it in
   // this tab): plain, or on image (an item of the work screen, as the
   // version shown).
-  function newWhiteboard(image) {
+  // Draw on an image: it is chosen and its Draw is turned on (only in Now
+  // or Latest, where it can be marked).
+  function drawOn(item) {
+    if (!['current', 'latest'].includes(placeOf(item))) {
+      warn(t('ui.workbench.beforeNoMarks', 'Bring it into Now to mark it.'));
+      return;
+    }
+    select(item.id);
+    const drawn = drawnBody && drawnBody.itemId === item.id ? drawnBody : others.get(item.id);
+    if (drawn && drawn.image && typeof drawn.image.startDrawing === 'function') drawn.image.startDrawing();
+  }
+
+  function newWhiteboard() {
     if (typeof window.safeWsSend !== 'function') return;
     if (locked()) {
       warn(lockText());
@@ -1376,10 +1370,6 @@
     whiteboardRequest += 1;
     const message = { message: 'WORKBENCH_WHITEBOARD_NEW', request: whiteboardRequest };
     whiteboardNews.add(whiteboardRequest);
-    if (image && image.id) {
-      drawOnRequests.add(whiteboardRequest);
-      Object.assign(message, { item_id: image.id, version: image.sha256 });
-    }
     window.safeWsSend(message);
   }
 
@@ -1474,12 +1464,14 @@
     // Dragging over the image draws a mark, not the browser's drag of it.
     img.draggable = false;
     const pointing = window.WorkbenchPointer.attach({ surface: frame, where: () => 1, changed: () => markChanged(drawn) });
-    pointing.setPointable(drawn.markable !== false);
     const bar = element('div', 'workbench-image-bar');
     bar.append(pointing.controls);
+    const sketching = sketchOn(frame, bar, img, drawn, pointing);
+    pointing.setPointable(drawn.markable !== false);
+    sketching.setDrawable(drawn.markable !== false);
     box.tabIndex = 0;
     box.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && pointing.escape()) e.preventDefault();
+      if (e.key === 'Escape' && (pointing.escape() || sketching.escape())) e.preventDefault();
     });
     box.append(bar, frame);
     drawn.image = {
@@ -1487,12 +1479,111 @@
       pointer: () => pointing.pointer(),
       marks: () => pointing.marks().map(({ at, ...rest }) => Object.assign({ page: at }, rest)),
       pointerSeq: () => pointing.pointerSeq(),
-      clear: () => pointing.clear(),
+      clear: () => { pointing.clear(); sketching.clear(); },
       dropMarks: (ids) => pointing.drop(ids),
-      setPointable: (flag) => pointing.setPointable(flag),
-      dispose: () => pointing.dispose()
+      setPointable: (flag) => { pointing.setPointable(flag); sketching.setDrawable(flag); },
+      startDrawing: () => sketching.start(),
+      refreshDrawing: () => sketching.refresh(),
+      dispose: () => { pointing.dispose(); sketching.dispose(); }
     };
     return box;
+  }
+
+  // Drawing on an image (this turn's shapes, over the earlier turns' drawn
+  // lighter): a clear layer over the image with the whiteboard's tools
+  // (WorkbenchWhiteboard's overlay), shown while there is anything drawn;
+  // its tools in the image's bar while Draw is on. Pointing and drawing are
+  // not on at once. What is drawn is kept on drawn (drawn.drawing, by the
+  // item), and makes the item's picture as a mark does.
+  function sketchOn(frame, bar, img, drawn, pointing) {
+    const parts = window.WorkbenchPointer;
+    if (!parts || typeof parts.control !== 'function' || typeof parts.group !== 'function' || !window.WorkbenchWhiteboard) {
+      const none = () => false;
+      return { start: none, refresh: none, escape: none, setDrawable: none, clear: none, dispose: none };
+    }
+    const button = window.WorkbenchPointer.control('workbench-draw-toggle', t('ui.workbench.wb_drawOn', 'Draw on it'), 'fa-solid fa-pen');
+    button.setAttribute('aria-pressed', 'false');
+    const controls = window.WorkbenchPointer.group(t('ui.workbench.wb_drawOn', 'Draw on it'), button);
+    controls.classList.add('workbench-draw-controls');
+    bar.appendChild(controls);
+    const layer = element('div', 'workbench-image-draw');
+    frame.appendChild(layer);
+    let sketch = null;
+    let tools = null;
+    let drawing = false;
+    let drawable = false;
+
+    const earlier = () => earlierDrawingOf(itemById(drawn.itemId));
+    const draft = () => (drawn.drawing && Array.isArray(drawn.drawing.shapes) ? drawn.drawing.shapes : []);
+
+    // Drawn again (the image is had, its earlier drawing as the view has
+    // it); none while there is nothing to show and Draw is off.
+    function refresh() {
+      if (sketch) {
+        sketch.dispose();
+        sketch = null;
+      }
+      if (tools) tools.remove();
+      tools = null;
+      layer.replaceChildren();
+      if (!window.WorkbenchWhiteboard || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return;
+      if (!drawing && earlier().length === 0 && draft().length === 0) return;
+      const size = window.WorkbenchWhiteboard.overlayFrame(img.naturalWidth, img.naturalHeight);
+      sketch = window.WorkbenchWhiteboard.show(layer, { shapes: draft() }, {
+        overlay: Object.assign({ earlier: earlier() }, size),
+        onChange: (data) => {
+          // Each change a number of its own, never given again on this item
+          // (what was sent is known by it).
+          drawn.drawingSeq = (drawn.drawingSeq || 0) + 1;
+          drawn.drawing = { shapes: data.shapes, rev: drawn.drawingSeq };
+          markChanged(drawn);
+        }
+      });
+      tools = layer.querySelector('.workbench-whiteboard-bar');
+      if (tools) {
+        tools.classList.add('workbench-image-draw-tools');
+        tools.hidden = !drawing;
+        bar.appendChild(tools);
+      }
+      layer.classList.toggle('is-drawing', drawing);
+    }
+
+    function setDrawing(on) {
+      drawing = !!on && drawable;
+      button.setAttribute('aria-pressed', drawing ? 'true' : 'false');
+      button.classList.toggle('active', drawing);
+      if (drawing && typeof pointing.escape === 'function') pointing.escape();
+      if (pointing.controls) pointing.controls.classList.toggle('is-off', drawing);
+      refresh();
+    }
+
+    button.addEventListener('click', () => setDrawing(!drawing));
+    if (img.complete && img.naturalWidth > 0) refresh();
+    else img.addEventListener('load', refresh, { once: true });
+
+    return {
+      start: () => setDrawing(true),
+      refresh: refresh,
+      escape: () => {
+        if (!drawing) return false;
+        setDrawing(false);
+        return true;
+      },
+      setDrawable: (flag) => {
+        drawable = !!flag;
+        controls.hidden = !drawable;
+        if (!drawable && drawing) setDrawing(false);
+      },
+      clear: () => {
+        drawn.drawing = null;
+        setDrawing(false);
+      },
+      dispose: () => {
+        if (sketch) sketch.dispose();
+        sketch = null;
+        if (tools) tools.remove();
+      }
+    };
   }
 
   // Gets the item's address for box: onBody(response) draws what came. A
@@ -2379,11 +2470,35 @@
   const erasures = new Map();
 
   function earlierMarksOf(item) {
-    if (!item || !Array.isArray(item.marks)) return [];
-    const erased = erasures.get(item.id);
-    const version = item.version || item.sha256 || '';
-    if (erased && erased.version === version) return [];
+    if (!item || !Array.isArray(item.marks) || erasedNow(item)) return [];
     return item.marks.filter((m) => m && m.rect);
+  }
+
+  // What earlier messages drew on the item, as the view has it (none once
+  // erased here, before it is sent).
+  function earlierDrawingOf(item) {
+    if (!item || !item.drawing || !Array.isArray(item.drawing.shapes) || erasedNow(item)) return [];
+    return item.drawing.shapes;
+  }
+
+  function erasedNow(item) {
+    const erased = erasures.get(item.id);
+    return !!erased && erased.version === (item.version || item.sha256 || '');
+  }
+
+  // What was drawn that the view now shows as sent (its shapes among the
+  // earlier ones) leaves this turn's drawing; the drawing over the image is
+  // drawn again when what was sent before changes.
+  function keepDrawingAsSent(drawn, item) {
+    const earlier = earlierDrawingOf(item);
+    const kept = new Set(earlier.map((shape) => shape && shape.id));
+    const draft = draftOf(drawn);
+    const left = draft.filter((shape) => !kept.has(shape.id));
+    const shown = JSON.stringify(item && item.drawing ? item.drawing.digests || [] : []) + (erasedNow(item || {}) ? '|erased' : '');
+    if (left.length === draft.length && drawn.drawingShown === shown) return;
+    drawn.drawingShown = shown;
+    drawn.drawing = left.length > 0 ? { shapes: left, rev: (drawn.drawing && drawn.drawing.rev) || 0 } : null;
+    if (typeof drawn.image.refreshDrawing === 'function') drawn.image.refreshDrawing();
   }
 
   function drawEarlierMarks(drawn) {
@@ -2403,6 +2518,7 @@
     const handle = drawn.image || drawn.pdf;
     const sent = item && Array.isArray(item.marks) ? item.marks.map((m) => m && m.id).filter(Boolean) : [];
     if (sent.length > 0 && handle && typeof handle.dropMarks === 'function') handle.dropMarks(sent);
+    if (drawn.image) keepDrawingAsSent(drawn, item);
     let layer = surface.querySelector(':scope > .workbench-marks-earlier');
     // Nothing to draw and nothing drawn: nothing is made.
     if (!layer && earlierMarksOf(item).length === 0) return;
@@ -2430,7 +2546,9 @@
     }
     const version = item.version || item.sha256 || '';
     const targets = (Array.isArray(item.marks) ? item.marks : []).map((m) => [m.id, m.rev]);
-    if (targets.length > 0) erasures.set(item.id, { version: version, targets: targets });
+    // What was drawn on it, by the drawings shown here.
+    const drawings = item.drawing && Array.isArray(item.drawing.digests) ? item.drawing.digests.slice() : [];
+    if (targets.length > 0 || drawings.length > 0) erasures.set(item.id, { version: version, targets: targets, drawings: drawings });
     const drawn = drawnBody && drawnBody.itemId === item.id ? drawnBody : others.get(item.id);
     const handle = drawn && (drawn.image || drawn.pdf);
     if (handle && typeof handle.clear === 'function') handle.clear();
@@ -2445,7 +2563,7 @@
     erasures.forEach((erase, itemId) => {
       const item = itemById(itemId);
       if (item && (item.version || item.sha256 || '') === erase.version && ['current', 'latest'].includes(placeOf(item))) {
-        data.push({ item_id: itemId, version: erase.version, targets: erase.targets });
+        data.push({ item_id: itemId, version: erase.version, targets: erase.targets, drawings: erase.drawings || [] });
       }
     });
     if (data.length === 0) return null;
@@ -2482,20 +2600,24 @@
     const item = itemById(drawn.itemId);
     const handle = drawn.image || drawn.pdf;
     const marks = item ? marksOf(handle) : [];
+    // What this turn drew on an image (it goes as that image's picture).
+    const shapes = item && drawn.image ? draftOf(drawn) : [];
     const pages = drawn.pictures || new Map();
     const marked = new Set(marks.map((m) => m.page || 1));
+    if (shapes.length > 0) marked.add(1);
     Array.from(pages.keys()).forEach((page) => { if (!marked.has(page)) pages.delete(page); });
     // The page shown is the one a mark changed on.
     const page = drawn.image ? 1 : (handle && typeof handle.shown === 'function' ? handle.shown().page : null);
     const onPage = marks.filter((m) => (m.page || 1) === page);
-    if (onPage.length > 0) {
+    if (onPage.length > 0 || (drawn.image && shapes.length > 0)) {
       let data = null;
       try {
-        data = drawn.image ? imageMarkPicture(item, drawn.image, onPage) : pdfMarkPicture(item, drawn.pdf, onPage);
+        data = drawn.image ? imageMarkPicture(item, drawn.image, onPage, shapes) : pdfMarkPicture(item, drawn.pdf, onPage);
       } catch (_) {
         data = null;
       }
-      pages.set(page, { marks: onPage.map((m) => ({ id: m.id, rev: m.rev })), data: data });
+      pages.set(page, { marks: onPage.map((m) => ({ id: m.id, rev: m.rev })), data: data,
+                        drawing: drawn.image && shapes.length > 0 ? `${drawn.itemId}:drawing:${drawn.drawing.rev}` : null });
     }
     drawn.pictures = pages;
     drawMarksLine();
@@ -2508,11 +2630,19 @@
       .filter(Boolean);
   }
 
-  function imageMarkPicture(item, handle, list) {
-    const part = markedImage(handle, list);
-    if (!part.image || !part.marks || part.marks.every((m) => !m)) return null;
-    return { item_id: item.id, version: item.version || item.sha256 || '', image: part.image,
-             marks: picturedMarks(list, part.marks) };
+  // The shapes this turn drew on an image (not those earlier turns sent).
+  function draftOf(drawn) {
+    return drawn && drawn.drawing && Array.isArray(drawn.drawing.shapes) ? drawn.drawing.shapes : [];
+  }
+
+  function imageMarkPicture(item, handle, list, shapes = []) {
+    const part = markedImage(handle, list, { earlier: earlierDrawingOf(item), shapes: shapes });
+    const painted = part.marks || [];
+    if (!part.image || (shapes.length === 0 && painted.every((m) => !m))) return null;
+    const data = { item_id: item.id, version: item.version || item.sha256 || '', image: part.image,
+                   marks: picturedMarks(list, painted) };
+    if (shapes.length > 0) data.drawing = { shapes: shapes };
+    return data;
   }
 
   // Where a mark is on the whole image or page (fractions), as the board keeps it.
@@ -2549,8 +2679,9 @@
       const version = item ? (item.version || item.sha256 || '') : null;
       drawn.pictures.forEach((picture, page) => {
         if (!picture.data || picture.data.version !== version) return;
-        if (picture.marks.every((m) => sentMarks.has(pictureKey(drawn.itemId, page)(m)))) return;
-        waiting.push({ itemId: drawn.itemId, page: page, marks: picture.marks, data: picture.data });
+        const drawingSent = !picture.drawing || sentMarks.has(picture.drawing);
+        if (drawingSent && picture.marks.every((m) => sentMarks.has(pictureKey(drawn.itemId, page)(m)))) return;
+        waiting.push({ itemId: drawn.itemId, page: page, marks: picture.marks, drawing: picture.drawing, data: picture.data });
       });
     });
     return waiting.sort((a, b) => (order.indexOf(a.itemId) - order.indexOf(b.itemId)) || (a.page - b.page));
@@ -2567,7 +2698,10 @@
       data: going.map((picture) => picture.data),
       left: waiting.length - going.length,
       sent: () => {
-        going.forEach((picture) => picture.marks.forEach((m) => sentMarks.add(pictureKey(picture.itemId, picture.page)(m))));
+        going.forEach((picture) => {
+          picture.marks.forEach((m) => sentMarks.add(pictureKey(picture.itemId, picture.page)(m)));
+          if (picture.drawing) sentMarks.add(picture.drawing);
+        });
         drawMarksLine();
       }
     };
@@ -3119,24 +3253,44 @@
     return out;
   }
 
-  // The whole image the tab shows, with the user's marks (one, or a list)
-  // drawn on it: what drawnPng gives, with the first mark ({ shape, color,
-  // x, y, w, h }) as mark and, for a list, each as marks.
-  function markedImage(handle, pointers) {
+  // The whole image the tab shows, with what was drawn on it (drawing:
+  // { earlier, shapes }: earlier turns' shapes lighter, then this turn's)
+  // and the user's marks (one, or a list) over them, in that order, each
+  // once: what drawnPng gives, with the first mark ({ shape, color, x, y, w,
+  // h }) as mark and, for a list, each as marks.
+  function markedImage(handle, pointers, drawing) {
     const img = handle.img;
     if (!img.complete || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return { image_note: 'drawing' };
-    const list = Array.isArray(pointers) ? pointers : [pointers];
+    const list = (Array.isArray(pointers) ? pointers : [pointers]).filter(Boolean);
     let marks = [];
     let part;
     try {
       part = drawnPng(img, 0, 0, img.naturalWidth, img.naturalHeight, (context, frame) => {
+        paintDrawing(context, frame, img, drawing);
         marks = list.map((pointer, i) => paintMark(context, pointer, frame.width, frame.height, list.length > 1 ? i + 1 : 0));
       });
     } catch (_) {
       return { image_note: 'failed' };
     }
-    if (!marks[0]) return part;
+    if (!marks[0]) return Array.isArray(pointers) ? Object.assign(part, { marks: marks }) : part;
     return Array.isArray(pointers) ? Object.assign(part, { mark: marks[0], marks: marks }) : Object.assign(part, { mark: marks[0] });
+  }
+
+  // What was drawn on an image, painted over it on a picture of frame's
+  // size: earlier turns' shapes lighter, then this turn's (the board's
+  // painter, WorkbenchWhiteboard, as the pane shows them).
+  function paintDrawing(context, frame, img, drawing) {
+    const board = window.WorkbenchWhiteboard;
+    if (!drawing || !board || typeof board.paintShapes !== 'function') return;
+    const size = board.overlayFrame(img.naturalWidth, img.naturalHeight);
+    if (!size) return;
+    const of = (shapes) => Object.assign({ shapes: shapes }, size);
+    if (Array.isArray(drawing.earlier) && drawing.earlier.length > 0) {
+      board.paintShapes(of(drawing.earlier), context, frame.width, frame.height, board.EARLIER_ALPHA);
+    }
+    if (Array.isArray(drawing.shapes) && drawing.shapes.length > 0) {
+      board.paintShapes(of(drawing.shapes), context, frame.width, frame.height);
+    }
   }
 
   // A capture of a PDF: the page in view and, as asked, the part of it in

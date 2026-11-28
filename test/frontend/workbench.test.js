@@ -1432,7 +1432,7 @@ describe('Workbench', () => {
         run('i_g', 'Erase marks (1)');
         expect(document.querySelectorAll('.workbench-section[data-item="i_g"] .workbench-mark-earlier')).toHaveLength(0);
         const erasures = window.Workbench.erasuresNow();
-        expect(erasures.data).toEqual([{ item_id: 'i_g', version: 'e'.repeat(64), targets: [['m_aaaaaa', 1]] }]);
+        expect(erasures.data).toEqual([{ item_id: 'i_g', version: 'e'.repeat(64), targets: [['m_aaaaaa', 1]], drawings: [] }]);
         erasures.sent();
         expect(window.Workbench.erasuresNow()).toBeNull();
         // Before: no longer on the present desk (its turn's card shows it).
@@ -2899,30 +2899,124 @@ describe('Workbench', () => {
   });
 
   describe('drawing on an image', () => {
-    test('offers to draw on an image made or opened, as the version shown, and on nothing else', () => {
-      view([item(), item({ id: 'i_2', kind: 'file', artifact_id: undefined, preview: 'image', path: 'photos/a.png', sha256: 'b'.repeat(64) }),
-        item({ id: 'i_3', kind: 'file', artifact_id: undefined, preview: 'text', path: 'notes.txt', sha256: 'c'.repeat(64) })],
-      { selected: 'i_1' });
+    beforeEach(() => {
+      layout.pane = 'work';
+      jest.isolateModules(() => {
+        require(js('monadic/workbench-pointer.js'));
+        require(js('monadic/workbench-whiteboard.js'));
+      });
+    });
+    afterEach(() => {
+      delete window.WorkbenchPointer;
+      delete window.WorkbenchWhiteboard;
+    });
+
+    function loaded(id) {
+      const img = document.querySelector(`.workbench-section[data-item="${id}"] .workbench-image-frame img`);
+      Object.defineProperty(img, 'complete', { value: true });
+      Object.defineProperty(img, 'naturalWidth', { value: 300 });
+      Object.defineProperty(img, 'naturalHeight', { value: 400 });
+      img.dispatchEvent(new Event('load'));
+      return img;
+    }
+
+    test('turns Draw on for an image from its menu, over the image in its proportions, and asks for no new whiteboard', () => {
+      view([item({ place: 'current' }), item({ id: 'i_3', kind: 'file', artifact_id: undefined, preview: 'text', path: 'notes.txt',
+        sha256: 'c'.repeat(64), place: 'current' })], { selected: 'i_1' });
+      loaded('i_1');
+      sent.length = 0;
       run('i_1', 'Draw on it');
-      expect(sent.at(-1).payload).toMatchObject({ message: 'WORKBENCH_WHITEBOARD_NEW', item_id: 'i_1', version: 'a'.repeat(64) });
-      window.Workbench.select('i_2');
-      run('i_2', 'Draw on it');
-      expect(sent.at(-1).payload).toMatchObject({ item_id: 'i_2', version: 'b'.repeat(64) });
+      const part = document.querySelector('.workbench-section[data-item="i_1"]');
+      expect(part.querySelector('.workbench-draw-toggle').getAttribute('aria-pressed')).toBe('true');
+      expect(part.querySelector('.workbench-image-draw .workbench-whiteboard-sheet').classList.contains('is-overlay')).toBe(true);
+      expect(part.querySelector('.workbench-image-draw svg').getAttribute('viewBox')).toBe('0 0 1200 1600');
+      // Its tools in the image's bar, the pointer's off meanwhile.
+      expect(part.querySelector('.workbench-image-bar .workbench-image-draw-tools [data-tool="pen"]')).not.toBeNull();
+      expect(part.querySelector('.workbench-pointer-controls').classList.contains('is-off')).toBe(true);
+      expect(sent.some((x) => x.payload.message === 'WORKBENCH_WHITEBOARD_NEW')).toBe(false);
+      // Pressed again: off, nothing drawn, nothing shown over the image.
+      part.querySelector('.workbench-draw-toggle').click();
+      expect(part.querySelector('.workbench-image-draw .workbench-whiteboard-sheet')).toBeNull();
       global.fetch = jest.fn(() => new Promise(() => {}));
       try {
-        window.Workbench.select('i_3');
         expect(menuEntry('i_3', 'Draw on it')).toBeNull();
       } finally {
         delete global.fetch;
       }
     });
 
-    test('says when the image changed since it was shown', () => {
-      view([item()], { selected: 'i_1' });
-      run('i_1', 'Draw on it');
-      const request = sent.at(-1).payload.request;
-      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: request, status: 'refused', reason: 'the image changed' });
-      expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed since it was shown'), 'warning');
+    test('sends a picture of the image with what was drawn, painted over the earlier drawing, once until it changes', () => {
+      const order = [];
+      const context = new Proxy({}, {
+        get: (_t, name) => (name === 'canvas' ? undefined : (...args) => { order.push(String(name)); return { width: 10 }; }),
+        set: (_t, name, value) => { if (name === 'globalAlpha' && value !== 1) order.push(`alpha:${value}`); return true; }
+      });
+      const getContext = jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => context);
+      const toDataURL = jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,UElD');
+      try {
+        const earlier = { shapes: [{ id: 'e1', type: 'rect', x: 10, y: 10, w: 100, h: 50 }] };
+        view([item({ place: 'current', drawing: earlier })], { selected: 'i_1' });
+        loaded('i_1');
+        const part = document.querySelector('.workbench-section[data-item="i_1"]');
+        part.querySelector('.workbench-draw-toggle').click();
+        const svgEl = part.querySelector('.workbench-image-draw svg');
+        svgEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 300, height: 400 });
+        const stroke = (x) => [['pointerdown', x, 10], ['pointermove', x + 40, 60], ['pointerup', x + 40, 60]].forEach(([type, a, b]) => {
+          svgEl.dispatchEvent(new MouseEvent(type, { clientX: a, clientY: b, button: 0, bubbles: true }));
+        });
+        order.length = 0;
+        stroke(10);
+        const pictures = window.Workbench.picturesNow();
+        expect(pictures.data).toHaveLength(1);
+        expect(pictures.data[0]).toMatchObject({ item_id: 'i_1', image: 'UElD', marks: [] });
+        expect(pictures.data[0].drawing.shapes.map((sh) => sh.type)).toEqual(['pen']);
+        // The image, then the earlier drawing lighter, then this turn's.
+        const firstImage = order.indexOf('drawImage');
+        const lighter = order.indexOf(`alpha:${window.WorkbenchWhiteboard.EARLIER_ALPHA}`);
+        expect(firstImage).toBeGreaterThanOrEqual(0);
+        expect(lighter).toBeGreaterThan(firstImage);
+        pictures.sent();
+        expect(window.Workbench.picturesNow()).toBeNull();
+        stroke(100);
+        expect(window.Workbench.picturesNow().data[0].drawing.shapes).toHaveLength(2);
+        // Sent, and the next view shows it among the earlier drawing: a new
+        // stroke after that goes with the next message.
+        const sentShapes = window.Workbench.picturesNow().data[0].drawing.shapes;
+        window.Workbench.picturesNow().sent();
+        const shown = item({ place: 'latest', drawing: { digests: ['d'.repeat(64)], shapes: earlier.shapes.concat(sentShapes) } });
+        view([shown], { selected: 'i_1', board: { board_id: 'b1', chat_id: 'c_1', revision: 7, items: [shown] } });
+        expect(window.Workbench.picturesNow()).toBeNull();
+        const part2 = document.querySelector('.workbench-section[data-item="i_1"]');
+        if (part2.querySelector('.workbench-draw-toggle').getAttribute('aria-pressed') !== 'true') part2.querySelector('.workbench-draw-toggle').click();
+        const svg2 = part2.querySelector('.workbench-image-draw svg');
+        svg2.getBoundingClientRect = () => ({ left: 0, top: 0, width: 300, height: 400 });
+        [['pointerdown', 200, 300], ['pointermove', 250, 350], ['pointerup', 250, 350]].forEach(([type, a, b]) => {
+          svg2.dispatchEvent(new MouseEvent(type, { clientX: a, clientY: b, button: 0, bubbles: true }));
+        });
+        expect(window.Workbench.picturesNow().data[0].drawing.shapes).toHaveLength(1);
+      } finally {
+        getContext.mockRestore();
+        toDataURL.mockRestore();
+      }
+    });
+
+    test('keeps what was drawn on the item, and shows the drawing earlier turns sent, lighter, under it', () => {
+      const earlier = { shapes: [{ id: 'e1', type: 'rect', x: 10, y: 10, w: 100, h: 50, color: 'red' }] };
+      view([item({ place: 'current', drawing: earlier })], { selected: 'i_1' });
+      loaded('i_1');
+      const part = document.querySelector('.workbench-section[data-item="i_1"]');
+      // Shown while Draw is off: the earlier drawing, no tools.
+      expect(part.querySelector('.workbench-whiteboard-earlier [data-id="e1"]')).not.toBeNull();
+      expect(part.querySelector('.workbench-image-draw-tools').hidden).toBe(true);
+      part.querySelector('.workbench-draw-toggle').click();
+      const svgEl = part.querySelector('.workbench-image-draw svg');
+      svgEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 300, height: 400 });
+      [['pointerdown', 10, 10], ['pointermove', 60, 60], ['pointerup', 60, 60]].forEach(([type, x, y]) => {
+        svgEl.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true }));
+      });
+      part.querySelector('.workbench-draw-toggle').click();
+      // Drawn again from what was kept: the stroke stays, over the earlier one.
+      expect(part.querySelectorAll('.workbench-image-draw .workbench-whiteboard-shape').length).toBeGreaterThanOrEqual(2);
     });
   });
 

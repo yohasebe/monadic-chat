@@ -5818,6 +5818,12 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-foot {
   justify-content: flex-end;
 }
+/* A Library entry's kind, before its title (library-panel.js). */
+.library-pane .library-row-kind {
+  flex: 0 0 1.5rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
 .shared-files-pane .sfp-foot:not(:has(> :not([hidden]))) {
   display: none;
 }

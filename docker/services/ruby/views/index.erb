@@ -787,20 +787,8 @@
             <section class="rounded shaded-panel pane-panel">
               <h5 class="pane-panel-head mb-0"><span class="text"><i class="fa-solid fa-book"></i> <span data-i18n="ui.sidePane.library">Library</span></span><span class="sfp-info" id="library-browse-count"></span></h5>
               <div class="pane-panel-body">
-            <div class="table-responsive">
-              <table class="table table-sm table-hover align-middle">
-                <thead>
-                  <tr>
-                    <th class="small text-secondary fw-normal text-center" style="width: 40px;" data-i18n="ui.libColType" title="Content type" data-i18n-title="ui.libColTypeTooltip">Type</th>
-                    <th class="small text-secondary fw-normal" data-i18n="ui.libColTitle">Title</th>
-                    <th class="small text-secondary fw-normal text-nowrap text-end" data-i18n="ui.libColTurns">Turns</th>
-                    <th class="small text-secondary fw-normal text-nowrap" data-i18n="ui.libColCreated">Saved</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="library-browse-tbody"></tbody>
-              </table>
-            </div>
+            <%# One row per entry, as the history lists chats (library-panel.js). %>
+            <ul id="library-browse-list" class="sfp-list mb-2" aria-label="Library" data-i18n-aria-label="ui.sidePane.library"></ul>
             <div id="library-browse-empty" class="text-center text-secondary py-4" style="display:none;" data-i18n="ui.libBrowseEmpty">No conversations match your filters.</div>
             <div class="d-flex justify-content-between align-items-center">
               <span class="small text-secondary" id="library-browse-pageinfo"></span>

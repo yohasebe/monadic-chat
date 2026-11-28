@@ -80,7 +80,7 @@ describe('library-panel module', () => {
     afterEach(() => { document.body.innerHTML = ''; });
 
     it('counts every entry the server gives, past any page', () => {
-      document.body.innerHTML = '<table><tbody id="library-browse-tbody"></tbody></table><span id="library-browse-count"></span>';
+      document.body.innerHTML = '<ul id="library-browse-list"></ul><span id="library-browse-count"></span>';
       const rows = Array.from({ length: 501 }, (_, i) => ({ conversation_id: 'C' + i, title: 'Conv ' + i,
         created_at: new Date(2026, 0, 1, 0, 0, i).toISOString() }));
       lib.handleConversations({ content: rows, total: 501 });
@@ -171,16 +171,20 @@ describe('library-panel module', () => {
     it('offers the chat a record was made from, only while that chat can be continued', () => {
       const resumed = [];
       window.HistoryPanel = { resume: (id) => resumed.push(id) };
-      document.body.innerHTML = '<table><tbody id="library-browse-tbody"></tbody></table>';
+      document.body.innerHTML = '<ul id="library-browse-list"></ul>';
       try {
         lib.handleConversations({ content: [
           { conversation_id: 'r1', title: 'Kept', source_chat_id: 'c_1', source_chat_resumable: true, created_at: new Date().toISOString() },
           { conversation_id: 'r2', title: 'Doc', created_at: new Date().toISOString() }
         ] });
-        const buttons = document.querySelectorAll('#library-browse-tbody .library-action-chat');
-        expect(buttons.length).toBe(1);
-        buttons[0].click();
+        const menus = [];
+        window.RowMenu = { open: (button, items) => menus.push(items) };
+        document.querySelectorAll('#library-browse-list .library-row-menu').forEach((b) => b.click());
+        const chat = (items) => items.find((i) => i && i.icon === 'fa-solid fa-clock-rotate-left');
+        expect(menus.map((items) => !!chat(items))).toEqual([true, false]);
+        chat(menus[0]).action();
         expect(resumed).toEqual(['c_1']);
+        delete window.RowMenu;
       } finally {
         delete window.HistoryPanel;
         document.body.innerHTML = '';
@@ -190,11 +194,11 @@ describe('library-panel module', () => {
     it('opens the entry on the work screen from its row', () => {
       const opened = [];
       window.Workbench = { openLibrary: (id) => opened.push(id) };
-      document.body.innerHTML = '<table><tbody id="library-browse-tbody"></tbody></table>';
+      document.body.innerHTML = '<ul id="library-browse-list"></ul>';
       try {
         lib.handleConversations({ content: [{ conversation_id: 'conv-9', title: 'T', turns_count: 1,
           created_at: new Date().toISOString() }] });
-        document.querySelector('#library-browse-tbody .library-action-open').click();
+        document.querySelector('#library-browse-list .library-name').click();
         expect(opened).toEqual(['conv-9']);
       } finally {
         delete window.Workbench;
@@ -202,30 +206,42 @@ describe('library-panel module', () => {
       }
     });
 
-    it('uses 2 inline icon buttons instead of a dropdown menu', () => {
+    it('lists an entry as a row: its title over what it is, and a menu of what is done with it', () => {
       const html = lib.browseRowMarkup({
         conversation_id: 'X', title: 'T', scope_app: 'ChatOpenAI',
         turns_count: 3, source: 'monadic-chat', language: 'en',
         created_at: new Date().toISOString()
       }, 0);
-      // Inline buttons: detail / delete must both be plain
-      // <button> elements wired by class — no dropdown wrapper or
-      // dropdown-menu list exists in the wide modal.
-      expect(html).not.toContain('dropdown-menu');
-      expect(html).not.toContain('data-bs-toggle="dropdown"');
-      expect(html).toMatch(/<button[^>]+class="[^"]*library-action-detail/);
-      expect(html).not.toContain('library-action-toggle');
-      expect(html).toMatch(/<button[^>]+class="[^"]*library-action-delete/);
+      expect(html).toMatch(/^<li class="sfp-row library-row"/);
+      expect(html).not.toContain('<table');
+      expect(html).toMatch(/<span class="sfp-meta">monadic-chat · en · 3 Turns · /);
+      expect(html).toMatch(/<button[^>]+class="[^"]*library-row-menu[^"]*"[^>]+aria-haspopup="menu"/);
     });
 
-    it('renders a type-icon cell as the leftmost column for forward-compat with PDF/code/etc.', () => {
+    it('offers opening, the details and deleting from the row menu', () => {
+      const items = [];
+      window.RowMenu = { open: (button, list) => items.push(...list) };
+      document.body.innerHTML = '<ul id="library-browse-list"></ul>';
+      try {
+        lib.handleConversations({ content: [{ conversation_id: 'r1', title: 'Doc', created_at: new Date().toISOString() }] });
+        document.querySelector('#library-browse-list .library-row-menu').click();
+        expect(items.filter((i) => i !== 'divider').map((i) => i.icon))
+          .toEqual(['fa-solid fa-display', 'fa-solid fa-circle-info', 'fa-regular fa-trash-can']);
+        expect(items[items.length - 1].danger).toBe(true);
+      } finally {
+        delete window.RowMenu;
+        document.body.innerHTML = '';
+      }
+    });
+
+    it('shows the entry\'s kind first in its row', () => {
       var html = lib.browseRowMarkup({
         conversation_id: 'X', title: 'T', scope_app: 'ChatOpenAI',
         turns_count: 1, content_type: 'conversation',
         created_at: new Date().toISOString()
       }, 0);
-      // Type icon is the first <td>; uses the conversation icon.
-      expect(html).toMatch(/<tr[^>]*>\s*<td[^>]*>[^<]*<i[^>]*fa-comments/);
+      // The kind is the first part of the row; a conversation's icon.
+      expect(html).toMatch(/<li[^>]*>\s*<span class="library-row-kind">[^<]*<i[^>]*fa-comments/);
       expect(html).toContain('aria-label="conversation"');
     });
 

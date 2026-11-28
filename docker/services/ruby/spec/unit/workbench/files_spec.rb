@@ -287,6 +287,26 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(board.snapshot[:items].first).not_to have_key(:marks)
     end
 
+    it "keeps each of several marks one picture sent" do
+      require_relative "../../../lib/monadic/workbench/picture"
+      write("plan.pdf", "%PDF-1.4 plan")
+      item, = open_file("plan.pdf")
+      marks = %w[m_aaaaaa m_bbbbbb].each_with_index.map do |id, i|
+        { "id" => id, "rev" => i + 1, "mark" => { "shape" => "rect", "color" => "cyan", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 },
+          "rect" => { "x" => 0.1 * (i + 1), "y" => 0.4, "w" => 0.1, "h" => 0.1 } }
+      end
+      request = Monadic::Workspace::Ids.generate(:request)
+      sent = Monadic::Workbench::Picture.new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat, request_id: request,
+                                             item_id: item["id"], version: item.dig("file", "sha256"), kind: "pdf", page: 2,
+                                             pages: 3, mark: marks.first["mark"], bytes: "png", mark_id: "m_aaaaaa",
+                                             mark_rev: 1, rect: marks.first["rect"], marks: marks)
+      board.begin_reply(request, marks: { pictures: [sent], erased: [] })
+      expect(board.snapshot[:items].first[:marks].map { |m| [m["id"], m["rev"], m["page"], m["rect"]["x"]] })
+        .to eq([["m_aaaaaa", 1, 2, 0.1], ["m_bbbbbb", 2, 2, 0.2]])
+      expect(board.mark_counts(item["id"], request)).to eq("new" => 2, "earlier" => 0)
+      board.end_reply(request)
+    end
+
     it "reads a board saved before the desk had places with every item put away" do
       write("a.txt", "a")
       item, = open_file("a.txt")

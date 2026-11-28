@@ -357,6 +357,24 @@ RSpec.describe Monadic::Workbench::Observation do
                              "count" => 2, "withheld" => 1)
     end
 
+    it "cuts a page's address to its site when its path holds a word as an address writes it" do
+      pages = ["https://example.com/Zebulon%20Quartzfield/notes", "https://example.com/wiki/Zebulon_Quartzfield",
+               "https://example.com/zebulon-quartzfield", "https://zebulon-quartzfield.example/a"]
+      items = pages.each_with_index.map { |url, i| { "id" => "i_#{i}", "kind" => "page", "name" => "Page", "url" => url } }
+      items << { "id" => "i_plain", "kind" => "page", "name" => "Page", "url" => "https://example.com/plain" }
+      data = { "work_screen" => { "items" => items, "selected" => items.first } }
+      observation = described_class.new(data, chat_id: chat, epoch: Monadic::Workspace::Chats.epoch(chat), tab: "tab-1",
+                                              generation: 1, request_id: "r_1")
+
+      text = observation.render_for(session_with(["Zebulon Quartzfield"]))
+      expect(text).not_to be_nil
+      screen = JSON.parse(text.lines[2])["work_screen"]
+      expect(screen["items"].map { |item| item["url"] })
+        .to eq(["https://example.com/", "https://example.com/", "https://example.com/", nil, "https://example.com/plain"])
+      expect(screen["selected"]["url"]).to eq("https://example.com/")
+      expect(text.downcase).not_to include("zebulon")
+    end
+
     it "sends none of it when a word would be left" do
       expect(observe.render_for(session_with(words))).to be_nil
     end

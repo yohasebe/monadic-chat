@@ -5989,9 +5989,11 @@ body.side-pane-resizing {
   overflow-y: auto;
   padding: 0 var(--spacing-md) var(--spacing-md);
 }
-.workbench-place.is-empty > .workbench-place-body,
 .workbench-place.is-folded > .workbench-place-body {
   display: none;
+}
+.workbench-place.is-empty > .workbench-place-body {
+  flex: 0 0 auto;
 }
 .workbench-place-separator {
   flex: 0 0 auto;

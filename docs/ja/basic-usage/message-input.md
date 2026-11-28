@@ -39,7 +39,7 @@
 
 ## 文書ファイルからのテキスト読み込み :id=reading-text-from-document-files
 
-文書を[作業画面](web-interface.md#work-screen)に置き（**ファイル**、または共有フォルダから開く）、その下の **入力欄へ** を押すと、表示している版のテキストがメッセージの入力欄に足されます。読み込みが可能なファイル形式はPDF、Wordファイル（`.docx`）、Excelファイル（`.xlsx`）、PowerPointファイル（`.pptx`）、さまざまなテキストファイル（`.txt`, `.md`, `.html`, etc）です。置いたファイルは会話のフォルダ（`conversations/…/inputs/`）に保存されます。読み込む間にファイルが変わったときは、何も足されません。
+文書を[作業画面](web-interface.md#work-screen)に置きます（**ファイル**、または共有フォルダから開く）。AI は、質問に必要なときにそのテキストを読みます。読み込みが可能なファイル形式はPDF、Wordファイル（`.docx`）、Excelファイル（`.xlsx`）、PowerPointファイル（`.pptx`）、さまざまなテキストファイル（`.txt`, `.md`, `.html`, etc）です。置いたファイルは会話のフォルダ（`conversations/…/inputs/`）に保存されます。
 
 ## URL を開く :id=reading-text-from-urls
 

@@ -149,16 +149,20 @@ describe('Opening a notebook in JupyterLab', () => {
     expect(asked()).toHaveLength(0);
   });
 
-  test('a notebook on the work screen has a button that opens it in JupyterLab', () => {
+  test('a notebook on the work screen opens in JupyterLab from its menu', () => {
     const item = { id: 'i_nb', kind: 'file', preview: 'text', actor: 'agent', name: 'nb.ipynb', path: 'work/nb.ipynb',
                    sha256: 'a'.repeat(64), version: 'a'.repeat(64), status: 'ok' };
     window.Workbench.onView({
       board: { board_id: 'b1', chat_id: 'c_1', revision: 1, items: [item] },
       approvals: { i_nb: 'tok' }, assets: { i_nb: '/workbench/asset/i_nb' }, selected: 'i_nb'
     });
-    const openButton = Array.from(document.querySelectorAll('#workbench-view button')).find((b) => b.textContent === 'Open in JupyterLab');
-    expect(openButton).toBeDefined();
-    openButton.click();
+    let entries = [];
+    window.RowMenu = { open: (_button, list) => { entries = list; } };
+    document.querySelector('#workbench-view [data-item="i_nb"] .workbench-item-menu').click();
+    const open = entries.find((e) => e && e.label === 'Open in JupyterLab');
+    expect(open).toBeDefined();
+    open.action();
+    delete window.RowMenu;
     expect(asked()).toEqual([expect.objectContaining({ path: 'work/nb.ipynb' })]);
   });
 });

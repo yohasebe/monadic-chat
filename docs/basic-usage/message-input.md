@@ -39,7 +39,7 @@ When you send again a message of an earlier chat that was sent with files, those
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
 
-Put the document on the [work screen](web-interface.md#work-screen) (**File**, or open it from the shared folder), then click **To input** under it: its text, of the version shown, is added to the message box. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). A file you put is kept in the chat's folder (`conversations/…/inputs/`). If the file changes while its text is taken, nothing is added.
+Put the document on the [work screen](web-interface.md#work-screen) (**File**, or open it from the shared folder). The AI reads its text when your question needs it. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc). A file you put is kept in the chat's folder (`conversations/…/inputs/`).
 
 ## Opening a URL :id=reading-text-from-urls
 

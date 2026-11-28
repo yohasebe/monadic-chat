@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative 'board'
+require_relative 'turn_records'
 require_relative 'approvals'
 require_relative 'view_tokens'
 require_relative 'artifact'
@@ -69,24 +70,71 @@ module Monadic
 
           binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: snapshot[:epoch] }
           approvals[item[:id]] = Approvals.issue(**binding, item_id: item[:id], sha256: item[:version])
-          # A file the work screen only holds is not shown: no address.
-          next if item[:status] != 'ok' || !item[:sha256] || item[:preview] == 'file'
-
-          source = %w[file library].include?(item[:kind]) ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
-          assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
-          # The picture under a whiteboard (served only for one drawn on one).
-          if item[:render] == 'whiteboard'
-            backgrounds[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
-                                                                                              purpose: :background)
-          end
-          next unless item[:render] && item[:size].to_i <= Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
-
-          renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
-                                                                                         purpose: :render)
+          addresses!(item, binding, assets: assets, renders: renders, backgrounds: backgrounds)
         end
         { 'type' => 'workbench', 'board' => snapshot, 'approvals' => approvals, 'assets' => assets,
           'renders' => renders, 'backgrounds' => backgrounds, 'selected' => selected, 'selection_serial' => serial, 'selection_quiet' => quiet || nil,
           'initial' => initial, 'notes' => Monadic::TurnState::Keeper.status(chat_id) }.compact
+      end
+
+      # The addresses the page shows item (a board's, as the snapshot gives
+      # it) from, for binding: its asset, its whole text to render, and the
+      # picture under a whiteboard. None for a file the work screen only
+      # holds, or one that cannot be shown.
+      def addresses!(item, binding, assets:, renders:, backgrounds:)
+        return if item[:status] != 'ok' || !item[:sha256] || item[:preview] == 'file'
+
+        source = %w[file library].include?(item[:kind]) ? { item_id: item[:id] } : { artifact_id: item[:artifact_id] }
+        assets[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256])
+        # The picture under a whiteboard (served only for one drawn on one).
+        if item[:render] == 'whiteboard'
+          backgrounds[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
+                                                                                            purpose: :background)
+        end
+        return unless item[:render] && item[:size].to_i <= Monadic::Workspace::SharedFolderPreview::RENDER_LIMIT
+
+        renders[item[:id]] = AssetServer::PREFIX + ViewTokens.issue(**binding, **source, sha256: item[:sha256],
+                                                                                       purpose: :render)
+      end
+
+      # The work screen as the turn of the message mid left it (TurnRecords),
+      # for this tab: 'status' ok, none (no record was kept for the turn) or
+      # not_found (no such message); 'by' (user or agent); 'items' as the
+      # turn had them, each with 'now': same (on the board at that version),
+      # changed or gone; and addresses for the items still the same (served
+      # as they are now, which is how they were). A view only: nothing is
+      # selected or approved.
+      def turn_view(session, mid:, tab:, generation:, live:)
+        return nil unless live.call(tab) == generation
+
+        chat_id = chat_id_of(session) or return nil
+        out = { 'type' => 'workbench_turn_view', 'mid' => mid }
+        message = Array(session[:messages]).find { |m| m.is_a?(Hash) && m['mid'] == mid }
+        return out.merge('status' => 'not_found') unless message
+
+        request_id, by = message['role'] == 'user' ? [message['request_id'], 'user'] : [message['reply_to'], 'agent']
+        record = request_id && TurnRecords.read(chat_id, request_id, by)
+        return out.merge('status' => 'none', 'by' => by) unless record
+
+        board = Board.existing(chat_id)
+        now = board ? board.snapshot[:items].to_h { |item| [item[:id], item] } : {}
+        binding = { tab: tab, generation: generation, chat_id: chat_id, epoch: Monadic::Workspace::Chats.epoch(chat_id) }
+        assets = {}
+        renders = {}
+        backgrounds = {}
+        items = Array(record['items']).filter_map do |item|
+          next unless item.is_a?(Hash)
+
+          current = now[item['id']]
+          state = if current.nil? then 'gone'
+                  elsif current[:version] == item['version'] then 'same'
+                  else 'changed'
+                  end
+          addresses!(current, binding, assets: assets, renders: renders, backgrounds: backgrounds) if state == 'same'
+          item.merge('now' => state)
+        end
+        out.merge('status' => 'ok', 'by' => by, 'at' => record['at'], 'items' => items, 'put_away' => record['put_away'],
+                  'assets' => assets, 'renders' => renders, 'backgrounds' => backgrounds)
       end
 
       # The user's removal of an image from the board, sent with the token

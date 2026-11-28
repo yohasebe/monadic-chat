@@ -10,6 +10,7 @@ require_relative 'artifact'
 require_relative 'file_item'
 require_relative 'item_text'
 require_relative 'marks'
+require_relative 'turn_records'
 require_relative '../utils/privacy/outbound'
 require_relative '../library/file_importer'
 require_relative '../library/entry_text'
@@ -116,7 +117,11 @@ module Monadic
             @replies[request_id] = chat_id
           end
           board = existing(chat_id)
-          board&.begin_reply(request_id, marks: marks)
+          return board.begin_reply(request_id, marks: marks) if board
+
+          # No work screen: the turn held nothing.
+          TurnRecords.write(chat_id, request_id, 'user', { 'at' => Time.now.utc.iso8601, 'items' => [], 'put_away' => 0 })
+          nil
         end
 
         # The reply running for chat_id, or nil (a board loaded while it
@@ -181,7 +186,6 @@ module Monadic
         # The reply whose turn is open (begin_reply), in memory only: no
         # reply outlives the server.
         @reply = self.class.running_reply(chat_id)
-        recover_reply! unless @reply
         @selected = {}
         # Each selection a tab's connection makes (select, select_for_origin)
         # takes the next number, kept with it: a capture asked for one
@@ -195,6 +199,9 @@ module Monadic
         # What a text item shows of its version (note_text): its lines and
         # whether it is cut short.
         @texts = {}
+        # A reply a restart stopped ends its turn (the board set up first:
+        # its turn's record reads the items as the page does).
+        recover_reply! unless @reply
       end
 
       # A view of the board for the pages of the chat: what the items are,
@@ -222,6 +229,8 @@ module Monadic
           # The marks the message sent, on the items where they were made
           # (before they move down).
           record_marks!(data, request_id, marks) if marks
+          turn_record!(data, request_id, 'user')
+          data['reply_request'] = request_id
           shift!(data, 'user', request_id)
           data['items'].each_value { |item| item.delete('fresh') }
           data.delete('turn_whiteboards')
@@ -240,6 +249,8 @@ module Monadic
           next unless @reply == request_id
 
           @reply = nil
+          turn_record!(data, request_id, 'agent')
+          data.delete('reply_request')
           changed = shift!(data, 'agent', request_id)
           data.delete('turn_whiteboards')
         end
@@ -1154,9 +1165,29 @@ module Monadic
       # After a restart no reply runs: the AI's items left in current end
       # their turn (interrupted).
       def recover_reply!
+        request_id = @data.delete('reply_request')
+        turn_record!(@data, request_id, 'agent') if request_id
         return unless @data['items'].values.any? { |item| item['place'] == 'current' && item['by'] == 'agent' }
 
-        shift!(@data, 'agent', nil)
+        shift!(@data, 'agent', request_id)
+      end
+
+      # The desk as the turn of by (request_id) leaves it, kept for its card
+      # (TurnRecords): Now, Latest and Before in their order, each with the
+      # marks shown on it, and how many are put away.
+      def turn_record!(data, request_id, by)
+        desk = %w[current latest previous].flat_map do |place|
+          data['items'].values.select { |item| item['place'] == place }
+        end
+        items = desk.map do |item|
+          marks = shown_marks(data, item)
+          marks ? public_item(item).merge(marks: marks) : public_item(item)
+        end
+        TurnRecords.write(@chat_id, request_id, by,
+                          { 'at' => Time.now.utc.iso8601, 'items' => JSON.parse(JSON.generate(items)),
+                            'put_away' => data['items'].values.count { |item| item['place'] == 'stash' } })
+      rescue SystemCallError, ArgumentError => e
+        Monadic::Utils::ExtraLogger.log { "[Workbench] turn not recorded: #{e.class}" } if defined?(Monadic::Utils::ExtraLogger)
       end
 
       # The marks a message sent ({ pictures: [Picture], erased: [{ 'item_id',

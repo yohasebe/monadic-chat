@@ -52,6 +52,16 @@ module Monadic
         dir
       end
 
+      # A folder of its own in the chat's folder (name: a plain name), made
+      # (0700) when asked to.
+      def chat_subdir(chat_id, name, make: false)
+        raise ArgumentError, 'invalid folder name' unless name.match?(/\A[a-z][a-z0-9_]{0,31}\z/)
+
+        dir = File.join(chat_dir(chat_id, make: make), name)
+        make_dir(dir) if make
+        dir
+      end
+
       # The saved manifest, or nil when the chat has none (or one of the
       # earlier form).
       def load(chat_id)

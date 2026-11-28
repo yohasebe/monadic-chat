@@ -23,7 +23,7 @@ module Monadic
     # 1Password references; the list is the main guard, the redactor a second.
     module Serializer
       FORMAT_VERSION = 1
-      MESSAGE_FIELDS = %w[mid role text app_name lang request_id timestamp model].freeze
+      MESSAGE_FIELDS = %w[mid role text app_name lang request_id reply_to timestamp model].freeze
       ATTACHMENT_FIELDS = %w[attachment_id purpose].freeze
       PARAMETER_FIELDS = %w[
         app_name model reasoning_effort context_size initial_prompt

@@ -39,7 +39,7 @@ module Monadic
         private vision_unsupported tools_unsupported transport_unsupported connection_gone no_selection
         selection_changed changed missing range_unknown not_shown drawing rendered capture_timeout
         browser_unavailable pdf_text_unavailable unsupported_kind too_large busy cancelled filtered not_on_screen
-        not_selected put_away
+        not_selected put_away no_picture
       ].freeze
 
       # The apps that take an audio or a video file on the work screen, named
@@ -338,6 +338,9 @@ module Monadic
         end
 
         return library_seen(board, selection, scope, item, caller, deadline, files: files) if item['library']
+        if item['kind'] == 'page'
+          raise Refused.new('no_picture', 'no picture of this page was kept: only its address and title are known')
+        end
 
         file = item['file'] or raise Refused.new('unsupported_kind', 'this item cannot be looked at')
         case file['preview']

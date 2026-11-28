@@ -12,6 +12,7 @@ require_relative 'item_text'
 require_relative 'marks'
 require_relative 'turn_records'
 require_relative 'drawings'
+require_relative 'page_pictures'
 require_relative '../utils/privacy/outbound'
 require_relative '../library/file_importer'
 require_relative '../library/entry_text'
@@ -30,7 +31,11 @@ module Monadic
     #
     # The chat's browser is an item too, while it is open and after it
     # closed (until the user takes it off); it is held in memory only (a
-    # browser does not outlive the server).
+    # browser does not outlive the server). An open browser in current stays
+    # there when a turn ends: the page as the turn left it goes down with
+    # the turn as a page item (kind page), pictured on a thread of its own
+    # (PagePictures) and then an image of the chat's folder, or a link to
+    # the page when no picture could be taken.
     #
     # Which item each tab has selected is held in memory, for the
     # connection that said so (select), and goes with it.
@@ -204,6 +209,8 @@ module Monadic
         # What a text item shows of its version (note_text): its lines and
         # whether it is cut short.
         @texts = {}
+        # A page whose picture a restart stopped is a link to it.
+        @data['items'].each_value { |item| item['page']['status'] = 'link' if pending_page?(item) }
         # A reply a restart stopped ends its turn (the board set up first:
         # its turn's record reads the items as the page does).
         recover_reply! unless @reply
@@ -227,18 +234,20 @@ module Monadic
       # The revision moves on also when nothing moves, so that a page's view
       # of whether a reply runs is never replaced by an older one.
       def begin_reply(request_id, marks: nil)
+        pictures = []
         change do |data|
           # The marks the message sent, on the items where they were made
           # (before they move down).
           record_marks!(data, request_id, marks) if marks
           turn_record!(data, request_id, 'user')
           data['reply_request'] = request_id
-          shift!(data, 'user', request_id)
+          shift!(data, 'user', request_id, pictures)
           data['items'].each_value { |item| item.delete('fresh') }
           data.delete('turn_slots')
           @reply = request_id
           nil
         end
+        PagePictures.take_later(@chat_id, pictures)
       end
 
       # The reply request_id ended: its turn ends. Returns whether the desk
@@ -247,15 +256,17 @@ module Monadic
         return false unless @lock.synchronize { @reply == request_id }
 
         changed = false
+        pictures = []
         change do |data|
           next unless @reply == request_id
 
           @reply = nil
           turn_record!(data, request_id, 'agent')
           data.delete('reply_request')
-          changed = shift!(data, 'agent', request_id)
+          changed = shift!(data, 'agent', request_id, pictures)
           data.delete('turn_slots')
         end
+        PagePictures.take_later(@chat_id, pictures)
         changed
       end
 
@@ -390,6 +401,36 @@ module Monadic
         end
       rescue FileItem::Refused => e
         raise Refused, e.message
+      end
+
+      # The picture of a page item (PagePictures) was kept at path (in the
+      # chat's folder): the item becomes that image, with the page's address
+      # and title. A page no longer waiting (taken off) is left.
+      def page_pictured(item_id, path:, url:, title:)
+        change do |data|
+          item = data['items'][item_id.to_s]
+          next nil unless item && pending_page?(item)
+
+          item['kind'] = 'file'
+          item['file'] = FileItem.entry_for(path, wait: 0)
+          item['page'] = { 'url' => url, 'title' => title }.compact
+          record!(data, { 'kind' => 'page_pictured', 'item_id' => item['id'] }, { actor: item['by'] })
+          deep_dup(item)
+        end
+      rescue FileItem::Refused
+        page_unpictured(item_id, url: url, title: title)
+      end
+
+      # No picture of a page item could be taken: it is a link to the page
+      # (its address and title when known).
+      def page_unpictured(item_id, url: nil, title: nil)
+        change do |data|
+          item = data['items'][item_id.to_s]
+          next nil unless item && pending_page?(item)
+
+          item['page'] = { 'status' => 'link', 'url' => url, 'title' => title }.compact
+          deep_dup(item)
+        end
       end
 
       # The whiteboard in Now that can be drawn on, the one made last first;
@@ -1093,11 +1134,18 @@ module Monadic
 
       # The turn of by (request_id) ends: when current holds anything, the
       # layers move down one. Returns whether they moved.
-      def shift!(data, by, request_id)
+      # The chat's open browser in current stays there; a page item for the
+      # page it shows goes down instead (pictures: its picture to take, held
+      # in PagePictures before the lock is let go).
+      def shift!(data, by, request_id, pictures = [])
         return false unless data['items'].values.any? { |item| item['place'] == 'current' }
 
         down = { 'current' => 'latest', 'latest' => 'previous', 'previous' => 'stash' }
-        data['items'].each_value { |item| item['place'] = down.fetch(item['place'], item['place']) }
+        live = data['items'].values.select { |item| item['place'] == 'current' && browser_status(item) == 'open' }
+        data['items'].each_value do |item|
+          item['place'] = down.fetch(item['place'], item['place']) unless live.include?(item)
+        end
+        live.each { |browser| pictures << page_of!(data, browser, by) }
         freeze_left!(data)
         layers = (data['layers'] ||= {})
         layers['previous'] = layers['latest']
@@ -1137,6 +1185,22 @@ module Monadic
 
       def actor_of(origin)
         (origin && (origin[:actor] || origin['actor'])).to_s == 'user' ? 'user' : 'agent'
+      end
+
+      # The page item for browser as the turn of by leaves it, in latest, with
+      # its picture to take ({ item_id:, binding: }).
+      def page_of!(data, browser, by)
+        item_id = "i_#{SecureRandom.hex(10)}"
+        binding = PagePictures.binding_for(@chat_id)
+        page = { 'status' => binding ? 'pending' : 'link', 'instance' => browser.dig('browser', 'instance') }
+        data['items'][item_id] = { 'id' => item_id, 'kind' => 'page', 'origin' => { 'actor' => by, 'source' => 'browser' },
+                                   'mid' => nil, 'page' => page, 'place' => 'latest', 'by' => by }
+        PagePictures.hold(@chat_id)
+        { item_id: item_id, binding: binding }
+      end
+
+      def pending_page?(item)
+        item['kind'] == 'page' && item.dig('page', 'status') == 'pending'
       end
 
       # A whiteboard (a board file of the work screen).
@@ -1307,6 +1371,7 @@ module Monadic
       # or a file, the instance of a browser.
       def version_of(item)
         return "browser:#{item.dig('browser', 'instance')}" if item['kind'] == 'browser'
+        return "page:#{item.dig('page', 'status')}" if item['kind'] == 'page'
         return item.dig('library', 'version') if item['kind'] == 'library'
 
         content_of(item)&.dig('sha256')
@@ -1383,6 +1448,12 @@ module Monadic
           return { id: item['id'], kind: 'browser', actor: item.dig('origin', 'actor'), mid: item['mid'],
                    instance: item.dig('browser', 'instance'), version: version_of(item), status: browser_status(item) }
         end
+        if item['kind'] == 'page'
+          page = item['page']
+          return { id: item['id'], kind: 'page', actor: item.dig('origin', 'actor'), mid: item['mid'],
+                   name: page['title'] || page['url'], url: page['url'], status: page['status'],
+                   version: version_of(item) }.compact
+        end
 
         entry = item['artifact'] || {}
         {
@@ -1411,7 +1482,7 @@ module Monadic
 
       def public_file(item)
         entry = item['file']
-        {
+        view = {
           id: item['id'], kind: 'file', actor: item.dig('origin', 'actor'), mid: item['mid'],
           name: entry['name'], path: entry['path'], preview: entry['preview'], content_type: entry['content_type'],
           size: entry['size'], sha256: entry['sha256'], version: entry['sha256'], status: file_status(item),
@@ -1427,6 +1498,8 @@ module Monadic
           frozen: (true if whiteboard?(item) && !editable_whiteboard?(item)),
           image_pending: (entry['sha256'] if pending_image?(item))
         }
+        # A page of the chat's browser as a turn left it: its address and title.
+        item['page'] ? view.merge(page: item['page']) : view
       end
 
       def stringify(value)

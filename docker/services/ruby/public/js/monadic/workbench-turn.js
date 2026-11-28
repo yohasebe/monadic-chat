@@ -26,6 +26,7 @@
   }
 
   function iconOf(item) {
+    if (item.kind === 'page') return 'fa-globe';
     if (item.kind === 'image' || item.preview === 'image') return 'fa-image';
     if (item.kind === 'browser') return 'fa-globe';
     if (item.kind === 'library') return 'fa-book';

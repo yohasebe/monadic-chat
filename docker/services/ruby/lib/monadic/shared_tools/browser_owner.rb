@@ -173,7 +173,10 @@ module MonadicSharedTools
     # operation from the work screen ends first (BrowserOperator), then the
     # block runs under op_lock. recovery: a tool that closes or replaces
     # the browser, which runs even when the user's operation could not end.
+    # The pictures of the page a turn ended with are taken first
+    # (Workbench::PagePictures), so they show that turn's page.
     def acting(chat, recovery: false, &block)
+      Monadic::Workbench::PagePictures.wait(chat) if defined?(Monadic::Workbench::PagePictures)
       BrowserOperator.as_tool(chat, recovery: recovery) { op_lock(chat).synchronize(&block) }
     rescue BrowserOperator::Unreleased => e
       { success: false, error: e.message }

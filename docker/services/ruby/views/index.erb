@@ -718,11 +718,16 @@
               </div>
               <div id="sfp-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             </div>
-            <ul id="sfp-list" class="sfp-list mb-2" tabindex="0" aria-label="Files" data-i18n-aria-label="ui.sharedFolderPanel.listLabel"></ul>
-            <div class="sfp-foot">
-              <span id="sfp-info" class="sfp-info"></span>
-              <button type="button" class="btn btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFolderPanel.more" hidden>Show more</button>
-            </div>
+<%# A panel as the menu's are: its name, and how many items it lists. %>
+            <section class="rounded shaded-panel pane-panel">
+              <h5 class="pane-panel-head mb-0"><span class="text"><i class="fa-solid fa-folder-open"></i> <span data-i18n="ui.sidePane.files">Files</span></span><span id="sfp-info" class="sfp-info"></span></h5>
+              <div class="pane-panel-body">
+                <ul id="sfp-list" class="sfp-list mb-2" tabindex="0" aria-label="Files" data-i18n-aria-label="ui.sharedFolderPanel.listLabel"></ul>
+                <div class="sfp-foot">
+                  <button type="button" class="btn btn-sm btn-secondary" id="sfp-more" data-i18n="ui.sharedFolderPanel.more" hidden>Show more</button>
+                </div>
+              </div>
+            </section>
           </div>
           <%# The kept chats (history-panel.js). %>
           <div id="history-pane" class="shared-files-pane history-pane" role="tabpanel" aria-labelledby="side-tab-history" hidden>
@@ -744,11 +749,16 @@
               </div>
               <div id="history-status" class="sfp-status mb-2" role="status" aria-live="polite" hidden></div>
             </div>
-            <ul id="history-list" class="sfp-list mb-2" aria-label="Chats" data-i18n-aria-label="ui.historyPanel.listLabel"></ul>
-            <div class="sfp-foot">
-              <span id="history-info" class="sfp-info"></span>
-              <button type="button" class="btn btn-sm btn-secondary" id="history-more" data-i18n="ui.historyPanel.more" hidden>Show more</button>
-            </div>
+<%# A panel as the menu's are: its name, and how many items it lists. %>
+            <section class="rounded shaded-panel pane-panel">
+              <h5 class="pane-panel-head mb-0"><span class="text"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ui.sidePane.history">History</span></span><span id="history-info" class="sfp-info"></span></h5>
+              <div class="pane-panel-body">
+                <ul id="history-list" class="sfp-list mb-2" aria-label="Chats" data-i18n-aria-label="ui.historyPanel.listLabel"></ul>
+                <div class="sfp-foot">
+                  <button type="button" class="btn btn-sm btn-secondary" id="history-more" data-i18n="ui.historyPanel.more" hidden>Show more</button>
+                </div>
+              </div>
+            </section>
           </div>
           <div id="library-pane" class="shared-files-pane library-pane" role="tabpanel" aria-labelledby="side-tab-library" hidden>
             <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
@@ -772,8 +782,11 @@
                 <option value="100">100</option>
                 <option value="200">200</option>
               </select>
-              <span class="ms-auto small text-secondary" id="library-browse-count"></span>
             </div>
+            <%# A panel as the menu's are: its name, and how many items it lists. %>
+            <section class="rounded shaded-panel pane-panel">
+              <h5 class="pane-panel-head mb-0"><span class="text"><i class="fa-solid fa-book"></i> <span data-i18n="ui.sidePane.library">Library</span></span><span class="sfp-info" id="library-browse-count"></span></h5>
+              <div class="pane-panel-body">
             <div class="table-responsive">
               <table class="table table-sm table-hover align-middle">
                 <thead>
@@ -796,6 +809,8 @@
                 <button type="button" class="btn btn-sm btn-secondary" id="library-browse-next" disabled><span data-i18n="ui.libNext">Next</span> <i class="fa-solid fa-chevron-right"></i></button>
               </div>
             </div>
+              </div>
+            </section>
           </div>
         </div>
 

@@ -5816,7 +5816,28 @@ body.side-pane-resizing {
   background: var(--bg-hover);
 }
 .shared-files-pane .sfp-foot {
+  justify-content: flex-end;
+}
+.shared-files-pane .sfp-foot:not(:has(> :not([hidden]))) {
+  display: none;
+}
+/* The list of a side pane in a panel as the menu's are: its head names it
+   (and says how many it lists), its body holds the list. */
+.pane-panel {
+  overflow: hidden;
+}
+.pane-panel-head {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+.pane-panel-head .sfp-info {
+  font-weight: normal;
+}
+.pane-panel-body {
+  padding: 0 var(--spacing-md) var(--spacing-md);
 }
 .shared-files-pane .sfp-info {
   font-size: inherit;

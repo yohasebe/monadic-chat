@@ -33,7 +33,7 @@ The words are hidden in what a chat sends:
 
 What the AI writes into a file, such as an app's [state notes](./monadic-mode.md#state-notes), keeps the placeholders. When the work screen draws such a Markdown file, it shows each placeholder as its word, underlined; the file itself is not changed, and **Source code** shows it as it is.
 
-What the AI is told about the [work screen](../basic-usage/web-interface.md#work-screen), and the text it looks at there, are checked instead: when they hold a hidden word, they are not sent.
+What the AI is told about the [work screen](../basic-usage/web-interface.md#work-screen), and the text it looks at there, are checked instead: when they hold a hidden word, they are not sent. An item whose name holds a hidden word (a file's name, a page's title or address) is told without its name, and the rest of the work screen is still told.
 
 Before a request leaves, it is checked once more; a request that still holds a hidden word in a part that is not replaced (such as the system prompt or a tool definition) is not sent, and an error says so. A system message that holds a hidden word is refused when you write it.
 

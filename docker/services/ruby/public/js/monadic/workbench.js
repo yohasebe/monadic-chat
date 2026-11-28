@@ -1277,7 +1277,7 @@
 
   // An image with the pointer over it: the pointer's buttons in a bar above
   // it, the mark drawn over the image. drawn.image: { img, pointer(),
-  // pointerSeq(), dispose() }.
+  // marks(), pointerSeq(), dropMarks(ids), dispose() }.
   function imageBody(img, drawn) {
     const box = element('div', 'workbench-image-view');
     const frame = element('div', 'workbench-image-frame');
@@ -1296,8 +1296,10 @@
     drawn.image = {
       img: img,
       pointer: () => pointing.pointer(),
+      marks: () => pointing.marks().map(({ at, ...rest }) => Object.assign({ page: at }, rest)),
       pointerSeq: () => pointing.pointerSeq(),
       clear: () => pointing.clear(),
+      dropMarks: (ids) => pointing.drop(ids),
       setPointable: (flag) => pointing.setPointable(flag),
       dispose: () => pointing.dispose()
     };
@@ -2108,34 +2110,39 @@
   // called once it went), or null. Only after the user placed or moved the
   // pointer on the page shown, while some of it is in view, for a model that
   // takes images. Taken at once, when the user sends.
-  // The user's mark drawn on a part cut from the PDF's canvas (cutPage's
-  // decorate), in its color and shape: { decorate, mark() }, mark() being
-  // the mark as fractions of the part cut (rounded), or null when it is not
-  // in that part.
-  function drawingMark(handle, pointer) {
-    let mark = null;
+  // The user's marks (one, or a list) drawn on a part cut from the PDF's
+  // canvas (cutPage's decorate), in their colors and shapes, numbered when
+  // there are several: { decorate, mark(), marks() }, marks() being each as
+  // fractions of the part cut (rounded), or null for one not in that part;
+  // mark() the first.
+  function drawingMark(handle, pointers) {
+    const list = Array.isArray(pointers) ? pointers : [pointers];
+    let painted = list.map(() => null);
     const canvas = handle.canvas();
     const decorate = (context, frame) => {
-      // The pointer in the canvas's pixels, then in the cut part's.
-      const left = pointer.x * canvas.width;
-      const top = pointer.y * canvas.height;
-      const right = left + pointer.w * canvas.width;
-      const bottom = top + pointer.h * canvas.height;
       const clip = (v) => Math.min(1, Math.max(0, v));
-      const x0 = clip((left - frame.x) / frame.w);
-      const y0 = clip((top - frame.y) / frame.h);
-      const x1 = clip((right - frame.x) / frame.w);
-      const y1 = clip((bottom - frame.y) / frame.h);
-      if (!(x1 > x0 && y1 > y0)) return;
-      mark = paintMark(context, Object.assign({}, pointer, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }), frame.width, frame.height);
+      painted = list.map((pointer, i) => {
+        // The pointer in the canvas's pixels, then in the cut part's.
+        const left = pointer.x * canvas.width;
+        const top = pointer.y * canvas.height;
+        const right = left + pointer.w * canvas.width;
+        const bottom = top + pointer.h * canvas.height;
+        const x0 = clip((left - frame.x) / frame.w);
+        const y0 = clip((top - frame.y) / frame.h);
+        const x1 = clip((right - frame.x) / frame.w);
+        const y1 = clip((bottom - frame.y) / frame.h);
+        if (!(x1 > x0 && y1 > y0)) return null;
+        return paintMark(context, Object.assign({}, pointer, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }), frame.width, frame.height,
+          list.length > 1 ? i + 1 : 0);
+      });
     };
-    return { decorate: decorate, mark: () => mark };
+    return { decorate: decorate, mark: () => painted[0], marks: () => painted };
   }
 
   // Paints the user's mark (x, y, w, h: fractions of what it is on) on a
   // context of width × height pixels, translucent in its color, and returns
   // it as it is said ({ shape, color, x, y, w, h }, rounded).
-  function paintMark(context, pointer, width, height) {
+  function paintMark(context, pointer, width, height, number = 0) {
     const palette = (window.WorkbenchPointer && window.WorkbenchPointer.COLORS) || {};
     const color = palette[pointer.color] ? pointer.color : 'orange';
     const round = (v) => Math.round(v * 10000) / 10000;
@@ -2155,6 +2162,21 @@
     else context.rect(px, py, pw, ph);
     context.fill();
     context.stroke();
+    // Its number, inside its top left corner (as the pane shows it).
+    if (number > 0) {
+      const radius = Math.max(9, Math.round(width / 70));
+      const cx = Math.min(width - radius, Math.max(radius, px + radius + 3));
+      const cy = Math.min(height - radius, Math.max(radius, py + radius + 3));
+      context.beginPath();
+      context.arc(cx, cy, radius, 0, Math.PI * 2);
+      context.fillStyle = colors.line;
+      context.fill();
+      context.fillStyle = colors.ink || '#fff';
+      context.font = `600 ${Math.round(radius * 1.3)}px sans-serif`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(String(number), cx, cy + 1);
+    }
     context.restore();
     return mark;
   }
@@ -2188,6 +2210,10 @@
       page = shown && shown.page ? shown.page : 1;
     }
     if (!surface) return;
+    // Marks that went with a message are drawn here now, fixed.
+    const handle = drawn.image || drawn.pdf;
+    const sent = item && Array.isArray(item.marks) ? item.marks.map((m) => m && m.id).filter(Boolean) : [];
+    if (sent.length > 0 && handle && typeof handle.dropMarks === 'function') handle.dropMarks(sent);
     let layer = surface.querySelector(':scope > .workbench-marks-earlier');
     // Nothing to draw and nothing drawn: nothing is made.
     if (!layer && earlierMarksOf(item).length === 0) return;
@@ -2220,7 +2246,7 @@
     const handle = drawn && (drawn.image || drawn.pdf);
     if (handle && typeof handle.clear === 'function') handle.clear();
     if (handle && typeof handle.clearPointer === 'function') handle.clearPointer();
-    if (drawn) drawn.mark = null;
+    if (drawn) drawn.pictures = new Map();
     draw();
   }
 
@@ -2247,49 +2273,57 @@
 
   // ---- marks sent with a message -------------------------------------
 
-  // Each drawn item's mark, with its picture taken when it was made or
-  // changed (the item, its version, the page, the mark's own id and how many
-  // times it changed): the pictures of the marked items on the desk (Now and
-  // Latest) go with the next message, in their order there, at most
-  // MARKS_PER_MESSAGE (Picture::PER_MESSAGE); a mark sent once is not sent
-  // again until it changes.
+  // Each drawn item's marks, with a picture of each page marked (an image:
+  // its one) taken when a mark on it was made or changed (the item, its
+  // version, the page, and each mark: its own id, how many times it
+  // changed, its place on the picture and on the whole image or page): the
+  // pictures of the marked items on the desk (Now and Latest) go with the
+  // next message, in their order there, at most MARKS_PER_MESSAGE
+  // (Picture::PER_MESSAGE); a picture sent once is not sent again until a
+  // mark on it changes.
   const MARKS_PER_MESSAGE = 4;
   const sentMarks = new Set();
-  const MARK_LETTERS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
-  function newMarkId() {
-    let id = 'm_';
-    for (let i = 0; i < 12; i += 1) id += MARK_LETTERS[Math.floor(Math.random() * MARK_LETTERS.length)];
-    return id;
+  function marksOf(handle) {
+    return handle && typeof handle.marks === 'function' ? handle.marks() : [];
   }
 
   function markChanged(drawn) {
-    const item = drawn && itemById(drawn.itemId);
-    const handle = drawn && (drawn.image || drawn.pdf);
-    const pointer = handle && typeof handle.pointer === 'function' ? handle.pointer() : null;
     if (!drawn) return;
-    if (!item || !pointer) {
-      drawn.mark = null;
-      drawMarksLine();
-      return;
+    const item = itemById(drawn.itemId);
+    const handle = drawn.image || drawn.pdf;
+    const marks = item ? marksOf(handle) : [];
+    const pages = drawn.pictures || new Map();
+    const marked = new Set(marks.map((m) => m.page || 1));
+    Array.from(pages.keys()).forEach((page) => { if (!marked.has(page)) pages.delete(page); });
+    // The page shown is the one a mark changed on.
+    const page = drawn.image ? 1 : (handle && typeof handle.shown === 'function' ? handle.shown().page : null);
+    const onPage = marks.filter((m) => (m.page || 1) === page);
+    if (onPage.length > 0) {
+      let data = null;
+      try {
+        data = drawn.image ? imageMarkPicture(item, drawn.image, onPage) : pdfMarkPicture(item, drawn.pdf, onPage);
+      } catch (_) {
+        data = null;
+      }
+      pages.set(page, { marks: onPage.map((m) => ({ id: m.id, rev: m.rev })), data: data });
     }
-    const id = drawn.mark ? drawn.mark.id : newMarkId();
-    const rev = handle.pointerSeq();
-    let data = null;
-    try {
-      data = drawn.image ? imageMarkPicture(item, drawn.image, pointer) : pdfMarkPicture(item, drawn.pdf, pointer);
-    } catch (_) {
-      data = null;
-    }
-    drawn.mark = { id: id, rev: rev, data: data };
+    drawn.pictures = pages;
     drawMarksLine();
   }
 
-  function imageMarkPicture(item, handle, pointer) {
-    const part = markedImage(handle, pointer);
-    if (!part.image || !part.mark) return null;
-    return { item_id: item.id, version: item.version || item.sha256 || '', mark: part.mark, image: part.image,
-             rect: rectOf(pointer) };
+  // Each mark as the picture says it ({ id, rev, mark: its place on the
+  // picture, rect: on the whole image or page }), in the order made.
+  function picturedMarks(list, painted) {
+    return list.map((m, i) => (painted[i] ? { id: m.id, rev: m.rev, mark: painted[i], rect: rectOf(m) } : null))
+      .filter(Boolean);
+  }
+
+  function imageMarkPicture(item, handle, list) {
+    const part = markedImage(handle, list);
+    if (!part.image || !part.marks || part.marks.every((m) => !m)) return null;
+    return { item_id: item.id, version: item.version || item.sha256 || '', image: part.image,
+             marks: picturedMarks(list, part.marks) };
   }
 
   // Where a mark is on the whole image or page (fractions), as the board keeps it.
@@ -2297,32 +2331,40 @@
     return { x: pointer.x, y: pointer.y, w: pointer.w, h: pointer.h };
   }
 
-  // The part of the PDF's page in view with the mark, as the mark is made
-  // there (the page it is on is the page shown).
-  function pdfMarkPicture(item, handle, pointer) {
+  // The part of the PDF's page in view, widened to every mark on it, with
+  // the marks, as a mark is made there (the page they are on is the page
+  // shown).
+  function pdfMarkPicture(item, handle, list) {
     const shown = handle.shown();
-    if (shown.status !== 'ready' || pointer.page !== shown.page) return null;
-    const marked = drawingMark(handle, pointer);
-    const part = cutPage(handle, shown.drawing, marked.decorate);
-    const mark = marked.mark();
-    if (!part || !part.image || !mark) return null;
+    if (shown.status !== 'ready' || list.some((m) => m.page !== shown.page)) return null;
+    const marked = drawingMark(handle, list);
+    const part = cutPage(handle, shown.drawing, marked.decorate, list);
+    const painted = marked.marks();
+    if (!part || !part.image || painted.every((m) => !m)) return null;
     return { item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
-             mark: mark, image: part.image, rect: rectOf(pointer) };
+             image: part.image, marks: picturedMarks(list, painted) };
   }
 
-  // The marked items on the desk whose marks have not gone with a message,
-  // in their order there.
+  const pictureKey = (itemId, page) => (mark) => `${itemId}:${page}:${mark.id}:${mark.rev}`;
+
+  // The pictures of the marked items on the desk that have not gone with a
+  // message, in their order there (a PDF's by page), each { itemId, page,
+  // marks, data }.
   function waitingMarks() {
     if (!takesImages()) return [];
     const order = rowItems().filter((item) => ['current', 'latest'].includes(placeOf(item))).map((item) => item.id);
-    return [drawnBody].concat(Array.from(others.values()))
-      .filter((drawn) => drawn && drawn.mark && drawn.mark.data && order.includes(drawn.itemId))
-      .filter((drawn) => {
-        const item = itemById(drawn.itemId);
-        return item && (item.version || item.sha256 || '') === drawn.mark.data.version;
-      })
-      .filter((drawn) => !sentMarks.has(`${drawn.itemId}:${drawn.mark.id}:${drawn.mark.rev}`))
-      .sort((a, b) => order.indexOf(a.itemId) - order.indexOf(b.itemId));
+    const waiting = [];
+    [drawnBody].concat(Array.from(others.values())).forEach((drawn) => {
+      if (!drawn || !drawn.pictures || !order.includes(drawn.itemId)) return;
+      const item = itemById(drawn.itemId);
+      const version = item ? (item.version || item.sha256 || '') : null;
+      drawn.pictures.forEach((picture, page) => {
+        if (!picture.data || picture.data.version !== version) return;
+        if (picture.marks.every((m) => sentMarks.has(pictureKey(drawn.itemId, page)(m)))) return;
+        waiting.push({ itemId: drawn.itemId, page: page, marks: picture.marks, data: picture.data });
+      });
+    });
+    return waiting.sort((a, b) => (order.indexOf(a.itemId) - order.indexOf(b.itemId)) || (a.page - b.page));
   }
 
   // The pictures of the marked items that go with the message the user
@@ -2333,10 +2375,10 @@
     if (waiting.length === 0) return null;
     const going = waiting.slice(0, MARKS_PER_MESSAGE);
     return {
-      data: going.map((drawn) => Object.assign({}, drawn.mark.data, { mark_id: drawn.mark.id, mark_rev: drawn.mark.rev })),
+      data: going.map((picture) => picture.data),
       left: waiting.length - going.length,
       sent: () => {
-        going.forEach((drawn) => sentMarks.add(`${drawn.itemId}:${drawn.mark.id}:${drawn.mark.rev}`));
+        going.forEach((picture) => picture.marks.forEach((m) => sentMarks.add(pictureKey(picture.itemId, picture.page)(m))));
         drawMarksLine();
       }
     };
@@ -2359,7 +2401,7 @@
     line.hidden = !over;
     if (over) {
       line.textContent = t('ui.workbench.marksOver',
-        '{n} items are marked. The next message takes the first {max} in the order of the work screen; the others are not sent.')
+        '{n} marked pictures wait. The next message takes the first {max} in the order of the work screen (a PDF: by page); the others are not sent.')
         .replace('{n}', String(waiting.length)).replace('{max}', String(MARKS_PER_MESSAGE));
     }
   }
@@ -2784,12 +2826,20 @@
   // decorate(context, frame), when given, draws over the cut part (frame:
   // the part of the canvas cut, x, y, w, h in its pixels, and the size it is
   // drawn at, width and height).
-  function cutPage(handle, drawing, decorate) {
+  function cutPage(handle, drawing, decorate, widenTo) {
     const canvas = handle.canvas();
     const frame = canvas ? visibleRect(canvas) : null;
     if (!frame) return { image_note: 'not_in_view' };
     const rect = canvas.getBoundingClientRect();
     if (!(rect.width > 0 && rect.height > 0)) return { image_note: 'not_in_view' };
+    // Widened to the marks given (fractions of the page), within the page:
+    // each mark on the page is in the part cut.
+    (widenTo || []).forEach((m) => {
+      frame.left = Math.max(rect.left, Math.min(frame.left, rect.left + m.x * rect.width));
+      frame.top = Math.max(rect.top, Math.min(frame.top, rect.top + m.y * rect.height));
+      frame.right = Math.min(rect.right, Math.max(frame.right, rect.left + (m.x + m.w) * rect.width));
+      frame.bottom = Math.min(rect.bottom, Math.max(frame.bottom, rect.top + (m.y + m.h) * rect.height));
+    });
     const sx = canvas.width / rect.width;
     const sy = canvas.height / rect.height;
     const x = (frame.left - rect.left) * sx;
@@ -2880,21 +2930,24 @@
     return out;
   }
 
-  // The whole image the tab shows, with the user's mark drawn on it: what
-  // drawnPng gives, with the mark ({ shape, color, x, y, w, h }) as mark.
-  function markedImage(handle, pointer) {
+  // The whole image the tab shows, with the user's marks (one, or a list)
+  // drawn on it: what drawnPng gives, with the first mark ({ shape, color,
+  // x, y, w, h }) as mark and, for a list, each as marks.
+  function markedImage(handle, pointers) {
     const img = handle.img;
     if (!img.complete || !(img.naturalWidth > 0 && img.naturalHeight > 0)) return { image_note: 'drawing' };
-    let mark = null;
+    const list = Array.isArray(pointers) ? pointers : [pointers];
+    let marks = [];
     let part;
     try {
       part = drawnPng(img, 0, 0, img.naturalWidth, img.naturalHeight, (context, frame) => {
-        mark = paintMark(context, pointer, frame.width, frame.height);
+        marks = list.map((pointer, i) => paintMark(context, pointer, frame.width, frame.height, list.length > 1 ? i + 1 : 0));
       });
     } catch (_) {
       return { image_note: 'failed' };
     }
-    return mark ? Object.assign(part, { mark: mark }) : part;
+    if (!marks[0]) return part;
+    return Array.isArray(pointers) ? Object.assign(part, { mark: marks[0], marks: marks }) : Object.assign(part, { mark: marks[0] });
   }
 
   // A capture of a PDF: the page in view and, as asked, the part of it in

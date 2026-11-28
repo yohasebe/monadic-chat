@@ -60,3 +60,62 @@ RSpec.describe "the name in a marked picture's note" do
     expect(note_for("plain.png", nil)).to include("the image (work screen item i_1)")
   end
 end
+
+# A picture with several marks: each with its own id, change count and place,
+# numbered in the note as on the picture.
+RSpec.describe "a marked picture with several marks" do
+  let(:chat) { Monadic::Workspace::Ids.generate(:chat) }
+  let(:png) { "\x89PNG\r\n\x1A\n".b + [13].pack("N") + "IHDR".b + [8, 8].pack("NN") + "\x08\x02\x00\x00\x00".b }
+  let(:picture) { Monadic::Workbench::Picture }
+
+  def mark(id, rev, shape, x)
+    { "id" => id, "rev" => rev, "mark" => { "shape" => shape, "color" => "cyan", "x" => x, "y" => 0.1, "w" => 0.2, "h" => 0.3 },
+      "rect" => { "x" => x, "y" => 0.2, "w" => 0.1, "h" => 0.1 } }
+  end
+
+  def accept(marks)
+    item = { id: "i_1", kind: "file", preview: "image", version: "v" * 64, place: "current", name: "plan.png" }
+    board = double("board", observe: { items: [item], selected: nil })
+    allow(Monadic::Workbench::Board).to receive(:existing).with(chat).and_return(board)
+    data = { "item_id" => "i_1", "version" => "v" * 64, "marks" => marks, "image" => Base64.strict_encode64(png) }
+    picture.accept_marked([data], chat_id: chat, request_id: "q_1", tab: "tab-1", generation: 1, words: []).first
+  end
+
+  def refused(marks)
+    expect { accept(marks) }.to raise_error(picture::Refused) { |e| expect(e.reason).to eq("bad_mark") }
+  end
+
+  it "keeps each mark, numbers them in the note, and keeps them in the message's reference" do
+    taken = accept([mark("m_aaaaaaaa", 1, "rect", 0.1), mark("m_bbbbbbbb", 3, "ellipse", 0.5)])
+    expect(taken.marks.map { |m| [m["id"], m["rev"], m["shape"], m["rect"]["x"]] })
+      .to eq([["m_aaaaaaaa", 1, "rect", 0.1], ["m_bbbbbbbb", 3, "ellipse", 0.5]])
+    expect(taken.note).to include("marked 2 parts of it")
+    expect(taken.note).to include("mark 1, a cyan rectangle at left 10%")
+    expect(taken.note).to include("mark 2, a cyan ellipse at left 50%")
+    reference = taken.reference
+    expect(reference["marks"].map { |m| m["id"] }).to eq(%w[m_aaaaaaaa m_bbbbbbbb])
+    expect(picture.clean(reference)).to eq(reference)
+  end
+
+  it "says one mark of the list as one mark is said" do
+    taken = accept([mark("m_aaaaaaaa", 1, "rect", 0.1)])
+    expect(taken.note).not_to include("parts of it")
+    expect(taken.reference).not_to have_key("marks")
+    expect(taken.reference["mark_id"]).to eq("m_aaaaaaaa")
+  end
+
+  it "refuses an empty list, more marks than a picture takes, an id twice, and a mark that is not one" do
+    refused([])
+    refused((1..(picture::MARKS_LIMIT + 1)).map { |n| mark("m_#{'a' * 7}#{n}", 1, "rect", 0.1) })
+    refused([mark("m_aaaaaaaa", 1, "rect", 0.1), mark("m_aaaaaaaa", 2, "rect", 0.5)])
+    refused([mark("m_aaaaaaaa", 1, "rect", 0.1), mark("bad", 1, "rect", 0.5)])
+    refused([mark("m_aaaaaaaa", 1, "rect", 0.1).merge("rect" => { "x" => 2 })])
+    refused(["not a mark"])
+  end
+
+  it "drops a kept list that is not one when checking a reference" do
+    reference = accept([mark("m_aaaaaaaa", 1, "rect", 0.1), mark("m_bbbbbbbb", 1, "rect", 0.5)]).reference
+    expect(picture.clean(reference.merge("marks" => [reference["marks"].first]))).not_to have_key("marks")
+    expect(picture.clean(reference.merge("marks" => [{ "id" => "x" }, {}]))).not_to have_key("marks")
+  end
+end

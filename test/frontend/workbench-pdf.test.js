@@ -526,7 +526,7 @@ describe('the pointer over a PDF page', () => {
     expect(menu.hidden).toBe(true);
     button('unpoint').click();
     expect(handle.pointer()).toBeNull();
-    expect(mark().hidden).toBe(true);
+    expect(mark()).toBeNull();
     expect(handle.pointerSeq()).toBe(3);
   });
 
@@ -541,6 +541,53 @@ describe('the pointer over a PDF page', () => {
     expect(box.querySelector('[data-shape="rect"]').getAttribute('aria-pressed')).toBe('true');
   });
 
+  test('holds several marks, numbered, the last made or held chosen, × taking the chosen away, at most eight on a page', async () => {
+    const { handle, layer } = await shown();
+    handle.setPointable(true);
+    const draw = (x0, y0, x1, y1) => {
+      button('point').click();
+      layer.dispatchEvent(at('pointerdown', x0, y0));
+      layer.dispatchEvent(at('pointerup', x1, y1));
+    };
+    const marks = () => [...box.querySelectorAll('.workbench-pointer')];
+    const numbers = () => marks().map((m) => m.querySelector('.workbench-pointer-number'))
+      .map((n) => (n.hidden ? '' : n.textContent));
+    draw(160, 250, 460, 290);
+    // One mark: no number.
+    expect(numbers()).toEqual(['']);
+    draw(160, 450, 460, 490);
+    expect(numbers()).toEqual(['1', '2']);
+    expect(handle.marks().map((m) => [m.page, m.rev])).toEqual([[1, 1], [1, 1]]);
+    expect(new Set(handle.marks().map((m) => m.id)).size).toBe(2);
+    // The one made last is chosen: its sides and corners show.
+    expect(marks().map((m) => m.classList.contains('is-chosen'))).toEqual([false, true]);
+    // Held, the first is chosen; a look chosen changes it alone.
+    marks()[0].dispatchEvent(at('pointerdown', 300, 270));
+    marks()[0].dispatchEvent(at('pointerup', 300, 270));
+    expect(marks().map((m) => m.classList.contains('is-chosen'))).toEqual([true, false]);
+    box.querySelector('.workbench-pointer-look-menu [data-color="green"]').click();
+    expect(handle.marks().map((m) => m.color)).toEqual(['green', 'orange']);
+    expect(handle.marks().map((m) => m.rev)).toEqual([2, 1]);
+    // × takes the chosen away; the other stays, unnumbered.
+    const kept = handle.marks()[1].id;
+    button('unpoint').click();
+    expect(handle.marks().map((m) => m.id)).toEqual([kept]);
+    expect(numbers()).toEqual(['']);
+    expect(button('unpoint').disabled).toBe(true);
+    // Eight on a page at most: pointing is then off.
+    for (let i = 0; i < 7; i += 1) draw(110 + i * 60, 600, 150 + i * 60, 640);
+    expect(handle.marks()).toHaveLength(8);
+    expect(button('point').disabled).toBe(true);
+    button('point').click();
+    layer.dispatchEvent(at('pointerdown', 160, 700));
+    layer.dispatchEvent(at('pointerup', 460, 740));
+    expect(handle.marks()).toHaveLength(8);
+    // Marks sent and drawn now as earlier ones are forgotten here.
+    handle.dropMarks([kept]);
+    expect(handle.marks()).toHaveLength(7);
+    expect(button('point').disabled).toBe(false);
+  });
+
   test('is shown on its own page only', async () => {
     const { handle, layer } = await shown();
     handle.setPointable(true);
@@ -549,10 +596,10 @@ describe('the pointer over a PDF page', () => {
     layer.dispatchEvent(at('pointerup', 460, 290));
     button('next').click();
     await flush();
-    expect(mark().hidden).toBe(true);
+    expect(mark()).toBeNull();
     button('prev').click();
     await flush();
-    expect(mark().hidden).toBe(false);
+    expect(mark()).not.toBeNull();
     expect(handle.pointer().page).toBe(1);
   });
 

@@ -309,9 +309,12 @@
         const { at, ...rest } = marked;
         return Object.assign({ page: at }, rest);
       },
+      // Every mark, each with the page it is on.
+      marks: () => pointing.marks().map(({ at, ...rest }) => Object.assign({ page: at }, rest)),
       pointerSeq: () => pointing.pointerSeq(),
       setPointable: (flag) => pointing.setPointable(flag),
       clearPointer: () => pointing.clear(),
+      dropMarks: (ids) => pointing.drop(ids),
       // Shows page n (within the document), drawing it.
       goTo: (n) => {
         const page = Math.min(Math.max(Math.round(n), 1), state.pages || 1);

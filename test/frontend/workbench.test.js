@@ -1302,12 +1302,14 @@ describe('Workbench', () => {
             markChanged = opts.changed;
             return { controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
               pointer: () => pointerNow, pointerSeq: () => markSeq, escape: () => false, setPointable: () => {},
-              clear: () => { pointerNow = null; }, dispose: jest.fn() };
+              marks: () => (pointerNow ? [Object.assign({ id: 'm_fakemark0001', rev: markSeq }, pointerNow)] : []),
+              drop: () => {}, clear: () => { pointerNow = null; }, dispose: jest.fn() };
           }
         };
         jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
           drawImage, save: () => {}, restore: () => {}, beginPath: () => {}, fill: () => {}, stroke: () => {},
-          rect: (...a) => drawnShapes.push(['rect', ...a]), ellipse: (...a) => drawnShapes.push(['ellipse', ...a])
+          rect: (...a) => drawnShapes.push(['rect', ...a]), ellipse: (...a) => drawnShapes.push(['ellipse', ...a]),
+          arc: () => {}, fillText: (text) => drawnShapes.push(['number', text])
         }));
         jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,QUJD');
         view([photo], { assets: { i_g: '/workbench/asset/g' }, selected: 'i_g', selection_serial: 3 });
@@ -1365,9 +1367,9 @@ describe('Workbench', () => {
         markChanged();
         const pictures = window.Workbench.picturesNow();
         expect(pictures.data).toHaveLength(1);
-        expect(pictures.data[0]).toMatchObject({ item_id: 'i_g', version: 'e'.repeat(64), image: 'QUJD', mark_rev: 1,
-          mark: { shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 } });
-        expect(pictures.data[0].mark_id).toMatch(/^m_[a-z0-9]{12}$/);
+        expect(pictures.data[0]).toMatchObject({ item_id: 'i_g', version: 'e'.repeat(64), image: 'QUJD' });
+        expect(pictures.data[0].marks).toEqual([{ id: 'm_fakemark0001', rev: 1,
+          mark: { shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 }, rect: { x: 0.25, y: 0.5, w: 0.5, h: 0.25 } }]);
         // The marked item's picture goes, not the chosen item's single one.
         expect(window.Workbench.pictureNow()).toBeNull();
         pictures.sent();
@@ -1377,7 +1379,7 @@ describe('Workbench', () => {
         pointerNow = Object.assign({}, pointerNow, { x: 0.1 });
         markChanged();
         const again = window.Workbench.picturesNow();
-        expect(again.data[0]).toMatchObject({ mark_id: pictures.data[0].mark_id, mark_rev: 2 });
+        expect(again.data[0].marks[0]).toMatchObject({ id: 'm_fakemark0001', rev: 2 });
         // Taken away: nothing goes.
         pointerNow = null;
         markChanged();
@@ -1390,7 +1392,8 @@ describe('Workbench', () => {
         window.WorkbenchPointer.attach = (opts) => {
           hooks.push(opts.changed);
           return { controls: document.createElement('div'), pointer: () => pointerNow, pointerSeq: () => 1, escape: () => false,
-            setPointable: () => {}, dispose: jest.fn() };
+            marks: () => (pointerNow ? [Object.assign({ id: 'm_fakemark0001', rev: 1 }, pointerNow)] : []),
+            drop: () => {}, setPointable: () => {}, dispose: jest.fn() };
         };
         const photos = [1, 2, 3, 4, 5].map((n) => Object.assign({}, photo, { id: `i_${n}`, name: `${n}.png`,
           sha256: String(n).repeat(64), version: String(n).repeat(64), place: n === 5 ? 'latest' : 'current' }));
@@ -1410,7 +1413,7 @@ describe('Workbench', () => {
         expect(pictures.left).toBe(1);
         const line = document.getElementById('workbench-marks');
         expect(line.hidden).toBe(false);
-        expect(line.textContent).toContain('5 items are marked');
+        expect(line.textContent).toContain('5 marked pictures wait');
         pictures.sent();
         expect(window.Workbench.picturesNow().data.map((d) => d.item_id)).toEqual(['i_5']);
         expect(line.hidden).toBe(true);
@@ -1438,10 +1441,45 @@ describe('Workbench', () => {
         expect(menuOf('i_g').some((e) => e.label.startsWith('Erase marks'))).toBe(false);
       });
 
+      test('sends the marks of an image in one picture, numbered, and forgets those drawn as earlier ones', () => {
+        let list = [
+          { id: 'm_first000001', rev: 1, page: 1, shape: 'rect', color: 'cyan', x: 0.1, y: 0.1, w: 0.2, h: 0.2 },
+          { id: 'm_second00002', rev: 3, page: 1, shape: 'ellipse', color: 'cyan', x: 0.5, y: 0.5, w: 0.25, h: 0.25 }];
+        const dropped = [];
+        window.WorkbenchPointer.attach = (opts) => {
+          markChanged = opts.changed;
+          return { controls: document.createElement('div'), pointer: () => list[1], pointerSeq: () => 4, escape: () => false,
+            marks: () => list, drop: (ids) => { dropped.push(ids); list = list.filter((m) => !ids.includes(m.id)); },
+            setPointable: () => {}, clear: () => {}, dispose: jest.fn() };
+        };
+        const other = Object.assign({}, photo, { id: 'i_h', name: 'h.png', path: 'h.png', place: 'current' });
+        view([other], { assets: { i_h: '/workbench/asset/h' }, selected: 'i_h', selection_serial: 4,
+          board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [other] } });
+        const img = document.querySelector('.workbench-section[data-item="i_h"] .workbench-image-frame img');
+        Object.defineProperty(img, 'complete', { value: true });
+        Object.defineProperty(img, 'naturalWidth', { value: 800 });
+        Object.defineProperty(img, 'naturalHeight', { value: 600 });
+        drawnShapes.length = 0;
+        markChanged();
+        const pictures = window.Workbench.picturesNow();
+        expect(pictures.data).toHaveLength(1);
+        expect(pictures.data[0].marks.map((m) => [m.id, m.rev, m.mark.shape])).toEqual([
+          ['m_first000001', 1, 'rect'], ['m_second00002', 3, 'ellipse']]);
+        expect(drawnShapes.map((d) => (d[0] === 'number' ? d[1] : d[0]))).toEqual(['rect', '1', 'ellipse', '2']);
+        pictures.sent();
+        expect(window.Workbench.picturesNow()).toBeNull();
+        // The next view has them as the item's marks: they are no longer here to change.
+        const sent = Object.assign({}, other, { marks: [
+          { id: 'm_first000001', rev: 1, shape: 'rect', color: 'cyan', rect: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } }] });
+        view([sent], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [sent] } });
+        expect(dropped.at(-1)).toEqual(['m_first000001']);
+        expect(list.map((m) => m.id)).toEqual(['m_second00002']);
+      });
+
       test('sends where the mark is on the whole image with its picture', () => {
         pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
         markChanged();
-        expect(window.Workbench.picturesNow().data[0].rect).toEqual({ x: 0.25, y: 0.5, w: 0.5, h: 0.25 });
+        expect(window.Workbench.picturesNow().data[0].marks[0].rect).toEqual({ x: 0.25, y: 0.5, w: 0.5, h: 0.25 });
       });
 
       test('gives no image when nothing is marked, or when no image is asked for', async () => {
@@ -1709,7 +1747,8 @@ describe('Workbench', () => {
           sheet.getBoundingClientRect = () => ({ top: 0, bottom: 500, left: 0, right: 400 });
           box.appendChild(sheet);
           return { shown: () => ({ status: 'ready', page: 2, pages: 5, scale: 1, drawing: 1 }), dispose: () => {},
-            state: () => ({}), canvas: () => page, pointer: () => pointer, pointerSeq: () => seq, setPointable: () => {} };
+            state: () => ({}), canvas: () => page, pointer: () => pointer, pointerSeq: () => seq, setPointable: () => {},
+            marks: () => (pointer ? [Object.assign({ id: 'm_fakemark0002', rev: seq }, pointer)] : []) };
         }
       };
       global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(4) }));
@@ -1727,9 +1766,9 @@ describe('Workbench', () => {
         seq = 1;
         marked();
         const pictures = window.Workbench.picturesNow();
-        expect(pictures.data[0]).toMatchObject({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5, image: 'UElDVFVSRQ==',
-          mark_rev: 1 });
-        expect(pictures.data[0].mark).toEqual({ shape: 'ellipse', color: 'orange', x: 0.25, y: 0.2, w: 0.5, h: 0.4 });
+        expect(pictures.data[0]).toMatchObject({ item_id: 'i_p', version: 'f'.repeat(64), page: 2, pages: 5, image: 'UElDVFVSRQ==' });
+        expect(pictures.data[0].marks).toEqual([{ id: 'm_fakemark0002', rev: 1,
+          mark: { shape: 'ellipse', color: 'orange', x: 0.25, y: 0.2, w: 0.5, h: 0.4 }, rect: { x: 0.25, y: 0.1, w: 0.5, h: 0.2 } }]);
         expect(drawn.map((d) => d[0])).toEqual(['ellipse']);
         // Sent: not again until the pointer changes.
         pictures.sent();
@@ -1737,15 +1776,16 @@ describe('Workbench', () => {
         seq = 2;
         marked();
         expect(window.Workbench.picturesNow()).not.toBeNull();
-        // Made on a page not shown, or out of view: no picture of it.
+        // Made on a page not shown: no picture of it.
         pointer = Object.assign({}, pointer, { page: 3 });
         seq = 3;
         marked();
         expect(window.Workbench.picturesNow()).toBeNull();
+        // Below what is in view: the part cut is widened to it.
         pointer = { page: 2, shape: 'rect', x: 0.1, y: 0.8, w: 0.2, h: 0.1 };
         seq = 4;
         marked();
-        expect(window.Workbench.picturesNow()).toBeNull();
+        expect(window.Workbench.picturesNow().data[0].marks).toHaveLength(1);
         // For a model that takes no images: none.
         pointer = { page: 2, shape: 'rect', x: 0.1, y: 0.1, w: 0.2, h: 0.1 };
         seq = 5;

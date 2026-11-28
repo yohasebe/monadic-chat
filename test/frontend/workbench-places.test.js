@@ -102,6 +102,21 @@ describe('WorkbenchPlaces', () => {
     expect(again.regions.latest.root.classList.contains('is-folded')).toBe(true);
   });
 
+  test('folds an empty place by hand too, its arrow saying whether it is folded, and says when an open one holds nothing', () => {
+    const places = window.WorkbenchPlaces.build(container);
+    places.fill({ current: 0, latest: 0, previous: 0, stash: 0 }, {});
+    const now = places.regions.current;
+    expect(now.head.getAttribute('aria-expanded')).toBe('true');
+    expect(now.body.querySelector('.workbench-place-none').textContent).toBe('Nothing here');
+    now.head.click();
+    expect(now.head.getAttribute('aria-expanded')).toBe('false');
+    expect(now.root.classList.contains('is-folded')).toBe(true);
+    now.head.click();
+    expect(now.head.getAttribute('aria-expanded')).toBe('true');
+    places.fill({ current: 1, latest: 0, previous: 0, stash: 0 }, {});
+    expect(now.body.querySelector('.workbench-place-none')).toBeNull();
+  });
+
   test('keeps each place a least share, and starts from the defaults when what was kept is broken', () => {
     window.localStorage.setItem('monadic.workbench.places.side', '{not json');
     const places = window.WorkbenchPlaces.build(container);

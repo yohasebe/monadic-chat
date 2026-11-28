@@ -222,6 +222,22 @@ RSpec.describe Monadic::Workbench::Drawings do
       expect(source.inputs.first.bytes).to eq(File.binread(File.join(@data, "photo.png")))
     end
 
+    it "edits nothing of an image whose drawing holds a word hidden since" do
+      item, = drawn_on([stroke("t1", text: "Zebulon Quartzfield")])
+      Monadic::Utils::Privacy::Words.start!(session).confirm_all!([["Zebulon Quartzfield", "PERSON"]])
+      allow(Monadic::Workbench::Board).to receive(:existing).with(chat).and_return(board)
+      allow(board).to receive(:look_target).and_return(Monadic::Workbench::Board::Target.new(board.item(item["id"]), 1))
+      allow(board).to receive(:still_selected?).and_return(true)
+      allow(Monadic::Workbench::Look).to receive(:current?).and_return(true)
+      tab_answers(board.drawing_on(item["id"])[:digests])
+      expect do
+        Monadic::Workbench::ImageTool.edit_source(session: session, workbench: caller_for, images: nil, item: item["id"])
+      end.to raise_error(Monadic::Workbench::ImageTool::NoSource, /holds a word this chat hides/)
+      expect do
+        Monadic::Workbench::ImageTool.edit_source(session: session, workbench: caller_for, images: nil)
+      end.to raise_error(Monadic::Workbench::ImageTool::NoSource, /holds a word this chat hides/)
+    end
+
     it "gives a turn's view the shapes it drew" do
       item, request = drawn_on([stroke("s1")])
       messages = [{ "mid" => "m_user", "role" => "user", "text" => "hi", "request_id" => request }]

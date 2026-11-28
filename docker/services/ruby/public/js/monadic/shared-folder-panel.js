@@ -269,9 +269,11 @@
     const box = li.querySelector('.sfp-check');
     if (box) {
       box.setAttribute('aria-checked', on ? 'true' : 'false');
-      const glyph = box.querySelector('i');
-      if (glyph) glyph.className = on ? 'fa-solid fa-square-check' : 'fa-regular fa-square';
+      const glyph = box.querySelector('.sfp-check-box');
+      if (glyph) glyph.className = (on ? 'fa-solid fa-square-check' : 'fa-regular fa-square') + ' sfp-check-box';
     }
+    const list = $id('sfp-list');
+    if (list) list.classList.toggle('sfp-selecting', selected.size > 0);
   }
 
   // The row the keyboard is on: its name is the one element of the list
@@ -586,8 +588,11 @@
     const li = el('li', { className: 'sfp-row' });
     li.dataset.path = item.path;
     const label = item.name;
+    // One place before the name: the entry's kind, which turns into its
+    // box while the row is pointed at or anything is selected.
     if (canSelect(item)) {
-      const box = el('button', { className: 'sfp-check', type: 'button' }, [icon('fa-regular fa-square')]);
+      const box = el('button', { className: 'sfp-check', type: 'button' },
+        [icon(kindIcon(item) + ' sfp-check-kind'), icon('fa-regular fa-square sfp-check-box')]);
       box.setAttribute('role', 'checkbox');
       box.setAttribute('aria-checked', 'false');
       box.setAttribute('aria-label', t('selectOne', 'Select {name}').replace('{name}', label));
@@ -595,12 +600,11 @@
       box.addEventListener('click', function (e) { pick(index, e.shiftKey); });
       li.appendChild(box);
     } else {
-      li.appendChild(el('span', { className: 'sfp-check sfp-check-none' }));
+      li.appendChild(el('span', { className: 'sfp-check sfp-check-none' }, [icon(kindIcon(item) + ' sfp-check-kind')]));
     }
 
     const name = el('button', { className: 'sfp-name', type: 'button' });
     name.tabIndex = -1;
-    name.appendChild(icon(kindIcon(item) + ' sfp-icon'));
     const text = el('span', { className: 'sfp-text' });
     text.appendChild(el('span', { className: 'sfp-label', text: label }));
     const meta = metaText(item);

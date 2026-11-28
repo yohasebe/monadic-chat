@@ -17,5 +17,6 @@
   "workbench-whiteboard-color": "a color's swatch in the whiteboard's picker",
   "sourcecode-toggle": "a code block's show/hide line",
   "dropdown-item": "an item of a menu",
-  "sfp-row-menu": "a list row's menu (…), quiet in its row"
+  "sfp-row-menu": "a list row's menu (…), quiet in its row",
+  "sfp-name": "a list row's name, opening what it names"
 }

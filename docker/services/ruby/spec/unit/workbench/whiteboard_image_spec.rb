@@ -167,6 +167,12 @@ RSpec.describe "a whiteboard made an image" do
       take(board.item(item["id"]), png)
     end
 
+    # What Look reads of item, named by the AI (as Look.run reads it).
+    def looked(item, caller)
+      Monadic::Workbench::Look.read(board, Monadic::Workbench::Board::Target.new(board.item(item["id"]), nil), "whole",
+                                    caller: caller, deadline: Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5, named: true)
+    end
+
     def picture_data(item)
       { "item_id" => item["id"], "version" => item.dig("file", "sha256"), "image" => Base64.strict_encode64(png(8, 8)),
         "marks" => [{ "id" => "m_aaaaaaaa", "rev" => 1, "mark" => { "shape" => "rect", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 } }] }
@@ -179,7 +185,7 @@ RSpec.describe "a whiteboard made an image" do
       expect(board.board_texts_clear?(item["id"], words)).to be true
       caller = Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: Monadic::Workspace::Ids.generate(:request),
                                               session: session, tab: "tab-1", generation: 1)
-      expect { Monadic::Workbench::Look.send(:board_words!, board, item, caller) }.not_to raise_error
+      expect(looked(item, caller)).to include(kind: "image")
     end
 
     it "sends nothing of an image whose board held a hidden word: not looked at, not marked, not pictured, not edited" do
@@ -190,7 +196,7 @@ RSpec.describe "a whiteboard made an image" do
       expect(board.board_texts_clear?(item["id"], nil)).to be false
       caller = Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: Monadic::Workspace::Ids.generate(:request),
                                               session: session, tab: "tab-1", generation: 1)
-      expect { Monadic::Workbench::Look.send(:board_words!, board, item, caller) }
+      expect { looked(item, caller) }
         .to raise_error(Monadic::Workbench::Look::Refused) { |e| expect(e.reason).to eq("filtered") }
       next_turn!
       board.accept(item_id: item["id"], action: "bring", operation_id: "op-bring-0001", epoch: epoch, sha256: item.dig("file", "sha256"))

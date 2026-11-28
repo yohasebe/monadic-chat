@@ -548,7 +548,9 @@ module MonadicSharedTools
       return { success: false, error: board } if board.is_a?(String)
 
       result = BrowserOwner.acting(chat, recovery: true) do
-        # A new start replaces the chat's browser: the old one is closed first.
+        # A new start replaces the chat's browser: the old one is closed
+        # first, the page it showed kept on the work screen.
+        Monadic::Workbench::PagePictures.before_close(chat) if defined?(Monadic::Workbench::PagePictures)
         previous = BrowserOwner.release(chat, epoch)
         BrowserOwner.close_quietly(previous) if previous
 
@@ -580,6 +582,7 @@ module MonadicSharedTools
       end
 
       placed = Monadic::WorkScreen.browser_opened(chat) if defined?(Monadic::WorkScreen)
+      Monadic::Workbench::PagePictures.note(chat, result) if defined?(Monadic::Workbench::PagePictures)
 
       # Build response
       response = {
@@ -885,6 +888,8 @@ module MonadicSharedTools
       BrowserOwner.acting(chat, recovery: true) do
         next browser_state_error(:replaced) if BrowserOwner.replaced?(chat, epoch)
 
+        # The page it shows stays on the work screen (its last picture).
+        Monadic::Workbench::PagePictures.before_close(chat) if defined?(Monadic::Workbench::PagePictures)
         session_id = BrowserOwner.release(chat, epoch)
         next { success: true, message: "No browser session is open." } unless session_id
         next { success: true, message: "Browser session ended." } if BrowserOwner.close_quietly(session_id)
@@ -912,6 +917,7 @@ module MonadicSharedTools
         next browser_state_error(:replaced) unless BrowserOwner.holds?(chat, session_id, epoch)
 
         BrowserOwner.note_window(chat, session_id, result[:window])
+        Monadic::Workbench::PagePictures.note(chat, result) if defined?(Monadic::Workbench::PagePictures)
         result
       end
     end

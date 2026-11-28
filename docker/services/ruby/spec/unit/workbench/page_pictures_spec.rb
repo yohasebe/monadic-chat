@@ -8,6 +8,7 @@ require_relative "../../../lib/monadic/workbench/look"
 require_relative "../../../lib/monadic/workbench/observation"
 require_relative "../../../lib/monadic/shared_tools/browser_owner"
 require_relative "../../../lib/monadic/work_screen/snapshot"
+require_relative "../../../lib/monadic/work_screen"
 
 # The chat's open browser stays in Now when a turn ends; the page as that
 # turn left it goes down with the turn, as a picture in the chat's folder,
@@ -99,6 +100,14 @@ RSpec.describe Monadic::Workbench::PagePictures do
     expect(items.last).to include(kind: "page", status: "link", version: "page:link")
   end
 
+  it "keeps the address and title a tool last reported for a page kept without a picture" do
+    open_browser
+    described_class.note(chat, { page_info: { url: "https://u:p@example.com/a?token=x#f", title: "Page A" } })
+    user_turn!
+
+    expect(items.last).to include(kind: "page", status: "link", name: "Page A", url: "https://example.com/a")
+  end
+
   it "leaves a picture of each turn: the reply's goes into Latest and the user's moves to Before" do
     open_browser
     shots << { png: png, url: "https://example.com/a", title: "A" } << { png: png(1280, 801), url: "https://example.com/b", title: "B" }
@@ -151,6 +160,44 @@ RSpec.describe Monadic::Workbench::PagePictures do
 
     owner.acting(chat) { taken << :tool }
     expect(taken).to eq(%i[picture tool])
+  end
+
+  it "keeps the last page where the browser was when a tool closes it, before it is let go" do
+    browser = open_browser
+    shots << { png: png, url: "https://example.com/last", title: "Last" }
+    described_class.before_close(chat)
+
+    page = items.find { |item| item[:id] == browser["id"] }
+    expect(page).to include(kind: "file", place: "current", preview: "image",
+                            page: { "url" => "https://example.com/last", "title" => "Last" })
+    expect(items.size).to eq(1)
+    expect(described_class.taking?(chat)).to be(false)
+  end
+
+  it "makes the item of a browser that closed some other way a link to its page" do
+    browser = open_browser
+    open_instance[0] = nil
+    owner.closed(chat)
+
+    expect(items).to contain_exactly(include(id: browser["id"], kind: "page", status: "link", place: "current"))
+  end
+
+  it "leaves the item of the browser open now when an earlier one is told closed" do
+    open_browser
+    owner.closed(chat)
+
+    expect(items).to contain_exactly(include(kind: "browser", status: "open"))
+  end
+
+  it "puts a browser the user opened from the work screen on it as the user's" do
+    Thread.current[:workbench_opener] = { tab: "tab-1", generation: 1 }
+    view = MonadicSharedTools::BrowserOwner::View.new(chat, epoch, 1, "s-1", "w-1")
+    Monadic::WorkScreen.put_on_workbench(chat, view)
+
+    expect(items).to contain_exactly(include(kind: "browser", by: "user"))
+    expect(board.selected(tab: "tab-1", generation: 1)).to eq(items.first[:id])
+  ensure
+    Thread.current[:workbench_opener] = nil
   end
 
   it "says a page with no picture cannot be looked at, and tells its title and address" do

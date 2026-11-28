@@ -162,6 +162,24 @@ RSpec.describe 'Opening an address on the work screen from the page' do
     expect(answer).to include('success' => false, 'error' => 'too_large')
   end
 
+  it 'takes the browser open in Now to the address instead of starting another, as the user\'s' do
+    allow(MonadicSharedTools::WebAutomation).to receive(:available?).and_return(true)
+    live = { id: 'i_browser', kind: 'browser', place: 'current', status: 'open' }
+    board = double('board', snapshot: { items: [live] })
+    allow(Monadic::Workbench::Board).to receive(:existing).with(session[:chat_id]).and_return(board)
+    opener_seen = Queue.new
+    expect(opener).not_to receive(:start_browser)
+    allow(opener).to receive(:browser_navigate) do |url:|
+      opener_seen << [url, Thread.current[:workbench_opener]]
+      { success: true }
+    end
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com/next' }, session)
+
+    expect(answer).to eq('type' => 'workbench_open_url', 'success' => true, 'item_id' => 'i_browser')
+    expect(opener_seen.pop).to eq(['https://example.com/next', { tab: 'tab-open-url', generation: nil }])
+  end
+
   it 'starts the browser with the browser tools\' own start, on an app object' do
     allow(WebSocketHelper).to receive(:page_browser_host).and_call_original
     built = WebSocketHelper.page_browser_host

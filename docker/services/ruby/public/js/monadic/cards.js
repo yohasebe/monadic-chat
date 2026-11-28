@@ -281,6 +281,16 @@ function attachEventListeners(card) {
       return;
     }
 
+    // --- func-desk: the work screen as this turn left it ---
+    const deskBtn = event.target.closest(".func-desk");
+    if (deskBtn && card.contains(deskBtn)) {
+      event.stopPropagation();
+      if (window.Workbench && typeof window.Workbench.showTurn === 'function') {
+        window.Workbench.showTurn(card.id, card.dataset.turn || null);
+      }
+      return;
+    }
+
     // --- func-copy ---
     const copyBtn = event.target.closest(".func-copy");
     if (copyBtn && card.contains(copyBtn)) {
@@ -665,7 +675,7 @@ function attachEventListeners(card) {
 
   // Tooltip handlers via mouseenter/mouseleave delegation
   function tooltipEnterHandler(event) {
-    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
+    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-desk, .func-verify, .status, .card-turn-badge");
     if (target && card.contains(target)) {
       const tip = window.MonadicTip && window.MonadicTip.get(target);
       if (tip) tip.show('hover');
@@ -675,7 +685,7 @@ function attachEventListeners(card) {
   }
 
   function tooltipLeaveHandler(event) {
-    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-verify, .status, .card-turn-badge");
+    const target = event.target.closest(".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .func-desk, .func-verify, .status, .card-turn-badge");
     if (target && card.contains(target)) {
       const tip = window.MonadicTip && window.MonadicTip.get(target);
       if (tip) tip.hide();

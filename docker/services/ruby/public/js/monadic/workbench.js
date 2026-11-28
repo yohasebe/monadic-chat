@@ -346,7 +346,8 @@
     if (browserArea) browserArea.hidden = !live;
     drawBack(live);
     if (!view) return;
-    view.hidden = live;
+    // A past turn's desk, while shown, stands in for the present one.
+    view.hidden = live || !!past;
     if (live) return;
     if (item) view.dataset.item = item.id;
     else delete view.dataset.item;
@@ -389,6 +390,72 @@
       area.insertBefore(back, area.firstChild);
     }
     back.hidden = false;
+  }
+
+  // ---- an earlier turn's desk -----------------------------------------
+
+  // The turn shown from a card ({ mid, turn, request }), or null: the
+  // present desk is hidden meanwhile, so nothing of it is said to be in
+  // view and nothing of the past one goes with a message.
+  let past = null;
+  let turnRequest = 0;
+
+  // Shows the work screen as the turn of the card mid left it (its number
+  // turn, when known); the same card again goes back to now.
+  function showTurn(mid, turn) {
+    if (!mid || typeof window.safeWsSend !== 'function') return;
+    if (past && past.mid === mid) {
+      backToNow();
+      return;
+    }
+    turnRequest += 1;
+    past = { mid: mid, turn: turn || null, request: turnRequest };
+    window.safeWsSend({ message: 'WORKBENCH_TURN_VIEW', mid: mid, request: turnRequest });
+    const lc = window.LayoutController;
+    if (lc && typeof lc.setPane === 'function') lc.setPane('work');
+  }
+
+  // The server's answer: drawn when it is for the turn asked last (a late
+  // answer for one asked before is let go).
+  function onTurnView(data) {
+    if (!past || !data || data.request !== past.request || data.mid !== past.mid) return;
+    const box = turnBox();
+    if (!box || !window.WorkbenchTurn) return;
+    window.WorkbenchTurn.show(box, data, {
+      turn: past.turn, t: t, back: backToNow,
+      canBring: (id) => !locked() && !!approvals[id] && !!itemById(id) && placeOf(itemById(id)) !== 'current',
+      bring: (id) => {
+        const item = itemById(id);
+        if (item) act(item, 'bring');
+        backToNow();
+      }
+    });
+    box.hidden = false;
+    markShownCard(past.mid);
+    const view = $id('workbench-view');
+    if (view) view.hidden = true;
+  }
+
+  function backToNow() {
+    past = null;
+    const box = turnBox();
+    if (box) {
+      box.hidden = true;
+      box.replaceChildren();
+    }
+    markShownCard(null);
+    draw();
+  }
+
+  function turnBox() {
+    return $id('workbench-turn');
+  }
+
+  // The card whose turn is shown is outlined.
+  function markShownCard(mid) {
+    document.querySelectorAll('.card.is-turn-shown').forEach((card) => card.classList.remove('is-turn-shown'));
+    const card = mid ? $id(mid) : null;
+    if (card) card.classList.add('is-turn-shown');
   }
 
   // The desk and the drawer in view (WorkbenchPlaces), made once for it.
@@ -4183,6 +4250,7 @@
     onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksKeptErased, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard, flushWhiteboards, afterWhiteboardSaves, onWhiteboardImage,
+    showTurn, onTurnView, backToNow, turnShown: () => (past ? past.mid : null),
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

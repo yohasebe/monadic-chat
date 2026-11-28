@@ -683,8 +683,10 @@
               <div class="rounded shaded-panel p-3 text-secondary" id="work-screen-empty" data-i18n="ui.sidePane.workScreenEmpty">No work screen is currently available.</div>
               <img id="work-screen-image" class="work-screen-image rounded" alt="Work screen" data-i18n-aria-label="ui.sidePane.workScreen" style="display: none;">
             </div>
-            <%# The four places: Now, Latest, Before and Put away (workbench-places.js, workbench.js). %>
+            <%# The present desk and the drawer of what was put away (workbench-places.js, workbench.js). %>
             <div id="workbench-view" class="workbench-view" hidden></div>
+            <%# An earlier turn's desk, shown from its card in the conversation (workbench-turn.js). %>
+            <div id="workbench-turn" class="workbench-turn" hidden></div>
           </div>
           <%# The shared folder, one folder at a time (shared-folder-panel.js); everything done with it is here. %>
           <div id="shared-files-pane" class="shared-files-pane" role="tabpanel" aria-labelledby="side-tab-files" hidden>

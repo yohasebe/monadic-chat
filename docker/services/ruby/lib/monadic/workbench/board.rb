@@ -62,6 +62,10 @@ module Monadic
       FULL = "the work screen has #{NOW_LIMIT} items in Now: take one off or put one away first".freeze
       # One whiteboard is placed in a turn (the user's, the AI's).
       WHITEBOARD_USED = 'a whiteboard was placed in this turn already: draw on it, or place another in the next turn'
+      # One address is opened in a turn (the user's, the AI's).
+      URL_USED = 'a page was opened in this turn already: use it, or open another in the next turn'
+      # The kinds placed once a turn, and what a second one is told.
+      SLOTS = { 'whiteboard' => WHITEBOARD_USED, 'url' => URL_USED }.freeze
       # A whiteboard that left Now is kept as it was.
       FROZEN = 'this whiteboard left Now and is kept as it was: place a new whiteboard to draw'
       # The texts of a board kept with its image at most (characters).
@@ -231,7 +235,7 @@ module Monadic
           data['reply_request'] = request_id
           shift!(data, 'user', request_id)
           data['items'].each_value { |item| item.delete('fresh') }
-          data.delete('turn_whiteboards')
+          data.delete('turn_slots')
           @reply = request_id
           nil
         end
@@ -250,30 +254,34 @@ module Monadic
           turn_record!(data, request_id, 'agent')
           data.delete('reply_request')
           changed = shift!(data, 'agent', request_id)
-          data.delete('turn_whiteboards')
+          data.delete('turn_slots')
         end
         changed
       end
 
-      # A whiteboard is about to be made for origin: its place in Now and the
-      # turn's one whiteboard are taken before its file is written. Refused
-      # as placing is (BUSY, FULL), and when the turn placed one already
-      # (WHITEBOARD_USED). release_whiteboard gives the turn's back when the
-      # board could not be made.
-      def reserve_whiteboard(origin:, epoch:)
+      # Something of kind (SLOTS: a whiteboard, an address) is about to be
+      # placed for origin: its place in Now and the turn's one of that kind
+      # are taken before anything is made or fetched. Refused as placing is
+      # (BUSY, FULL), and when the turn placed one already. Returns the
+      # reservation's token: release_slot gives the turn's back with it when
+      # nothing was placed (only that reservation, never a later turn's).
+      def reserve_slot(kind, origin:, epoch:)
+        used = SLOTS.fetch(kind)
         change do |data|
           check_epoch!(epoch)
           target_place!(data, origin)
-          raise Refused, WHITEBOARD_USED if data['turn_whiteboards'].to_i.positive?
+          slots = (data['turn_slots'] ||= {})
+          raise Refused, used if slots[kind]
 
-          data['turn_whiteboards'] = 1
-          nil
+          slots[kind] = SecureRandom.hex(8)
         end
       end
 
-      def release_whiteboard
+      def release_slot(kind, token)
         change do |data|
-          data.delete('turn_whiteboards')
+          slots = data['turn_slots'] || {}
+          slots.delete(kind) if token && slots[kind] == token
+          data.delete('turn_slots') if slots.empty?
           nil
         end
       end

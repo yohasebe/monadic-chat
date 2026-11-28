@@ -53,21 +53,46 @@ module WebSocketHelper
     end
 
     tab, generation = workbench_connection(session).values_at(:tab, :generation)
+    # The turn's one address is taken before anything is fetched (a PDF or a
+    # page alike), and given back when neither was placed.
+    board, slot = workbench_url_slot(session, tab, generation)
+    unless slot
+      return send_to_client(connection, reply.merge('success' => false, 'error' => board || 'not_allowed'))
+    end
+
     Thread.new do
       Thread.current[:websocket_session_id] = tab
       Thread.current[:rack_session] = session
-      put = begin
-        Monadic::Workbench::UrlFile.put(url, session, tab: tab, generation: generation, live: WORKBENCH_LIVE)
-      rescue Monadic::Workbench::UrlFile::Failed => e
-        { 'as_file' => true, 'error' => e.reason }
+      answer = nil
+      begin
+        put = begin
+          Monadic::Workbench::UrlFile.put(url, session, tab: tab, generation: generation, live: WORKBENCH_LIVE)
+        rescue Monadic::Workbench::UrlFile::Failed => e
+          { 'as_file' => true, 'error' => e.reason }
+        end
+        answer = put ? put.merge('success' => !put['error']) : workbench_open_in_browser(url, session)
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Workbench] Page not opened: #{e.class}" }
+        answer = { 'success' => false, 'error' => 'open_failed' }
+      ensure
+        board.release_slot('url', slot) unless answer && answer['success']
       end
-      answer = put ? put.merge('success' => !put['error']) : workbench_open_in_browser(url, session)
       send_or_broadcast(reply.merge(answer).to_json, tab)
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Workbench] Page not opened: #{e.class}" }
-      send_or_broadcast(reply.merge('success' => false, 'error' => 'open_failed').to_json, tab)
     end
     nil
+  end
+
+  # [board, token] of the turn's address taken for this tab, or [reason, nil]
+  # when it cannot be (one opened already, a reply running, Now full).
+  private def workbench_url_slot(session, tab, generation)
+    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
+    return [nil, nil] unless chat_id && WORKBENCH_LIVE.call(tab) == generation
+
+    board = Monadic::Workbench::Board.for(chat_id)
+    origin = { actor: :user, source: :panel, tab: tab, generation: generation }
+    [board, board.reserve_slot('url', origin: origin, epoch: Monadic::Workspace::Chats.epoch(chat_id))]
+  rescue Monadic::Workbench::Board::Refused => e
+    [Monadic::Workbench::Channel::REFUSALS.fetch(e.message, e.message), nil]
   end
 
   # The address in the chat's browser (started when it is not running): the

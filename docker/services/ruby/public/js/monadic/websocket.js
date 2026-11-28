@@ -891,8 +891,11 @@ window.loadedApp = "Chat";
           if (data.as_file && typeof setAlert === 'function') setAlert(say('ui.modals.openUrlAsFile'), 'info');
         } else if (typeof setAlert === 'function') {
           const keys = { invalid_url: 'ui.modals.openUrlInvalid', browser_starting: 'ui.modals.openUrlStarting',
-                         too_large: 'ui.workbench.putTooLarge', unreachable: 'ui.modals.openUrlUnreachable' };
-          setAlert(say(keys[data.error] || 'ui.modals.openUrlFailed'), data.error === 'browser_starting' ? 'warning' : 'error');
+                         too_large: 'ui.workbench.putTooLarge', unreachable: 'ui.modals.openUrlUnreachable',
+                         url_used: 'ui.workbench.urlUsed', now_full: 'ui.workbench.nowFull',
+                         replying: 'ui.workbench.replyingLock' };
+          const notice = ['browser_starting', 'url_used', 'now_full', 'replying'].includes(data.error);
+          setAlert(say(keys[data.error] || 'ui.modals.openUrlFailed'), notice ? 'warning' : 'error');
         }
         break;
       }

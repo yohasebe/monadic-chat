@@ -45,7 +45,7 @@ Put the document on the [work screen](web-interface.md#work-screen) (**File**, o
 
 Click **URL** at the top of the [work screen](web-interface.md#work-screen) and enter an address that starts with `http://` or `https://`.
 
-- **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there. An address that serves a PDF (up to 64 MB) is put on the work screen as a file instead: it is kept in the chat's folder (`inputs/`), as a file you put there, and shown as a PDF.
+- **Open in the work screen** opens the page in the chat's browser on the [work screen](web-interface.md#work-screen). In an app that has browser tools, or that can look at the work screen, the assistant reads the page from there. An address that serves a PDF (up to 64 MB) is put on the work screen as a file instead: it is kept in the chat's folder (`inputs/`), as a file you put there, and shown as a PDF. One page can be opened in the work screen in a turn, whether it opens in the browser or as a PDF; the AI can likewise open one page in a reply.
 - **Take in as text** reads the page's text into the message box in Markdown format.
 
 ![The Open URL dialog](../assets/images/figures/url-dialog.svg)

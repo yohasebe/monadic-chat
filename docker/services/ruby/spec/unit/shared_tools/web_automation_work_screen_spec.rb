@@ -194,6 +194,41 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
       result = Monadic::Workspace::RequestContext.with(request) { app.start_browser(url: "https://example.com") }
       expect(result[:work_screen]).to eq(Monadic::WorkScreen::FULL_NOTE)
     end
+
+    # The reply's one address: a second start in the reply is refused before
+    # the browser it has is closed; a start that failed gives it back.
+    describe "in a reply" do
+      before do
+        board.begin_reply(request.request_id)
+        allow(Monadic::WorkScreen).to receive(:browser_opened).and_return(nil)
+      end
+
+      def start = Monadic::Workspace::RequestContext.with(request) { app.start_browser(url: "https://example.com") }
+
+      it "opens one page a reply, and keeps the browser it has when asked for another" do
+        expect(start[:success]).to be(true)
+        expect(owner).not_to receive(:release)
+
+        refused = start
+        expect(refused[:success]).to be(false)
+        expect(refused[:error]).to eq("❌ A page was opened in this turn already: use it, or open another in the next turn.")
+      end
+
+      it "gives the reply's page back when the browser did not start" do
+        app.mock_response = JSON.generate(success: false, error: "no")
+        expect(start[:success]).to be(false)
+
+        app.mock_response = JSON.generate(success: true, session_id: "wd-new", screenshot: "start.png", page_info: {})
+        expect(start[:success]).to be(true)
+      end
+
+      it "opens a page again in the next reply" do
+        expect(start[:success]).to be(true)
+        board.end_reply(request.request_id)
+        board.begin_reply(request.request_id)
+        expect(start[:success]).to be(true)
+      end
+    end
   end
 
   # The captures are written in a run folder of the chat.

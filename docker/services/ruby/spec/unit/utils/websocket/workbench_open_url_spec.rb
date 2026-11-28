@@ -22,9 +22,12 @@ RSpec.describe 'Opening an address on the work screen from the page' do
   end
   let(:session) { { chat_id: Monadic::Workspace::Ids.generate(:chat) } }
   let(:opener) { double('page browser host') }
+  # The chat's board: the turn's one address is taken there first.
+  let(:slots) { double('board', reserve_slot: 'slot-1', release_slot: nil) }
 
   before do
     Thread.current[:websocket_session_id] = 'tab-open-url'
+    allow(Monadic::Workbench::Board).to receive(:for).with(session[:chat_id]).and_return(slots)
     allow(WebSocketHelper).to receive(:page_browser_host).and_return(double(new: opener))
     allow(Monadic::Workbench::UrlFile).to receive(:put).and_return(nil)
   end
@@ -82,6 +85,7 @@ RSpec.describe 'Opening an address on the work screen from the page' do
 
   it 'puts a PDF the address serves on the work screen as a file, for the tab, without the browser' do
     connected = session.merge(_ws_generation: 3)
+    allow(WebSocketHelper::WORKBENCH_LIVE).to receive(:call).with('tab-open-url').and_return(3)
     expect(opener).not_to receive(:start_browser)
     expect(Monadic::Workbench::UrlFile).to receive(:put)
       .with('https://example.com/paper.pdf', connected, tab: 'tab-open-url', generation: 3,
@@ -111,6 +115,51 @@ RSpec.describe 'Opening an address on the work screen from the page' do
     host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com' }, session)
 
     expect(answer).to eq('type' => 'workbench_open_url', 'success' => true, 'item_id' => 'i_browser')
+  end
+
+  it 'takes the turn\'s one address for the tab before anything is fetched, and keeps it when the page opened' do
+    allow(MonadicSharedTools::WebAutomation).to receive(:available?).and_return(true)
+    allow(opener).to receive(:start_browser).and_return({ success: true })
+    expect(slots).to receive(:reserve_slot)
+      .with('url', origin: { actor: :user, source: :panel, tab: 'tab-open-url', generation: nil },
+                   epoch: Monadic::Workspace::Chats.epoch(session[:chat_id]))
+      .and_return('slot-1')
+    expect(slots).not_to receive(:release_slot)
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com' }, session)
+
+    expect(answer).to include('success' => true)
+  end
+
+  it 'refuses a second address in the turn before anything is fetched' do
+    allow(slots).to receive(:reserve_slot)
+      .and_raise(Monadic::Workbench::Board::Refused, Monadic::Workbench::Board::URL_USED)
+    expect(Monadic::Workbench::UrlFile).not_to receive(:put)
+    expect(opener).not_to receive(:start_browser)
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com' }, session)
+
+    expect(answer).to eq('type' => 'workbench_open_url', 'success' => false, 'error' => 'url_used')
+  end
+
+  it 'gives the turn\'s address back, by its reservation, when neither a file nor a page was placed' do
+    allow(MonadicSharedTools::WebAutomation).to receive(:available?).and_return(true)
+    allow(opener).to receive(:start_browser).and_return({ success: false, error: 'no' })
+    allow(Monadic::Workbench::UrlFile).to receive(:put).and_return(nil)
+    expect(slots).to receive(:release_slot).with('url', 'slot-1')
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com' }, session)
+
+    expect(answer).to include('success' => false)
+  end
+
+  it 'gives it back when a PDF could not be put on the work screen' do
+    allow(Monadic::Workbench::UrlFile).to receive(:put).and_raise(Monadic::Workbench::UrlFile::Failed.new('too_large'))
+    expect(slots).to receive(:release_slot).with('url', 'slot-1')
+
+    host.send(:handle_ws_workbench_open_url, nil, { 'url' => 'https://example.com/big.pdf' }, session)
+
+    expect(answer).to include('success' => false, 'error' => 'too_large')
   end
 
   it 'starts the browser with the browser tools\' own start, on an app object' do

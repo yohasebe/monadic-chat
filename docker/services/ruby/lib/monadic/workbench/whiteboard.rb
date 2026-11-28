@@ -210,11 +210,11 @@ module Monadic
       # record, its copy kept) or plain, put on the work screen for the tab.
       # Returns the board's item.
       # The turn's one whiteboard and its place in Now are taken first
-      # (Board#reserve_whiteboard), and given back when it is not made.
+      # (Board#reserve_slot), and given back when it is not made.
       def create(chat_id, app_name:, origin:, epoch:, background: nil)
         folder, dir = folder_of(chat_id, app_name)
         board = Board.for(chat_id)
-        board.reserve_whiteboard(origin: origin, epoch: epoch)
+        slot = board.reserve_slot('whiteboard', origin: origin, epoch: epoch)
         begin
           name = lock_for(chat_id).synchronize do
             # A board's image keeps its number taken when the board is gone.
@@ -226,7 +226,7 @@ module Monadic
           item, = board.add_file(path: File.join(folder, DIRNAME, "#{name}#{EXTENSION}"), origin: origin,
                                  epoch: epoch, wait: 0)
         rescue StandardError
-          board.release_whiteboard
+          board.release_slot('whiteboard', slot)
           raise
         end
         Channel.changed(chat_id)

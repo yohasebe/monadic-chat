@@ -1,8 +1,9 @@
 /**
  * The work screen's four places, one under another (workbench.js fills
  * them): Now (current), Latest, Before (previous) and Put away (stash).
- * Each has a head (its name, who placed it, how many items) and a body
- * that scrolls on its own. An empty Now or Put away folds to its head (Now
+ * Each is a panel as the side column's others are (rounded, shaded), with
+ * a head (its icon and name, who placed it, how many items, and the arrow
+ * that folds it by hand) and a body that scrolls on its own. An empty Now or Put away folds to its head (Now
  * takes what is placed, Put away what is dragged there); an empty Latest
  * or Before is not shown at all. Between two
  * open places a separator changes their heights (dragged, or with the
@@ -22,6 +23,8 @@
   // The places a turn's layer is in: not shown while empty.
   const LAYERS = ['latest', 'previous'];
   const STORE_KEY = 'monadic.workbench.places.';
+  const FOLDED_KEY = 'monadic.workbench.places.folded';
+  const ICONS = { current: 'fa-pencil', latest: 'fa-reply', previous: 'fa-clock-rotate-left', stash: 'fa-box-archive' };
   // The least share of the open height a place keeps while resized.
   const MIN_WEIGHT = 0.1;
   const KEY_STEP = 0.05;
@@ -47,6 +50,16 @@
       return weights;
     } catch (_) {
       return Object.assign({}, DEFAULTS);
+    }
+  }
+
+  function storedFolded() {
+    try {
+      const raw = window.localStorage && window.localStorage.getItem(FOLDED_KEY);
+      const kept = raw ? JSON.parse(raw) : [];
+      return Array.isArray(kept) ? kept.filter((name) => PLACES.includes(name)) : [];
+    } catch (_) {
+      return [];
     }
   }
 
@@ -79,15 +92,36 @@
         separators.push(separator);
         container.appendChild(separator);
       }
-      const root = element('section', 'workbench-place');
+      const root = element('section', 'workbench-place rounded shaded-panel');
       root.dataset.place = name;
-      const head = element('div', 'workbench-place-head');
-      const title = element('span', 'workbench-place-title', names[name]);
-      const count = element('span', 'workbench-place-count');
-      head.append(title, count);
       const body = element('div', 'workbench-place-body');
       body.dataset.place = name;
+      body.id = `workbench-place-${name}`;
       body.setAttribute('aria-label', names[name]);
+      // The head as the side column's panels have it: pressing it (or
+      // Enter or Space on it) folds or opens the place.
+      const head = element('h5', 'workbench-place-head sidebar-collapse-toggle mb-0');
+      head.setAttribute('role', 'button');
+      head.tabIndex = 0;
+      head.setAttribute('aria-controls', body.id);
+      const title = element('span', 'text workbench-place-title');
+      title.append(element('i', `fa-solid ${ICONS[name]}`), document.createTextNode(` ${names[name]}`));
+      const side = element('span', 'workbench-place-side');
+      const count = element('span', 'workbench-place-count');
+      side.append(count, element('i', 'fas fa-chevron-down sidebar-collapse-icon'));
+      head.append(title, side);
+      const turn = () => {
+        if (folded.has(name)) folded.delete(name);
+        else folded.add(name);
+        keepFolded();
+        apply();
+      };
+      head.addEventListener('click', turn);
+      head.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        turn();
+      });
       root.append(head, body);
       container.appendChild(root);
       regions[name] = { root, head, body, title, count, name: names[name] };
@@ -95,11 +129,30 @@
 
     let mode = 'side';
     let weights = stored(mode);
+    // The places the user folded (kept for the next page).
+    const folded = new Set(storedFolded());
+    function keepFolded() {
+      try {
+        if (window.localStorage) window.localStorage.setItem(FOLDED_KEY, JSON.stringify(Array.from(folded)));
+      } catch (_) {
+        // Not kept: the next page opens every place.
+      }
+    }
 
     // The open places take the height by their weights; an empty one is
     // only its head.
+    function isOpen(name) {
+      return !regions[name].root.classList.contains('is-empty') && !folded.has(name);
+    }
+
     function apply() {
-      const open = PLACES.filter((name) => !regions[name].root.classList.contains('is-empty'));
+      PLACES.forEach((name) => {
+        const root = regions[name].root;
+        const shut = folded.has(name);
+        root.classList.toggle('is-folded', shut);
+        root.querySelector('.workbench-place-head').setAttribute('aria-expanded', isOpen(name) ? 'true' : 'false');
+      });
+      const open = PLACES.filter(isOpen);
       const total = open.reduce((sum, name) => sum + weights[name], 0) || 1;
       PLACES.forEach((name) => {
         const root = regions[name].root;
@@ -133,7 +186,7 @@
     }
 
     function move(separator, by) {
-      const open = PLACES.filter((name) => !regions[name].root.classList.contains('is-empty'));
+      const open = PLACES.filter(isOpen);
       const pair = pairOf(separator, open);
       if (!pair) return;
       const [upper, lower] = pair;
@@ -154,7 +207,7 @@
       });
       separator.addEventListener('pointerdown', (e) => {
         if (e.button !== 0) return;
-        const open = PLACES.filter((name) => !regions[name].root.classList.contains('is-empty'));
+        const open = PLACES.filter(isOpen);
         const pair = pairOf(separator, open);
         if (!pair) return;
         const span = regions[pair[0]].root.getBoundingClientRect().height + regions[pair[1]].root.getBoundingClientRect().height;

@@ -268,7 +268,7 @@
   // names no place for is in Now).
   function placeOf(item) {
     if (!item) return 'stash';
-    return item.place === 'stash' ? 'stash' : (DESK.includes(item.place) ? item.place : 'current');
+    return item.place === 'stash' ? 'stash' : (['current', 'latest', 'previous'].includes(item.place) ? item.place : 'current');
   }
 
   // Whether marks can be made on the item now (Now or Latest, no reply).
@@ -391,20 +391,15 @@
     back.hidden = false;
   }
 
-  // The four places in view (WorkbenchPlaces), made once for it.
-  const DESK = ['current', 'latest', 'previous'];
+  // The desk and the drawer in view (WorkbenchPlaces), made once for it.
   let places = null;
   function placesIn(view) {
-    if (!places || !view.contains(places.regions.current.root)) {
+    if (!places || !view.contains(places.regions.desk.root)) {
       places = window.WorkbenchPlaces.build(view, t);
       nearObservers.clear();
       wirePlaces(places);
     }
     return places;
-  }
-
-  function layoutMode() {
-    return document.body.classList.contains('side-pane-only') ? 'right' : 'side';
   }
 
   function sectionOf(id) {
@@ -413,19 +408,21 @@
     return Array.from(view.querySelectorAll('.workbench-section')).find((node) => node.dataset.item === id) || null;
   }
 
-  // Every item in its place, in the order it came there: on the desk (Now,
-  // Latest, Before) one under another, the one chosen (the tab's focus)
-  // with its buttons and its pointer, the others as they are, drawn once
-  // they come near the view; put away, a row each (the one chosen opened
-  // in its place, to read). A drawn item moves between places as it is.
+  // The present desk: Now, then Latest, one under another, each tagged with
+  // who placed it and when; the one chosen (the tab's focus) with its
+  // buttons and its pointer, the others as they are, drawn once they come
+  // near the view. Put away, in the drawer, newest first, a row each (the
+  // one chosen opened in its place, to read). Before is not shown: an
+  // earlier turn's desk is shown from its card in the conversation.
   function drawSections(view, focus) {
     const at = placesIn(view);
     const row = rowItems();
-    const opened = (item) => placeOf(item) !== 'stash' || (!!focus && item.id === focus.id);
+    const regionOf = (item) => window.WorkbenchPlaces.regionOf(placeOf(item));
+    const opened = (item) => regionOf(item) === 'desk' || (regionOf(item) === 'stash' && !!focus && item.id === focus.id);
     const shownIds = new Set(row.filter(opened).map((item) => item.id));
     const kept = new Map();
-    window.WorkbenchPlaces.PLACES.forEach((place) => {
-      Array.from(at.regions[place].body.children).forEach((node) => {
+    window.WorkbenchPlaces.PLACES.forEach((region) => {
+      Array.from(at.regions[region].body.children).forEach((node) => {
         if (node.classList.contains('workbench-section') && shownIds.has(node.dataset.item)) kept.set(node.dataset.item, node);
         else node.remove();
       });
@@ -435,18 +432,18 @@
       letGo(drawn);
       others.delete(id);
     });
-    const counts = {};
-    window.WorkbenchPlaces.PLACES.forEach((place) => {
-      const body = at.regions[place].body;
-      const list = row.filter((item) => placeOf(item) === place);
-      counts[place] = list.length;
-      list.forEach((item, index) => {
+    const of = (place) => row.filter((item) => placeOf(item) === place);
+    const lists = { desk: of('current').concat(of('latest')), stash: of('stash').reverse() };
+    window.WorkbenchPlaces.PLACES.forEach((region) => {
+      const body = at.regions[region].body;
+      lists[region].forEach((item, index) => {
         const node = opened(item) ? (kept.get(item.id) || section(item)) : stashRow(item);
         if (body.children[index] !== node) body.insertBefore(node, body.children[index] || null);
         if (opened(item)) nearby(node, body);
       });
     });
-    at.fill(counts, { layers: board && board.layers, limit: board && board.now_limit, mode: layoutMode() });
+    at.fill({ current: of('current').length, latest: of('latest').length, stash: lists.stash.length },
+      { limit: board && board.now_limit });
     // The one chosen first: what was drawn for the one before is kept for
     // it among the others.
     if (focus && shownIds.has(focus.id)) drawFocus(focus, kept.get(focus.id) || sectionOf(focus.id));
@@ -584,11 +581,11 @@
     return grip;
   }
 
-  // Now and Put away take a dragged item; a file from the computer is the
-  // pane's (wirePut).
+  // The desk (into Now) and the drawer (put away) take a dragged item; a
+  // file from the computer is the pane's (wirePut).
   function wirePlaces(at) {
-    [['current', 'bring'], ['stash', 'stash']].forEach(([place, action]) => {
-      const root = at.regions[place].root;
+    [['desk', 'current', 'bring'], ['stash', 'stash', 'stash']].forEach(([region, place, action]) => {
+      const root = at.regions[region].root;
       const carries = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes(DRAG_TYPE);
       root.addEventListener('dragover', (e) => {
         if (!carries(e)) return;
@@ -603,8 +600,8 @@
         if (item && placeOf(item) !== place) act(item, action);
       });
     });
-    DESK.concat(['stash']).forEach((place) => {
-      $on(at.regions[place].body, 'scroll', () => {
+    window.WorkbenchPlaces.PLACES.forEach((region) => {
+      $on(at.regions[region].body, 'scroll', () => {
         unpin();
         placeJump();
       }, { passive: true });
@@ -655,10 +652,25 @@
     if (!head) return;
     head.textContent = label(item);
     head.setAttribute('aria-current', focused ? 'true' : 'false');
-    Array.from(bar.querySelectorAll(':scope > .workbench-grip, :scope > .workbench-section-moves')).forEach((el) => el.remove());
+    Array.from(bar.querySelectorAll(':scope > .workbench-grip, :scope > .workbench-item-tag, :scope > .workbench-section-moves'))
+      .forEach((el) => el.remove());
     const grip = gripOf(item);
     if (grip) bar.insertBefore(grip, head);
+    const tag = tagOf(item);
+    if (tag) bar.appendChild(tag);
     bar.appendChild(movesOf(item));
+  }
+
+  // Who placed a desk item and when: in Now (this turn), or in Latest (the
+  // turn before, the other side's or the user's own).
+  function tagOf(item) {
+    const place = placeOf(item);
+    if (place !== 'current' && place !== 'latest') return null;
+    const by = place === 'latest' ? ((board && board.layers && board.layers.latest) || item.by) : item.by;
+    const who = by === 'agent' ? t('ui.workbench.placeByAgent', 'AI') : t('ui.workbench.placeByUser', 'You');
+    const when = place === 'current' ? t('ui.workbench.placeNow', 'Now') : t('ui.workbench.placeLatest', 'Latest');
+    const tag = element('span', `workbench-item-tag is-${place} is-by-${by === 'agent' ? 'agent' : 'user'}`, `${who} · ${when}`);
+    return tag;
   }
 
   // The others are drawn once near the view of their place (an image, a
@@ -1831,8 +1843,8 @@
   const AT_END = 4;
   function jumpPlace() {
     const item = selected ? itemById(selected) : null;
-    const place = item ? placeOf(item) : 'current';
-    return places ? { place: place, scroller: places.regions[place].body } : null;
+    const region = (item && window.WorkbenchPlaces.regionOf(placeOf(item))) || 'desk';
+    return places ? { place: region, scroller: places.regions[region].body } : null;
   }
 
   function placeJump() {
@@ -2187,7 +2199,7 @@
     const view = $id('workbench-view');
     if (!view || view.hidden || !places) return [];
     // What is in view now on the desk, place by place (never put away).
-    return DESK.flatMap((place) => Array.from(places.regions[place].body.children))
+    return Array.from(places.regions.desk.body.children)
       .filter((node) => node.classList.contains('workbench-section') && visibleRect(node))
       .map((node) => itemById(node.dataset.item)).filter((item) => item && placeOf(item) !== 'stash').map(of);
   }

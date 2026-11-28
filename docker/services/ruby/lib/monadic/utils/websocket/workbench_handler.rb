@@ -312,6 +312,34 @@ module WebSocketHelper
     send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'unwritable'))
   end
 
+  # The image this tab painted of a whiteboard that left Now (png: base64
+  # PNG, at the version the view named; not image, which BooleanParser takes
+  # as an app's setting): the first one taken makes the board an
+  # image (Workbench::Whiteboard.take_image). The page is told how it went;
+  # every tab of the chat is told the board changed.
+  def handle_ws_workbench_whiteboard_image(connection, obj, session)
+    reply = { 'type' => 'workbench_whiteboard_image', 'item_id' => obj['item_id'].is_a?(String) ? obj['item_id'][0, 64] : nil,
+              'version' => obj['version'].is_a?(String) ? obj['version'][0, 128] : nil }
+    tab, generation = workbench_connection(session).values_at(:tab, :generation)
+    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
+    unless chat_id && WORKBENCH_LIVE.call(tab) == generation && reply['item_id'] && reply['version']
+      return send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'not_allowed'))
+    end
+
+    Monadic::Workbench::Whiteboard.take_image(chat_id, item_id: reply['item_id'], version: reply['version'], image: obj['png'],
+                                                       app_name: session.dig(:parameters, 'app_name').to_s,
+                                                       epoch: Monadic::Workspace::Chats.epoch(chat_id))
+    send_to_client(connection, reply.merge('status' => 'made'))
+    send_workbench_view(connection, session)
+  rescue Monadic::Workbench::Whiteboard::Refused, Monadic::Workbench::Board::Refused => e
+    send_to_client(connection, reply.merge('status' => e.message == 'done' ? 'done' : 'refused', 'reason' => e.message))
+  rescue Monadic::Workbench::FileItem::Busy
+    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'busy'))
+  rescue Monadic::Workspace::Folders::Unavailable, Monadic::Utils::SharedPathGuard::InvalidPath, SystemCallError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] whiteboard image not kept: #{e.class}" }
+    send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'unwritable'))
+  end
+
   def handle_ws_workbench_select(connection, obj, session)
     result = Monadic::Workbench::Channel.select(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
     workbench_deliver(connection).call(result)

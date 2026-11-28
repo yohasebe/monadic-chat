@@ -35,6 +35,20 @@ module Monadic
       DRAWN_NOTE = 'Edit the first image. The second image is the same picture with marks the user drew on it, ' \
                    'showing what to change and where; leave the marks themselves out of the result. '
 
+      PENDING = 'The whiteboard is being made an image (it left Now): try again once it is one; nothing is edited.'
+      HIDES_WORDS = "The image was made of a whiteboard whose texts hold a word this chat hides: nothing is edited."
+
+      # The words session's chat hides, or nil when they cannot be read.
+      def words_of(session)
+        return nil unless session
+
+        Monadic::Utils::Privacy::Outbound.chat_session!(session)
+        Monadic::Utils::Privacy::Outbound.terms_of(session)
+      rescue Monadic::Utils::Privacy::Outbound::Refused
+        nil
+      end
+      module_function :words_of
+
       # An edit that cannot start: the message says why.
       class NoSource < StandardError; end
 
@@ -65,7 +79,7 @@ module Monadic
       # comes before all of these. Raises NoSource when there is nothing to
       # edit.
       def edit_source(session:, workbench:, images:, item: nil)
-        return item_source(workbench, item.to_s, images) unless item.nil? || item.to_s.empty?
+        return item_source(workbench, item.to_s, images, session: session) unless item.nil? || item.to_s.empty?
 
         named = Array(images).filter_map do |img|
           upload = upload_name(img)
@@ -107,12 +121,16 @@ module Monadic
       # version it has now, selected or not), or a whiteboard drawn on an
       # image (its picture and the board as the tab draws it: only one the
       # tab shows). Nothing else, and no other image in its place.
-      def item_source(workbench, item_id, images)
+      def item_source(workbench, item_id, images, session: nil)
         raise NoSource, '❌ Name an item of the work screen or images, not both.' if Array(images).any?
 
         board = workbench && Board.existing(workbench.chat_id)
         item = board&.item(item_id) or raise NoSource, '❌ That item is not on the work screen now: nothing is edited.'
         raise NoSource, "❌ #{Board::PUT_AWAY.sub(/\A./, &:upcase)}: nothing is edited." if item['place'] == 'stash'
+        # A whiteboard that left Now is made an image by a page first: nothing
+        # is edited in its place meanwhile.
+        raise NoSource, "❌ #{PENDING}" if board.image_pending(item['id'])
+        raise NoSource, "❌ #{HIDES_WORDS}" unless board.board_texts_clear?(item['id'], words_of(session))
         return drawn_source(workbench, item_id) if BoardEdit.whiteboard?(item)
         unless item['artifact'] || item.dig('file', 'preview') == 'image'
           raise NoSource, '❌ That item is not an image or a whiteboard drawn on one: nothing is edited.'

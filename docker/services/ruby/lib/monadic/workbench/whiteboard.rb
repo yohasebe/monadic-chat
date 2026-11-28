@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
+require 'base64'
 require 'json'
+require 'zlib'
 require_relative 'board'
+require_relative 'image_check'
 require_relative 'channel'
 require_relative 'whiteboard_background'
 require_relative '../workspace/folders'
@@ -23,6 +26,13 @@ module Monadic
       DIRNAME = 'whiteboards'
       EXTENSION = '.wb.json'
       NAME = /\Awhiteboard-([1-9]\d{0,3})\z/
+      # A file that takes a board's number: the board, or its image.
+      TAKEN = /\Awhiteboard-([1-9]\d{0,3})(?:-\d+)?(?:#{Regexp.escape(EXTENSION)}|\.png)\z/
+      # The image a page paints of a plain board: its sheet's size, and the
+      # base64 text sent for it at most.
+      IMAGE_BASE64_LIMIT = 8 * 1024 * 1024
+      # Names tried for a board's image (whiteboard-<n>.png, then -2, -3 …).
+      IMAGE_NAMES = 20
       WIDTH = 1600
       HEIGHT = 1000
       # The sheet shapes are placed on (its width and height): PLAIN, or one
@@ -207,7 +217,8 @@ module Monadic
         board.reserve_whiteboard(origin: origin, epoch: epoch)
         begin
           name = lock_for(chat_id).synchronize do
-            taken = Dir.children(dir).filter_map { |f| f.delete_suffix(EXTENSION)[NAME, 1]&.to_i if f.end_with?(EXTENSION) }
+            # A board's image keeps its number taken when the board is gone.
+            taken = Dir.children(dir).filter_map { |f| f[TAKEN, 1]&.to_i }
             "whiteboard-#{(taken.max || 0) + 1}".tap do |new_name|
               write(dir, new_name, clean({ 'shapes' => [] }, background: background), replace: false)
             end
@@ -266,9 +277,10 @@ module Monadic
 
           before = clean(kept, background: background)['shapes']
           board_data = clean(data, background: background)
-          board.while_editable(item_id, origin) { write(dir, name, board_data) }
-          item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0,
-                                 event: edit_event(before, board_data['shapes']))
+          item = board.write_whiteboard(item_id, origin: origin, epoch: epoch,
+                                                 event: edit_event(before, board_data['shapes'])) do
+            write(dir, name, board_data)
+          end
           Channel.changed(chat_id)
           item
         end
@@ -278,6 +290,91 @@ module Monadic
         raise Refused, 'not a whiteboard of this chat'
       rescue Board::Refused => e
         raise Refused, e.message
+      end
+
+      # The image a page painted of the plain board item_id at version (base64
+      # PNG text), once the board left Now: checked (a whole PNG of the
+      # board's sheet size) and kept beside the board as whiteboard-<n>.png
+      # (the first free of -2, -3 … when that name is taken), and the item
+      # becomes that image (Board#take_whiteboard_image). Refused 'done' when
+      # it is one already, 'stale' when the board is not one waiting at
+      # version, 'bad_image' for bytes that are not its image. Returns the
+      # item.
+      def take_image(chat_id, item_id:, version:, image:, app_name:, epoch:)
+        board = Board.existing(chat_id) or raise Refused, 'stale'
+        pending = board.image_pending(item_id.to_s)
+        item = board.item(item_id.to_s) or raise Refused, 'stale'
+        raise Refused, 'done' if pending.nil? && item.dig('board_source', 'sha256') == version.to_s
+        raise Refused, 'stale' unless pending && pending == version.to_s
+
+        path = item.dig('file', 'path').to_s
+        folder, dir = folder_of(chat_id, app_name)
+        raise Refused, 'stale' unless own?(folder, path)
+
+        bytes = png_of(image)
+        texts = texts_of(board.file_read(item_id.to_s, sha256: version.to_s)[:bytes])
+        base = File.basename(path).delete_suffix(EXTENSION)
+        names = (1..IMAGE_NAMES).map { |k| File.join(folder, DIRNAME, k == 1 ? "#{base}.png" : "#{base}-#{k}.png") }
+        made = board.take_whiteboard_image(item_id.to_s, version: version.to_s, names: names, epoch: epoch, texts: texts) do |name|
+          Monadic::Utils::SharedPathGuard.write_file!(File.join(dir, File.basename(name)), bytes, mode: 'wb', replace: false,
+                                                                                             strict: true)
+          name
+        rescue Errno::EEXIST
+          nil
+        end
+        Channel.changed(chat_id)
+        made
+      rescue Board::Refused => e
+        raise Refused, e.message
+      rescue Artifact::Changed, Artifact::NotAllowed
+        raise Refused, 'stale'
+      end
+
+      # The texts written on a kept board (its bytes): each shape's text.
+      # :unknown when it cannot be read.
+      def texts_of(bytes)
+        Array(parse(bytes)['shapes']).filter_map { |shape| shape['text'] if shape.is_a?(Hash) && shape['text'].is_a?(String) }
+      rescue Refused
+        :unknown
+      end
+
+      # The bytes of a board's image as the page sent them (base64), when they
+      # are a whole PNG of a plain board's sheet; Refused 'bad_image'.
+      def png_of(image)
+        raise Refused, 'bad_image' unless image.is_a?(String) && image.bytesize <= IMAGE_BASE64_LIMIT
+
+        bytes = Base64.strict_decode64(image)
+        shape = ImageCheck.check!(bytes)
+        raise Refused, 'bad_image' unless shape[:content_type] == 'image/png' && shape[:width] == WIDTH && shape[:height] == HEIGHT
+        # All of it came, and nothing but the picture: its chunks, each
+        # whole (by its CRC), are of the kinds that draw it, the last IEND.
+        raise Refused, 'bad_image' unless picture_chunks_only?(bytes)
+
+        bytes
+      rescue ArgumentError, ImageCheck::Refused
+        raise Refused, 'bad_image'
+      end
+
+      # The chunks a board's image may have: what draws it (no text or
+      # metadata chunk carries anything with it).
+      PICTURE_CHUNKS = %w[IHDR PLTE IDAT IEND tRNS sRGB gAMA].freeze
+
+      def picture_chunks_only?(bytes)
+        at = 8
+        seen = []
+        while at + 12 <= bytes.bytesize
+          length = bytes.byteslice(at, 4).unpack1('N')
+          type = bytes.byteslice(at + 4, 4)
+          return false unless PICTURE_CHUNKS.include?(type) && at + 12 + length <= bytes.bytesize
+
+          body = bytes.byteslice(at + 8, length)
+          return false unless Zlib.crc32(type + body) == bytes.byteslice(at + 8 + length, 4).unpack1('N')
+
+          seen << type
+          at += 12 + length
+          break if type == 'IEND'
+        end
+        seen.first == 'IHDR' && seen.last == 'IEND' && at == bytes.bytesize
       end
 
       # A kept board (bytes) as JSON, or Refused.
@@ -344,10 +441,9 @@ module Monadic
           yield shapes, frame_of(background)
           next nil if JSON.generate(shapes) == before
 
-          board.while_editable(item['id'], origin) do
+          item = board.write_whiteboard(item['id'], origin: origin, epoch: epoch) do
             write(dir, File.basename(path).delete_suffix(EXTENSION), clean({ 'shapes' => shapes }, background: background))
           end
-          item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
           Channel.changed(chat_id)
           item
         end

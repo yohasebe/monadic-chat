@@ -2246,6 +2246,59 @@ describe('Workbench', () => {
         .toBe('The work screen can be changed when the reply ends.');
     });
 
+    test('holds a message until what was drawn is saved, and sends it once the save is taken', () => {
+      jest.useFakeTimers();
+      drawStroke();
+      const next = jest.fn();
+      expect(window.Workbench.afterWhiteboardSaves(next)).toBe(true);
+      expect(saves()).toHaveLength(1);
+      expect(next).not.toHaveBeenCalled();
+      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: saves()[0].request, status: 'saved', item_id: 'i_w',
+        version: 'b'.repeat(64) });
+      expect(next).toHaveBeenCalledTimes(1);
+      // Nothing waiting: nothing held.
+      expect(window.Workbench.afterWhiteboardSaves(next)).toBe(false);
+    });
+
+    test('sends nothing held when the save is refused, and says so', () => {
+      jest.useFakeTimers();
+      drawStroke();
+      const next = jest.fn();
+      window.Workbench.afterWhiteboardSaves(next);
+      window.setAlert.mockClear();
+      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: saves()[0].request, status: 'refused',
+        reason: 'whiteboard_frozen' });
+      expect(next).not.toHaveBeenCalled();
+      expect(window.setAlert.mock.calls.map((c) => c[0]).join(' ')).toContain('nothing was sent');
+    });
+
+    test('paints a board that waits for its image off screen, sends it once, and again after a refusal', async () => {
+      const noop = new Proxy({}, { get: (_t, name) => (name === 'canvas' ? undefined : () => ({ width: 10 })) });
+      const getContext = jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => noop);
+      const toDataURL = jest.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(() => 'data:image/png;base64,UE5H');
+      try {
+        const waiting = Object.assign({}, wb, { frozen: true, place: 'latest', image_pending: 'a'.repeat(64) });
+        const boardOf = (revision) => ({ board_id: 'b1', chat_id: 'c_1', revision: revision, items: [waiting] });
+        sent.length = 0;
+        view([waiting], { renders: { i_w: '/workbench/asset/render-i_w' }, board: boardOf(7) });
+        await flushAll();
+        const images = () => sent.filter((x) => x.payload.message === 'WORKBENCH_WHITEBOARD_IMAGE').map((x) => x.payload);
+        expect(images()).toEqual([{ message: 'WORKBENCH_WHITEBOARD_IMAGE', item_id: 'i_w', version: 'a'.repeat(64), png: 'UE5H' }]);
+        expect(document.querySelector('.workbench-board-painting')).toBeNull();
+        view([waiting], { renders: { i_w: '/workbench/asset/render-i_w' }, board: boardOf(8) });
+        await flushAll();
+        expect(images()).toHaveLength(1);
+        window.Workbench.onWhiteboardImage({ type: 'workbench_whiteboard_image', item_id: 'i_w', version: 'a'.repeat(64),
+          status: 'refused', reason: 'busy' });
+        view([waiting], { renders: { i_w: '/workbench/asset/render-i_w' }, board: boardOf(9) });
+        await flushAll();
+        expect(images()).toHaveLength(2);
+      } finally {
+        getContext.mockRestore();
+        toDataURL.mockRestore();
+      }
+    });
+
     test('says why a whiteboard was not placed or saved', () => {
       window.setAlert.mockClear();
       window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: 999, status: 'refused', reason: 'whiteboard_used' });

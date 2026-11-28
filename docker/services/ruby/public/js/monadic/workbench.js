@@ -248,6 +248,8 @@
       warn(lockText());
       return;
     }
+    // A board leaving Now is kept as saved: what was drawn goes first.
+    if (action !== 'bring' && afterWhiteboardSaves(() => act(itemById(item.id) || item, action))) return;
     window.safeWsSend({
       message: 'WORKBENCH_ACTION', item_id: item.id, action: action, token: token, operation_id: newOperationId()
     }, { idempotent: true });
@@ -974,9 +976,41 @@
   // Every board drawn on and not saved yet is sent now: before a message,
   // which ends the turn (its boards leave Now and are kept as saved).
   function flushWhiteboards() {
-    [drawnBody].concat(Array.from(others.values())).forEach((drawn) => {
-      if (drawn && drawn.whiteboardPending) saveWhiteboardNow(drawn);
+    drawnBoards().forEach((drawn) => {
+      if (drawn.whiteboardPending) saveWhiteboardNow(drawn);
     });
+  }
+
+  function drawnBoards() {
+    return [drawnBody].concat(Array.from(others.values())).filter((drawn) => drawn && drawn.whiteboardItem);
+  }
+
+  // How long a held step waits for the boards' saves.
+  const SAVES_WAIT = 15000;
+  let savesWait = null;
+
+  // When a board has strokes not saved yet, or a save on its way: sends
+  // them, and runs next once every save is answered, taken (a refusal, or
+  // no answer in time, runs nothing and says so: the message stays to be
+  // sent again). Returns whether it holds next (false: nothing to wait for).
+  function afterWhiteboardSaves(next) {
+    if (!drawnBoards().some((drawn) => drawn.whiteboardPending || drawn.whiteboardSaving)) return false;
+    if (savesWait) clearTimeout(savesWait.timer);
+    savesWait = { next: next, failed: false,
+      timer: setTimeout(() => savesSettled(true), SAVES_WAIT) };
+    flushWhiteboards();
+    return true;
+  }
+
+  function savesSettled(failed) {
+    if (!savesWait) return;
+    if (failed) savesWait.failed = true;
+    if (!savesWait.failed && drawnBoards().some((drawn) => drawn.whiteboardPending || drawn.whiteboardSaving)) return;
+    const done = savesWait;
+    savesWait = null;
+    clearTimeout(done.timer);
+    if (done.failed) warn(t('ui.workbench.wbNotSavedHeld', 'The whiteboard could not be saved, so nothing was sent. Try again.'));
+    else done.next();
   }
 
   // Sends the board waiting to be saved, unless a save of it is still on
@@ -1014,8 +1048,10 @@
       // What is drawn is that version (and what was drawn since, waiting).
       drawn.loadedVersion = data.version;
       if (drawn.whiteboardPending && !drawn.gone) saveWhiteboardNow(drawn);
+      savesSettled(false);
       return;
     }
+    savesSettled(true);
     whiteboardRefused(data.reason);
     // Saved meanwhile from elsewhere, or no longer drawn on: the board as it
     // is now is drawn again.
@@ -1024,6 +1060,70 @@
       drawn.whiteboardVersion = '';
       askView(true);
     }
+  }
+
+  // ---- a whiteboard made an image ------------------------------------
+
+  // A board that left Now waits for its image (the view's image_pending:
+  // the version to paint): this tab paints it, shown or not, from its whole
+  // file (renders) off screen at its sheet's size, and sends it; the first
+  // image the server takes is the board's. One at a time; each item and
+  // version once while it is on its way (a failure is tried again with a
+  // later view).
+  const painting = new Set();
+  let paintChain = Promise.resolve();
+
+  function paintBoardImages() {
+    items().forEach((item) => {
+      const version = item.image_pending;
+      const key = `${item.id}:${version}`;
+      if (!version || !renders[item.id] || painting.has(key) || !window.WorkbenchWhiteboard) return;
+      painting.add(key);
+      paintChain = paintChain.then(() => paintBoardImage(item, version, renders[item.id]))
+        .catch(() => painting.delete(key));
+    });
+  }
+
+  async function paintBoardImage(item, version, url) {
+    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error(String(response.status));
+    // A file that is not a board is not painted as an empty one.
+    const data = JSON.parse(await response.text());
+    const box = element('div', 'workbench-board-painting');
+    box.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(box);
+    let image = null;
+    try {
+      const handle = window.WorkbenchWhiteboard.show(box, data, { frozen: true });
+      try {
+        const size = handle.size();
+        const canvas = document.createElement('canvas');
+        canvas.width = size.width;
+        canvas.height = size.height;
+        const context = canvas.getContext('2d');
+        if (context && handle.paint(context, size.width, size.height)) {
+          const png = canvas.toDataURL('image/png');
+          const comma = png.indexOf(',');
+          if (png.startsWith('data:image/png;base64,') && comma > 0) image = png.slice(comma + 1);
+        }
+      } finally {
+        handle.dispose();
+      }
+    } finally {
+      box.remove();
+    }
+    if (!image || typeof window.safeWsSend !== 'function') throw new Error('not painted');
+    // png, not image: a message's top-level image is taken as an app's
+    // setting (BooleanParser) on the server.
+    window.safeWsSend({ message: 'WORKBENCH_WHITEBOARD_IMAGE', item_id: item.id, version: version, png: image });
+  }
+
+  // The server's answer: made (the view that follows shows the image), done
+  // (another tab's came first), or refused (tried again with a later view
+  // while the board still waits).
+  function onWhiteboardImage(data) {
+    if (!data || data.status === 'made' || data.status === 'done') return;
+    painting.delete(`${data.item_id}:${data.version}`);
   }
 
   // An image could not be drawn on: it changed since it was shown (open
@@ -3181,6 +3281,7 @@
     }
     if (news.length > 0) announce(news.join(' '));
     draw();
+    paintBoardImages();
     refreshRelay();
     if (resumedChat && next.chat_id === resumedChat) {
       resumedChat = null;
@@ -4069,7 +4170,7 @@
   window.Workbench = {
     onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksKeptErased, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
-    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard, flushWhiteboards,
+    textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard, flushWhiteboards, afterWhiteboardSaves, onWhiteboardImage,
     // Something changed on the board elsewhere (a tool showed a file).
     onChanged: () => askView(true),
     // Whether the pane shows the browser (the relay runs only then).

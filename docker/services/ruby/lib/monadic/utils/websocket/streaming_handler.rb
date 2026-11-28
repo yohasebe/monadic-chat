@@ -209,14 +209,15 @@ module WebSocketHelper
     return [] if model && !Monadic::Utils::ModelSpec.vision_capability?(model)
 
     connection = { tab: Thread.current[:websocket_session_id], generation: session[:_ws_generation] }
+    # The words the chat hides; when they cannot be read, no name is told
+    # and no image made of a whiteboard with texts goes.
+    words = begin
+      Monadic::Utils::Privacy::Outbound.chat_session!(session)
+      Monadic::Utils::Privacy::Outbound.terms_of(session)
+    rescue Monadic::Utils::Privacy::Outbound::Refused
+      nil
+    end
     if marked
-      # The words the chat hides; when they cannot be read, no name is told.
-      words = begin
-        Monadic::Utils::Privacy::Outbound.chat_session!(session)
-        Monadic::Utils::Privacy::Outbound.terms_of(session)
-      rescue Monadic::Utils::Privacy::Outbound::Refused
-        nil
-      end
       return Monadic::Workbench::Picture.accept_marked(marked, chat_id: chat_id, request_id: request_id, words: words,
                                                                **connection)
     end
@@ -224,7 +225,8 @@ module WebSocketHelper
 
     provider = Monadic::Workbench::Look::Availability.transport_of(app_settings["provider"] || app_settings[:provider])
     unmarked = Monadic::Workbench::Look::Availability.by_message?(provider: provider, model: model)
-    [Monadic::Workbench::Picture.accept(single, chat_id: chat_id, request_id: request_id, unmarked: unmarked, **connection)]
+    [Monadic::Workbench::Picture.accept(single, chat_id: chat_id, request_id: request_id, unmarked: unmarked, words: words,
+                                                **connection)]
   rescue Monadic::Workbench::Picture::Refused => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] Pictures not taken: #{e.reason}" }
     []

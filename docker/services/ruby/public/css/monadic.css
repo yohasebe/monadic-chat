@@ -6706,6 +6706,15 @@ body.side-pane-resizing {
 .workbench-pointer-layer.workbench-pointer-drawing .workbench-pointer-handle {
   display: none;
 }
+/* A whiteboard painted off screen as its image (workbench.js). */
+.workbench-board-painting {
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  width: 1600px;
+  visibility: hidden;
+  pointer-events: none;
+}
 /* Of several marks, only the one chosen shows its sides and corners. */
 .workbench-pointer:not(.is-chosen) .workbench-pointer-handle {
   display: none;

@@ -974,6 +974,12 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // The image this tab painted of a whiteboard that left Now: taken or not.
+      case "workbench_whiteboard_image": {
+        if (window.Workbench && typeof window.Workbench.onWhiteboardImage === 'function') window.Workbench.onWhiteboardImage(data);
+        break;
+      }
+
       // The AI pointed at a part of what this tab shows.
       case "workbench_point": {
         if (window.Workbench && typeof window.Workbench.onPoint === 'function') window.Workbench.onPoint(data);

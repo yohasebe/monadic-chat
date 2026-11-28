@@ -2656,6 +2656,8 @@ document.addEventListener("DOMContentLoaded", function () {
       // The marked items' pictures (several), or else the chosen item's unmarked one.
       const pictures = window.Workbench && typeof window.Workbench.picturesNow === 'function' ? window.Workbench.picturesNow() : null;
       const picture = window.Workbench && typeof window.Workbench.pictureNow === 'function' ? window.Workbench.pictureNow() : null;
+      // The marks the user erased since the last message.
+      const erasures = window.Workbench && typeof window.Workbench.erasuresNow === 'function' ? window.Workbench.erasuresNow() : null;
       const selection = window.Workbench && typeof window.Workbench.selectionNow === 'function' ? window.Workbench.selectionNow() : null;
       // The AI's mark is for the reply it came with: the next message takes it away.
       if (window.Workbench && typeof window.Workbench.clearAiPoint === 'function') window.Workbench.clearAiPoint();
@@ -2681,6 +2683,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (pictures) extra.workbench_pictures = pictures.data;
         else if (picture) extra.workbench_picture = picture.data;
         if (selection) extra.workbench_selection = selection.data;
+        if (erasures) extra.workbench_erase = erasures.data;
         const outgoing = Object.keys(extra).length > 0 ? Object.assign({}, params, extra) : params;
         const sendResult = window.BackgroundReply ? window.BackgroundReply.sendReply(outgoing) : window.safeWsSend(outgoing);
         // Not sent: the text stays for the retry.
@@ -2691,6 +2694,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (pictures) pictures.sent();
         else if (picture) picture.sent();
         if (selection) selection.sent();
+        if (erasures) erasures.sent();
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
           WorkflowViewer.setStage('input');
         }

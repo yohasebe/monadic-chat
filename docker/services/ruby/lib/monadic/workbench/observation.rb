@@ -43,7 +43,8 @@ module Monadic
                  'The work screen is a desk shared with the user. "items" are on it, by place: "current" is what the ' \
                  'speaker of this turn put out, "latest" what the last turn that placed anything put out, "previous" ' \
                  'the turn before that ("places" says who placed each). "put_away" lists put-away items by name and ' \
-                 'kind only: bring one into current to look at it. ' \
+                 'kind only: bring one into current to look at it. "marks" counts the marks the user sent on an item ' \
+                 'with this message (new) and earlier (shown there before). ' \
                  'Statuses are the server\'s; "range" is what the user\'s page reported it shows of the selected item; ' \
                  '"in_view" lists the items the user\'s page reported in view now (all or part of each), in order; ' \
                  '"changes" is what happened on the work screen since your last reply (who did it, to which item), ' \
@@ -104,7 +105,7 @@ module Monadic
           desk = DESK.flat_map { |place| seen[:items].select { |item| item[:place] == place } }
           put_away = seen[:items].select { |item| item[:place] == 'stash' }
           selected = desk.find { |item| item[:id] == seen[:selected] }
-          screen = { 'items' => desk.map { |item| shown_item(item).merge('place' => item[:place], 'by' => item[:by]).compact },
+          screen = { 'items' => desk.map { |item| with_marks(shown_item(item).merge('place' => item[:place], 'by' => item[:by]).compact, board, item, request_id) },
                      'selected' => selected && shown_selected(selected, seen[:text], reported) }
           places = seen[:layers] || {}
           screen['places'] = places unless places.empty?
@@ -178,6 +179,15 @@ module Monadic
           type = item[:preview] == 'file' ? clean(item[:content_type]) : nil
           { 'id' => item[:id], 'kind' => kind_of(item), 'type' => type, 'name' => clean(item[:name] || item[:kind]),
             'path' => item[:path] && clean(item[:path]), 'status' => item[:status] }.compact
+        end
+
+        # The item as told, with how many marks the message sent on it (new)
+        # and how many were there before (earlier), when there are any.
+        def with_marks(shown, board, item, request_id)
+          counts = board.mark_counts(item[:id], request_id)
+          return shown unless counts && (counts['new'].positive? || counts['earlier'].positive?)
+
+          shown.merge('marks' => counts)
         end
 
         # Put-away items as the model is told of them: the newest by name

@@ -6004,6 +6004,21 @@ body.side-pane-resizing {
   background: color-mix(in srgb, var(--pal-accent-soft) 70%, transparent);
   outline: none;
 }
+/* Marks earlier messages sent on an item: lighter, fixed, under the
+   pointer's layer. */
+.workbench-marks-earlier {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.workbench-mark-earlier {
+  position: absolute;
+  border: 2px dashed color-mix(in srgb, var(--pal-accent-mid) 60%, transparent);
+  background: color-mix(in srgb, var(--pal-accent-soft) 25%, transparent);
+}
+.workbench-mark-earlier.is-ellipse {
+  border-radius: 50%;
+}
 /* A section's bar: its grip, its name (choosing it) and its move buttons. */
 .workbench-section-bar,
 .workbench-stash-row {

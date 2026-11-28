@@ -1301,7 +1301,8 @@ describe('Workbench', () => {
           attach: (opts) => {
             markChanged = opts.changed;
             return { controls: Object.assign(document.createElement('div'), { className: 'workbench-pointer-controls' }),
-              pointer: () => pointerNow, pointerSeq: () => markSeq, escape: () => false, setPointable: () => {}, dispose: jest.fn() };
+              pointer: () => pointerNow, pointerSeq: () => markSeq, escape: () => false, setPointable: () => {},
+              clear: () => { pointerNow = null; }, dispose: jest.fn() };
           }
         };
         jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({
@@ -1413,6 +1414,35 @@ describe('Workbench', () => {
         pictures.sent();
         expect(window.Workbench.picturesNow().data.map((d) => d.item_id)).toEqual(['i_5']);
         expect(line.hidden).toBe(true);
+      });
+
+      test('draws the marks earlier messages sent, lighter and fixed, and erases them with the next message', () => {
+        const marks = [{ id: 'm_aaaaaa', rev: 1, shape: 'ellipse', color: 'cyan', rect: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 } }];
+        const marked = Object.assign({}, photo, { place: 'latest', marks: marks });
+        view([marked], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [marked] } });
+        const box = document.querySelector('.workbench-section[data-item="i_g"] .workbench-marks-earlier .workbench-mark-earlier');
+        expect(box.classList.contains('is-ellipse')).toBe(true);
+        expect([box.style.left, box.style.top, box.style.width, box.style.height]).toEqual(['10%', '20%', '30%', '40%']);
+        const erase = document.querySelector('.workbench-section[data-item="i_g"] .workbench-erase-marks');
+        expect(erase.textContent).toBe('Erase marks (1)');
+        expect(window.Workbench.erasuresNow()).toBeNull();
+        erase.click();
+        expect(document.querySelectorAll('.workbench-section[data-item="i_g"] .workbench-mark-earlier')).toHaveLength(0);
+        const erasures = window.Workbench.erasuresNow();
+        expect(erasures.data).toEqual([{ item_id: 'i_g', version: 'e'.repeat(64), targets: [['m_aaaaaa', 1]] }]);
+        erasures.sent();
+        expect(window.Workbench.erasuresNow()).toBeNull();
+        // Before: drawn, and not erased from there.
+        const before = Object.assign({}, marked, { place: 'previous' });
+        view([before], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [before] } });
+        expect(document.querySelectorAll('.workbench-section[data-item="i_g"] .workbench-mark-earlier')).toHaveLength(1);
+        expect(document.querySelector('.workbench-section[data-item="i_g"] .workbench-erase-marks')).toBeNull();
+      });
+
+      test('sends where the mark is on the whole image with its picture', () => {
+        pointerNow = { at: 1, by: 'user', shape: 'rect', color: 'cyan', x: 0.25, y: 0.5, w: 0.5, h: 0.25 };
+        markChanged();
+        expect(window.Workbench.picturesNow().data[0].rect).toEqual({ x: 0.25, y: 0.5, w: 0.5, h: 0.25 });
       });
 
       test('gives no image when nothing is marked, or when no image is asked for', async () => {

@@ -34,6 +34,10 @@ module WebSocketHelper
 
     # Delete the message, and move what it made to the chat's trash
     deleted = message_index && messages[message_index]
+    # The marks a user's message recorded on the work screen are taken out
+    # with it (always: a message can be deleted whatever its marks).
+    undo_message_marks(rack_session, deleted, ws_session_id)
+
     rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
     # The app state is made again without the deleted turn's changes.
     Monadic::TurnState.changed!(rack_session[Monadic::Workspace::Chats::SESSION_KEY]) if defined?(Monadic::TurnState)
@@ -66,6 +70,22 @@ module WebSocketHelper
     sync_session_state!
   end
   
+  # Takes out what the user's message recorded of the marks on the work
+  # screen; the page is told how many marks it erased stayed erased.
+  def undo_message_marks(rack_session, message, ws_session_id)
+    return unless message.is_a?(Hash) && message["role"] == "user" && message["request_id"]
+
+    chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
+    board = chat_id && Monadic::Workbench::Board.existing(chat_id)
+    return unless board
+
+    stayed = board.undo_marks(message["request_id"])
+    send_or_broadcast({ "type" => "workbench_marks_kept_erased", "count" => stayed }.to_json, ws_session_id) if stayed.positive?
+    Monadic::Workbench::Channel.changed(chat_id)
+  rescue StandardError => e
+    Monadic::Utils::ExtraLogger.log { "[Workbench] Marks not taken out: #{e.class}" }
+  end
+
   def remove_workbench_picture(rack_session, message)
     chat_id = rack_session[Monadic::Workspace::Chats::SESSION_KEY]
     return unless chat_id

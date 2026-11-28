@@ -6704,6 +6704,31 @@ body.side-pane-resizing {
 .workbench-pointer-layer.workbench-pointer-drawing .workbench-pointer-handle {
   display: none;
 }
+/* Of several marks, only the one chosen shows its sides and corners. */
+.workbench-pointer:not(.is-chosen) .workbench-pointer-handle {
+  display: none;
+}
+/* Its number (as the picture sent numbers it), inside its top left
+   corner, clear of the corner's handle. */
+.workbench-pointer-number {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--mark-line, #d98a3d);
+  color: var(--mark-ink, #fff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4rem;
+  text-align: center;
+  pointer-events: none;
+}
+.workbench-pointer-number[hidden] {
+  display: none;
+}
 .workbench-pointer-n { left: 50%; top: 0; cursor: ns-resize; }
 .workbench-pointer-s { left: 50%; top: 100%; cursor: ns-resize; }
 .workbench-pointer-e { left: 100%; top: 50%; cursor: ew-resize; }

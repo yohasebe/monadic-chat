@@ -59,6 +59,15 @@ module Monadic
       NOTE_MARKED_IMAGE = 'Work screen picture %<n>d attached to this message is the image%<named>s ' \
                           '(work screen item %<item>s). The user marked a part of it with a translucent %<color>s ' \
                           '%<shape>s to point at it (left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%% of the image).'
+      # Marks on one picture at most.
+      MARKS_LIMIT = 8
+      NOTE_SEVERAL = 'Work screen picture %<n>d attached to this message is the part of page %<page>d of the PDF%<named>s ' \
+                     '(work screen item %<item>s) the user had in view when marking it. The user marked %<count>d parts of it, ' \
+                     'each translucent and numbered on the picture: %<marks>s (as fractions of the picture).'
+      NOTE_SEVERAL_IMAGE = 'Work screen picture %<n>d attached to this message is the image%<named>s (work screen item %<item>s). ' \
+                           'The user marked %<count>d parts of it, each translucent and numbered on the picture: ' \
+                           '%<marks>s (as fractions of the image).'
+      MARK_TERM = 'mark %<number>d, a %<color>s %<shape>s at left %<x>d%%, top %<y>d%%, width %<w>d%%, height %<h>d%%'
       # A mark's own id (the page's), and how many times it changed.
       MARK_ID = /\Am_[a-z0-9]{6,32}\z/
       REV_LIMIT = 1_000_000
@@ -69,7 +78,7 @@ module Monadic
       Refused = Pointing::Refused
 
       attr_reader :id, :chat_id, :request_id, :item_id, :version, :kind, :page, :pages, :mark, :bytes,
-                  :name, :mark_id, :mark_rev, :position, :rect
+                  :name, :mark_id, :mark_rev, :position, :rect, :mark_list
 
       class << self
         # The picture the page sent with a message (data), checked against
@@ -125,18 +134,14 @@ module Monadic
             raise Refused, 'twice' if taken[[item[:id], page]]
 
             taken[[item[:id], page]] = true
-            mark = Pointing.mark_of(data['mark']) or raise Refused, 'bad_mark'
-            mark_id = data['mark_id'].is_a?(String) && data['mark_id'].match?(MARK_ID) ? data['mark_id'] : nil
-            raise Refused, 'bad_mark' unless mark_id && data['mark_rev'].is_a?(Integer) && data['mark_rev'].between?(0, REV_LIMIT)
-
-            # Where the mark is on the whole image or page (kept on the board).
-            rect = data.key?('rect') ? Pointing.mark_of(data['rect'].is_a?(Hash) ? data['rect'].merge('shape' => mark['shape']) : nil) : nil
-            raise Refused, 'bad_mark' if data.key?('rect') && rect.nil?
-
+            # The marks on it, numbered as drawn (marks), or the one mark of a
+            # page from before (mark, mark_id, mark_rev, rect).
+            marks = marks_of(data)
+            first = marks.first
             new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
-                version: item[:version], kind: kind, page: page, pages: pages, mark: mark, bytes: png_of(data['image']),
-                name: name_for(item, words), mark_id: mark_id, mark_rev: data['mark_rev'], position: index + 1,
-                rect: rect&.slice('x', 'y', 'w', 'h'))
+                version: item[:version], kind: kind, page: page, pages: pages, mark: first['mark'], bytes: png_of(data['image']),
+                name: name_for(item, words), mark_id: first['id'], mark_rev: first['rev'], position: index + 1,
+                rect: first['rect'], marks: marks)
           end
         end
 
@@ -179,6 +184,8 @@ module Monadic
             out['mark_id'] = value['mark_id']
             out['mark_rev'] = value['mark_rev']
           end
+          several = several_of(value['marks'])
+          out['marks'] = several if several
           return out.merge('kind' => 'image').merge(marked) if value['kind'] == 'image'
 
           pages = Pointing.whole(value['pages'], PAGES_LIMIT) or return nil
@@ -198,6 +205,20 @@ module Monadic
           FileUtils.rm_f(path)
         end
 
+        # The marks a reference keeps when it has several, checked, or nil.
+        def several_of(list)
+          return nil unless list.is_a?(Array) && list.size.between?(2, MARKS_LIMIT)
+
+          marks = list.map do |m|
+            return nil unless m.is_a?(Hash) && m['id'].is_a?(String) && m['id'].match?(MARK_ID) &&
+                              m['rev'].is_a?(Integer) && m['rev'].between?(0, REV_LIMIT)
+
+            mark = Pointing.mark_of(m['mark']) or return nil
+            { 'id' => m['id'], 'rev' => m['rev'], 'mark' => mark }
+          end
+          marks.map { |m| m['id'] }.uniq.size == marks.size ? marks : nil
+        end
+
         def path_of(chat_id, id, store:)
           return nil unless id.is_a?(String) && id.match?(ID)
 
@@ -207,6 +228,34 @@ module Monadic
         end
 
         private
+
+        # The marks a picture carries, each { 'id', 'rev', 'mark' (its place on
+        # the picture), 'rect' (on the whole image or page, or nil) }, at most
+        # MARKS_LIMIT, ids once; Refused when one is not a mark.
+        def marks_of(data)
+          list = data['marks'].is_a?(Array) ? data['marks'] : [data.slice('mark', 'mark_id', 'mark_rev', 'rect').merge('legacy' => true)]
+          raise Refused, 'bad_mark' if list.empty? || list.size > MARKS_LIMIT
+
+          marks = list.map do |entry|
+            raise Refused, 'bad_mark' unless entry.is_a?(Hash)
+
+            legacy = entry['legacy']
+            mark = Pointing.mark_of(entry['mark']) or raise Refused, 'bad_mark'
+            id = legacy ? entry['mark_id'] : entry['id']
+            rev = legacy ? entry['mark_rev'] : entry['rev']
+            raise Refused, 'bad_mark' unless id.is_a?(String) && id.match?(MARK_ID) && rev.is_a?(Integer) && rev.between?(0, REV_LIMIT)
+
+            rect = nil
+            if entry.key?('rect')
+              rect = Pointing.mark_of(entry['rect'].is_a?(Hash) ? entry['rect'].merge('shape' => mark['shape']) : nil)
+              raise Refused, 'bad_mark' if rect.nil?
+            end
+            { 'id' => id, 'rev' => rev, 'mark' => mark, 'rect' => rect&.slice('x', 'y', 'w', 'h') }
+          end
+          raise Refused, 'bad_mark' unless marks.map { |m| m['id'] }.uniq.size == marks.size
+
+          marks
+        end
 
         # What a marked item's picture is: an image (a file that shows one,
         # or one the AI made) or a PDF; nil for anything else.
@@ -250,7 +299,7 @@ module Monadic
       end
 
       def initialize(id:, chat_id:, request_id:, item_id:, version:, page:, pages:, mark:, bytes:, kind: 'pdf',
-                     name: nil, mark_id: nil, mark_rev: nil, position: 1, rect: nil)
+                     name: nil, mark_id: nil, mark_rev: nil, position: 1, rect: nil, marks: nil)
         @id = id
         @chat_id = chat_id
         @request_id = request_id
@@ -266,6 +315,7 @@ module Monadic
         @mark_rev = mark_rev
         @position = position
         @rect = rect&.freeze
+        @mark_list = (marks || (mark_id ? [{ 'id' => mark_id, 'rev' => mark_rev, 'mark' => mark, 'rect' => rect }] : [])).freeze
         freeze
       end
 
@@ -286,6 +336,9 @@ module Monadic
       # What the message keeps of it.
       def reference
         out = { 'id' => id, 'item_id' => item_id, 'version' => version }
+        if mark_list.size > 1
+          out['marks'] = mark_list.map { |m| { 'id' => m['id'], 'rev' => m['rev'], 'mark' => m['mark'].dup } }
+        end
         if mark_id
           out['mark_id'] = mark_id
           out['mark_rev'] = mark_rev
@@ -307,9 +360,13 @@ module Monadic
         return format(kind == 'image' ? NOTE_IMAGE_PLAIN : NOTE_PLAIN, page: page) unless mark
 
         if mark_id
-          return format(kind == 'image' ? NOTE_MARKED_IMAGE : NOTE_MARKED, n: position, page: page,
-                                                                         named: name ? %( "#{name}") : '',
-                                                                         item: item_id, **mark_terms)
+          named = name ? %( "#{name}") : ''
+          return format(kind == 'image' ? NOTE_MARKED_IMAGE : NOTE_MARKED, n: position, page: page, named: named,
+                                                                         item: item_id, **mark_terms) if mark_list.size <= 1
+
+          return format(kind == 'image' ? NOTE_SEVERAL_IMAGE : NOTE_SEVERAL, n: position, page: page, named: named,
+                                                                           item: item_id, count: mark_list.size,
+                                                                           marks: several_terms)
         end
 
         format(kind == 'image' ? NOTE_IMAGE : NOTE, page: page, **mark_terms)
@@ -318,13 +375,20 @@ module Monadic
       # The marks it carries as the board keeps them (where each is on the
       # whole image or page); none for a picture without that.
       def marks
-        return [] unless mark_id && rect
+        mark_list.select { |m| m['rect'] }.map do |m|
+          { 'id' => m['id'], 'rev' => m['rev'], 'shape' => m['mark']['shape'], 'color' => m['mark']['color'], 'rect' => m['rect'].dup }
+        end
+      end
 
-        [{ 'id' => mark_id, 'rev' => mark_rev, 'shape' => mark['shape'], 'color' => mark['color'], 'rect' => rect.dup }]
+      # Each of several marks as the notes say it, by its number.
+      def several_terms
+        mark_list.each_with_index.map do |m, i|
+          format(MARK_TERM, number: i + 1, **mark_terms(m['mark']))
+        end.join('; ')
       end
 
       # The mark as the notes say it.
-      def mark_terms
+      def mark_terms(mark = self.mark)
         { shape: mark['shape'] == 'ellipse' ? 'ellipse' : 'rectangle',
           color: COLORS.include?(mark['color']) ? mark['color'] : 'orange',
           x: (mark['x'] * 100).round, y: (mark['y'] * 100).round,

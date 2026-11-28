@@ -377,8 +377,35 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(text.downcase).not_to include("zebulon")
     end
 
-    it "sends none of it when a word would be left" do
-      expect(observe.render_for(session_with(words))).to be_nil
+    it "leaves out only the name or path of a desk item or a change that holds a word, and tells the rest" do
+      FileUtils.mkdir_p(File.join(@data, "old"))
+      hidden = open_file("old/Ada Lovelace notes.txt", "c")
+      plain = open_file("old/plain.txt", "d")
+      text = observe.render_for(session_with(["Ada Lovelace"]))
+      expect(text).not_to be_nil
+      expect(text).not_to include("Ada Lovelace")
+      screen = JSON.parse(text.lines[2])["work_screen"]
+      unnamed = screen["items"].find { |item| item["id"] == hidden["id"] }
+      expect(unnamed).to include("name_withheld" => true)
+      expect(unnamed).not_to include("name", "path")
+      expect(screen["items"].find { |item| item["id"] == plain["id"] }).to include("name" => "plain.txt")
+      changed = Array(screen.dig("changes", "recent")).select { |change| change["item"] == hidden["id"] }
+      expect(changed).to all(include("name_withheld" => true))
+      expect(text).to include('"name_withheld" marks an item')
+    end
+
+    it "leaves out the names and paths that hold a word, and sends the rest" do
+      text = observe.render_for(session_with(words))
+      expect(text).not_to be_nil
+      expect(text).not_to include("group/private", 'say \\"x\\"', "say \"x\"")
+    end
+
+    it "sends none of it when a word would be left outside a name" do
+      data = { "work_screen" => { "items" => [{ "id" => "i_1", "kind" => "text", "name" => "a.txt",
+                                                "range_note" => "about Ada Lovelace" }] } }
+      observation = described_class.new(data, chat_id: chat, epoch: Monadic::Workspace::Chats.epoch(chat), tab: "tab-1",
+                                              generation: 1, request_id: "r_1")
+      expect(observation.render_for(session_with(["Ada Lovelace"]))).to be_nil
     end
 
     it "sends none of it when the chat's table is gone" do
@@ -392,10 +419,12 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(observe.render_for({})).to be_nil
     end
 
-    it "sends none of it when a word is split in a name by another kind of space (no-break, full-width)" do
+    it "leaves out a name where a word is split by another kind of space (no-break, full-width)" do
       ["Ada\u00a0Lovelace.pdf", "Ada\u3000Lovelace.pdf"].each do |name|
         open_file(name, "c")
-        expect(observe.render_for(session_with(["Ada Lovelace"]))).to be_nil
+        text = observe.render_for(session_with(["Ada Lovelace"]))
+        expect(text).not_to be_nil
+        expect(text).not_to include("Lovelace")
       end
     end
 
@@ -408,7 +437,9 @@ RSpec.describe Monadic::Workbench::Observation do
       observation = observe
       expect(observation.render_for(session)).to include("group/private")
       hiding.table(session).confirm!("group/private", "PERSON")
-      expect(observation.render_for(session)).to be_nil
+      again = observation.render_for(session)
+      expect(again).not_to be_nil
+      expect(again).not_to include("group/private")
     end
 
     it "makes the text once for the request, however many payloads add it" do

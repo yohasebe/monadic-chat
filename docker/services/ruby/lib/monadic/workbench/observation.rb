@@ -49,7 +49,8 @@ module Monadic
                  'Statuses are the server\'s; "range" is what the user\'s page reported it shows of the selected item; ' \
                  '"in_view" lists the items the user\'s page reported in view now (all or part of each), in order; ' \
                  '"changes" is what happened on the work screen since your last reply (who did it, to which item), ' \
-                 'not what it shows: look at an item to see it.'
+                 'not what it shows: look at an item to see it. "name_withheld" marks an item whose name is left out ' \
+                 'because it holds a word the user hides.'
       # Changes told at most; older ones are counted by kind.
       CHANGE_LIMIT = 10
       # Put-away items named at most, the newest first; the rest are counted.
@@ -387,15 +388,31 @@ module Monadic
         "<work_screen_observation>\n#{PREAMBLE}\n#{text.gsub('</', '<\\/')}\n</work_screen_observation>"
       end
 
-      # data without the put-away names that hold a word the chat hides:
-      # those are left out and counted (withheld), so the rest of the desk is
-      # still told.
+      # data without the names that hold a word the chat hides: put-away ones
+      # are left out and counted (withheld); the desk's items and the
+      # changes keep their place without them. The rest of the desk is still
+      # told.
+      # The desk's items and the changes keep their place, without the name
+      # or path that holds one (name_withheld says so).
       def without_hidden_names(data, words, outbound)
-        put_away = data.dig('work_screen', 'put_away') or return data
-        kept, hidden = put_away['items'].partition { |entry| !outbound.leaks_word?(entry['name'].to_s, words) }
-        return data if hidden.empty?
+        screen = data['work_screen']
+        hides = ->(text) { !text.nil? && outbound.leaks_word?(text.to_s, words) }
+        screen = screen.merge('items' => Array(screen['items']).map { |entry| unnamed_if(entry, hides) })
+        if screen.dig('changes', 'recent')
+          screen = screen.merge('changes' => screen['changes'].merge(
+            'recent' => screen['changes']['recent'].map { |entry| unnamed_if(entry, hides) }
+          ))
+        end
+        put_away = screen['put_away'] or return { 'work_screen' => screen }
+        kept, hidden = put_away['items'].partition { |entry| !hides.call(entry['name']) }
+        return { 'work_screen' => screen } if hidden.empty?
 
-        { 'work_screen' => data['work_screen'].merge('put_away' => put_away.merge('items' => kept, 'withheld' => hidden.size)) }
+        { 'work_screen' => screen.merge('put_away' => put_away.merge('items' => kept, 'withheld' => hidden.size)) }
+      end
+
+      def unnamed_if(entry, hides)
+        hidden = %w[name path].select { |key| hides.call(entry[key]) }
+        hidden.empty? ? entry : entry.except(*hidden).merge('name_withheld' => true)
       end
 
       DECODE_ROUNDS = 4

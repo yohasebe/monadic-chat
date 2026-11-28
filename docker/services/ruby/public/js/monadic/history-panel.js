@@ -224,14 +224,22 @@
   }
 
   function checkBox(item) {
-    if (!selectable(item)) return el('span', 'sfp-check sfp-check-none');
+    // One place before the name: a chat's mark, which turns into its box
+    // while the row is pointed at or anything is selected.
+    const kind = icon('fa-regular fa-comments sfp-check-kind');
+    if (!selectable(item)) {
+      const none = el('span', 'sfp-check sfp-check-none');
+      none.appendChild(kind);
+      return none;
+    }
     const on = selected.has(item.chat_id);
     const box = el('button', 'sfp-check');
+    box.appendChild(kind);
     box.type = 'button';
     box.setAttribute('role', 'checkbox');
     box.setAttribute('aria-checked', String(on));
     box.setAttribute('aria-label', t('selectOne', 'Select {name}', { name: displayName(item) }));
-    box.appendChild(icon(on ? 'fa-solid fa-square-check' : 'fa-regular fa-square'));
+    box.appendChild(icon((on ? 'fa-solid fa-square-check' : 'fa-regular fa-square') + ' sfp-check-box'));
     box.addEventListener('click', function () {
       if (selected.has(item.chat_id)) selected.delete(item.chat_id); else selected.add(item.chat_id);
       confirmingSelected = false;
@@ -412,6 +420,7 @@
     if (selected.size === 0) confirmingSelected = false;
     renderBands();
     list.replaceChildren.apply(list, view.items.map(row));
+    list.classList.toggle('sfp-selecting', selected.size > 0);
     const more = $id('history-more');
     if (more) more.hidden = !view.hasMore;
     const info = $id('history-info');

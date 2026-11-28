@@ -206,6 +206,23 @@ describe('Files tab', () => {
     });
   });
 
+  describe('the place before a name', () => {
+    it('holds the entry\'s kind and its box in one place, the list marked while anything is selected', async () => {
+      await opened([folder('docs'), file('a.txt')]);
+      const slot = rows()[1].querySelector('.sfp-check');
+      expect(slot.querySelector('.sfp-check-kind')).not.toBeNull();
+      expect(slot.querySelector('.sfp-check-box')).not.toBeNull();
+      // No kind icon is left inside the name.
+      expect(rows()[1].querySelector('.sfp-name .sf-kind-folder, .sfp-name .sf-kind-other, .sfp-name .sf-kind-media')).toBeNull();
+      expect($('sfp-list').classList.contains('sfp-selecting')).toBe(false);
+      slot.click();
+      expect($('sfp-list').classList.contains('sfp-selecting')).toBe(true);
+      expect(slot.querySelector('.sfp-check-box').classList.contains('fa-square-check')).toBe(true);
+      rows()[1].querySelector('.sfp-check').click();
+      expect($('sfp-list').classList.contains('sfp-selecting')).toBe(false);
+    });
+  });
+
   describe('copying and moving to the Trash', () => {
     it('copies the paths of any entries selected, and says so only when the clipboard has them', async () => {
       await opened([file('a.txt'), file('kept.txt', { capabilities: { reveal: true, trash: false }, protected_reason: 'user_scripts' })]);

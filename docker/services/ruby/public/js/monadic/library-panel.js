@@ -178,6 +178,9 @@
     return '';
   }
 
+  // An entry as a row, as the history lists chats: its kind, its title
+  // (opening it on the work screen) over where it came from, its language,
+  // turns and when it was kept, and a menu of what is done with it.
   function browseRowMarkup(row, idx) {
     var convId = escapeHtml(row.conversation_id || '');
     var title = row.title && row.title.length > 0 ? row.title : '(untitled)';
@@ -185,46 +188,43 @@
     var rel = relativeTime(row.created_at);
     var privacyBadge = privacyBadgeHtml(row);
     var openLabel = t('ui.libOpenOnWorkScreen', 'Open on the work screen');
-    var detailLabel = t('ui.libViewDetails', 'View details');
-    var deleteLabel = t('ui.libDelete', 'Delete');
-    var chatLabel = t('ui.libOpenSourceChat', 'Open the original chat');
-    // A record of a chat that is still in the history: that chat goes on
-    // there.
-    var chatButton = row.source_chat_resumable && row.source_chat_id
-      ? '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-chat" data-chat-id="' + escapeHtml(row.source_chat_id) + '" '
-        + 'title="' + escapeHtml(chatLabel) + '" aria-label="' + escapeHtml(chatLabel) + '">'
-        + '<i class="fa-solid fa-clock-rotate-left"></i>'
-        + '</button>'
-      : '';
+    var meta = [row.source || '', row.language || '', turns + ' ' + t('ui.libColTurns', 'Turns'), rel]
+      .filter(function (part) { return String(part).length > 0; }).join(' · ');
+    var actions = t('ui.libActionsOf', 'Actions for {title}').replace('{title}', truncate(title, 80));
     return (
-      '<tr data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
-      +   '<td class="text-center">' + typeIconHtml(row.content_type, row.topics) + '</td>'
-      +   '<td>'
-      +     '<div class="fw-medium text-truncate" style="max-width: 380px; color: #374151;">'
-      +       (privacyBadge ? privacyBadge + ' ' : '')
-      +       escapeHtml(truncate(title, 80))
-      +     '</div>'
-      +     '<div class="text-secondary small text-truncate" style="max-width: 380px;">' + escapeHtml(row.source || '') + (row.language ? ' · ' + escapeHtml(row.language) : '') + '</div>'
-      +   '</td>'
-      +   '<td class="text-end small">' + turns + '</td>'
-      +   '<td class="text-nowrap small text-secondary">' + escapeHtml(rel) + '</td>'
-      +   '<td class="text-end text-nowrap">'
-      +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-open" '
-      +       'title="' + escapeHtml(openLabel) + '" aria-label="' + escapeHtml(openLabel) + '">'
-      +       '<i class="fa-solid fa-display"></i>'
-      +     '</button>'
-      +     chatButton
-      +     '<button type="button" class="btn btn-sm btn-secondary me-1 library-action-detail" '
-      +       'title="' + escapeHtml(detailLabel) + '" aria-label="' + escapeHtml(detailLabel) + '">'
-      +       '<i class="fa-solid fa-circle-info"></i>'
-      +     '</button>'
-      +     '<button type="button" class="btn btn-sm btn-danger library-action-delete" '
-      +       'title="' + escapeHtml(deleteLabel) + '" aria-label="' + escapeHtml(deleteLabel) + '">'
-      +       '<i class="fa-regular fa-trash-can"></i>'
-      +     '</button>'
-      +   '</td>'
-      + '</tr>'
+      '<li class="sfp-row library-row" data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
+      +   '<span class="sfp-check sfp-check-none library-row-kind">' + typeIconHtml(row.content_type, row.topics) + '</span>'
+      +   '<button type="button" class="sfp-name library-name" title="' + escapeHtml(openLabel) + '">'
+      +     '<span class="sfp-text">'
+      +       '<span class="sfp-label">' + (privacyBadge ? privacyBadge + ' ' : '') + escapeHtml(truncate(title, 80)) + '</span>'
+      +       '<span class="sfp-meta">' + escapeHtml(meta) + '</span>'
+      +     '</span>'
+      +   '</button>'
+      +   '<button type="button" class="btn btn-sm btn-icon sfp-row-menu library-row-menu" aria-haspopup="menu" aria-expanded="false" '
+      +     'aria-label="' + escapeHtml(actions) + '"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></button>'
+      + '</li>'
     );
+  }
+
+  // What is done with an entry, from its row's menu.
+  function browseRowMenu(row, more) {
+    if (!window.RowMenu || !row) return;
+    var convId = row.conversation_id;
+    var items = [
+      { label: t('ui.libOpenOnWorkScreen', 'Open on the work screen'), icon: 'fa-solid fa-display',
+        action: function () { if (window.Workbench && typeof window.Workbench.openLibrary === 'function') window.Workbench.openLibrary(convId); } }
+    ];
+    // A record of a chat that is still in the history: that chat goes on there.
+    if (row.source_chat_resumable && row.source_chat_id) {
+      items.push({ label: t('ui.libOpenSourceChat', 'Open the original chat'), icon: 'fa-solid fa-clock-rotate-left',
+        action: function () { if (window.HistoryPanel && typeof window.HistoryPanel.resume === 'function') window.HistoryPanel.resume(row.source_chat_id); } });
+    }
+    items.push({ label: t('ui.libViewDetails', 'View details'), icon: 'fa-solid fa-circle-info',
+      action: function () { openDetailModal(convId); } });
+    items.push('divider');
+    items.push({ label: t('ui.libDelete', 'Delete'), icon: 'fa-regular fa-trash-can', danger: true,
+      action: function () { confirmAndDelete(convId); } });
+    window.RowMenu.open(more, items);
   }
 
   // ─── Filtering / sorting / paging ────────────────────────────────────
@@ -256,7 +256,7 @@
   // ─── Renderers ───────────────────────────────────────────────────────
 
   function browseTbody() {
-    return (typeof document !== 'undefined') ? document.getElementById('library-browse-tbody') : null;
+    return (typeof document !== 'undefined') ? document.getElementById('library-browse-list') : null;
   }
   function browseCountEl() {
     return (typeof document !== 'undefined') ? document.getElementById('library-browse-count') : null;
@@ -323,38 +323,18 @@
 
   function wireBrowseRowActions(scope) {
     if (!scope) return;
-    scope.querySelectorAll('tr[data-conversation-id]').forEach(function (tr) {
-      var convId = tr.getAttribute('data-conversation-id');
-      var openLink = tr.querySelector('.library-action-open');
-      if (openLink) {
-        openLink.addEventListener('click', function (e) {
+    scope.querySelectorAll('li[data-conversation-id]').forEach(function (li) {
+      var convId = li.getAttribute('data-conversation-id');
+      var row = (state.allRows || []).find(function (r) { return r.conversation_id === convId; });
+      var name = li.querySelector('.library-name');
+      if (name) {
+        name.addEventListener('click', function (e) {
           e.preventDefault();
           if (window.Workbench && typeof window.Workbench.openLibrary === 'function') window.Workbench.openLibrary(convId);
         });
       }
-      var chatLink = tr.querySelector('.library-action-chat');
-      if (chatLink) {
-        chatLink.addEventListener('click', function (e) {
-          e.preventDefault();
-          if (window.HistoryPanel && typeof window.HistoryPanel.resume === 'function') {
-            window.HistoryPanel.resume(chatLink.getAttribute('data-chat-id'));
-          }
-        });
-      }
-      var detailLink = tr.querySelector('.library-action-detail');
-      if (detailLink) {
-        detailLink.addEventListener('click', function (e) {
-          e.preventDefault();
-          openDetailModal(convId);
-        });
-      }
-      var deleteLink = tr.querySelector('.library-action-delete');
-      if (deleteLink) {
-        deleteLink.addEventListener('click', function (e) {
-          e.preventDefault();
-          confirmAndDelete(convId);
-        });
-      }
+      var more = li.querySelector('.library-row-menu');
+      if (more) more.addEventListener('click', function () { browseRowMenu(row, more); });
     });
   }
 

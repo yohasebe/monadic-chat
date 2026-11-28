@@ -241,7 +241,7 @@ describe('library-panel module', () => {
         created_at: new Date().toISOString()
       }, 0);
       // The kind is the first part of the row; a conversation's icon.
-      expect(html).toMatch(/<li[^>]*>\s*<span class="library-row-kind">[^<]*<i[^>]*fa-comments/);
+      expect(html).toMatch(/<li[^>]*>\s*<span class="sfp-check sfp-check-none library-row-kind">[^<]*<i[^>]*fa-comments/);
       expect(html).toContain('aria-label="conversation"');
     });
 

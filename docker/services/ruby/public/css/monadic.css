@@ -5738,24 +5738,41 @@ body.side-pane-resizing {
 .shared-files-pane .sfp-list:focus .sfp-row.sfp-cursor {
   box-shadow: inset 2px 0 0 var(--focus-outline);
 }
-/* The box before a row: faint until the row is hovered, selected or the
-   list has the focus, and always there (no hover on a touch screen). */
+/* One place before a row's name: its kind, which turns into its box while
+   the row is pointed at or has the focus, while anything in the list is
+   selected, and always on a screen with no pointer to hover with. */
 .shared-files-pane .sfp-check {
   flex: 0 0 auto;
-  width: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  min-width: 0;
   padding: 0;
   background: none;
   border: 0;
   color: var(--text-secondary);
-  opacity: 0.45;
 }
-.shared-files-pane .sfp-check-none {
-  display: inline-block;
+.shared-files-pane .sfp-check-box {
+  display: none;
 }
-.shared-files-pane .sfp-row:hover .sfp-check,
-.shared-files-pane .sfp-row.sfp-selected .sfp-check,
-.shared-files-pane .sfp-list:focus .sfp-check {
-  opacity: 1;
+.shared-files-pane .sfp-row:hover .sfp-check:not(.sfp-check-none) .sfp-check-box,
+.shared-files-pane .sfp-row:focus-within .sfp-check:not(.sfp-check-none) .sfp-check-box,
+.shared-files-pane .sfp-list.sfp-selecting .sfp-check:not(.sfp-check-none) .sfp-check-box {
+  display: inline;
+}
+.shared-files-pane .sfp-row:hover .sfp-check:not(.sfp-check-none) .sfp-check-kind,
+.shared-files-pane .sfp-row:focus-within .sfp-check:not(.sfp-check-none) .sfp-check-kind,
+.shared-files-pane .sfp-list.sfp-selecting .sfp-check:not(.sfp-check-none) .sfp-check-kind {
+  display: none;
+}
+@media (hover: none) {
+  .shared-files-pane .sfp-check:not(.sfp-check-none) .sfp-check-box {
+    display: inline;
+  }
+  .shared-files-pane .sfp-check:not(.sfp-check-none) .sfp-check-kind {
+    display: none;
+  }
 }
 .shared-files-pane .sfp-row.sfp-selected .sfp-check {
   color: var(--focus-outline);
@@ -5817,12 +5834,6 @@ body.side-pane-resizing {
 }
 .shared-files-pane .sfp-foot {
   justify-content: flex-end;
-}
-/* A Library entry's kind, before its title (library-panel.js). */
-.library-pane .library-row-kind {
-  flex: 0 0 1.5rem;
-  text-align: center;
-  color: var(--text-secondary);
 }
 .shared-files-pane .sfp-foot:not(:has(> :not([hidden]))) {
   display: none;

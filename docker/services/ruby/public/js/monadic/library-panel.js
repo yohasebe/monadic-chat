@@ -193,7 +193,7 @@
     var actions = t('ui.libActionsOf', 'Actions for {title}').replace('{title}', truncate(title, 80));
     return (
       '<li class="sfp-row library-row" data-conversation-id="' + convId + '" data-row-index="' + idx + '">'
-      +   '<span class="library-row-kind">' + typeIconHtml(row.content_type, row.topics) + '</span>'
+      +   '<span class="sfp-check sfp-check-none library-row-kind">' + typeIconHtml(row.content_type, row.topics) + '</span>'
       +   '<button type="button" class="sfp-name library-name" title="' + escapeHtml(openLabel) + '">'
       +     '<span class="sfp-text">'
       +       '<span class="sfp-label">' + (privacyBadge ? privacyBadge + ' ' : '') + escapeHtml(truncate(title, 80)) + '</span>'

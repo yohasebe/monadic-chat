@@ -247,7 +247,12 @@ module WebSocketHelper
         pair.is_a?(Array) && pair.size == 2 && pair[0].is_a?(String) && pair[0].match?(Monadic::Workbench::Marks::ID) &&
           pair[1].is_a?(Integer) && pair[1].between?(0, Monadic::Workbench::Picture::REV_LIMIT)
       end.first(Monadic::Workbench::Marks::SHOWN_LIMIT)
-      { "item_id" => erase["item_id"][0, 64], "version" => erase["version"][0, 128], "targets" => targets } unless targets.empty?
+      # The drawings erased, by the digests the user saw.
+      drawings = Array(erase["drawings"]).select { |digest| digest.is_a?(String) && digest.match?(Monadic::Workbench::Drawings::DIGEST) }
+                                         .first(Monadic::Workbench::Marks::SHOWN_LIMIT)
+      next if targets.empty? && drawings.empty?
+
+      { "item_id" => erase["item_id"][0, 64], "version" => erase["version"][0, 128], "targets" => targets, "drawings" => drawings }
     end
   end
 

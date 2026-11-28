@@ -11,6 +11,7 @@ require_relative 'file_item'
 require_relative 'item_text'
 require_relative 'marks'
 require_relative 'turn_records'
+require_relative 'drawings'
 require_relative '../utils/privacy/outbound'
 require_relative '../library/file_importer'
 require_relative '../library/entry_text'
@@ -213,10 +214,7 @@ module Monadic
         {
           board_id: data['board_id'], chat_id: @chat_id, epoch: Monadic::Workspace::Chats.epoch(@chat_id),
           revision: data['revision'], layers: public_layers(data), replying: !@reply.nil?, now_limit: NOW_LIMIT,
-          items: data['items'].values.map do |item|
-            marks = shown_marks(data, item)
-            marks ? public_item(item).merge(marks: marks) : public_item(item)
-          end
+          items: data['items'].values.map { |item| desk_item(data, item) }
         }
       end
 
@@ -339,6 +337,15 @@ module Monadic
         return false if words.nil?
 
         texts.none? { |text| Monadic::Utils::Privacy::Outbound.leaks_word?(text, words) }
+      end
+
+      # What was drawn on item_id ({ digests, shapes }: every drawing shown
+      # on its version, in order), or nil.
+      def drawing_on(item_id)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s]
+          item ? deep_dup(shown_drawing(@data, item)) : nil
+        end
       end
 
       # The image a page painted of the whiteboard item_id at version: the
@@ -1179,9 +1186,10 @@ module Monadic
         desk = %w[current latest previous].flat_map do |place|
           data['items'].values.select { |item| item['place'] == place }
         end
+        # A drawing by its digests only (the shapes are kept once, by them).
         items = desk.map do |item|
-          marks = shown_marks(data, item)
-          marks ? public_item(item).merge(marks: marks) : public_item(item)
+          view = desk_item(data, item)
+          view[:drawing] ? view.merge(drawing: { digests: view[:drawing][:digests] }) : view
         end
         TurnRecords.write(@chat_id, request_id, by,
                           { 'at' => Time.now.utc.iso8601, 'items' => JSON.parse(JSON.generate(items)),
@@ -1205,7 +1213,23 @@ module Monadic
           item = markable_item(data, erase['item_id'], erase['version']) or next nil
           { origin: Marks.origin_of(item), version: erase['version'], targets: erase['targets'] }
         end
-        Marks.record!(data, request_id, sent: sent, erased: erased)
+        # What the message drew on images (kept by digest), and the drawings
+        # it erased: those shown on the version it saw.
+        drawn = Array(marks[:pictures]).filter_map do |picture|
+          next nil unless picture.drawing
+
+          item = markable_item(data, picture.item_id, picture.version) or next nil
+          { origin: Marks.origin_of(item), version: picture.version, digest: Drawings.keep!(@chat_id, picture.drawing, store: @store) }
+        end
+        drawing_erased = Array(marks[:erased]).filter_map do |erase|
+          given = Array(erase['drawings'])
+          next nil if given.empty?
+
+          item = markable_item(data, erase['item_id'], erase['version']) or next nil
+          origin = Marks.origin_of(item)
+          { origin: origin, version: erase['version'], digests: Marks.drawn(data, origin, erase['version']) & given }
+        end
+        Marks.record!(data, request_id, sent: sent, erased: erased, drawn: drawn, drawing_erased: drawing_erased)
       end
 
       def markable_item(data, item_id, version)
@@ -1213,6 +1237,20 @@ module Monadic
         return nil unless item && %w[current latest].include?(item['place']) && version_of(item) == version
 
         Marks.origin_of(item) ? item : nil
+      end
+
+      # What was drawn on a desk item's original at its version, as the page
+      # draws it under this turn's: { digests, shapes } (shapes of every
+      # drawing shown, in order), or nil.
+      def shown_drawing(data, item)
+        return nil if item['place'] == 'stash'
+
+        origin = Marks.origin_of(item) or return nil
+        digests = Marks.drawn(data, origin, version_of(item))
+        return nil if digests.empty?
+
+        shapes = digests.flat_map { |digest| Drawings.read(@chat_id, digest, store: @store) || [] }
+        { digests: digests, shapes: shapes }
       end
 
       # The marks shown on a desk item's original at its version (none put
@@ -1310,6 +1348,16 @@ module Monadic
       end
 
       # What a view shows of an item: where it is on the desk with it.
+      # An item as the page draws it, with the marks shown on it and what was
+      # drawn on it.
+      def desk_item(data, item)
+        view = public_item(item)
+        marks = shown_marks(data, item)
+        view = view.merge(marks: marks) if marks
+        drawing = shown_drawing(data, item)
+        drawing ? view.merge(drawing: drawing) : view
+      end
+
       def public_item(item)
         item_view(item).merge(place: item['place'] || 'stash', by: item['by'], fresh: item['fresh'] ? true : nil)
       end

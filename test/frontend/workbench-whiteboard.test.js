@@ -66,6 +66,56 @@ describe('WorkbenchWhiteboard', () => {
     expect(board.data().shapes.map((s) => s.id)).toEqual(['a']);
   });
 
+  describe('drawn over an image', () => {
+    const earlier = [{ id: 'e1', type: 'rect', x: 10, y: 10, w: 100, h: 50, color: 'red' }];
+
+    function showOver() {
+      box = document.createElement('div');
+      document.body.appendChild(box);
+      changes = [];
+      const frame = window.WorkbenchWhiteboard.overlayFrame(300, 400);
+      board = window.WorkbenchWhiteboard.show(box, { shapes: [] },
+        { onChange: (d) => changes.push(d), overlay: Object.assign({ earlier }, frame) });
+      box.querySelector('svg').getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 800 });
+      return frame;
+    }
+
+    test("takes the image's proportions, its longer side the board's, on a clear sheet with no zoom or grid", () => {
+      expect(window.WorkbenchWhiteboard.overlayFrame(300, 400)).toEqual({ width: 1200, height: 1600 });
+      expect(window.WorkbenchWhiteboard.overlayFrame(800, 600)).toEqual({ width: 1600, height: 1200 });
+      showOver();
+      expect(box.querySelector('svg').getAttribute('viewBox')).toBe('0 0 1200 1600');
+      expect(box.querySelector('.workbench-whiteboard-sheet').classList.contains('is-overlay')).toBe(true);
+      expect(box.querySelector('.workbench-whiteboard-zoom-in')).toBeNull();
+      expect(box.querySelector('[data-tool="pen"]')).not.toBeNull();
+    });
+
+    test("draws earlier turns' shapes lighter and never chosen, and gives back only this turn's", () => {
+      showOver();
+      const layer = box.querySelector('.workbench-whiteboard-earlier');
+      expect(layer.getAttribute('opacity')).toBe(String(window.WorkbenchWhiteboard.EARLIER_ALPHA));
+      expect(layer.getAttribute('pointer-events')).toBe('none');
+      expect(layer.querySelectorAll('[data-id="e1"]')).toHaveLength(1);
+      pointer('pointerdown', 100, 100);
+      pointer('pointermove', 150, 120);
+      pointer('pointerup', 150, 120);
+      expect(changes.at(-1).shapes.map((sh) => sh.type)).toEqual(['pen']);
+      expect(board.data().shapes.some((sh) => sh.id === 'e1')).toBe(false);
+    });
+
+    test('paints shapes alone, with nothing under them, lighter when asked', () => {
+      const calls = [];
+      const context = new Proxy({}, {
+        get: (_t, name) => (name === 'globalAlpha' ? calls.alpha : (...args) => { calls.push([name, ...args]); }),
+        set: (_t, name, value) => { if (name === 'globalAlpha') calls.alpha = value; calls.push([`set:${String(name)}`, value]); return true; }
+      });
+      window.WorkbenchWhiteboard.paintShapes({ width: 1200, height: 1600, shapes: [{ id: 'p', type: 'pen', points: [[0, 0], [10, 10]] }] },
+        context, 300, 400, 0.45);
+      expect(calls.some((c) => c[0] === 'fillRect')).toBe(false);
+      expect(calls.filter((c) => c[0] === 'set:globalAlpha').map((c) => c[1])).toContain(0.45);
+    });
+  });
+
   test('draws a pen stroke on the board in its own units, and tells the change', () => {
     show(null);
     pointer('pointerdown', 100, 50);

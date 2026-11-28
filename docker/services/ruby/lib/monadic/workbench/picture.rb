@@ -85,8 +85,9 @@ module Monadic
         # the board as the tab's connection sees it. Raises Refused (with
         # why) when it is not taken. unmarked: an unmarked picture is taken
         # (the model cannot look at the work screen itself).
-        def accept(data, chat_id:, request_id:, tab:, generation:, unmarked: false)
+        def accept(data, chat_id:, request_id:, tab:, generation:, unmarked: false, words: [])
           item = Pointing.selected!(data, chat_id: chat_id, tab: tab, generation: generation, previews: %w[pdf image])
+          board_words!(chat_id, item[:id], words)
           kind = item[:preview].to_s
           page, pages = kind == 'pdf' ? Pointing.page_of!(data) : [nil, nil]
           mark = if data['unmarked'] == true
@@ -125,6 +126,7 @@ module Monadic
 
             item = items[data['item_id']] or raise Refused, 'not_on_screen'
             raise Refused, 'put_away' if item[:place] == 'stash'
+            board_words!(chat_id, item[:id], words)
             raise Refused, 'not_markable' unless MARKABLE_PLACES.include?(item[:place].to_s)
 
             kind = kind_of(item) or raise Refused, 'not_pointable'
@@ -270,6 +272,13 @@ module Monadic
         # space as a space, cut at a word's end; nil when the whole name holds
         # a word the chat hides (the picture is then named by its item only,
         # as the observation leaves such a name out).
+        # An image made of a whiteboard whose texts hold a word the chat hides
+        # (or whose words are not known) is not taken: 'hides_words'.
+        def board_words!(chat_id, item_id, words)
+          board = Board.existing(chat_id) or return
+          raise Refused, 'hides_words' unless board.board_texts_clear?(item_id, words)
+        end
+
         def name_for(item, words)
           name = (item[:title] || item[:name]).to_s.scrub('?').gsub(/[\p{Cc}\p{Cf}\p{Z}"]/, ' ').squeeze(' ').strip
           return nil if name.empty? || words.nil?

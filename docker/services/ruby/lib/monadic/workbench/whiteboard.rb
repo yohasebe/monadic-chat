@@ -2,6 +2,7 @@
 
 require 'base64'
 require 'json'
+require 'zlib'
 require_relative 'board'
 require_relative 'image_check'
 require_relative 'channel'
@@ -311,9 +312,10 @@ module Monadic
         raise Refused, 'stale' unless own?(folder, path)
 
         bytes = png_of(image)
+        texts = texts_of(board.file_read(item_id.to_s, sha256: version.to_s)[:bytes])
         base = File.basename(path).delete_suffix(EXTENSION)
         names = (1..IMAGE_NAMES).map { |k| File.join(folder, DIRNAME, k == 1 ? "#{base}.png" : "#{base}-#{k}.png") }
-        made = board.take_whiteboard_image(item_id.to_s, version: version.to_s, names: names, epoch: epoch) do |name|
+        made = board.take_whiteboard_image(item_id.to_s, version: version.to_s, names: names, epoch: epoch, texts: texts) do |name|
           Monadic::Utils::SharedPathGuard.write_file!(File.join(dir, File.basename(name)), bytes, mode: 'wb', replace: false,
                                                                                              strict: true)
           name
@@ -324,6 +326,16 @@ module Monadic
         made
       rescue Board::Refused => e
         raise Refused, e.message
+      rescue Artifact::Changed, Artifact::NotAllowed
+        raise Refused, 'stale'
+      end
+
+      # The texts written on a kept board (its bytes): each shape's text.
+      # :unknown when it cannot be read.
+      def texts_of(bytes)
+        Array(parse(bytes)['shapes']).filter_map { |shape| shape['text'] if shape.is_a?(Hash) && shape['text'].is_a?(String) }
+      rescue Refused
+        :unknown
       end
 
       # The bytes of a board's image as the page sent them (base64), when they
@@ -334,15 +346,36 @@ module Monadic
         bytes = Base64.strict_decode64(image)
         shape = ImageCheck.check!(bytes)
         raise Refused, 'bad_image' unless shape[:content_type] == 'image/png' && shape[:width] == WIDTH && shape[:height] == HEIGHT
-        # All of it came: a PNG ends with its IEND chunk.
-        raise Refused, 'bad_image' unless bytes.end_with?(IEND)
+        # All of it came, and nothing but the picture: its chunks, each
+        # whole (by its CRC), are of the kinds that draw it, the last IEND.
+        raise Refused, 'bad_image' unless picture_chunks_only?(bytes)
 
         bytes
       rescue ArgumentError, ImageCheck::Refused
         raise Refused, 'bad_image'
       end
 
-      IEND = "\x00\x00\x00\x00IEND\xAE\x42\x60\x82".b.freeze
+      # The chunks a board's image may have: what draws it (no text or
+      # metadata chunk carries anything with it).
+      PICTURE_CHUNKS = %w[IHDR PLTE IDAT IEND tRNS sRGB gAMA].freeze
+
+      def picture_chunks_only?(bytes)
+        at = 8
+        seen = []
+        while at + 12 <= bytes.bytesize
+          length = bytes.byteslice(at, 4).unpack1('N')
+          type = bytes.byteslice(at + 4, 4)
+          return false unless PICTURE_CHUNKS.include?(type) && at + 12 + length <= bytes.bytesize
+
+          body = bytes.byteslice(at + 8, length)
+          return false unless Zlib.crc32(type + body) == bytes.byteslice(at + 8 + length, 4).unpack1('N')
+
+          seen << type
+          at += 12 + length
+          break if type == 'IEND'
+        end
+        seen.first == 'IHDR' && seen.last == 'IEND' && at == bytes.bytesize
+      end
 
       # A kept board (bytes) as JSON, or Refused.
       def parse(bytes)

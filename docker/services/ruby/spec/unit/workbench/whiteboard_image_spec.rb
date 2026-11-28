@@ -8,6 +8,9 @@ require_relative "../../../lib/monadic/workbench/whiteboard"
 require_relative "../../../lib/monadic/workbench/image_tool"
 require_relative "../../../lib/monadic/workbench/caller"
 require_relative "../../../lib/monadic/utils/boolean_parser"
+require_relative "../../../lib/monadic/workbench/look"
+require_relative "../../../lib/monadic/workbench/picture"
+require_relative "../../../lib/monadic/utils/privacy/words"
 
 # A whiteboard that left Now becomes an image: a page paints its last version,
 # the first image taken is kept beside the board, and the item becomes it.
@@ -38,7 +41,10 @@ RSpec.describe "a whiteboard made an image" do
     allow(Monadic::Workbench::Channel).to receive(:changed)
   end
 
-  after { Monadic::Workspace::Ledger.clear_unsettled! }
+  after do
+    Monadic::Workspace::Ledger.clear_unsettled!
+    Monadic::Utils::Privacy::Words::LOCK.synchronize { Monadic::Utils::Privacy::Words::TABLES.clear }
+  end
 
   # A whole PNG of width × height (one color, salt in its pixels).
   def png(width = 1600, height = 1000, salt: 0)
@@ -139,6 +145,77 @@ RSpec.describe "a whiteboard made an image" do
     text = Base64.strict_encode64(png)
     parsed = BooleanParser.parse_hash({ "message" => "WORKBENCH_WHITEBOARD_IMAGE", "item_id" => "i_1", "png" => text })
     expect(parsed["png"]).to eq(text)
+  end
+
+  describe "the texts written on a board made an image" do
+    let(:hidden) { "Zebulon Quartzfield" }
+    let(:session) { { chat_id: chat, parameters: {}, messages: [] } }
+
+    def hiding!
+      Monadic::Utils::Privacy::Words.start!(session).confirm_all!([[hidden, "PERSON"]])
+      Monadic::Utils::Privacy::Outbound.chat_session!(session)
+      Monadic::Utils::Privacy::Outbound.terms_of(session)
+    end
+
+    # A board with text written on it, out of Now and made an image.
+    def image_of(text)
+      item = whiteboard.create(chat, app_name: "ChatOpenAI", origin: origin, epoch: epoch)
+      item = whiteboard.save(chat, item_id: item["id"], version: item.dig("file", "sha256"), app_name: "ChatOpenAI",
+                                   origin: origin, epoch: epoch,
+                                   data: { "shapes" => [{ "id" => "t", "type" => "text", "x" => 5, "y" => 5, "text" => text }] })
+      next_turn!
+      take(board.item(item["id"]), png)
+    end
+
+    def picture_data(item)
+      { "item_id" => item["id"], "version" => item.dig("file", "sha256"), "image" => Base64.strict_encode64(png(8, 8)),
+        "marks" => [{ "id" => "m_aaaaaaaa", "rev" => 1, "mark" => { "shape" => "rect", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 } }] }
+    end
+
+    it "keeps them with the image, and lets an image whose texts hold no hidden word go" do
+      words = hiding!
+      item = image_of("Plan A")
+      expect(board.board_texts(item["id"])).to eq(["Plan A"])
+      expect(board.board_texts_clear?(item["id"], words)).to be true
+      caller = Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: Monadic::Workspace::Ids.generate(:request),
+                                              session: session, tab: "tab-1", generation: 1)
+      expect { Monadic::Workbench::Look.send(:board_words!, board, item, caller) }.not_to raise_error
+    end
+
+    it "sends nothing of an image whose board held a hidden word: not looked at, not marked, not pictured, not edited" do
+      words = hiding!
+      item = image_of("call #{hidden} today")
+      expect(board.board_texts_clear?(item["id"], words)).to be false
+      # Not when the words cannot be read either.
+      expect(board.board_texts_clear?(item["id"], nil)).to be false
+      caller = Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: Monadic::Workspace::Ids.generate(:request),
+                                              session: session, tab: "tab-1", generation: 1)
+      expect { Monadic::Workbench::Look.send(:board_words!, board, item, caller) }
+        .to raise_error(Monadic::Workbench::Look::Refused) { |e| expect(e.reason).to eq("filtered") }
+      next_turn!
+      board.accept(item_id: item["id"], action: "bring", operation_id: "op-bring-0001", epoch: epoch, sha256: item.dig("file", "sha256"))
+      expect do
+        Monadic::Workbench::Picture.accept_marked([picture_data(item)], chat_id: chat, request_id: "q_1", tab: "tab-1",
+                                                                         generation: 1, words: words)
+      end.to raise_error(Monadic::Workbench::Picture::Refused) { |e| expect(e.reason).to eq("hides_words") }
+      expect { Monadic::Workbench::Picture.send(:board_words!, chat, item["id"], words) }
+        .to raise_error(Monadic::Workbench::Picture::Refused) { |e| expect(e.reason).to eq("hides_words") }
+      expect do
+        Monadic::Workbench::ImageTool.edit_source(session: session, workbench: caller, images: nil, item: item["id"])
+      end.to raise_error(Monadic::Workbench::ImageTool::NoSource, /hold a word this chat hides/)
+    end
+  end
+
+  it "takes no image that carries anything but the picture, or a chunk not whole" do
+    item = left_now
+    chunk = ->(type, body) { [body.bytesize].pack("N") + type.b + body + [Zlib.crc32(type.b + body)].pack("N") }
+    whole = png
+    with_text = whole.byteslice(0, 33) + chunk.call("tEXt", "Comment\0Zebulon Quartzfield".b) + whole.byteslice(33..)
+    with_exif = whole.byteslice(0, 33) + chunk.call("eXIf", "MM\0*".b) + whole.byteslice(33..)
+    broken = whole.dup
+    broken.setbyte(40, (broken.getbyte(40) + 1) % 256)
+    [with_text, with_exif, broken].each { |bytes| expect { take(item, bytes) }.to refused("bad_image") }
+    expect(take(item, whole)["file"]).to include("preview" => "image")
   end
 
   it "edits nothing from a board waiting for its image" do

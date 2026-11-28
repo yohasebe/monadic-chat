@@ -12,7 +12,7 @@ RSpec.describe Monadic::Workbench::Picture do
   let(:root) { Dir.mktmpdir }
   let(:store) { Monadic::Workbench::Store.new(root) }
   let(:item) { { id: "i_1", kind: "file", preview: "pdf", version: "v" * 64 } }
-  let(:board) { double("board", observe: { items: [item], selected: "i_1" }) }
+  let(:board) { double("board", board_texts_clear?: true, observe: { items: [item], selected: "i_1" }) }
 
   after { FileUtils.rm_rf(root) }
 
@@ -58,7 +58,7 @@ RSpec.describe Monadic::Workbench::Picture do
     }.each do |reason, data|
       expect { accept(data) }.to raise_error(described_class::Refused) { |e| expect(e.reason).to eq(reason) }
     end
-    text = double("board", observe: { items: [item.merge(preview: "text")], selected: "i_1" })
+    text = double("board", board_texts_clear?: true, observe: { items: [item.merge(preview: "text")], selected: "i_1" })
     allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id).and_return(text)
     expect { described_class.accept(sent, chat_id: chat_id, request_id: "q_1", tab: "tab-1", generation: 1) }
       .to raise_error(described_class::Refused) { |e| expect(e.reason).to eq("not_pointable") }

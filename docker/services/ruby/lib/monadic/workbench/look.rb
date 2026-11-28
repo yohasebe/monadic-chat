@@ -279,6 +279,16 @@ module Monadic
           Monadic::Workspace::Chats.epoch(caller.chat_id) == caller.epoch
       end
 
+      # An image made of a whiteboard goes only when none of the texts
+      # written on the board holds a word the chat hides (they were checked
+      # as a board's are). Refused (filtered) otherwise.
+      def board_words!(board, item, caller)
+        texts = board.board_texts(item['id']) or return
+        raise Refused.new('filtered', "the board's texts were not kept, so it was not sent") if texts == :unknown
+
+        filtered(caller.session, texts.join("\n"))
+      end
+
       # text, when it holds no word the chat hides. Refused (filtered)
       # otherwise.
       def filtered(session, text)
@@ -324,6 +334,7 @@ module Monadic
         file = item['file'] or raise Refused.new('unsupported_kind', 'this item cannot be looked at')
         case file['preview']
         when 'image'
+          board_words!(board, item, caller)
           bytes = board.file_read(item['id'], sha256: file['sha256'])[:bytes]
           image = ImageValue.checked(bytes, source: 'workbench_file')
           marked = scope == 'visible' ? marked_image(board, selection, caller, deadline, image) : {}

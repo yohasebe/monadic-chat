@@ -10,6 +10,7 @@ require_relative 'artifact'
 require_relative 'file_item'
 require_relative 'item_text'
 require_relative 'marks'
+require_relative '../utils/privacy/outbound'
 require_relative '../library/file_importer'
 require_relative '../library/entry_text'
 require_relative '../workspace/chats'
@@ -61,6 +62,8 @@ module Monadic
       WHITEBOARD_USED = 'a whiteboard was placed in this turn already: draw on it, or place another in the next turn'
       # A whiteboard that left Now is kept as it was.
       FROZEN = 'this whiteboard left Now and is kept as it was: place a new whiteboard to draw'
+      # The texts of a board kept with its image at most (characters).
+      BOARD_TEXTS_LIMIT = 20_000
       # What the AI is told of a put-away item it named: it reads only what
       # is on the desk.
       PUT_AWAY = 'that item is put away: bring it into Now first (show_on_workbench with its item), then use it'
@@ -300,6 +303,33 @@ module Monadic
         end
       end
 
+      # The texts of the board an image item was made of (Whiteboard
+      # take_image): nil for an item that is no such image, :unknown when
+      # they were not kept.
+      def board_texts(item_id)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s]
+          next nil unless item && item['board_source']
+          next :unknown if item['board_texts_unknown'] || !item['board_texts'].is_a?(Array)
+
+          deep_dup(item['board_texts'])
+        end
+      end
+
+      # Whether item_id may go to a model as an image for a chat hiding words
+      # (nil: they could not be read): any item but an image made of a
+      # whiteboard; that one when none of the texts written on it holds one
+      # of the words (checked when it goes, as the words can change).
+      def board_texts_clear?(item_id, words)
+        texts = board_texts(item_id)
+        return true if texts.nil?
+        return false if texts == :unknown
+        return true if texts.empty? || words&.empty?
+        return false if words.nil?
+
+        texts.none? { |text| Monadic::Utils::Privacy::Outbound.leaks_word?(text, words) }
+      end
+
       # The image a page painted of the whiteboard item_id at version: the
       # first taken is the board's from then on. The block writes the bytes
       # under each of names in turn until one is free (it returns the path
@@ -309,7 +339,7 @@ module Monadic
       # file and version it was made from). Refused 'done' when the board is
       # an image already, 'stale' when it is not one waiting at version.
       # Returns the item.
-      def take_whiteboard_image(item_id, version:, names:, epoch:)
+      def take_whiteboard_image(item_id, version:, names:, epoch:, texts: :unknown)
         change do |data|
           check_epoch!(epoch)
           item = data['items'][item_id.to_s] or raise Refused, 'stale'
@@ -320,6 +350,13 @@ module Monadic
           written = names.lazy.map { |name| yield name }.find(&:itself) or raise Refused, 'no free name'
           item['file'] = FileItem.entry_for(written, wait: 0)
           item['board_source'] = { 'path' => board_path, 'sha256' => version }
+          # The texts written on the board, checked against the chat's words
+          # whenever the image goes to a model (board_texts_clear?).
+          if texts.is_a?(Array) && texts.sum(&:size) <= BOARD_TEXTS_LIMIT
+            item['board_texts'] = texts
+          else
+            item['board_texts_unknown'] = true
+          end
           @verdicts.delete(item['id'])
           @texts.delete(item['id'])
           record!(data, { 'kind' => 'whiteboard_image', 'item_id' => item['id'] }, { actor: 'user' })

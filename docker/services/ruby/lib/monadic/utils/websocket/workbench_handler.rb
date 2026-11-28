@@ -63,6 +63,7 @@ module WebSocketHelper
     Thread.new do
       Thread.current[:websocket_session_id] = tab
       Thread.current[:rack_session] = session
+      Thread.current[:workbench_opener] = { tab: tab, generation: generation }
       answer = nil
       begin
         put = begin
@@ -105,12 +106,19 @@ module WebSocketHelper
       return { 'success' => false, 'error' => 'browser_starting' }
     end
 
-    result = WebSocketHelper.page_browser_host.new.start_browser(url: url)
+    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
+    board = Monadic::Workspace::Ids.valid?(:chat, chat_id) && Monadic::Workbench::Board.existing(chat_id)
+    # The browser open in Now goes to the address (it stays the same one);
+    # otherwise a browser is started there.
+    live = board && board.snapshot[:items].find do |item|
+      item[:kind] == 'browser' && item[:place] == 'current' && item[:status] == 'open'
+    end
+    host = WebSocketHelper.page_browser_host.new
+    result = live ? host.browser_navigate(url: url) : host.start_browser(url: url)
     opened = result.is_a?(Hash) && result[:success] == true
     return { 'success' => false, 'error' => 'open_failed' } unless opened
 
-    chat_id = Monadic::Workbench::Channel.chat_id_of(session)
-    board = Monadic::Workspace::Ids.valid?(:chat, chat_id) && Monadic::Workbench::Board.existing(chat_id)
+    board ||= Monadic::Workspace::Ids.valid?(:chat, chat_id) && Monadic::Workbench::Board.existing(chat_id)
     browser = board && board.snapshot[:items].reverse.find { |item| item[:kind] == 'browser' }
     { 'success' => true, 'item_id' => browser && browser[:id] }.compact
   end

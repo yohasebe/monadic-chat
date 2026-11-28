@@ -195,6 +195,18 @@ RSpec.describe "MonadicSharedTools::WebAutomation screenshots and the work scree
       expect(result[:work_screen]).to eq(Monadic::WorkScreen::FULL_NOTE)
     end
 
+    it "keeps the page of the browser it replaces before letting that browser go" do
+      expect(Monadic::Workbench::PagePictures).to receive(:before_close).with(chat).ordered
+      expect(owner).to receive(:release).ordered.and_call_original
+      Monadic::Workspace::RequestContext.with(request) { app.start_browser(url: "https://example.com") }
+    end
+
+    it "keeps the page of the browser it stops before letting it go" do
+      expect(Monadic::Workbench::PagePictures).to receive(:before_close).with(chat).ordered
+      expect(owner).to receive(:release).ordered.and_call_original
+      Monadic::Workspace::RequestContext.with(request) { app.stop_browser }
+    end
+
     # The reply's one address: a second start in the reply is refused before
     # the browser it has is closed; a start that failed gives it back.
     describe "in a reply" do

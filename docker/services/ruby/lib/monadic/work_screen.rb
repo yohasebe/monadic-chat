@@ -66,7 +66,13 @@ module Monadic
       return unless Monadic::Workspace::Ids.valid?(:chat, chat)
 
       request = Monadic::Workspace::RequestContext.current
-      origin = { actor: 'agent', source: 'browser', request_id: request&.request_id }
+      # The user opened it from the work screen (the tab that asked).
+      opener = Thread.current[:workbench_opener]
+      origin = if opener && !(request && request.chat_id == chat)
+                 { actor: 'user', source: 'panel', tab: opener[:tab], generation: opener[:generation] }
+               else
+                 { actor: 'agent', source: 'browser', request_id: request&.request_id }
+               end
       if request && request.chat_id == chat
         origin[:tab] = request.tab
         origin[:generation] = request.generation
@@ -116,8 +122,12 @@ module Monadic
   end
 end
 
-# A chat that stops holding its browser: its pages ask for the workbench
-# again, where the browser's item now says it closed.
+# A chat that stops holding its browser: the browser's item becomes a link
+# to its page (a tool that closed it kept its last picture first), and its
+# pages ask for the workbench again.
 MonadicSharedTools::BrowserOwner.on_closed do |chat|
-  Monadic::Workbench::Channel.changed(chat) if Monadic::Workspace::Ids.valid?(:chat, chat)
+  next unless Monadic::Workspace::Ids.valid?(:chat, chat)
+
+  Monadic::Workbench::Board.existing(chat)&.closed_browsers!
+  Monadic::Workbench::Channel.changed(chat)
 end

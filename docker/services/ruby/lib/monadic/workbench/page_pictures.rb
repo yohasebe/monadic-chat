@@ -51,7 +51,8 @@ module Monadic
         # to picture, or the browser cannot be reached from here
         # (WorkScreen.available?).
         def binding_for(chat)
-          return nil unless defined?(Monadic::WorkScreen) && Monadic::WorkScreen.available?
+          return nil unless defined?(Monadic::WorkScreen) && Monadic::WorkScreen.respond_to?(:available?) &&
+                            Monadic::WorkScreen.available?
 
           view = MonadicSharedTools::BrowserOwner.view(chat)
           view&.window ? Binding.new(chat, view.epoch, view.instance, view.session, view.window) : nil
@@ -78,6 +79,44 @@ module Monadic
 
         def taking?(chat)
           @lock.synchronize { @held[chat].positive? }
+        end
+
+        # A tool on chat's browser reported the page it shows (result's
+        # page_info): its item keeps the address and title, in the form a
+        # look gives them.
+        def note(chat, result)
+          info = result.is_a?(Hash) && result[:page_info]
+          return unless info.is_a?(Hash) && Monadic::Workspace::Ids.valid?(:chat, chat)
+
+          view = MonadicSharedTools::BrowserOwner.view(chat) or return
+          url = Look::Browser.address(info[:url] || info['url'])
+          title = info[:title] || info['title']
+          Board.existing(chat)&.note_page(view.instance, url: url.empty? ? nil : url,
+                                                         title: title.to_s.strip.empty? ? nil : Look::Browser.title(title))
+        rescue StandardError => e
+          log(e)
+        end
+
+        # The chat's browser is about to be closed by a tool (holding its
+        # actions): its item keeps the last page, pictured now when it can
+        # be, else as a link.
+        def before_close(chat)
+          return unless Monadic::Workspace::Ids.valid?(:chat, chat)
+
+          view = MonadicSharedTools::BrowserOwner.view(chat) or return
+          board = Board.existing(chat) or return
+          binding = binding_for(chat)
+          item_id = board.close_browser!(view.instance, binding: binding)
+          return unless item_id && binding
+
+          begin
+            take(chat, item_id, binding)
+          ensure
+            release(chat)
+          end
+          Channel.changed(chat) if defined?(Channel) && Channel.respond_to?(:changed)
+        rescue Board::Refused => e
+          log(e)
         end
 
         # Takes the pictures of pending ([{ item_id:, binding: }], held

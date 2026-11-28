@@ -428,8 +428,47 @@ module Monadic
           item = data['items'][item_id.to_s]
           next nil unless item && pending_page?(item)
 
-          item['page'] = { 'status' => 'link', 'url' => url, 'title' => title }.compact
+          item['page'] = { 'status' => 'link', 'url' => url || item.dig('page', 'url'),
+                           'title' => title || item.dig('page', 'title') }.compact
           deep_dup(item)
+        end
+      end
+
+      # The page the chat's browser instance shows now, as a tool reported it
+      # (Look::Browser's public form of its address and its title): kept on
+      # its item, in memory as the item is, for the page items made of it.
+      def note_page(instance, url:, title:)
+        @lock.synchronize do
+          item = @data['items'].values.find { |i| i['kind'] == 'browser' && i.dig('browser', 'instance') == instance }
+          next unless item
+
+          item['browser'] = item['browser'].merge('url' => url, 'title' => title).compact
+        end
+        nil
+      end
+
+      # The chat's browser instance closes now (a tool closes or replaces it):
+      # its item becomes a page item where it is, waiting for its last
+      # picture when binding says one can be taken, else a link. Returns
+      # the item's id, or nil when the browser has no item.
+      def close_browser!(instance, binding:)
+        change do |data|
+          item = data['items'].values.find { |i| i['kind'] == 'browser' && i.dig('browser', 'instance') == instance }
+          next nil unless item
+
+          page_in_place!(data, item, binding ? 'pending' : 'link')
+          PagePictures.hold(@chat_id) if binding
+          item['id']
+        end
+      end
+
+      # The chat's browser closed some other way (idle, gone, replaced): the
+      # items of browsers no longer open become links to their pages.
+      def closed_browsers!
+        change do |data|
+          data['items'].values.select { |item| item['kind'] == 'browser' && browser_status(item) != 'open' }
+                       .each { |item| page_in_place!(data, item, 'link') }
+          nil
         end
       end
 
@@ -1192,11 +1231,20 @@ module Monadic
       def page_of!(data, browser, by)
         item_id = "i_#{SecureRandom.hex(10)}"
         binding = PagePictures.binding_for(@chat_id)
-        page = { 'status' => binding ? 'pending' : 'link', 'instance' => browser.dig('browser', 'instance') }
+        page = { 'status' => binding ? 'pending' : 'link', 'instance' => browser.dig('browser', 'instance'),
+                 'url' => browser.dig('browser', 'url'), 'title' => browser.dig('browser', 'title') }.compact
         data['items'][item_id] = { 'id' => item_id, 'kind' => 'page', 'origin' => { 'actor' => by, 'source' => 'browser' },
                                    'mid' => nil, 'page' => page, 'place' => 'latest', 'by' => by }
         PagePictures.hold(@chat_id)
         { item_id: item_id, binding: binding }
+      end
+
+      def page_in_place!(data, item, status)
+        item['kind'] = 'page'
+        item['page'] = { 'status' => status, 'instance' => item.dig('browser', 'instance'),
+                         'url' => item.dig('browser', 'url'), 'title' => item.dig('browser', 'title') }.compact
+        item.delete('browser')
+        record!(data, { 'kind' => 'browser_closed', 'item_id' => item['id'] }, { actor: item['by'] })
       end
 
       def pending_page?(item)

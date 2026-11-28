@@ -3,6 +3,7 @@
 require 'json'
 require 'securerandom'
 require_relative 'store'
+require_relative '../workspace/ledger'
 require_relative '../workspace/ids'
 
 module Monadic
@@ -25,9 +26,11 @@ module Monadic
 
       def write(chat_id, request_id, by, record, store: Store.default)
         path = path_of(chat_id, request_id, by, store: store, make: true) or return nil
-        temp = "#{path}.#{SecureRandom.hex(6)}"
-        File.write(temp, JSON.generate(record.merge('request_id' => request_id, 'by' => by)))
-        File.rename(temp, path)
+        # Written as the board's manifest is: whole, then put in place.
+        disk = Monadic::Workspace::Ledger::Disk
+        temp = File.join(File.dirname(path), ".#{File.basename(path)}.#{SecureRandom.hex(6)}")
+        disk.create_exclusive(temp, JSON.generate(record.merge('request_id' => request_id, 'by' => by)))
+        disk.replace(temp, path)
         path
       end
 
@@ -54,13 +57,9 @@ module Monadic
       def path_of(chat_id, request_id, by, store:, make: false)
         return nil unless BY.include?(by) && Monadic::Workspace::Ids.valid?(:request, request_id.to_s)
 
-        dir = File.join(store.chat_dir(chat_id, make: make), DIRNAME)
-        if make && !File.directory?(dir)
-          Dir.mkdir(dir, 0o700)
-        end
-        File.join(dir, "#{request_id}.#{by}.json")
-      rescue ArgumentError, Errno::EEXIST
-        File.join(store.chat_dir(chat_id), DIRNAME, "#{request_id}.#{by}.json")
+        File.join(store.chat_subdir(chat_id, DIRNAME, make: make), "#{request_id}.#{by}.json")
+      rescue ArgumentError
+        nil
       end
     end
   end

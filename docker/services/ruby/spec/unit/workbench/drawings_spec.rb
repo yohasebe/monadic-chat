@@ -100,6 +100,22 @@ RSpec.describe Monadic::Workbench::Drawings do
     expect(take([sent(item, [stroke("t2", text: "the door")])], words: words).first.drawing.size).to eq(1)
   end
 
+  it "sends no picture of an image whose earlier drawing holds a word hidden since, with or without a drawing of its own" do
+    item = photo
+    first = Monadic::Workspace::Ids.generate(:request)
+    board.begin_reply(first, marks: { pictures: take([sent(item, [stroke("t1", text: "Zebulon Quartzfield")])], words: []), erased: [] })
+    board.end_reply(first)
+    expect(board.snapshot[:items].first[:drawing][:shapes].map { |shape| shape["text"] }).to eq(["Zebulon Quartzfield"])
+    mark = { "id" => "m_earlier01", "rev" => 1, "mark" => { "shape" => "rect", "color" => "orange", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 },
+             "rect" => { "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 } }
+    with_drawing = sent(item, [stroke("s9")], marks: [mark])
+    expect { take([with_drawing], words: ["Zebulon Quartzfield"]) }.to refused("hides_words")
+    marks_only = sent(item, [stroke("s8")]).except("drawing").merge("marks" => [mark.merge("id" => "m_earlier02")])
+    expect { take([marks_only], words: ["Zebulon Quartzfield"]) }.to refused("hides_words")
+    expect { take([marks_only], words: nil) }.to refused("hides_words")
+    expect(take([marks_only], words: ["someone else"]).size).to eq(1)
+  end
+
   it "keeps what each message drew, lighter under the next, and takes off only what a deleted message added" do
     item = photo
     version = item.dig("file", "sha256")

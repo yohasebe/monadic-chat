@@ -26,7 +26,7 @@ RSpec.describe "the name in a marked picture's note" do
 
   def note_for(name, with_words)
     item = { id: "i_1", kind: "file", preview: "image", version: "v" * 64, place: "current", name: name }
-    board = double("board", board_texts_clear?: true, observe: { items: [item], selected: nil })
+    board = double("board", board_texts_clear?: true, drawing_on: nil, observe: { items: [item], selected: nil })
     allow(Monadic::Workbench::Board).to receive(:existing).with(chat).and_return(board)
     data = { "item_id" => "i_1", "version" => "v" * 64, "mark_id" => "m_aaaaaaaa", "mark_rev" => 1,
              "mark" => { "shape" => "rect", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 },
@@ -75,7 +75,7 @@ RSpec.describe "a marked picture with several marks" do
 
   def accept(marks)
     item = { id: "i_1", kind: "file", preview: "image", version: "v" * 64, place: "current", name: "plan.png" }
-    board = double("board", board_texts_clear?: true, observe: { items: [item], selected: nil })
+    board = double("board", board_texts_clear?: true, drawing_on: nil, observe: { items: [item], selected: nil })
     allow(Monadic::Workbench::Board).to receive(:existing).with(chat).and_return(board)
     data = { "item_id" => "i_1", "version" => "v" * 64, "marks" => marks, "image" => Base64.strict_encode64(png) }
     picture.accept_marked([data], chat_id: chat, request_id: "q_1", tab: "tab-1", generation: 1, words: []).first

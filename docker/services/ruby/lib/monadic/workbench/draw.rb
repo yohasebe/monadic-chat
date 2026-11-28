@@ -235,17 +235,26 @@ module Monadic
         end
       end
 
-      # The whiteboard of the chat the tab shows, or nil.
+      # The whiteboard to draw on: the one the tab shows, else one in Now
+      # that can be drawn on; nil when there is none (a new one is made).
+      # One the tab shows that left Now is refused (Board::FROZEN): no other
+      # board is drawn on in its place.
       def shown_whiteboard(caller, app_name)
         board = Board.existing(caller.chat_id) or return nil
-        item = Look.target(board, caller).item
-        path = item.dig('file', 'path').to_s
-        return nil unless Monadic::Workspace::SharedFolderPreview.render_for(path) == 'whiteboard'
-
         folder, = Whiteboard.folder_of(caller.chat_id, app_name)
-        Whiteboard.own?(folder, path) ? item : nil
-      rescue Look::Refused
-        nil
+        shown = begin
+          Look.target(board, caller).item
+        rescue Look::Refused
+          nil
+        end
+        path = shown&.dig('file', 'path').to_s
+        if Monadic::Workspace::SharedFolderPreview.render_for(path) == 'whiteboard' && Whiteboard.own?(folder, path)
+          raise Refused, Board::FROZEN if shown['frozen'] || shown['place'] != 'current'
+
+          return shown
+        end
+        found = board.editable_whiteboard
+        found && Whiteboard.own?(folder, found.dig('file', 'path').to_s) ? found : nil
       end
 
       # A new whiteboard, made by the reply (deleting its message moves it

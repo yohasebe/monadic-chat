@@ -2653,6 +2653,9 @@ document.addEventListener("DOMContentLoaded", function () {
       // as they are when the user sends (not later, once the connection is
       // back: the pane may have scrolled meanwhile).
       const shown = window.Workbench && typeof window.Workbench.rangeNow === 'function' ? window.Workbench.rangeNow() : null;
+      // What was just drawn on a whiteboard is saved before the message
+      // ends the turn (the board is then kept as saved).
+      if (window.Workbench && typeof window.Workbench.flushWhiteboards === 'function') window.Workbench.flushWhiteboards();
       // The marked items' pictures (several), or else the chosen item's unmarked one.
       const pictures = window.Workbench && typeof window.Workbench.picturesNow === 'function' ? window.Workbench.picturesNow() : null;
       const picture = window.Workbench && typeof window.Workbench.pictureNow === 'function' ? window.Workbench.pictureNow() : null;

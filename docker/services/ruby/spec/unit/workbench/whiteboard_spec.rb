@@ -55,13 +55,41 @@ RSpec.describe Monadic::Workbench::Whiteboard do
 
   def kept(item) = JSON.parse(File.read(File.join(@data, item.dig("file", "path"))))
 
+  # The user's turn and the reply after it end: the next turn may place a
+  # whiteboard again.
+  def next_turn!
+    request = Monadic::Workspace::Ids.generate(:request)
+    Monadic::Workbench::Board.for(chat).begin_reply(request)
+    Monadic::Workbench::Board.for(chat).end_reply(request)
+  end
+
   it "makes a new, empty whiteboard in the chat's folder and puts it on the work screen, numbered" do
     first = create
+    next_turn!
     second = create
     expect(first.dig("file", "path")).to end_with("/whiteboards/whiteboard-1.wb.json")
     expect(second.dig("file", "path")).to end_with("/whiteboards/whiteboard-2.wb.json")
     expect(kept(first)).to eq("version" => 1, "width" => 1600, "height" => 1000, "shapes" => [])
     expect(Monadic::Workspace::SharedFolderPreview.render_for(first.dig("file", "path"))).to eq("whiteboard")
+  end
+
+  it "keeps a board that left Now as it was, also when brought back, and says so in the view" do
+    item = create
+    board = Monadic::Workbench::Board.for(chat)
+    expect(board.snapshot[:items].first[:frozen]).to be_nil
+    board.accept(item_id: item["id"], action: "stash", operation_id: "op-stash-0001", epoch: epoch, sha256: item.dig("file", "sha256"))
+    board.accept(item_id: item["id"], action: "bring", operation_id: "op-bring-0001", epoch: epoch, sha256: item.dig("file", "sha256"))
+    expect(board.item(item["id"])).to include("place" => "current", "frozen" => true)
+    expect(board.snapshot[:items].first).to include(frozen: true)
+    expect { save(item, { "shapes" => shapes }) }.to raise_error(described_class::Refused, /left Now/)
+  end
+
+  it "places one whiteboard in a turn, and another in the next" do
+    create
+    expect { create }.to raise_error(described_class::Refused, /placed in this turn already/)
+    expect(Dir.glob(File.join(@data, "**", "*.wb.json")).size).to eq(1)
+    next_turn!
+    expect(create.dig("file", "path")).to end_with("whiteboard-2.wb.json")
   end
 
   it "saves the board as the page sends it, in the form it is kept, and the item takes the new version" do

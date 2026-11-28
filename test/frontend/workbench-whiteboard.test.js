@@ -49,6 +49,23 @@ describe('WorkbenchWhiteboard', () => {
     expect(board.data()).toMatchObject({ version: 1, width: 1600, height: 1000 });
   });
 
+  test('shows a board kept as it was with its view only: no tools, and nothing drawn by a drag', () => {
+    box = document.createElement('div');
+    document.body.appendChild(box);
+    changes = [];
+    board = window.WorkbenchWhiteboard.show(box, { shapes: [{ id: 'a', type: 'rect', x: 10, y: 20, w: 100, h: 50 }] },
+      { onChange: (d) => changes.push(d), frozen: true });
+    box.querySelector('svg').getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 500 });
+    expect(box.querySelector('[data-tool]')).toBeNull();
+    expect(box.querySelector('.workbench-whiteboard-zoom-in')).not.toBeNull();
+    expect(box.querySelector('.workbench-whiteboard-frozen-note').textContent).toBe('Kept as it was when it left Now.');
+    pointer('pointerdown', 100, 50);
+    pointer('pointermove', 120, 60);
+    pointer('pointerup', 120, 60);
+    expect(changes).toEqual([]);
+    expect(board.data().shapes.map((s) => s.id)).toEqual(['a']);
+  });
+
   test('draws a pen stroke on the board in its own units, and tells the change', () => {
     show(null);
     pointer('pointerdown', 100, 50);

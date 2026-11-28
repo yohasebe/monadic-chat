@@ -13,9 +13,10 @@
  * the file keeps ({ version, width, height, shapes }); the server checks it
  * when it is saved (Workbench::Whiteboard).
  *
- * WorkbenchWhiteboard.show(box, data, { onChange, loadPicture }) draws
- * data in box and returns a handle (loadPicture() gives the picture under
- * a board drawn on one, as a Blob):
+ * WorkbenchWhiteboard.show(box, data, { onChange, loadPicture, frozen })
+ * draws data in box and returns a handle (loadPicture() gives the picture
+ * under a board drawn on one, as a Blob; frozen: a board only looked at,
+ * with no tools to draw):
  * - data(): the board as it is now
  * - load(data): the board drawn again as data has it (the undo history is
  *   let go)
@@ -666,7 +667,7 @@
     try { return window.localStorage.getItem(GRID_KEY) === '1'; } catch (_) { return false; }
   }
 
-  function show(box, data, { onChange, name, save, loadPicture } = {}) {
+  function show(box, data, { onChange, name, save, loadPicture, frozen = false } = {}) {
     let board = boardOf(data);
     const past = [];
     const future = [];
@@ -802,10 +803,18 @@
       if (board.shapes.length === 0) return;
       change(() => { board.shapes = []; });
     });
-    bar.append(group(t('ui.workbench.wb_tools', 'Tools'), ...toolButtons),
-      group(t('ui.workbench.wb_style', 'Color, size and fill'), colorPicker.wrap, strokePicker.wrap, fillPicker.wrap),
-      group(t('ui.workbench.wb_view', 'View'), zoomOut, zoomLevel, zoomIn, grid),
-      group(t('ui.workbench.wb_history', 'Undo and redo'), undo, redo, clear));
+    // A board kept as it was (it left Now) is only looked at: its view's
+    // buttons, and a line saying why there is nothing to draw with.
+    if (frozen) {
+      const note = element('span', 'workbench-whiteboard-frozen-note text-secondary',
+        t('ui.workbench.wbFrozenNote', 'Kept as it was when it left Now.'));
+      bar.append(group(t('ui.workbench.wb_view', 'View'), zoomOut, zoomLevel, zoomIn, grid), note);
+    } else {
+      bar.append(group(t('ui.workbench.wb_tools', 'Tools'), ...toolButtons),
+        group(t('ui.workbench.wb_style', 'Color, size and fill'), colorPicker.wrap, strokePicker.wrap, fillPicker.wrap),
+        group(t('ui.workbench.wb_view', 'View'), zoomOut, zoomLevel, zoomIn, grid),
+        group(t('ui.workbench.wb_history', 'Undo and redo'), undo, redo, clear));
+    }
 
     const sheet = element('div', 'workbench-whiteboard-sheet');
     const canvas = svg('svg', { class: 'workbench-whiteboard-canvas', role: 'img' });
@@ -963,7 +972,7 @@
       grid.classList.toggle('active', state.grid);
       grid.setAttribute('aria-pressed', state.grid ? 'true' : 'false');
       gridLayer.style.display = state.grid ? '' : 'none';
-      sheet.dataset.tool = state.tool;
+      if (!frozen) sheet.dataset.tool = state.tool;
       if (state.tool !== 'select' && selected) {
         selected = null;
         drawChrome();
@@ -1110,7 +1119,7 @@
     }
 
     canvas.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || state.disposed) return;
+      if (e.button !== 0 || state.disposed || frozen) return;
       e.preventDefault();
       if (state.tool === 'text') {
         writeText(snap(at(e), e));
@@ -1241,7 +1250,7 @@
     // it (by 10 with Shift), Esc lets it go.
     canvas.addEventListener('keydown', (e) => {
       const shape = chosen();
-      if (!shape || drawing) return;
+      if (!shape || drawing || frozen) return;
       const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
@@ -1318,7 +1327,7 @@
     // text writes its text again: a shape's text in its middle (none when
     // left empty), a text's own (taken off when left empty).
     canvas.addEventListener('dblclick', (e) => {
-      if (state.tool !== 'select' || state.disposed || drawing) return;
+      if (state.tool !== 'select' || state.disposed || drawing || frozen) return;
       const id = shapeAt(e, at(e));
       const shape = board.shapes.find((s) => s.id === id);
       if (!shape || !['rect', 'ellipse', 'text'].includes(shape.type)) return;

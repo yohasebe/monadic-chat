@@ -2182,6 +2182,29 @@ describe('Workbench', () => {
       expect(saves()[0].data.shapes.map((sh) => sh.type)).toEqual(['line', 'pen']);
     });
 
+    test('saves what was just drawn before a message, and draws a board that left Now as it was kept', async () => {
+      jest.useFakeTimers();
+      drawStroke();
+      expect(saves()).toHaveLength(0);
+      window.Workbench.flushWhiteboards();
+      expect(saves()).toHaveLength(1);
+      jest.useRealTimers();
+      const kept = Object.assign({}, wb, { frozen: true, place: 'latest' });
+      view([kept], { renders: { i_w: '/workbench/asset/render-i_w' }, selected: 'i_w', selection_serial: 3 });
+      await flushAll();
+      expect(document.querySelector('#workbench-view .workbench-whiteboard [data-tool]')).toBeNull();
+      expect(document.querySelector('#workbench-view .workbench-whiteboard-frozen-note')).not.toBeNull();
+    });
+
+    test('says why a whiteboard was not placed or saved', () => {
+      window.setAlert.mockClear();
+      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: 999, status: 'refused', reason: 'whiteboard_used' });
+      window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: 998, status: 'refused', reason: 'whiteboard_frozen' });
+      const texts = window.setAlert.mock.calls.map((c) => c[0]);
+      expect(texts.some((x) => x.includes('placed in this turn already'))).toBe(true);
+      expect(texts.some((x) => x.includes('left Now'))).toBe(true);
+    });
+
     test('saves what was drawn meanwhile from the version the server answered, one save at a time', () => {
       jest.useFakeTimers();
       drawStroke();

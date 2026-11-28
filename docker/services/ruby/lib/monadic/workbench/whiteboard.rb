@@ -199,18 +199,29 @@ module Monadic
       # one board is numbered at a time), on background (a picture's
       # record, its copy kept) or plain, put on the work screen for the tab.
       # Returns the board's item.
+      # The turn's one whiteboard and its place in Now are taken first
+      # (Board#reserve_whiteboard), and given back when it is not made.
       def create(chat_id, app_name:, origin:, epoch:, background: nil)
         folder, dir = folder_of(chat_id, app_name)
-        name = lock_for(chat_id).synchronize do
-          taken = Dir.children(dir).filter_map { |f| f.delete_suffix(EXTENSION)[NAME, 1]&.to_i if f.end_with?(EXTENSION) }
-          "whiteboard-#{(taken.max || 0) + 1}".tap do |new_name|
-            write(dir, new_name, clean({ 'shapes' => [] }, background: background), replace: false)
+        board = Board.for(chat_id)
+        board.reserve_whiteboard(origin: origin, epoch: epoch)
+        begin
+          name = lock_for(chat_id).synchronize do
+            taken = Dir.children(dir).filter_map { |f| f.delete_suffix(EXTENSION)[NAME, 1]&.to_i if f.end_with?(EXTENSION) }
+            "whiteboard-#{(taken.max || 0) + 1}".tap do |new_name|
+              write(dir, new_name, clean({ 'shapes' => [] }, background: background), replace: false)
+            end
           end
+          item, = board.add_file(path: File.join(folder, DIRNAME, "#{name}#{EXTENSION}"), origin: origin,
+                                 epoch: epoch, wait: 0)
+        rescue StandardError
+          board.release_whiteboard
+          raise
         end
-        item, = Board.for(chat_id).add_file(path: File.join(folder, DIRNAME, "#{name}#{EXTENSION}"), origin: origin,
-                                            epoch: epoch, wait: 0)
         Channel.changed(chat_id)
         item
+      rescue Board::Refused => e
+        raise Refused, e.message
       end
 
       # A new whiteboard on the image item item_id of the work screen (at
@@ -255,7 +266,7 @@ module Monadic
 
           before = clean(kept, background: background)['shapes']
           board_data = clean(data, background: background)
-          write(dir, name, board_data)
+          board.while_editable(item_id, origin) { write(dir, name, board_data) }
           item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0,
                                  event: edit_event(before, board_data['shapes']))
           Channel.changed(chat_id)
@@ -265,6 +276,8 @@ module Monadic
         raise Refused, 'changed'
       rescue Artifact::NotAllowed
         raise Refused, 'not a whiteboard of this chat'
+      rescue Board::Refused => e
+        raise Refused, e.message
       end
 
       # A kept board (bytes) as JSON, or Refused.
@@ -331,12 +344,16 @@ module Monadic
           yield shapes, frame_of(background)
           next nil if JSON.generate(shapes) == before
 
-          write(dir, File.basename(path).delete_suffix(EXTENSION), clean({ 'shapes' => shapes }, background: background))
+          board.while_editable(item['id'], origin) do
+            write(dir, File.basename(path).delete_suffix(EXTENSION), clean({ 'shapes' => shapes }, background: background))
+          end
           item, = board.add_file(path: path, origin: origin, epoch: epoch, wait: 0)
           Channel.changed(chat_id)
           item
         end
-      rescue Artifact::Changed, Artifact::NotAllowed, Board::Refused, FileItem::Busy => e
+      rescue Board::Refused => e
+        raise Refused, e.message
+      rescue Artifact::Changed, Artifact::NotAllowed, FileItem::Busy => e
         raise Refused, "the whiteboard could not be read (#{e.class.name.split('::').last})"
       end
 

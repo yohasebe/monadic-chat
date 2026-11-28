@@ -56,6 +56,10 @@ module Monadic
       ITEM_LIMIT = NOW_LIMIT * 3
       BUSY = 'the assistant is replying: the work screen can be changed when the reply ends'
       FULL = "the work screen has #{NOW_LIMIT} items in Now: take one off or put one away first".freeze
+      # One whiteboard is placed in a turn (the user's, the AI's).
+      WHITEBOARD_USED = 'a whiteboard was placed in this turn already: draw on it, or place another in the next turn'
+      # A whiteboard that left Now is kept as it was.
+      FROZEN = 'this whiteboard left Now and is kept as it was: place a new whiteboard to draw'
       # What the AI is told of a put-away item it named: it reads only what
       # is on the desk.
       PUT_AWAY = 'that item is put away: bring it into Now first (show_on_workbench with its item), then use it'
@@ -216,6 +220,7 @@ module Monadic
           record_marks!(data, request_id, marks) if marks
           shift!(data, 'user', request_id)
           data['items'].each_value { |item| item.delete('fresh') }
+          data.delete('turn_whiteboards')
           @reply = request_id
           nil
         end
@@ -232,8 +237,55 @@ module Monadic
 
           @reply = nil
           changed = shift!(data, 'agent', request_id)
+          data.delete('turn_whiteboards')
         end
         changed
+      end
+
+      # A whiteboard is about to be made for origin: its place in Now and the
+      # turn's one whiteboard are taken before its file is written. Refused
+      # as placing is (BUSY, FULL), and when the turn placed one already
+      # (WHITEBOARD_USED). release_whiteboard gives the turn's back when the
+      # board could not be made.
+      def reserve_whiteboard(origin:, epoch:)
+        change do |data|
+          check_epoch!(epoch)
+          target_place!(data, origin)
+          raise Refused, WHITEBOARD_USED if data['turn_whiteboards'].to_i.positive?
+
+          data['turn_whiteboards'] = 1
+          nil
+        end
+      end
+
+      def release_whiteboard
+        change do |data|
+          data.delete('turn_whiteboards')
+          nil
+        end
+      end
+
+      # Runs the block (a write of the whiteboard item_id's file, by origin)
+      # while the board can be drawn on: in Now and never out of it since.
+      # The board is held meanwhile, so that it does not leave Now halfway.
+      # Refused (FROZEN) otherwise, and for the user while a reply runs
+      # (BUSY).
+      def while_editable(item_id, origin)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s] or raise Refused, 'the whiteboard is not on the work screen'
+          raise Refused, BUSY if user?(origin) && @reply
+          raise Refused, FROZEN unless editable_whiteboard?(item)
+
+          yield
+        end
+      end
+
+      # The whiteboard in Now that can be drawn on, the one made last first;
+      # nil when there is none.
+      def editable_whiteboard
+        @lock.synchronize do
+          deep_dup(@data['items'].values.reverse.find { |item| editable_whiteboard?(item) })
+        end
       end
 
       # Whether a reply's turn is open (the user does not change the desk).
@@ -897,6 +949,7 @@ module Monadic
         data['items'].delete(item['id'])
         item['place'] = place
         data['items'][item['id']] = item
+        freeze_left!(data)
         record!(data, { 'kind' => 'moved', 'item_id' => item['id'], 'to' => place }, origin)
       end
 
@@ -933,6 +986,7 @@ module Monadic
 
         down = { 'current' => 'latest', 'latest' => 'previous', 'previous' => 'stash' }
         data['items'].each_value { |item| item['place'] = down.fetch(item['place'], item['place']) }
+        freeze_left!(data)
         layers = (data['layers'] ||= {})
         layers['previous'] = layers['latest']
         layers['latest'] = { 'by' => by, 'request_id' => request_id }
@@ -952,6 +1006,7 @@ module Monadic
         data['items'].each_value do |item|
           item['place'] = { 'latest' => 'previous', 'previous' => 'stash' }.fetch(item['place'], item['place'])
         end
+        freeze_left!(data)
         layers['previous'] = layers['latest']
         layers['latest'] = { 'by' => 'agent', 'request_id' => request_id }
         layers.compact!
@@ -970,6 +1025,21 @@ module Monadic
 
       def actor_of(origin)
         (origin && (origin[:actor] || origin['actor'])).to_s == 'user' ? 'user' : 'agent'
+      end
+
+      # A whiteboard (a board file of the work screen).
+      def whiteboard?(item)
+        item['kind'] == 'file' && Monadic::Workspace::SharedFolderPreview.render_for(item.dig('file', 'path').to_s) == 'whiteboard'
+      end
+
+      # A whiteboard that can be drawn on: in Now, and never out of it since.
+      def editable_whiteboard?(item)
+        whiteboard?(item) && item['place'] == 'current' && !item['frozen']
+      end
+
+      # Whiteboards out of Now are kept as they are, also when brought back.
+      def freeze_left!(data)
+        data['items'].each_value { |item| item['frozen'] = true if item['place'] != 'current' && whiteboard?(item) }
       end
 
       def count_in(data, place)
@@ -1159,7 +1229,9 @@ module Monadic
           # A document is named by its title where its file's name is not it.
           title: defined?(Document) ? Document.shown_title(entry['path']) : nil,
           # A record of a conversation, to keep in the Library as one.
-          draft: item['draft'] ? true : nil
+          draft: item['draft'] ? true : nil,
+          # A whiteboard no longer drawn on (it left Now).
+          frozen: (true if whiteboard?(item) && !editable_whiteboard?(item))
         }
       end
 

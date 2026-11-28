@@ -98,4 +98,16 @@ describe('WorkbenchTurn', () => {
     window.WorkbenchTurn.show(box, { status: 'ok', by: 'user', items: [] }, {});
     expect(box.querySelector('.workbench-turn-none').textContent).toBe('Nothing was on the desk.');
   });
+  test('shows the browser open then and the pages a turn kept by their address, with no live view', () => {
+    window.WorkbenchTurn.show(box, { status: 'ok', by: 'user', items: [
+      { id: 'i_br', kind: 'browser', name: 'Search', url: 'https://example.com/search', place: 'current', by: 'user', now: 'changed' },
+      { id: 'i_pg', kind: 'page', name: 'Docs', url: 'https://example.com/docs', status: 'link', place: 'latest', by: 'agent', now: 'same' }
+    ] }, {});
+    const parts = box.querySelectorAll('.workbench-turn-item');
+    expect(parts[0].querySelector('.workbench-turn-name').textContent).toContain('The browser (open then)');
+    expect(parts[0].textContent).toContain('https://example.com/search');
+    expect(parts[0].textContent).toContain('Search');
+    expect(parts[1].textContent).toContain('https://example.com/docs');
+    expect(box.querySelector('iframe, canvas, video')).toBeNull();
+  });
 });

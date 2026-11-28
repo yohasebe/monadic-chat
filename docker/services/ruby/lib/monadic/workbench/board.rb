@@ -1493,8 +1493,10 @@ module Monadic
                    original: entry['original'] ? true : nil, status: library_status(item) }.compact
         end
         if item['kind'] == 'browser'
+          # With the page it showed last, as a tool reported it (note_page).
           return { id: item['id'], kind: 'browser', actor: item.dig('origin', 'actor'), mid: item['mid'],
-                   instance: item.dig('browser', 'instance'), version: version_of(item), status: browser_status(item) }
+                   instance: item.dig('browser', 'instance'), version: version_of(item), status: browser_status(item),
+                   name: item.dig('browser', 'title'), url: item.dig('browser', 'url') }.compact
         end
         if item['kind'] == 'page'
           page = item['page']

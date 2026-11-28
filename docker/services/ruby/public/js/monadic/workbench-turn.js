@@ -83,7 +83,8 @@
     part.dataset.item = item.id;
     const bar = element('div', 'workbench-turn-bar');
     const name = element('span', 'workbench-turn-name');
-    name.append(element('i', `fa-solid ${iconOf(item)}`), document.createTextNode(` ${item.name || item.kind || ''}`));
+    const label = item.kind === 'browser' ? say('ui.workbench.turnBrowser', 'The browser (open then)') : (item.name || item.kind || '');
+    name.append(element('i', `fa-solid ${iconOf(item)}`), document.createTextNode(` ${label}`));
     bar.appendChild(name);
     const who = item.by === 'agent' ? say('ui.workbench.placeByAgent', 'AI') : say('ui.workbench.placeByUser', 'You');
     const places = {
@@ -102,6 +103,15 @@
     bar.appendChild(bring);
     part.appendChild(bar);
 
+    // A page of the browser: the address it was at (the browser then is not
+    // shown: only the present work screen shows it).
+    const address = item.url || (item.page && item.page.url);
+    if (address && (item.kind === 'browser' || item.kind === 'page' || item.page)) {
+      const line = element('div', 'workbench-turn-state text-secondary');
+      line.append(element('i', 'fa-solid fa-globe me-1'), element('code', null, address));
+      if (item.kind === 'browser' && item.name) line.append(document.createTextNode(` ${item.name}`));
+      part.appendChild(line);
+    }
     if (item.now === 'changed') {
       part.appendChild(element('div', 'workbench-turn-state text-secondary',
         say('ui.workbench.turnChanged', 'Changed since this turn: shown as it is now in the present work screen.')));

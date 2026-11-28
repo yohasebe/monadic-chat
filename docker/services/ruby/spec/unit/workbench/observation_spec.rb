@@ -359,7 +359,8 @@ RSpec.describe Monadic::Workbench::Observation do
 
     it "cuts a page's address to its site when its path holds a word as an address writes it" do
       pages = ["https://example.com/Zebulon%20Quartzfield/notes", "https://example.com/wiki/Zebulon_Quartzfield",
-               "https://example.com/zebulon-quartzfield", "https://zebulon-quartzfield.example/a"]
+               "https://example.com/zebulon-quartzfield", "https://zebulon-quartzfield.example/a",
+               "https://example.com/Zebulon%2520Quartzfield", "https://example.com/Zebulon.Quartzfield"]
       items = pages.each_with_index.map { |url, i| { "id" => "i_#{i}", "kind" => "page", "name" => "Page", "url" => url } }
       items << { "id" => "i_plain", "kind" => "page", "name" => "Page", "url" => "https://example.com/plain" }
       data = { "work_screen" => { "items" => items, "selected" => items.first } }
@@ -370,7 +371,8 @@ RSpec.describe Monadic::Workbench::Observation do
       expect(text).not_to be_nil
       screen = JSON.parse(text.lines[2])["work_screen"]
       expect(screen["items"].map { |item| item["url"] })
-        .to eq(["https://example.com/", "https://example.com/", "https://example.com/", nil, "https://example.com/plain"])
+        .to eq(["https://example.com/", "https://example.com/", "https://example.com/", nil, "https://example.com/",
+                "https://example.com/", "https://example.com/plain"])
       expect(screen["selected"]["url"]).to eq("https://example.com/")
       expect(text.downcase).not_to include("zebulon")
     end

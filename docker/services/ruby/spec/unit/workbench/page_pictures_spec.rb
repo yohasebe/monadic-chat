@@ -108,6 +108,17 @@ RSpec.describe Monadic::Workbench::PagePictures do
     expect(items.last).to include(kind: "page", status: "link", name: "Page A", url: "https://example.com/a")
   end
 
+  it "records the browser in a turn as open then, with the page it showed last" do
+    browser = open_browser
+    described_class.note(chat, { page_info: { url: "https://example.com/a?x=1", title: "Page A" } })
+    request = user_turn!
+
+    expect(items.find { |item| item[:id] == browser["id"] }).to include(name: "Page A", url: "https://example.com/a")
+    kept = Monadic::Workbench::TurnRecords.read(chat, request, "user")
+    expect(kept["items"]).to contain_exactly(include("id" => browser["id"], "kind" => "browser", "name" => "Page A",
+                                                     "url" => "https://example.com/a"))
+  end
+
   it "leaves a picture of each turn: the reply's goes into Latest and the user's moves to Before" do
     open_browser
     shots << { png: png, url: "https://example.com/a", title: "A" } << { png: png(1280, 801), url: "https://example.com/b", title: "B" }

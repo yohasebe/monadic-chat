@@ -3,6 +3,7 @@
 require 'json'
 require_relative 'board'
 require_relative 'turn_records'
+require_relative 'drawings'
 require_relative 'approvals'
 require_relative 'view_tokens'
 require_relative 'artifact'
@@ -131,10 +132,20 @@ module Monadic
                   else 'changed'
                   end
           addresses!(current, binding, assets: assets, renders: renders, backgrounds: backgrounds) if state == 'same'
-          item.merge('now' => state)
+          drawn = drawing_then(chat_id, item)
+          item.merge('now' => state).merge(drawn ? { 'drawing' => drawn } : {})
         end
         out.merge('status' => 'ok', 'by' => by, 'at' => record['at'], 'items' => items, 'put_away' => record['put_away'],
                   'assets' => assets, 'renders' => renders, 'backgrounds' => backgrounds)
+      end
+
+      # What was drawn on an item at a turn (its record's digests), with the
+      # shapes kept for them: { 'digests', 'shapes' }, or nil.
+      def drawing_then(chat_id, item)
+        digests = Array(item.dig('drawing', 'digests')).grep(String)
+        return nil if digests.empty?
+
+        { 'digests' => digests, 'shapes' => digests.flat_map { |digest| Drawings.read(chat_id, digest) || [] } }
       end
 
       # The user's removal of an image from the board, sent with the token

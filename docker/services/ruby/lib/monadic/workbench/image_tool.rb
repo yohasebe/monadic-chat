@@ -136,7 +136,7 @@ module Monadic
           raise NoSource, '❌ That item is not an image or a whiteboard drawn on one: nothing is edited.'
         end
 
-        Source.new(board_input: input_of(board, item))
+        drawn_image_source(workbench, board, item) || Source.new(board_input: input_of(board, item))
       rescue Board::Refused, Artifact::Missing, Artifact::Changed, Artifact::NotAllowed, FileItem::Busy => e
         raise NoSource, "❌ That item cannot be edited (#{e.message}): no other image is used in its place."
       end
@@ -162,6 +162,16 @@ module Monadic
       # the one the tab shows).
       def drawn_source(workbench, item_id = nil)
         Source.new(inputs: BoardEdit.inputs(workbench, item_id: item_id))
+      rescue BoardEdit::NoSource => e
+        raise NoSource, "❌ #{e.message.sub(/\A./, &:upcase)}: nothing is edited."
+      end
+
+      # An image the user drew on: the image and the drawn reference
+      # (BoardEdit.image_inputs), or nil for an image with no drawing.
+      def drawn_image_source(workbench, board, item)
+        drawing = board.drawing_on(item['id']) or return nil
+
+        Source.new(inputs: BoardEdit.image_inputs(workbench, board, item, drawing, input_of(board, item)))
       rescue BoardEdit::NoSource => e
         raise NoSource, "❌ #{e.message.sub(/\A./, &:upcase)}: nothing is edited."
       end
@@ -197,6 +207,9 @@ module Monadic
 
         file_image = item['kind'] == 'file' && item.dig('file', 'preview') == 'image'
         return nil unless item['artifact'] || file_image
+
+        drawn = drawn_image_source(workbench, board, item)
+        return drawn if drawn
 
         input = input_of(board, item)
         unless board.still_selected?(tab: workbench.tab, generation: workbench.generation, item: item, serial: target.serial)

@@ -131,12 +131,35 @@
         });
         frame.appendChild(layer);
       }
+      // What was drawn on it then, painted over it as the turn sent it.
+      const shapes = item.drawing && Array.isArray(item.drawing.shapes) ? item.drawing.shapes : [];
+      if (shapes.length > 0) paintOver(frame, img, shapes);
       part.appendChild(frame);
     } else if (Array.isArray(item.marks) && item.marks.length > 0) {
       part.appendChild(element('div', 'workbench-turn-state text-secondary',
         say('ui.workbench.turnMarks', '{n} marks then').replace('{n}', String(item.marks.length))));
     }
     return part;
+  }
+
+  // shapes painted on a canvas over img, once it is had, by the board's
+  // painter (WorkbenchWhiteboard) on the sheet of the image's proportions.
+  function paintOver(frame, img, shapes) {
+    const board = window.WorkbenchWhiteboard;
+    if (!board || typeof board.paintShapes !== 'function') return;
+    const canvas = element('canvas', 'workbench-turn-drawing');
+    canvas.setAttribute('aria-hidden', 'true');
+    frame.appendChild(canvas);
+    const paint = () => {
+      const size = board.overlayFrame(img.naturalWidth, img.naturalHeight);
+      if (!size) return;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const context = canvas.getContext('2d');
+      if (context) board.paintShapes(Object.assign({ shapes: shapes }, size), context, canvas.width, canvas.height);
+    };
+    if (img.complete && img.naturalWidth > 0) paint();
+    else img.addEventListener('load', paint, { once: true });
   }
 
   window.WorkbenchTurn = { show };

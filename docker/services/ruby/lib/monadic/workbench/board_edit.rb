@@ -63,6 +63,43 @@ module Monadic
         raise NoSource, 'the whiteboard changed or could not be read'
       end
 
+      # [original, reference] for the image item with what the user drew on it
+      # (drawing: the board's, { digests, shapes }): the image as it is
+      # (original: { content_type, bytes }), and the image with the drawing
+      # as the tab that shows it paints it now: the tab's selected item,
+      # painting the drawings the board has. NoSource otherwise: nothing
+      # else is used in its place.
+      def image_inputs(workbench, board, item, drawing, original)
+        check_words!(workbench.session, { 'shapes' => drawing[:shapes] })
+        target = board.look_target(tab: workbench.tab, generation: workbench.generation)
+        unless target.is_a?(Board::Target) && target.item['id'] == item['id']
+          raise NoSource, 'open the image on the work screen as it is now, then ask again'
+        end
+
+        still = lambda do
+          Look.current?(workbench) &&
+            board.still_selected?(tab: workbench.tab, generation: workbench.generation, item: target.item, serial: target.serial)
+        end
+        answer = Capture.request(tab: workbench.tab, generation: workbench.generation, chat_id: workbench.chat_id,
+                                 request_id: workbench.request_id, item_id: item['id'],
+                                 version: item.dig('file', 'sha256') || item.dig('artifact', 'sha256'),
+                                 serial: target.serial, wants: ['drawn'], deadline: Process.clock_gettime(Process::CLOCK_MONOTONIC) + Look::DEADLINE,
+                                 valid: still)
+        raise NoSource, 'open the image on the work screen as it is now, then ask again' unless answer['drawing'] == drawing[:digests]
+
+        image, = Look::Pdf.image_of(answer)
+        frame = Whiteboard.frame_of(WhiteboardBackground.record_for(original[:bytes]))
+        raise NoSource, 'the drawing could not be painted on the image' unless image && same_shape?(image, frame)
+        raise NoSource, 'the image changed while it was painted' unless still.call
+
+        [Input.new(role: 'original', bytes: original[:bytes], content_type: original[:content_type]),
+         Input.new(role: 'reference', bytes: image.bytes, content_type: image.content_type)]
+      rescue Capture::Failed
+        raise NoSource, 'the work screen did not answer; ask again in a moment'
+      rescue WhiteboardBackground::Refused
+        raise NoSource, 'the image could not be read'
+      end
+
       # The board the caller's tab shows (Board::Target): the one named by
       # item_id must be it.
       def shown(board, workbench, item_id)

@@ -7,6 +7,10 @@ require "tmpdir"
 require_relative "../../../lib/monadic/workbench/picture"
 require_relative "../../../lib/monadic/workbench/drawings"
 require_relative "../../../lib/monadic/utils/privacy/words"
+require_relative "../../../lib/monadic/workbench/look"
+require_relative "../../../lib/monadic/workbench/image_tool"
+require_relative "../../../lib/monadic/workbench/caller"
+require_relative "../../../lib/monadic/workbench/channel"
 
 # What the user draws on an image of the work screen: sent as the image's
 # picture (with or without marks), checked against the image, kept by the
@@ -149,6 +153,99 @@ RSpec.describe Monadic::Workbench::Drawings do
     board.begin_reply(second, marks: { pictures: take([sent(item, [stroke("s2")])]),
                                        erased: [{ "item_id" => item["id"], "version" => version, "targets" => [], "drawings" => seen }] })
     expect(board.snapshot[:items].first[:drawing][:shapes].map { |shape| shape["id"] }).to eq(["s2"])
+  end
+
+  describe "looked at, edited and shown again" do
+    let(:session) { { chat_id: chat, parameters: {}, messages: [], Monadic::Workspace::Chats::SESSION_KEY => chat } }
+
+    # The image in Now with what one message drew on it, selected in tab-1.
+    def drawn_on(shapes)
+      item = photo
+      request = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(request, marks: { pictures: take([sent(item, shapes)]), erased: [] })
+      board.end_reply(request)
+      board.accept(item_id: item["id"], action: "bring", operation_id: "op-bring-0001", epoch: epoch, sha256: item.dig("file", "sha256"))
+      board.select(tab: "tab-1", generation: 1, item_id: item["id"])
+      [board.item(item["id"]), request]
+    end
+
+    def tab_answers(digests)
+      image = png(30, 40)
+      allow(Monadic::Workbench::Capture).to receive(:request).and_return(
+        { "image" => Base64.strict_encode64(image), "crop" => { "x" => 0, "y" => 0, "width" => 300, "height" => 400,
+                                                                 "sent_width" => 30, "sent_height" => 40 },
+          "drawing" => digests }
+      )
+    end
+
+    def caller_for
+      Monadic::Workbench::Caller.new(chat_id: chat, epoch: epoch, request_id: Monadic::Workspace::Ids.generate(:request),
+                                     session: session, tab: "tab-1", generation: 1)
+    end
+
+    def looked(item)
+      Monadic::Workbench::Look.read(board, Monadic::Workbench::Board::Target.new(item, 1), "visible", caller: caller_for,
+                                    deadline: Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5)
+    end
+
+    it "looks at the image with what was drawn when the tab painted the drawings the board has, and not otherwise" do
+      item, = drawn_on([stroke("s1")])
+      digests = board.drawing_on(item["id"])[:digests]
+      tab_answers(digests)
+      expect(looked(item)).to include(kind: "image", drawn: true)
+      tab_answers(["0" * 64])
+      expect(looked(item)[:drawn]).to be_nil
+    end
+
+    it "does not look at an image whose drawing holds a hidden word" do
+      item, = drawn_on([stroke("t1", text: "Zebulon Quartzfield")])
+      Monadic::Utils::Privacy::Words.start!(session).confirm_all!([["Zebulon Quartzfield", "PERSON"]])
+      tab_answers(board.drawing_on(item["id"])[:digests])
+      expect { looked(item) }.to raise_error(Monadic::Workbench::Look::Refused) { |e| expect(e.reason).to eq("filtered") }
+    end
+
+    it "edits an image the user drew on only with the reference the tab paints, and nothing else in its place" do
+      item, = drawn_on([stroke("s1")])
+      digests = board.drawing_on(item["id"])[:digests]
+      allow(board).to receive(:look_target).and_return(nil)
+      allow(Monadic::Workbench::Board).to receive(:existing).with(chat).and_return(board)
+      edit = -> { Monadic::Workbench::ImageTool.edit_source(session: session, workbench: caller_for, images: nil, item: item["id"]) }
+      expect { edit.call }.to raise_error(Monadic::Workbench::ImageTool::NoSource, /open the image on the work screen/i)
+      allow(board).to receive(:look_target).and_return(Monadic::Workbench::Board::Target.new(board.item(item["id"]), 1))
+      allow(board).to receive(:still_selected?).and_return(true)
+      allow(Monadic::Workbench::Look).to receive(:current?).and_return(true)
+      tab_answers(["0" * 64])
+      expect { edit.call }.to raise_error(Monadic::Workbench::ImageTool::NoSource, /open the image on the work screen/i)
+      tab_answers(digests)
+      source = edit.call
+      expect(source.inputs.map(&:role)).to eq(%w[original reference])
+      expect(source.inputs.first.bytes).to eq(File.binread(File.join(@data, "photo.png")))
+    end
+
+    it "edits nothing of an image whose drawing holds a word hidden since" do
+      item, = drawn_on([stroke("t1", text: "Zebulon Quartzfield")])
+      Monadic::Utils::Privacy::Words.start!(session).confirm_all!([["Zebulon Quartzfield", "PERSON"]])
+      allow(Monadic::Workbench::Board).to receive(:existing).with(chat).and_return(board)
+      allow(board).to receive(:look_target).and_return(Monadic::Workbench::Board::Target.new(board.item(item["id"]), 1))
+      allow(board).to receive(:still_selected?).and_return(true)
+      allow(Monadic::Workbench::Look).to receive(:current?).and_return(true)
+      tab_answers(board.drawing_on(item["id"])[:digests])
+      expect do
+        Monadic::Workbench::ImageTool.edit_source(session: session, workbench: caller_for, images: nil, item: item["id"])
+      end.to raise_error(Monadic::Workbench::ImageTool::NoSource, /holds a word this chat hides/)
+      expect do
+        Monadic::Workbench::ImageTool.edit_source(session: session, workbench: caller_for, images: nil)
+      end.to raise_error(Monadic::Workbench::ImageTool::NoSource, /holds a word this chat hides/)
+    end
+
+    it "gives a turn's view the shapes it drew" do
+      item, request = drawn_on([stroke("s1")])
+      messages = [{ "mid" => "m_user", "role" => "user", "text" => "hi", "request_id" => request }]
+      view = Monadic::Workbench::Channel.turn_view({ chat_id: chat, _ws_generation: 1, messages: messages }, mid: "m_user",
+                                                   tab: "tab-1", generation: 1, live: ->(t) { t == "tab-1" ? 1 : nil })
+      drawn = view["items"].find { |i| i["id"] == item["id"] }["drawing"]
+      expect(drawn["shapes"].map { |shape| shape["id"] }).to eq(["s1"])
+    end
   end
 
   it "keeps what was drawn when old marks' operations are trimmed" do

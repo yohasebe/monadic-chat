@@ -175,10 +175,14 @@ module Monadic
 
         # An item as the model is told of it: a file the work screen only
         # holds (kind 'file') with its type, which says what it is.
+        # A page of the browser (a picture of it, or a link) is named by its
+        # title, with its address.
         def shown_item(item)
           type = item[:preview] == 'file' ? clean(item[:content_type]) : nil
-          { 'id' => item[:id], 'kind' => kind_of(item), 'type' => type, 'name' => clean(item[:name] || item[:kind]),
-            'path' => item[:path] && clean(item[:path]), 'status' => item[:status] }.compact
+          url = item[:url] || item.dig(:page, 'url')
+          { 'id' => item[:id], 'kind' => kind_of(item), 'type' => type,
+            'name' => clean(item.dig(:page, 'title') || item[:name] || item[:kind]),
+            'path' => item[:path] && clean(item[:path]), 'url' => url && clean(url), 'status' => item[:status] }.compact
         end
 
         # The item as told, with how many marks the message sent on it (new)
@@ -234,7 +238,7 @@ module Monadic
         def range_for(item, text, reported)
           # A Library entry is in view as what it shows (its text, or a PDF).
           kind = item[:kind] == 'library' ? item[:preview].to_s : kind_of(item)
-          return [nil, nil] if %w[image browser].include?(kind)
+          return [nil, nil] if %w[image browser page].include?(kind)
           return [nil, 'unknown'] unless reported_for?(item, reported)
 
           note = reported['note']

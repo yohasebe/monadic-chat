@@ -212,7 +212,7 @@
 
   // The items in the row, in the order they came.
   function rowItems() {
-    return items().filter((item) => ['image', 'file', 'library', 'browser'].includes(item.kind));
+    return items().filter((item) => ['image', 'file', 'library', 'browser', 'page'].includes(item.kind));
   }
 
   // An item drawn by what its content is (a file, or an entry of the
@@ -290,7 +290,9 @@
 
   // A document is named by its title; every other file by its name.
   function label(item) {
-    return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.title || item.name || '');
+    if (item.kind === 'browser') return t('ui.workbench.browser', 'Browser');
+    if (item.kind === 'page') return item.name || t('ui.workbench.page', 'Page');
+    return item.title || (item.page && item.page.title) || item.name || '';
   }
 
   // The board as it is now, with new addresses (an address is
@@ -539,6 +541,7 @@
   }
 
   function kindIcon(item) {
+    if (item.kind === 'page') return 'fa-globe';
     if (item.kind === 'image' || item.preview === 'image') return 'fa-image';
     if (item.kind === 'browser') return 'fa-globe';
     if (item.kind === 'library') return 'fa-book';
@@ -777,6 +780,7 @@
   }
 
   function otherBody(item, node) {
+    if (item.kind === 'page') return pageBody(item);
     if (item.kind === 'browser') {
       return element('div', 'alert alert-secondary small mb-2', item.status === 'open'
         ? t('ui.workbench.browserChoose', 'Choose it to show the browser.')
@@ -863,6 +867,11 @@
       show(held, element('div', 'alert alert-secondary small mb-2', t('ui.workbench.browserClosed', 'This browser was closed.')));
       return;
     }
+    if (item.kind === 'page') {
+      dropFocusBody(item);
+      show(held, pageBody(item));
+      return;
+    }
     if (item.status === 'ok' && item.preview === 'file') {
       // A file the work screen only holds: what it is, not what it shows.
       dropFocusBody(item);
@@ -886,10 +895,29 @@
       shortenPaths(line);
     }
     info.appendChild(line);
+    // A picture of a page of the chat's browser: the page's address.
+    if (item.page && item.page.url) info.appendChild(pageLine(item.page.url));
     // A document put together from sections lists its versions here.
     if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
       info.appendChild(element('div', 'workbench-versions mt-2'));
     }
+  }
+
+  // A page of the chat's browser as a turn left it, with no picture (yet):
+  // what is known of it.
+  function pageBody(item) {
+    const body = element('div', 'alert alert-secondary small mb-2', item.status === 'pending'
+      ? t('ui.workbench.pagePending', 'Taking a picture of the page as this turn left it…')
+      : t('ui.workbench.pageLink', 'No picture of this page was kept.'));
+    if (item.url) body.appendChild(pageLine(item.url));
+    return body;
+  }
+
+  function pageLine(url) {
+    const line = element('div', 'small text-secondary mt-1');
+    line.appendChild(element('i', 'fa-solid fa-globe me-1'));
+    line.appendChild(element('code', null, url));
+    return line;
   }
 
   // The path of a document of a chat's folder.

@@ -91,6 +91,22 @@ RSpec.describe "looking at the browser on the work screen" do
     expect(out["item"]).to include("name" => "<<TITLE>>", "path" => "<<URL>>")
   end
 
+  it "is refused for a page a turn left with no picture of it" do
+    open_browser
+    spawn = Monadic::Workbench::PagePictures.spawn
+    Monadic::Workbench::PagePictures.spawn = ->(&_work) {}
+    board = Monadic::Workbench::Board.for(chat, store: store)
+    board.begin_reply(request_id)
+    page = board.snapshot[:items].find { |item| item[:kind] == "page" }
+    board.page_unpictured(page[:id], url: "https://example.com/a", title: "A")
+    board.select(tab: "tab-1", generation: 1, item_id: page[:id])
+
+    expect(look.run(caller_for)).to include("(no_picture)")
+  ensure
+    Monadic::Workbench::PagePictures.spawn = spawn
+    Monadic::Workbench::PagePictures.reset!
+  end
+
   it "keeps only http(s) addresses, without user information, query or fragment" do
     browser = look::Browser
     expect(browser.address("https://example.com/a/b?x=1#y")).to eq("https://example.com/a/b")

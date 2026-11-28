@@ -1005,6 +1005,25 @@ describe('Workbench', () => {
       expect(document.getElementById('workbench-status').textContent).toContain('work screen is full');
     });
 
+    test('shows a page a turn left: waiting for its picture, a link with its address, and a picture with its address', () => {
+      const waiting = { id: 'i_p', kind: 'page', actor: 'user', place: 'latest', by: 'user', status: 'pending', version: 'page:pending' };
+      view([waiting]);
+      const body = () => document.querySelector('#workbench-view').textContent;
+      expect(body()).toContain('Taking a picture of the page');
+
+      const link = Object.assign({}, waiting, { status: 'link', version: 'page:link', name: 'Results', url: 'https://example.com/search' });
+      view([link], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [link] } });
+      expect(body()).toContain('No picture of this page was kept.');
+      expect(body()).toContain('https://example.com/search');
+
+      const picture = { id: 'i_p', kind: 'file', actor: 'user', place: 'latest', by: 'user', name: 'page-1.png',
+        path: 'conversations/c/pages/page-1.png', preview: 'image', sha256: 'a'.repeat(64), version: 'a'.repeat(64),
+        status: 'ok', page: { url: 'https://example.com/search', title: 'Results' } };
+      view([picture], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [picture] } });
+      expect(body()).toContain('https://example.com/search');
+      expect(body()).toContain('Results');
+    });
+
     test('numbers lines as the server does', () => {
       view([]);
       const cases = [['', []], ['\n', ['']], ['a', ['a']], ['a\n', ['a']], ['a\n\n', ['a', '']],

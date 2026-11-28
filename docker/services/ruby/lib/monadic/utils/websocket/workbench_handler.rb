@@ -340,6 +340,16 @@ module WebSocketHelper
     send_to_client(connection, reply.merge('status' => 'refused', 'reason' => 'unwritable'))
   end
 
+  # The work screen as the turn of a message (mid) left it, for this tab
+  # (Workbench::Channel.turn_view); the page's request number comes back.
+  def handle_ws_workbench_turn_view(connection, obj, session)
+    mid = obj['mid'].is_a?(String) ? obj['mid'][0, 64] : nil
+    return unless mid
+
+    result = Monadic::Workbench::Channel.turn_view(session, mid: mid, **workbench_connection(session), live: WORKBENCH_LIVE)
+    send_to_client(connection, result.merge('request' => obj['request'].is_a?(Integer) ? obj['request'] : nil)) if result
+  end
+
   def handle_ws_workbench_select(connection, obj, session)
     result = Monadic::Workbench::Channel.select(obj, session, **workbench_connection(session), live: WORKBENCH_LIVE)
     workbench_deliver(connection).call(result)

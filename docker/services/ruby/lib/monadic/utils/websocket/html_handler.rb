@@ -181,6 +181,8 @@ module WebSocketHelper
           # message keeps it (Monadic::Workbench::Record).
           made = content["message"] && Monadic::Workbench::Record.clean(content["message"][Monadic::Workbench::Offer::ARTIFACTS_KEY])
           new_data["artifacts"] = made if made
+          # The message it answers (its turn's record of the work screen).
+          new_data["reply_to"] = request_id if request_id
 
           # What the reply looked at in the work screen (Workbench::Look), as
           # the message keeps it: no bytes, no text.

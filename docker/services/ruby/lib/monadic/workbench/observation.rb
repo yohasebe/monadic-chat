@@ -398,9 +398,12 @@ module Monadic
         { 'work_screen' => data['work_screen'].merge('put_away' => put_away.merge('items' => kept, 'withheld' => hidden.size)) }
       end
 
+      DECODE_ROUNDS = 4
+
       # data with the addresses of pages that hold a word the chat hides, as
-      # an address writes it (percent-encoded, with _ or - for spaces, in
-      # any case), cut to their site, or left out when the site holds it too.
+      # an address writes it (percent-encoded, once or more, with _, . or -
+      # for spaces, in any case), cut to their site, or left out when the
+      # site holds it too.
       def without_hidden_addresses(data, words, outbound)
         screen = data['work_screen']
         checked = screen.merge('items' => Array(screen['items']).map { |entry| address_checked(entry, words, outbound) })
@@ -417,15 +420,24 @@ module Monadic
       end
 
       def address_leaks?(url, words, outbound)
-        decoded = begin
-          URI.decode_www_form_component(url)
-        rescue ArgumentError
-          url
-        end
+        decoded = decoded_address(url)
         # An address's case is not the word's (hosts are lower case).
         lower = words.map(&:downcase)
-        [url, decoded, decoded.tr('_-', '  ')].any? do |form|
+        [url, decoded, decoded.tr('_.-', '   ')].any? do |form|
           outbound.leaks_word?(form, words) || outbound.leaks_word?(form.downcase, lower)
+        end
+      end
+
+      # url percent-decoded until it no longer changes (an address encoded
+      # twice), at most DECODE_ROUNDS times.
+      def decoded_address(url)
+        DECODE_ROUNDS.times.reduce(url) do |text, _|
+          once = URI.decode_www_form_component(text)
+          break text if once == text
+
+          once
+        rescue ArgumentError
+          break text
         end
       end
 

@@ -7,7 +7,6 @@ require_relative '../../workbench/document'
 require_relative '../../workbench/picture'
 require_relative '../../workbench/edit_inputs'
 require_relative '../../library/readings'
-require_relative '../../workbench/item_text'
 require_relative '../../workbench/sent'
 require_relative '../tool_image_utils'
 require_relative '../../workbench/point'
@@ -89,36 +88,6 @@ module WebSocketHelper
     board = Monadic::Workspace::Ids.valid?(:chat, chat_id) && Monadic::Workbench::Board.existing(chat_id)
     browser = board && board.snapshot[:items].reverse.find { |item| item[:kind] == 'browser' }
     { 'success' => true, 'item_id' => browser && browser[:id] }.compact
-  end
-
-  # The text of a document on the work screen (its item and the version the
-  # tab shows) for the user's message (Workbench::ItemText), converted in a
-  # thread of its own (in the Python container, started when it is not
-  # running) and given to this connection only, or why there is none.
-  private def handle_ws_workbench_item_text(connection, obj, session)
-    reply = { 'type' => 'workbench_item_text', 'item_id' => obj['item_id'].to_s,
-              'request' => obj['request'].is_a?(Integer) ? obj['request'] : nil }
-    tab, generation = workbench_connection(session).values_at(:tab, :generation)
-    chat_id = session[Monadic::Workspace::Chats::SESSION_KEY]
-    board = chat_id && WORKBENCH_LIVE.call(tab) == generation && Monadic::Workbench::Board.existing(chat_id)
-    return send_to_client(connection, reply.merge('error' => 'not_allowed')) unless board
-
-    unless Monadic::Utils::ContainerDependencies.container_running?(:python)
-      Monadic::Utils::ContainerDependencies.start_service_async(:python, reason: 'taking the text of a document')
-      return send_to_client(connection, reply.merge('error' => 'converter_starting'))
-    end
-
-    Thread.new do
-      text = Monadic::Workbench::ItemText.of(board, obj['item_id'], obj['sha256'],
-                                             converter: ->(path) { MonadicApp.doc2markdown(path) })
-      send_to_client(connection, reply.merge('content' => text))
-    rescue Monadic::Workbench::ItemText::Failed => e
-      send_to_client(connection, reply.merge('error' => e.message))
-    rescue StandardError => e
-      Monadic::Utils::ExtraLogger.log { "[Workbench] Text not taken: #{e.class}" }
-      send_to_client(connection, reply.merge('error' => 'failed'))
-    end
-    nil
   end
 
   # The page asks for the picture of the work screen a message was sent with

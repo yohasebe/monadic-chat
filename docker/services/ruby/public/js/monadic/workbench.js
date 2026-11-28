@@ -286,27 +286,6 @@
     return button(saveLabel(), className, () => download({ artifact_id: artifactId }));
   }
 
-  // A button among an item's actions (buttons.css: a grey line, no fill):
-  // its short label after an icon, its full name as its accessible name and
-  // in the tooltip (on hover and on focus), or tip there.
-  function actionButton(short, full, icon, className, onClick, tip) {
-    const el = button(short, `btn-secondary btn-outline ${className}`.trim(), onClick);
-    const mark = element('i', `fa-solid ${icon}`);
-    mark.setAttribute('aria-hidden', 'true');
-    el.prepend(mark);
-    el.setAttribute('aria-label', full);
-    el.title = tip || full;
-    if (window.MonadicTip) window.MonadicTip.attach(el, { delay: { show: 500, hide: 0 } });
-    return el;
-  }
-
-  // An item's save among its actions: "Save", "Download" or "Save as…" in
-  // full.
-  function itemSaveButton(what) {
-    return actionButton(t('ui.workbench.saveShort', 'Save'), saveLabel(), 'fa-floppy-disk', 'workbench-item-save',
-      () => download(what));
-  }
-
   // A document is named by its title; every other file by its name.
   function label(item) {
     return item.kind === 'browser' ? t('ui.workbench.browser', 'Browser') : (item.title || item.name || '');
@@ -503,44 +482,84 @@
     return 'fa-file-lines';
   }
 
-  // The buttons that move an item: into Now, put away, and × (taken off
-  // when the user placed it in this turn, else put away).
+  // Everything done with an item, in one menu beside its name (as the
+  // side column's lists have it): moving it, its marks, saving it, keeping
+  // it in the Library, drawing on it, reading it again, and taking it off.
+  function itemActions(item) {
+    const place = placeOf(item);
+    const movable = !!approvals[item.id];
+    const busy = locked();
+    const entries = [];
+    const add = (text, icon, action, extra) => entries.push(Object.assign({ label: text, icon: `fa-solid ${icon}`, action: action }, extra || {}));
+    if (movable && place !== 'current') {
+      add(t('ui.workbench.bring', 'Into Now'), 'fa-arrow-up-from-bracket', () => act(item, 'bring'), { disabled: busy });
+    }
+    if (movable && place !== 'stash') {
+      add(t('ui.workbench.stash', 'Put away'), 'fa-box-archive', () => act(item, 'stash'), { disabled: busy });
+    }
+    const kept = earlierMarksOf(item).length;
+    if (movable && kept > 0 && ['current', 'latest'].includes(place)) {
+      add(t('ui.workbench.eraseMarks', 'Erase marks ({n})').replace('{n}', String(kept)), 'fa-eraser', () => eraseMarks(item),
+        { disabled: busy });
+    }
+    const ok = item.status === 'ok';
+    if (ok && item.artifact_id) {
+      add(saveLabel(), 'fa-floppy-disk', () => download({ artifact_id: item.artifact_id }));
+    } else if (ok && item.kind === 'file' && item.sha256 && !(Number(item.size) > WHOLE_LIMIT)) {
+      add(saveLabel(), 'fa-floppy-disk', () => download({ item_id: item.id, sha256: item.sha256 }));
+    }
+    // A document the Library takes is kept there as this version.
+    if (ok && item.kind === 'file' && item.library && item.sha256) {
+      add(t('ui.workbench.toLibrary', 'Keep in the Library'), 'fa-book', () => keepInLibrary(item));
+    }
+    // An image can be drawn on: a whiteboard with it laid under.
+    if (ok && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
+      add(t('ui.workbench.wb_drawOn', 'Draw on it'), 'fa-pen', () => newWhiteboard(item), { disabled: busy });
+    }
+    // A whiteboard shown here is also written out as a picture.
+    if (ok && isWhiteboard(item) && drawnBody && drawnBody.key === drawKey(item) && drawnBody.whiteboard) {
+      ['svg', 'png', 'pdf'].forEach((kind) => {
+        add(`${t('ui.workbench.wb_export', 'Export')} ${kind.toUpperCase()}`, 'fa-file-export',
+          () => { if (drawnBody && drawnBody.key === drawKey(item) && drawnBody.whiteboard) drawnBody.whiteboard.exportAs(kind); });
+      });
+    }
+    // A file is read again where it is shown (the board takes it at the
+    // version it has now).
+    if (item.kind === 'file' && item.status === 'changed') {
+      add(t('ui.workbench.reopen', 'Open it as it is now'), 'fa-rotate-right', () => openFile(item.path));
+    } else if (item.kind === 'file' && ok) {
+      add(t('ui.workbench.reload', 'Reload'), 'fa-rotate-right', () => openFile(item.path));
+    }
+    if (item.kind === 'file' && ok && /\.ipynb$/i.test(item.path || '')) {
+      add(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'fa-book-open', () => openInJupyter(item.path));
+    }
+    // A document put together from sections: its earlier versions.
+    if (item.kind === 'file' && ok && DOCUMENT_PATH.test(item.path || '')) {
+      add(t('ui.workbench.versions', 'Versions'), 'fa-clock-rotate-left', () => { if (selected !== item.id) select(item.id); askVersions(item.path); });
+    }
+    // Taken off the work screen: only what was placed in this turn and not
+    // sent (anything else is put away above).
+    if (movable && place !== 'stash' && (item.fresh || item.kind === 'browser')) {
+      if (entries.length > 0) entries.push('divider');
+      add(t('ui.workbench.remove', 'Remove from the work screen'), 'fa-xmark', () => act(item, 'remove'), { danger: true, disabled: busy });
+    }
+    return entries;
+  }
+
+  // The button that opens an item's menu.
   function movesOf(item) {
     const group = element('span', 'workbench-section-moves');
-    if (!approvals[item.id]) return group;
-    const place = placeOf(item);
-    const add = (text, icon, className, action) => {
-      const b = element('button', `btn btn-sm btn-tool btn-icon ${className}`);
-      b.type = 'button';
-      b.title = text;
-      b.setAttribute('aria-label', `${text}: ${label(item)}`);
-      b.appendChild(element('i', `fa-solid ${icon}`));
-      b.disabled = locked();
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        act(item, action);
-      });
-      group.appendChild(b);
-    };
-    if (place !== 'current') add(t('ui.workbench.bring', 'Into Now'), 'fa-arrow-up-from-bracket', 'workbench-bring', 'bring');
-    const kept = earlierMarksOf(item).length;
-    if (kept > 0 && ['current', 'latest'].includes(place)) {
-      const erase = element('button', 'btn btn-sm btn-tool workbench-erase-marks');
-      erase.type = 'button';
-      erase.textContent = t('ui.workbench.eraseMarks', 'Erase marks ({n})').replace('{n}', String(kept));
-      erase.disabled = locked();
-      erase.addEventListener('click', (e) => {
-        e.stopPropagation();
-        eraseMarks(item);
-      });
-      group.appendChild(erase);
-    }
-    if (place !== 'stash') {
-      add(t('ui.workbench.stash', 'Put away'), 'fa-box-archive', 'workbench-stash', 'stash');
-      const goes = item.fresh || item.kind === 'browser';
-      add(goes ? t('ui.workbench.remove', 'Remove from the work screen') : t('ui.workbench.stash', 'Put away'),
-        'fa-xmark', 'workbench-item-remove', 'remove');
-    }
+    const more = element('button', 'btn btn-sm btn-icon sfp-row-menu workbench-item-menu');
+    more.type = 'button';
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-expanded', 'false');
+    more.setAttribute('aria-label', t('ui.workbench.actionsOf', 'Actions for {name}').replace('{name}', label(item)));
+    more.appendChild(element('i', 'fa-solid fa-ellipsis'));
+    more.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (window.RowMenu) window.RowMenu.open(more, itemActions(itemById(item.id) || item));
+    });
+    group.appendChild(more);
     return group;
   }
 
@@ -786,64 +805,8 @@
       shortenPaths(line);
     }
     info.appendChild(line);
-    // The buttons under the item, in one row that keeps them apart.
-    const actions = element('div', 'workbench-actions');
-    info.appendChild(actions);
-    if (item.status === 'ok' && item.artifact_id) {
-      actions.appendChild(itemSaveButton({ artifact_id: item.artifact_id }));
-    } else if (item.status === 'ok' && item.kind === 'file' && item.sha256 &&
-               !(Number(item.size) > WHOLE_LIMIT)) {
-      actions.appendChild(itemSaveButton({ item_id: item.id, sha256: item.sha256 }));
-    }
-    // A document's text can be taken for the message (as this version).
-    if (item.status === 'ok' && item.kind === 'file' && item.text && item.sha256) {
-      actions.appendChild(actionButton(t('ui.workbench.itemTextShort', 'To input'), t('ui.workbench.itemText', 'Text to the message'),
-        'fa-right-to-bracket', 'workbench-item-text', () => askItemText(item)));
-    }
-    // A document the Library takes is kept there as this version.
-    if (item.status === 'ok' && item.kind === 'file' && item.library && item.sha256) {
-      actions.appendChild(actionButton(t('ui.workbench.toLibraryShort', 'To Library'), t('ui.workbench.toLibrary', 'Keep in the Library'),
-        'fa-book', 'workbench-to-library', () => keepInLibrary(item)));
-    }
-    // An image can be drawn on: a whiteboard with it laid under (as this
-    // version of it).
-    if (item.status === 'ok' && item.sha256 && (item.artifact_id || (item.kind === 'file' && item.preview === 'image'))) {
-      actions.appendChild(button(t('ui.workbench.wb_drawOn', 'Draw on it'), 'btn-secondary btn-outline workbench-draw-on',
-        () => newWhiteboard(item)));
-    }
-    // A whiteboard is also written out as a picture to keep or pass on.
-    if (item.status === 'ok' && isWhiteboard(item)) {
-      const group = element('div', 'btn-panel workbench-whiteboard-exports');
-      group.setAttribute('role', 'group');
-      group.setAttribute('aria-label', t('ui.workbench.wb_export', 'Export'));
-      group.appendChild(element('span', 'workbench-whiteboard-exports-label', t('ui.workbench.wb_export', 'Export')));
-      ['svg', 'png', 'pdf'].forEach((kind) => {
-        const b = button(kind.toUpperCase(), 'btn-tool workbench-whiteboard-export-option', () => {
-          if (drawnBody && drawnBody.key === drawKey(item) && drawnBody.whiteboard) drawnBody.whiteboard.exportAs(kind);
-        });
-        b.dataset.kind = kind;
-        group.appendChild(b);
-      });
-      actions.appendChild(group);
-    }
-    // A file is read again where it is shown (the board takes it at the
-    // version it has now): after it changed, or whenever the user asks.
-    if (item.kind === 'file' && item.status === 'changed') {
-      actions.appendChild(button(t('ui.workbench.reopen', 'Open it as it is now'), 'btn-secondary btn-outline',
-        () => openFile(item.path)));
-    } else if (item.kind === 'file' && item.status === 'ok') {
-      actions.appendChild(actionButton(t('ui.workbench.reloadShort', 'Reload'), t('ui.workbench.reload', 'Reload'),
-        'fa-rotate-right', 'workbench-reload', () => openFile(item.path),
-        t('ui.workbench.reloadHelp', 'Read the file again as it is in the shared folder now')));
-    }
-    if (item.kind === 'file' && item.status === 'ok' && /\.ipynb$/i.test(item.path || '')) {
-      actions.appendChild(button(t('ui.workbench.jupyterOpen', 'Open in JupyterLab'), 'btn-secondary btn-outline',
-        () => openInJupyter(item.path)));
-    }
-    // A document put together from sections (Workbench::Document): its
-    // earlier versions can be listed and opened as files of their own.
+    // A document put together from sections lists its versions here.
     if (item.kind === 'file' && item.status === 'ok' && DOCUMENT_PATH.test(item.path || '')) {
-      actions.appendChild(button(t('ui.workbench.versions', 'Versions'), 'btn-secondary btn-outline', () => askVersions(item.path)));
       info.appendChild(element('div', 'workbench-versions mt-2'));
     }
   }
@@ -1106,39 +1069,6 @@
     const context = board.getContext('2d');
     if (!context || !handle.paint(context, width, height)) return Object.assign(out, { image_note: 'failed' });
     return Object.assign(out, drawnPng(board, 0, 0, width, height));
-  }
-
-  // The texts asked for, by request number: the chat they were asked in
-  // (a text that comes for another chat is not put in the message).
-  let itemTextRequest = 0;
-  const itemTextRequests = new Map();
-
-  function askItemText(item) {
-    if (typeof window.safeWsSend !== 'function') return;
-    itemTextRequest += 1;
-    itemTextRequests.set(itemTextRequest, board ? board.chat_id : null);
-    window.safeWsSend({ message: 'WORKBENCH_ITEM_TEXT', request: itemTextRequest, item_id: item.id, sha256: item.sha256 });
-    announce(t('ui.workbench.itemTextWorking', 'Taking the text of the document…'));
-  }
-
-  // The server's answer: the text put after what the message box holds,
-  // or why there is none.
-  const ITEM_TEXT_REASONS = {
-    changed: ['ui.workbench.itemTextChanged', 'The document changed; open it again to take its text.'],
-    empty: ['ui.workbench.itemTextEmpty', 'No text could be taken from the document.'],
-    converter_starting: ['ui.workbench.itemTextStarting', 'The converter is starting; try again in a moment.']
-  };
-  function onItemText(data) {
-    if (!data || !itemTextRequests.has(data.request)) return;
-    const chat = itemTextRequests.get(data.request);
-    itemTextRequests.delete(data.request);
-    if (!board || board.chat_id !== chat) return;
-    if (typeof data.content === 'string' && data.content) {
-      if (typeof window.appendToMessage === 'function') window.appendToMessage(data.content);
-      return;
-    }
-    const reason = ITEM_TEXT_REASONS[data.error];
-    warn(reason ? t(reason[0], reason[1]) : t('ui.workbench.itemTextFailed', 'The text of the document could not be taken.'));
   }
 
   // An entry of the Library opened on the work screen (its text, as it is
@@ -4111,7 +4041,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksKeptErased, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksKeptErased, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

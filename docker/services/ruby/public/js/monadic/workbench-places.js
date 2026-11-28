@@ -150,7 +150,8 @@
         const root = regions[name].root;
         const shut = folded.has(name);
         root.classList.toggle('is-folded', shut);
-        root.querySelector('.workbench-place-head').setAttribute('aria-expanded', isOpen(name) ? 'true' : 'false');
+        // The arrow says whether the user folded it, also for an empty place.
+        root.querySelector('.workbench-place-head').setAttribute('aria-expanded', shut ? 'false' : 'true');
       });
       const open = PLACES.filter(isOpen);
       const total = open.reduce((sum, name) => sum + weights[name], 0) || 1;
@@ -242,6 +243,10 @@
         const n = Number(counts && counts[name]) || 0;
         region.root.classList.toggle('is-empty', n === 0);
         region.root.hidden = n === 0 && LAYERS.includes(name);
+        // An empty place, open, says it holds nothing.
+        const note = region.body.querySelector(':scope > .workbench-place-none');
+        if (n === 0 && !note) region.body.appendChild(element('div', 'workbench-place-none text-secondary', say('ui.workbench.placeNone', 'Nothing here')));
+        if (n > 0 && note) note.remove();
         let text = name === 'current' && given.limit ? `${n} / ${given.limit}` : String(n);
         const by = layers[name];
         if (by) text = `${by === 'agent' ? say('ui.workbench.placeByAgent', 'AI') : say('ui.workbench.placeByUser', 'You')} · ${text}`;

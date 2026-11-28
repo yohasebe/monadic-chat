@@ -935,10 +935,6 @@ window.loadedApp = "Chat";
         if (window.Workbench && typeof window.Workbench.onToLibrary === 'function') window.Workbench.onToLibrary(data);
         break;
       }
-      case "workbench_item_text": {
-        if (window.Workbench && typeof window.Workbench.onItemText === 'function') window.Workbench.onItemText(data);
-        break;
-      }
       case "workbench_sent_image": {
         if (window.Workbench && typeof window.Workbench.onSentImage === 'function') window.Workbench.onSentImage(data);
         break;

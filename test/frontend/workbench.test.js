@@ -55,6 +55,22 @@ describe('Workbench', () => {
     return pane && !pane.hidden ? (pane.dataset.item || null) : null;
   }
 
+  // An item's menu (… beside its name): its entries, without the lines
+  // between them; one by its label; running one.
+  function menuOf(id) {
+    let entries = [];
+    window.RowMenu = { open: (_button, list) => { entries = list.filter((e) => e !== 'divider'); } };
+    const button = document.querySelector(`#workbench-view [data-item="${id}"] .workbench-item-menu`);
+    if (button) button.click();
+    return entries;
+  }
+  const menuEntry = (id, label) => menuOf(id).find((e) => e.label === label) || null;
+  function run(id, label) {
+    const found = menuEntry(id, label);
+    if (!found) throw new Error(`no menu entry ${label} for ${id}`);
+    found.action();
+  }
+
   function entry(overrides = {}) {
     return Object.assign({ id: 'r_1', path: PATH, name: '20261106-091233_cat.png' }, overrides);
   }
@@ -126,10 +142,7 @@ describe('Workbench', () => {
     expect(pane.hidden).toBe(false);
     expect(pane.querySelector('img').getAttribute('src')).toBe('/workbench/asset/i_1');
     expect(pane.querySelector('code').textContent).toBe(PATH);
-    const save = pane.querySelector('.workbench-item-save');
-    expect(save.textContent).toBe('Save');
-    expect(save.getAttribute('aria-label')).toBe('Download');
-    expect(save.classList.contains('btn-outline')).toBe(true);
+    expect(menuEntry('i_1', 'Download')).toMatchObject({ icon: 'fa-solid fa-floppy-disk' });
     expect(document.getElementById('work-screen-browser').hidden).toBe(true);
     expect(shown()).not.toBeNull();
     expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
@@ -207,7 +220,7 @@ describe('Workbench', () => {
   test('says Save as… in the desktop app', () => {
     window.electronAPI = {};
     view([item()]);
-    expect(document.querySelector('#workbench-view .workbench-item-save').getAttribute('aria-label')).toBe('Save as…');
+    expect(menuEntry('i_1', 'Save as…')).not.toBeNull();
   });
 
   test('shows no image for a file that changed or is gone, says which, and offers no save', () => {
@@ -217,7 +230,7 @@ describe('Workbench', () => {
     const pane = document.getElementById('workbench-view');
     expect(pane.querySelector('img')).toBeNull();
     expect(pane.textContent).toContain('changed in the shared folder');
-    expect(pane.querySelector('.workbench-item-save')).toBeNull();
+    expect(menuEntry('i_1', 'Download')).toBeNull();
     expect(el.querySelector('.workbench-note').textContent).toContain('changed in the shared folder');
     view([item({ status: 'missing' })], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [item({ status: 'missing' })] } });
     expect(pane.textContent).toContain('no longer in the shared folder');
@@ -248,7 +261,7 @@ describe('Workbench', () => {
     const el = card('m-1');
     window.Workbench.drawRecord('m-1', [entry()]);
     view([item()]);
-    document.querySelector('#workbench-view .workbench-item-save').click();
+    run('i_1', 'Download');
     el.querySelector('.workbench-save').click();
     expect(sent.map((s) => s.payload)).toEqual([
       { message: 'WORKBENCH_DOWNLOAD', artifact_id: 'r_1' }, { message: 'WORKBENCH_DOWNLOAD', artifact_id: 'r_1' }
@@ -259,10 +272,10 @@ describe('Workbench', () => {
     const clip = { id: 'i_a', kind: 'file', actor: 'user', name: '曲 1.mp3', path: 'music/曲 1.mp3', preview: 'audio',
       sha256: 'd'.repeat(64), version: 'd'.repeat(64), status: 'ok' };
     view([clip]);
-    document.querySelector('#workbench-view .workbench-item-save').click();
+    run('i_a', 'Download');
     expect(sent.map((s) => s.payload)).toEqual([{ message: 'WORKBENCH_DOWNLOAD', item_id: 'i_a', sha256: 'd'.repeat(64) }]);
     view([Object.assign({}, clip, { status: 'changed' })]);
-    expect(document.querySelector('#workbench-view .workbench-item-save')).toBeNull();
+    expect(menuEntry('i_a', 'Download')).toBeNull();
   });
 
   test('says on its tab and above its items that the notes are being updated, without touching the reply\'s status', () => {
@@ -352,8 +365,8 @@ describe('Workbench', () => {
   test('removes an image with its ×; the line stays, with no link to the pane', () => {
     const el = card('m-1');
     window.Workbench.drawRecord('m-1', [entry()]);
-    view([item()]);
-    document.querySelector('.workbench-item-remove').click();
+    view([item({ fresh: true })]);
+    run('i_1', 'Remove from the work screen');
     expect(sent[0].payload).toMatchObject({ message: 'WORKBENCH_ACTION', item_id: 'i_1', action: 'remove', token: 'tok-i_1' });
     expect(sent[0].opts).toMatchObject({ idempotent: true });
     window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1', state: 'removed' });
@@ -367,7 +380,7 @@ describe('Workbench', () => {
 
   test('keeps an item the server put away instead of removing it', () => {
     view([item()]);
-    document.querySelector('.workbench-item-remove').click();
+    run('i_1', 'Put away');
     window.Workbench.onResult({ status: 'accepted', action: 'remove', item_id: 'i_1', state: 'stashed' });
     const kept = item();
     view([kept], { board: { board_id: 'b1', chat_id: 'c_1', revision: 2, items: [kept] } });
@@ -554,9 +567,9 @@ describe('Workbench', () => {
       const pane = document.getElementById('workbench-view');
       expect(pane.textContent).toContain('after it was opened here');
       sent.length = 0;
-      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent.includes('as it is now')).click();
+      run('i_f', 'Open it as it is now');
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
-      expect(Array.from(pane.querySelectorAll('button')).some((b) => b.textContent === 'Reload')).toBe(false);
+      expect(menuEntry('i_f', 'Reload')).toBeNull();
     });
 
     test('reads a file shown as it is again when the user asks to reload it', () => {
@@ -564,31 +577,18 @@ describe('Workbench', () => {
       view([file()]);
       const pane = document.getElementById('workbench-view');
       sent.length = 0;
-      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Reload').click();
+      run('i_f', 'Reload');
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_OPEN', path: 'reports/notes.txt' });
     });
 
-    test('puts the buttons under a file in one row that keeps them apart', () => {
+    test('puts everything done with a file in one menu beside its name', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
-      const css = require('fs').readFileSync(js('../css/monadic.css'), 'utf8');
-      const style = document.createElement('style');
-      style.textContent = css;
-      document.head.appendChild(style);
       view([file({ path: 'conversations/c_1/documents/notes.md', name: 'notes.md' })]);
-      const pane = document.getElementById('workbench-view');
-      const row = pane.querySelector('.workbench-actions');
-      const labels = Array.from(row.querySelectorAll('button')).map((b) => b.textContent);
-      expect(labels).toEqual(['Save', 'Reload', 'Versions']);
-      // Short labels, each with an icon and the full name for the reader and the tooltip, all quiet.
-      const [save, reload] = row.querySelectorAll('button');
-      expect(save.getAttribute('aria-label')).toBe('Download');
-      expect(reload.getAttribute('aria-label')).toBe('Reload');
-      expect(reload.title).toBe('Read the file again as it is in the shared folder now');
-      expect(save.querySelector('i.fa-floppy-disk').getAttribute('aria-hidden')).toBe('true');
-      row.querySelectorAll('button').forEach((b) => expect(b.className).toContain('btn-outline'));
-      expect(getComputedStyle(row).display).toBe('flex');
-      expect(getComputedStyle(row).gap).not.toBe('');
-      style.remove();
+      const entries = menuOf('i_f');
+      expect(entries.map((e) => e.label)).toEqual(['Put away', 'Download', 'Reload', 'Versions']);
+      expect(entries.every((e) => typeof e.icon === 'string' && e.icon.startsWith('fa-'))).toBe(true);
+      // No row of buttons is left under the item.
+      expect(document.querySelector('#workbench-view .workbench-actions')).toBeNull();
     });
 
     test('lists the versions of a document, newest first, and opens the one chosen', () => {
@@ -597,7 +597,7 @@ describe('Workbench', () => {
       view([file({ path: doc, name: 'reply-to-tanaka.md' })]);
       const pane = document.getElementById('workbench-view');
       sent.length = 0;
-      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
+      run('i_f', 'Versions');
       expect(sent[0].payload).toEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
       window.Workbench.onVersions({ type: 'workbench_versions', path: doc, versions: [
         { section: 'draft', path: 'conversations/c_1/artifacts/j_1/reply-to-tanaka--draft.md', version: 1 },
@@ -615,7 +615,7 @@ describe('Workbench', () => {
       const doc = 'conversations/c_1/documents/reply-to-tanaka.md';
       view([file({ path: doc, name: 'reply-to-tanaka.md' })]);
       const pane = document.getElementById('workbench-view');
-      Array.from(pane.querySelectorAll('button')).find((b) => b.textContent === 'Versions').click();
+      run('i_f', 'Versions');
       sent.length = 0;
       view([file({ path: doc, name: 'reply-to-tanaka.md', sha256: 'b'.repeat(64) })]);
       expect(sent.map((s) => s.payload)).toContainEqual({ message: 'WORKBENCH_VERSIONS', path: doc });
@@ -625,7 +625,7 @@ describe('Workbench', () => {
       global.fetch = jest.fn(() => new Promise(() => {}));
       view([file()]);
       const pane = document.getElementById('workbench-view');
-      expect(Array.from(pane.querySelectorAll('button')).some((b) => b.textContent === 'Versions')).toBe(false);
+      expect(menuEntry('i_f', 'Versions')).toBeNull();
     });
   });
   describe('the browser as an item', () => {
@@ -1426,10 +1426,9 @@ describe('Workbench', () => {
         const box = document.querySelector('.workbench-section[data-item="i_g"] .workbench-marks-earlier .workbench-mark-earlier');
         expect(box.classList.contains('is-ellipse')).toBe(true);
         expect([box.style.left, box.style.top, box.style.width, box.style.height]).toEqual(['10%', '20%', '30%', '40%']);
-        const erase = document.querySelector('.workbench-section[data-item="i_g"] .workbench-erase-marks');
-        expect(erase.textContent).toBe('Erase marks (1)');
+        expect(menuEntry('i_g', 'Erase marks (1)')).toMatchObject({ icon: 'fa-solid fa-eraser' });
         expect(window.Workbench.erasuresNow()).toBeNull();
-        erase.click();
+        run('i_g', 'Erase marks (1)');
         expect(document.querySelectorAll('.workbench-section[data-item="i_g"] .workbench-mark-earlier')).toHaveLength(0);
         const erasures = window.Workbench.erasuresNow();
         expect(erasures.data).toEqual([{ item_id: 'i_g', version: 'e'.repeat(64), targets: [['m_aaaaaa', 1]] }]);
@@ -1439,7 +1438,7 @@ describe('Workbench', () => {
         const before = Object.assign({}, marked, { place: 'previous' });
         view([before], { board: { board_id: 'b1', chat_id: 'c_1', revision: 3, items: [before] } });
         expect(document.querySelectorAll('.workbench-section[data-item="i_g"] .workbench-mark-earlier')).toHaveLength(1);
-        expect(document.querySelector('.workbench-section[data-item="i_g"] .workbench-erase-marks')).toBeNull();
+        expect(menuOf('i_g').some((e) => e.label.startsWith('Erase marks'))).toBe(false);
       });
 
       test('sends the marks of an image in one picture, numbered, and forgets those drawn as earlier ones', () => {
@@ -2293,9 +2292,9 @@ describe('Workbench', () => {
       jest.restoreAllMocks();
     });
 
-    test('writes the board out from the buttons beside its save button, named after it', () => {
-      const buttons = [...document.querySelectorAll('#workbench-view .workbench-whiteboard-exports .workbench-whiteboard-export-option')];
-      expect(buttons.map((b) => b.dataset.kind)).toEqual(['svg', 'png', 'pdf']);
+    test('writes the board out from its menu, named after it', () => {
+      const exports = menuOf('i_w').filter((e) => e.label.startsWith('Export '));
+      expect(exports.map((e) => e.label)).toEqual(['Export SVG', 'Export PNG', 'Export PDF']);
       const named = [];
       const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function record() { named.push(this.download); });
       const made = URL.createObjectURL;
@@ -2303,7 +2302,7 @@ describe('Workbench', () => {
       URL.createObjectURL = jest.fn(() => 'blob:board');
       URL.revokeObjectURL = jest.fn();
       try {
-        buttons[0].click();
+        exports[0].action();
       } finally {
         click.mockRestore();
         URL.createObjectURL = made;
@@ -2336,10 +2335,10 @@ describe('Workbench', () => {
         expect(card.textContent).toContain('2.0 MB');
         expect(card.querySelector('.fa-file-word')).not.toBeNull();
         expect(global.fetch).not.toHaveBeenCalled();
-        expect(document.querySelector('#workbench-view .workbench-actions .workbench-item-save')).not.toBeNull();
+        expect(menuEntry('i_d', 'Download')).not.toBeNull();
         const big = Object.assign({}, doc, { size: 100 * 1024 * 1024 });
         view([big], { selected: 'i_d' });
-        expect(document.querySelector('#workbench-view .workbench-actions .workbench-item-save')).toBeNull();
+        expect(menuEntry('i_d', 'Download')).toBeNull();
       } finally {
         delete global.fetch;
       }
@@ -2376,7 +2375,9 @@ describe('Workbench', () => {
       expect(partOf('i_b').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('true');
       expect(partOf('i_a').querySelector('.workbench-section-head').getAttribute('aria-current')).toBe('false');
       expect(partOf('i_a').querySelector('.workbench-section-head').textContent).toBe('a.png');
-      expect(partOf('i_b').querySelector('.workbench-info .workbench-item-save')).not.toBeNull();
+      // Its path under it; its actions in the menu beside its name, as every item's.
+      expect(partOf('i_b').querySelector('.workbench-info code')).not.toBeNull();
+      expect(partOf('i_a').querySelector('.workbench-item-menu')).not.toBeNull();
       // Not drawn until it comes near the view.
       expect(partOf('i_a').querySelector('img')).toBeNull();
       expect(partOf('i_a').querySelector('.workbench-later')).not.toBeNull();
@@ -2390,7 +2391,7 @@ describe('Workbench', () => {
       expect(payloads()).toEqual([{ message: 'WORKBENCH_SELECT', item_id: 'i_a' }]);
       expect(partOf('i_a').classList.contains('is-focus')).toBe(true);
       expect(partOf('i_b').classList.contains('is-focus')).toBe(false);
-      expect(partOf('i_a').querySelector('.workbench-info .workbench-item-save')).not.toBeNull();
+      expect(partOf('i_a').querySelector('.workbench-info code')).not.toBeNull();
       // Both stay as they were drawn.
       expect(partOf('i_a').querySelector('img')).toBe(imgA);
       expect(partOf('i_b').querySelector('img')).toBe(imgB);
@@ -2477,9 +2478,9 @@ describe('Workbench', () => {
         const clip = item({ id: 'i_v', kind: 'file', artifact_id: undefined, preview: 'video', name: 'talk.mp4', path: 'c/talk.mp4',
           sha256: 'e'.repeat(64), size: 10 * 1024 * 1024 });
         view([clip], { selected: 'i_v' });
-        expect(document.querySelector('#workbench-view .workbench-info .workbench-item-save')).not.toBeNull();
+        expect(menuEntry('i_v', 'Download')).not.toBeNull();
         view([Object.assign({}, clip, { size: 65 * 1024 * 1024 })], { selected: 'i_v' });
-        expect(document.querySelector('#workbench-view .workbench-info .workbench-item-save')).toBeNull();
+        expect(menuEntry('i_v', 'Download')).toBeNull();
       } finally {
         delete global.fetch;
       }
@@ -2515,25 +2516,25 @@ describe('Workbench', () => {
 
     test('moves an item with its buttons, each operation with an id of its own', () => {
       view([b()], board([b()], 1));
-      const bar = () => document.querySelector('.workbench-section[data-item="i_b"] .workbench-section-moves');
       sent.length = 0;
-      bar().querySelector('.workbench-bring').click();
-      bar().querySelector('.workbench-stash').click();
-      bar().querySelector('.workbench-bring').click();
+      run('i_b', 'Into Now');
+      run('i_b', 'Put away');
+      run('i_b', 'Into Now');
       const ops = actions();
       expect(ops.map((p) => p.action)).toEqual(['bring', 'stash', 'bring']);
       expect(ops.every((p) => p.item_id === 'i_b' && p.token === 'tok-i_b')).toBe(true);
       expect(new Set(ops.map((p) => p.operation_id)).size).toBe(3);
-      // A move button acts at once on an item that is not the one chosen.
+      // The menu acts at once on an item that is not the one chosen.
       expect(payloads().some((p) => p.message === 'WORKBENCH_SELECT')).toBe(false);
     });
 
-    test('names × by what it does: removed when placed in this turn, else put away', () => {
+    test('offers taking off only what was placed in this turn, after a line; anything else is put away', () => {
       view([a(), b()], board([a(), b()], 1));
-      const remove = (id) => document.querySelector(`.workbench-section[data-item="${id}"] .workbench-item-remove`);
-      expect(remove('i_a').title).toBe('Remove from the work screen');
-      expect(remove('i_b').title).toBe('Put away');
-      expect(document.querySelector('.workbench-section[data-item="i_a"] .workbench-bring')).toBeNull();
+      expect(menuOf('i_a').map((e) => e.label)).toContain('Remove from the work screen');
+      expect(menuEntry('i_a', 'Remove from the work screen').danger).toBe(true);
+      expect(menuOf('i_b').map((e) => e.label)).not.toContain('Remove from the work screen');
+      expect(menuOf('i_b').map((e) => e.label)).toContain('Put away');
+      expect(menuEntry('i_a', 'Into Now')).toBeNull();
     });
 
     test('takes an item dragged onto Now or Put away, once, and leaves files from the computer to the pane', () => {
@@ -2577,9 +2578,9 @@ describe('Workbench', () => {
       view([b()], board([b()], 1, { replying: true }));
       expect(document.getElementById('workbench-lock').hidden).toBe(false);
       expect(document.getElementById('workbench-put').disabled).toBe(true);
-      expect(document.querySelector('.workbench-section[data-item="i_b"] .workbench-stash').disabled).toBe(true);
+      expect(menuEntry('i_b', 'Put away').disabled).toBe(true);
       sent.length = 0;
-      document.querySelector('.workbench-section[data-item="i_b"] .workbench-stash').dispatchEvent(new Event('click'));
+      menuEntry('i_b', 'Put away').action();
       expect(actions()).toEqual([]);
       view([b()], board([b()], 2, { replying: false }));
       expect(document.getElementById('workbench-lock').hidden).toBe(true);
@@ -2686,12 +2687,10 @@ describe('Workbench', () => {
         const pic = item({ id: 'i_q', kind: 'file', artifact_id: undefined, preview: 'image', name: 'b.png',
           path: 'c/b.png', sha256: 'd'.repeat(64) });
         view([pic, doc], { selected: 'i_q' });
-        expect(document.querySelector('#workbench-view .workbench-to-library')).toBeNull();
+        expect(menuEntry('i_q', 'Keep in the Library')).toBeNull();
         window.Workbench.select('i_m');
-        const keep = document.querySelector('#workbench-view .workbench-to-library');
-        expect([keep.textContent, keep.getAttribute('aria-label'), keep.title])
-          .toEqual(['To Library', 'Keep in the Library', 'Keep in the Library']);
-        keep.click();
+        expect(menuEntry('i_m', 'Keep in the Library')).toMatchObject({ icon: 'fa-solid fa-book' });
+        run('i_m', 'Keep in the Library');
         expect(sent.at(-1).payload).toEqual({ message: 'LIBRARY_FROM_WORKBENCH', item_id: 'i_m', sha256: 'c'.repeat(64) });
         window.Workbench.onToLibrary({ item_id: 'i_m', import_id: 'imp-1' });
         expect(followImport).toHaveBeenCalledWith('imp-1', 'notes.md');
@@ -2716,7 +2715,7 @@ describe('Workbench', () => {
         const doc = item({ id: 'i_d', kind: 'file', artifact_id: undefined, preview: 'text', name: 'conversation-1.md',
           path: 'c/conversation-1.md', sha256: 'e'.repeat(64), library: true, draft: true, title: 'Why tides?' });
         view([doc], { selected: 'i_d' });
-        document.querySelector('#workbench-view .workbench-to-library').click();
+        run('i_d', 'Keep in the Library');
         expect(opened.length).toBe(1);
         expect(document.getElementById('library-keep-title').value).toBe('');
         expect(document.getElementById('library-keep-records').hidden).toBe(true);
@@ -2751,53 +2750,20 @@ describe('Workbench', () => {
     });
   });
 
-  describe('the text of a document for the message', () => {
-    test('offers it under a document, asks for this version, and puts the answer after the message', () => {
-      global.fetch = jest.fn(() => new Promise(() => {}));
-      window.appendToMessage = jest.fn();
-      try {
-        const doc = item({ id: 'i_t', kind: 'file', artifact_id: undefined, preview: 'pdf', name: 'paper.pdf',
-          path: 'c/paper.pdf', sha256: 'f'.repeat(64), text: true });
-        const pic = item({ id: 'i_p', kind: 'file', artifact_id: undefined, preview: 'image', name: 'a.png',
-          path: 'c/a.png', sha256: 'e'.repeat(64) });
-        view([pic, doc], { selected: 'i_p' });
-        expect(document.querySelector('#workbench-view .workbench-item-text')).toBeNull();
-        window.Workbench.select('i_t');
-        const toInput = document.querySelector('#workbench-view .workbench-item-text');
-        expect([toInput.textContent, toInput.getAttribute('aria-label')]).toEqual(['To input', 'Text to the message']);
-        toInput.click();
-        const asked = sent.at(-1).payload;
-        expect(asked).toMatchObject({ message: 'WORKBENCH_ITEM_TEXT', item_id: 'i_t', sha256: 'f'.repeat(64) });
-        window.Workbench.onItemText({ request: asked.request, item_id: 'i_t', content: '\n---\nFilename: paper.pdf\n---\nHello' });
-        expect(window.appendToMessage).toHaveBeenCalledWith('\n---\nFilename: paper.pdf\n---\nHello');
-        // Answered once: the same answer again is not taken.
-        window.Workbench.onItemText({ request: asked.request, item_id: 'i_t', content: 'again' });
-        expect(window.appendToMessage).toHaveBeenCalledTimes(1);
-        document.querySelector('#workbench-view .workbench-item-text').click();
-        window.setAlert.mockClear();
-        window.Workbench.onItemText({ request: sent.at(-1).payload.request, item_id: 'i_t', error: 'changed' });
-        expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed'), expect.anything());
-      } finally {
-        delete global.fetch;
-        delete window.appendToMessage;
-      }
-    });
-  });
-
   describe('drawing on an image', () => {
     test('offers to draw on an image made or opened, as the version shown, and on nothing else', () => {
       view([item(), item({ id: 'i_2', kind: 'file', artifact_id: undefined, preview: 'image', path: 'photos/a.png', sha256: 'b'.repeat(64) }),
         item({ id: 'i_3', kind: 'file', artifact_id: undefined, preview: 'text', path: 'notes.txt', sha256: 'c'.repeat(64) })],
       { selected: 'i_1' });
-      document.querySelector('#workbench-view .workbench-draw-on').click();
+      run('i_1', 'Draw on it');
       expect(sent.at(-1).payload).toMatchObject({ message: 'WORKBENCH_WHITEBOARD_NEW', item_id: 'i_1', version: 'a'.repeat(64) });
       window.Workbench.select('i_2');
-      document.querySelector('#workbench-view .workbench-draw-on').click();
+      run('i_2', 'Draw on it');
       expect(sent.at(-1).payload).toMatchObject({ item_id: 'i_2', version: 'b'.repeat(64) });
       global.fetch = jest.fn(() => new Promise(() => {}));
       try {
         window.Workbench.select('i_3');
-        expect(document.querySelector('#workbench-view .workbench-draw-on')).toBeNull();
+        expect(menuEntry('i_3', 'Draw on it')).toBeNull();
       } finally {
         delete global.fetch;
       }
@@ -2805,7 +2771,7 @@ describe('Workbench', () => {
 
     test('says when the image changed since it was shown', () => {
       view([item()], { selected: 'i_1' });
-      document.querySelector('#workbench-view .workbench-draw-on').click();
+      run('i_1', 'Draw on it');
       const request = sent.at(-1).payload.request;
       window.Workbench.onWhiteboard({ type: 'workbench_whiteboard', request: request, status: 'refused', reason: 'the image changed' });
       expect(window.setAlert).toHaveBeenCalledWith(expect.stringContaining('changed since it was shown'), 'warning');

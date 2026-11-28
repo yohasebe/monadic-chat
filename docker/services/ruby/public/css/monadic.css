@@ -6060,6 +6060,58 @@ body.side-pane-resizing {
 .workbench-item-tag + .workbench-section-moves {
   margin-left: var(--spacing-sm);
 }
+/* An earlier turn's desk (workbench-turn.js): a banner, then its items,
+   only looked at. The card whose turn is shown is outlined. */
+.workbench-turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-height: 0;
+  overflow-y: auto;
+}
+.workbench-turn-banner {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 3px solid var(--pal-accent-mid);
+}
+.workbench-turn-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+.workbench-turn-title {
+  font-weight: 600;
+}
+.workbench-turn-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+.workbench-turn-item {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+.workbench-turn-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+.workbench-turn-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workbench-turn-bring {
+  flex: 0 0 auto;
+}
+.workbench-turn-image {
+  position: relative;
+  margin-top: var(--spacing-sm);
+}
+.card.is-turn-shown {
+  outline: 2px solid var(--pal-accent-mid);
+  outline-offset: 2px;
+}
 /* Marks earlier messages sent on an item: lighter, fixed, under the
    pointer's layer. */
 .workbench-marks-earlier {

@@ -92,6 +92,7 @@ describe('Workbench', () => {
       <div id="workbench-status"></div>
       <div id="work-screen-browser"></div>
       <div id="workbench-view" hidden></div>
+      <div id="workbench-turn" hidden></div>
       <textarea id="message"></textarea>
       <span id="side-tab-work-new" hidden></span>
       <div id="work-screen-pane"><button id="workbench-put"></button><input type="file" id="workbench-put-input" multiple></div>`;
@@ -2569,6 +2570,63 @@ describe('Workbench', () => {
       } finally {
         delete global.fetch;
       }
+    });
+  });
+
+  describe('an earlier turn shown from its card', () => {
+    beforeEach(() => {
+      jest.isolateModules(() => { require(js('monadic/workbench-turn.js')); });
+      document.getElementById('discourse').insertAdjacentHTML('beforeend', '<div class="card" id="m_9" data-turn="4"></div>');
+    });
+    afterEach(() => { delete window.WorkbenchTurn; });
+
+    const turnAsk = () => sent.filter((x) => x.payload.message === 'WORKBENCH_TURN_VIEW').map((x) => x.payload);
+    const answer = (request, extra = {}) => window.Workbench.onTurnView(Object.assign({ type: 'workbench_turn_view', mid: 'm_9', request,
+      status: 'ok', by: 'user', items: [{ id: 'i_1', kind: 'image', name: 'a.png', place: 'latest', by: 'agent', now: 'same' }],
+      assets: {} }, extra));
+
+    test('asks for the turn of the card, shows it in place of the present desk, outlined, and goes back', () => {
+      view([item({ place: 'latest' })]);
+      window.Workbench.showTurn('m_9', '4');
+      expect(turnAsk()).toEqual([{ message: 'WORKBENCH_TURN_VIEW', mid: 'm_9', request: 1 }]);
+      expect(window.LayoutController.setPane).toHaveBeenCalledWith('work');
+      answer(1);
+      expect(document.getElementById('workbench-turn').hidden).toBe(false);
+      expect(document.getElementById('workbench-view').hidden).toBe(true);
+      expect(document.querySelector('.workbench-turn-title').textContent).toContain('T4');
+      expect(document.getElementById('m_9').classList.contains('is-turn-shown')).toBe(true);
+      // A view of the present while it is shown keeps it hidden.
+      view([item({ place: 'latest' })], { board: { board_id: 'b1', chat_id: 'c_1', revision: 9, items: [item({ place: 'latest' })] } });
+      expect(document.getElementById('workbench-view').hidden).toBe(true);
+      document.querySelector('.workbench-turn-back').click();
+      expect(document.getElementById('workbench-turn').hidden).toBe(true);
+      expect(document.getElementById('workbench-view').hidden).toBe(false);
+      expect(document.getElementById('m_9').classList.contains('is-turn-shown')).toBe(false);
+      expect(window.Workbench.turnShown()).toBeNull();
+    });
+
+    test('lets a late answer for a turn asked before go, and the same card again goes back', () => {
+      view([item({ place: 'latest' })]);
+      document.getElementById('discourse').insertAdjacentHTML('beforeend', '<div class="card" id="m_8" data-turn="3"></div>');
+      window.Workbench.showTurn('m_8', '3');
+      window.Workbench.showTurn('m_9', '4');
+      window.Workbench.onTurnView({ type: 'workbench_turn_view', mid: 'm_8', request: 1, status: 'ok', by: 'user', items: [] });
+      expect(document.getElementById('workbench-turn').hidden).toBe(true);
+      answer(2);
+      expect(document.getElementById('workbench-turn').hidden).toBe(false);
+      window.Workbench.showTurn('m_9', '4');
+      expect(document.getElementById('workbench-turn').hidden).toBe(true);
+    });
+
+    test('brings an item of the turn into Now with its present token, and goes back', () => {
+      view([item({ place: 'latest' })]);
+      window.Workbench.showTurn('m_9', '4');
+      answer(1);
+      sent.length = 0;
+      document.querySelector('.workbench-turn-bring').click();
+      expect(sent.map((x) => x.payload)).toEqual([expect.objectContaining({ message: 'WORKBENCH_ACTION', item_id: 'i_1', action: 'bring',
+        token: 'tok-i_1' })]);
+      expect(document.getElementById('workbench-turn').hidden).toBe(true);
     });
   });
 

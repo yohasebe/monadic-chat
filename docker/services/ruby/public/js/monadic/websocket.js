@@ -974,6 +974,12 @@ window.loadedApp = "Chat";
         break;
       }
 
+      // An earlier turn's work screen, asked for from its card.
+      case "workbench_turn_view": {
+        if (window.Workbench && typeof window.Workbench.onTurnView === 'function') window.Workbench.onTurnView(data);
+        break;
+      }
+
       // The image this tab painted of a whiteboard that left Now: taken or not.
       case "workbench_whiteboard_image": {
         if (window.Workbench && typeof window.Workbench.onWhiteboardImage === 'function') window.Workbench.onWhiteboardImage(data);

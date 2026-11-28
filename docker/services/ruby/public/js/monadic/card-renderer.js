@@ -201,6 +201,12 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
     ? '<div class="verify-bar"><span class="func-verify" title="' + verifyTitle + '">' +
       '<i class="fas fa-check-double"></i> ' + verifyLabel + '</span></div>'
     : '';
+  // The work screen as this turn left it (workbench-turn.js), for a message
+  // of the user or a reply.
+  var deskTitle = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.workbench.turnDesk') : 'The work screen at this turn';
+  var deskButton = (role === "user" || role === "assistant")
+    ? '<span title="' + deskTitle + '" class="func-desk me-3"><i class="fa-solid fa-layer-group"></i></span>'
+    : '';
   var headerButtons;
   if (!runningOnChrome && !runningOnEdge && !runningOnSafari) {
     headerButtons =
@@ -208,6 +214,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
       '<span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>' +
       '<span title="Delete" class="func-delete me-3"><i class="fa-regular fa-trash-can"></i></span>' +
       '<span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>' +
+      deskButton +
       turnBadge +
       '<span title="' + statusTooltip + '" class="status ' + status_class + '"></span>' +
       '</div>';
@@ -219,6 +226,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
       '<span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>' +
       '<span title="Delete" class="func-delete me-3"><i class="fa-regular fa-trash-can"></i></span>' +
       '<span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>' +
+      deskButton +
       turnBadge +
       '<span title="' + statusTooltip + '" class="status ' + status_class + '"></span>' +
       '</div>';

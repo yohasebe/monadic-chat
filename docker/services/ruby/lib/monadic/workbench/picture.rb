@@ -69,7 +69,7 @@ module Monadic
       Refused = Pointing::Refused
 
       attr_reader :id, :chat_id, :request_id, :item_id, :version, :kind, :page, :pages, :mark, :bytes,
-                  :name, :mark_id, :mark_rev, :position
+                  :name, :mark_id, :mark_rev, :position, :rect
 
       class << self
         # The picture the page sent with a message (data), checked against
@@ -129,9 +129,14 @@ module Monadic
             mark_id = data['mark_id'].is_a?(String) && data['mark_id'].match?(MARK_ID) ? data['mark_id'] : nil
             raise Refused, 'bad_mark' unless mark_id && data['mark_rev'].is_a?(Integer) && data['mark_rev'].between?(0, REV_LIMIT)
 
+            # Where the mark is on the whole image or page (kept on the board).
+            rect = data.key?('rect') ? Pointing.mark_of(data['rect'].is_a?(Hash) ? data['rect'].merge('shape' => mark['shape']) : nil) : nil
+            raise Refused, 'bad_mark' if data.key?('rect') && rect.nil?
+
             new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat_id, request_id: request_id, item_id: item[:id],
                 version: item[:version], kind: kind, page: page, pages: pages, mark: mark, bytes: png_of(data['image']),
-                name: name_for(item, words), mark_id: mark_id, mark_rev: data['mark_rev'], position: index + 1)
+                name: name_for(item, words), mark_id: mark_id, mark_rev: data['mark_rev'], position: index + 1,
+                rect: rect&.slice('x', 'y', 'w', 'h'))
           end
         end
 
@@ -245,7 +250,7 @@ module Monadic
       end
 
       def initialize(id:, chat_id:, request_id:, item_id:, version:, page:, pages:, mark:, bytes:, kind: 'pdf',
-                     name: nil, mark_id: nil, mark_rev: nil, position: 1)
+                     name: nil, mark_id: nil, mark_rev: nil, position: 1, rect: nil)
         @id = id
         @chat_id = chat_id
         @request_id = request_id
@@ -260,6 +265,7 @@ module Monadic
         @mark_id = mark_id&.freeze
         @mark_rev = mark_rev
         @position = position
+        @rect = rect&.freeze
         freeze
       end
 
@@ -307,6 +313,14 @@ module Monadic
         end
 
         format(kind == 'image' ? NOTE_IMAGE : NOTE, page: page, **mark_terms)
+      end
+
+      # The marks it carries as the board keeps them (where each is on the
+      # whole image or page); none for a picture without that.
+      def marks
+        return [] unless mark_id && rect
+
+        [{ 'id' => mark_id, 'rev' => mark_rev, 'shape' => mark['shape'], 'color' => mark['color'], 'rect' => rect.dup }]
       end
 
       # The mark as the notes say it.

@@ -8,6 +8,7 @@ require_relative 'image_check'
 require_relative 'artifact'
 require_relative 'file_item'
 require_relative 'item_text'
+require_relative 'marks'
 require_relative '../library/file_importer'
 require_relative '../library/entry_text'
 require_relative '../workspace/chats'
@@ -97,7 +98,9 @@ module Monadic
       class << self
         # The reply request_id of chat_id begins: the user's turn ends (its
         # Now moves down when it holds anything) and the reply's opens.
-        def begin_reply(chat_id, request_id)
+        # marks: what the user's message sent of the marks on its items
+        # (Board#record_marks!).
+        def begin_reply(chat_id, request_id, marks: nil)
           return unless Monadic::Workspace::Ids.valid?(:chat, chat_id) && request_id
 
           @replies_lock.synchronize do
@@ -105,7 +108,7 @@ module Monadic
             @replies[request_id] = chat_id
           end
           board = existing(chat_id)
-          board&.begin_reply(request_id)
+          board&.begin_reply(request_id, marks: marks)
         end
 
         # The reply running for chat_id, or nil (a board loaded while it
@@ -195,7 +198,10 @@ module Monadic
         {
           board_id: data['board_id'], chat_id: @chat_id, epoch: Monadic::Workspace::Chats.epoch(@chat_id),
           revision: data['revision'], layers: public_layers(data), replying: !@reply.nil?, now_limit: NOW_LIMIT,
-          items: data['items'].values.map { |item| public_item(item) }
+          items: data['items'].values.map do |item|
+            marks = shown_marks(data, item)
+            marks ? public_item(item).merge(marks: marks) : public_item(item)
+          end
         }
       end
 
@@ -203,8 +209,11 @@ module Monadic
       # and the reply's opens (its placements go into current).
       # The revision moves on also when nothing moves, so that a page's view
       # of whether a reply runs is never replaced by an older one.
-      def begin_reply(request_id)
+      def begin_reply(request_id, marks: nil)
         change do |data|
+          # The marks the message sent, on the items where they were made
+          # (before they move down).
+          record_marks!(data, request_id, marks) if marks
           shift!(data, 'user', request_id)
           data['items'].each_value { |item| item.delete('fresh') }
           @reply = request_id
@@ -649,6 +658,30 @@ module Monadic
         { items: found.first(limit), total: found.size }
       end
 
+      # The marks of item_id's original at its version that the message
+      # request_id sent (new) and the others shown (earlier), or nil.
+      def mark_counts(item_id, request_id)
+        @lock.synchronize do
+          item = @data['items'][item_id.to_s] or next nil
+          origin = Marks.origin_of(item) or next nil
+          Marks.counts(@data, origin, version_of(item), request_id)
+        end
+      end
+
+      # Takes out what the message request_id recorded of the marks (it was
+      # deleted). Returns how many marks it could not bring back (more than
+      # are shown at most): nothing is changed then.
+      def undo_marks(request_id)
+        over = @lock.synchronize { Marks.undo!(deep_dup(@data), request_id) }
+        return over if over.positive?
+
+        change do |data|
+          Marks.undo!(data, request_id)
+          nil
+        end
+        0
+      end
+
       # Whether the item is on the board and not put away.
       def on_desk?(item_id)
         @lock.synchronize do
@@ -954,6 +987,41 @@ module Monadic
         return unless @data['items'].values.any? { |item| item['place'] == 'current' && item['by'] == 'agent' }
 
         shift!(@data, 'agent', nil)
+      end
+
+      # The marks a message sent ({ pictures: [Picture], erased: [{ 'item_id',
+      # 'version', 'targets' }] }), recorded on the items they were made on:
+      # only items on the desk where marks are made, at the version the
+      # message saw.
+      def record_marks!(data, request_id, marks)
+        sent = Array(marks[:pictures]).flat_map do |picture|
+          item = markable_item(data, picture.item_id, picture.version) or next []
+          picture.marks.map do |mark|
+            mark.merge('page' => picture.page, origin: Marks.origin_of(item), version: picture.version)
+          end
+        end
+        erased = Array(marks[:erased]).filter_map do |erase|
+          item = markable_item(data, erase['item_id'], erase['version']) or next nil
+          { origin: Marks.origin_of(item), version: erase['version'], targets: erase['targets'] }
+        end
+        Marks.record!(data, request_id, sent: sent, erased: erased)
+      end
+
+      def markable_item(data, item_id, version)
+        item = data['items'][item_id.to_s]
+        return nil unless item && %w[current latest].include?(item['place']) && version_of(item) == version
+
+        Marks.origin_of(item) ? item : nil
+      end
+
+      # The marks shown on a desk item's original at its version (none put
+      # away: a put-away item is drawn only when opened).
+      def shown_marks(data, item)
+        return nil if item['place'] == 'stash'
+
+        origin = Marks.origin_of(item) or return nil
+        marks = Marks.shown(data, origin, version_of(item))
+        marks.empty? ? nil : marks
       end
 
       # An item's name and kind from its record (no file is read).

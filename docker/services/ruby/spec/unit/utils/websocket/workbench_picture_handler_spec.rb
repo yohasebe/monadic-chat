@@ -34,7 +34,8 @@ RSpec.describe "The picture of the work screen sent with a message" do
     allow(Monadic::History).to receive(:enabled?).and_return(false)
     allow(Monadic::Workbench::Board).to receive(:existing).and_call_original
     allow(Monadic::Workbench::Board).to receive(:existing).with(chat_id)
-                                                         .and_return(double("board", observe: { items: items, selected: "i_1" }, begin_reply: nil))
+                                                         .and_return(double("board", observe: { items: items, selected: "i_1" }, begin_reply: nil, mark_counts: nil,
+                                                                                undo_marks: 0))
     allow(host).to receive(:send_or_broadcast) { |msg, *_| sent << JSON.parse(msg) }
     allow(host).to receive(:send_to_client) { |_c, msg| sent << msg }
     allow(host).to receive(:initialize_token_counting).and_return(nil)
@@ -193,6 +194,15 @@ RSpec.describe "The picture of the work screen sent with a message" do
         expect(message).not_to have_key("workbench_pictures")
       end
       expect(Dir.glob(File.join(root, "**", "p_*.png"))).to be_empty
+    end
+
+    it "takes where each mark is on the whole page or image, and refuses one that is not a place on it" do
+      rect = { "x" => 0.5, "y" => 0.25, "w" => 0.25, "h" => 0.125 }
+      send_message("workbench_pictures" => [marked("i_2", "x" * 64, "rect" => rect)])
+      expect(all_seen.last.first.marks).to eq([{ "id" => "m_i2aaaa", "rev" => 2, "shape" => "ellipse", "color" => "magenta",
+                                                 "rect" => rect.transform_values(&:to_f) }])
+      send_message("workbench_pictures" => [marked("i_2", "x" * 64, "rect" => { "x" => 0.9, "y" => 0, "w" => 0.5, "h" => 0.1 })])
+      expect(all_seen.last).to eq([])
     end
 
     it "keeps none when the message is not accepted" do

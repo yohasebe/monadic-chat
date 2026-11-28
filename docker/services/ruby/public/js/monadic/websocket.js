@@ -917,6 +917,10 @@ window.loadedApp = "Chat";
         break;
       }
 
+      case "workbench_marks_refused": {
+        if (window.Workbench && typeof window.Workbench.onMarksRefused === 'function') window.Workbench.onMarksRefused(data);
+        break;
+      }
       case "workbench_picture": {
         if (window.Workbench && typeof window.Workbench.onPicture === 'function') window.Workbench.onPicture(data);
         break;

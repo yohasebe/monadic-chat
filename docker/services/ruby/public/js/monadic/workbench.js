@@ -523,6 +523,18 @@
       group.appendChild(b);
     };
     if (place !== 'current') add(t('ui.workbench.bring', 'Into Now'), 'fa-arrow-up-from-bracket', 'workbench-bring', 'bring');
+    const kept = earlierMarksOf(item).length;
+    if (kept > 0 && ['current', 'latest'].includes(place)) {
+      const erase = element('button', 'btn btn-sm btn-tool workbench-erase-marks');
+      erase.type = 'button';
+      erase.textContent = t('ui.workbench.eraseMarks', 'Erase marks ({n})').replace('{n}', String(kept));
+      erase.disabled = locked();
+      erase.addEventListener('click', (e) => {
+        e.stopPropagation();
+        eraseMarks(item);
+      });
+      group.appendChild(erase);
+    }
     if (place !== 'stash') {
       add(t('ui.workbench.stash', 'Put away'), 'fa-box-archive', 'workbench-stash', 'stash');
       const goes = item.fresh || item.kind === 'browser';
@@ -1506,7 +1518,10 @@
       if (drawn.gone) return;
       if (!window.WorkbenchPdf) throw new Error('pdf.js is not loaded');
       drawn.pdf = window.WorkbenchPdf.show(box, bytes, (now) => {
-        if (now && now.status === 'ready') showAiPoint();
+        if (now && now.status === 'ready') {
+          showAiPoint();
+          drawEarlierMarks(drawn);
+        }
       }, () => markChanged(drawn));
       if (drawn.pdf && typeof drawn.pdf.setPointable === 'function') drawn.pdf.setPointable(drawn.markable !== false);
       showSelectionChip();
@@ -1752,6 +1767,7 @@
     drawLock();
     drawView();
     drawNotes();
+    [drawnBody].concat(Array.from(others.values())).forEach(drawEarlierMarks);
     drawMarksLine();
     placeJump();
   }
@@ -2203,6 +2219,92 @@
     return mark;
   }
 
+  // ---- marks kept on the items --------------------------------------
+
+  // The marks earlier messages sent on an item (the board keeps them, per
+  // original and version), drawn lighter and fixed on its image or the PDF's
+  // page shown; erased ones (erasures: item id → { version, targets }) go
+  // at once here and are recorded with the next message.
+  const erasures = new Map();
+
+  function earlierMarksOf(item) {
+    if (!item || !Array.isArray(item.marks)) return [];
+    const erased = erasures.get(item.id);
+    const version = item.version || item.sha256 || '';
+    if (erased && erased.version === version) return [];
+    return item.marks.filter((m) => m && m.rect);
+  }
+
+  function drawEarlierMarks(drawn) {
+    if (!drawn || !drawn.node || typeof drawn.node.querySelector !== 'function') return;
+    const item = itemById(drawn.itemId);
+    let surface = null;
+    let page = 1;
+    if (drawn.image) {
+      surface = drawn.node.querySelector('.workbench-image-frame');
+    } else if (drawn.pdf) {
+      surface = drawn.node.querySelector('.workbench-pdf-page');
+      const shown = typeof drawn.pdf.shown === 'function' ? drawn.pdf.shown() : null;
+      page = shown && shown.page ? shown.page : 1;
+    }
+    if (!surface) return;
+    let layer = surface.querySelector(':scope > .workbench-marks-earlier');
+    // Nothing to draw and nothing drawn: nothing is made.
+    if (!layer && earlierMarksOf(item).length === 0) return;
+    if (!layer) {
+      layer = element('div', 'workbench-marks-earlier');
+      layer.setAttribute('aria-hidden', 'true');
+      surface.appendChild(layer);
+    }
+    const marks = earlierMarksOf(item).filter((m) => (m.page || 1) === page);
+    layer.replaceChildren(...marks.map((m) => {
+      const box = element('div', `workbench-mark-earlier ${m.shape === 'ellipse' ? 'is-ellipse' : 'is-rect'}`);
+      box.style.left = `${m.rect.x * 100}%`;
+      box.style.top = `${m.rect.y * 100}%`;
+      box.style.width = `${m.rect.w * 100}%`;
+      box.style.height = `${m.rect.h * 100}%`;
+      return box;
+    }));
+  }
+
+  // Erases every mark of the item (earlier ones, and this turn's unsent one).
+  function eraseMarks(item) {
+    if (locked()) {
+      warn(lockText());
+      return;
+    }
+    const version = item.version || item.sha256 || '';
+    const targets = (Array.isArray(item.marks) ? item.marks : []).map((m) => [m.id, m.rev]);
+    if (targets.length > 0) erasures.set(item.id, { version: version, targets: targets });
+    const drawn = drawnBody && drawnBody.itemId === item.id ? drawnBody : others.get(item.id);
+    const handle = drawn && (drawn.image || drawn.pdf);
+    if (handle && typeof handle.clear === 'function') handle.clear();
+    if (handle && typeof handle.clearPointer === 'function') handle.clearPointer();
+    if (drawn) drawn.mark = null;
+    draw();
+  }
+
+  // The erasures that go with the message the user sends now, or null.
+  function erasuresNow() {
+    const data = [];
+    erasures.forEach((erase, itemId) => {
+      const item = itemById(itemId);
+      if (item && (item.version || item.sha256 || '') === erase.version && ['current', 'latest'].includes(placeOf(item))) {
+        data.push({ item_id: itemId, version: erase.version, targets: erase.targets });
+      }
+    });
+    if (data.length === 0) return null;
+    return { data: data, sent: () => erasures.clear() };
+  }
+
+  // A message the user asked to delete was kept: deleting it would bring
+  // back more marks than an item shows.
+  function onMarksRefused(data) {
+    warn(t('ui.workbench.marksRefused',
+      'The message was not deleted: {n} marks it erased could not come back. Erase some marks on the item first.')
+      .replace('{n}', String(data && data.over ? data.over : '')));
+  }
+
   // ---- marks sent with a message -------------------------------------
 
   // Each drawn item's mark, with its picture taken when it was made or
@@ -2246,7 +2348,13 @@
   function imageMarkPicture(item, handle, pointer) {
     const part = markedImage(handle, pointer);
     if (!part.image || !part.mark) return null;
-    return { item_id: item.id, version: item.version || item.sha256 || '', mark: part.mark, image: part.image };
+    return { item_id: item.id, version: item.version || item.sha256 || '', mark: part.mark, image: part.image,
+             rect: rectOf(pointer) };
+  }
+
+  // Where a mark is on the whole image or page (fractions), as the board keeps it.
+  function rectOf(pointer) {
+    return { x: pointer.x, y: pointer.y, w: pointer.w, h: pointer.h };
   }
 
   // The part of the PDF's page in view with the mark, as the mark is made
@@ -2259,7 +2367,7 @@
     const mark = marked.mark();
     if (!part || !part.image || !mark) return null;
     return { item_id: item.id, version: item.version || item.sha256 || '', page: shown.page, pages: shown.pages,
-             mark: mark, image: part.image };
+             mark: mark, image: part.image, rect: rectOf(pointer) };
   }
 
   // The marked items on the desk whose marks have not gone with a message,
@@ -3950,7 +4058,7 @@
   }
 
   window.Workbench = {
-    onView, expectResumed, onResult, locked, picturesNow, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
+    onView, expectResumed, onResult, locked, picturesNow, erasuresNow, onMarksRefused, onDownload, onOpened, onVersions, onSelected, onCapture, drawRecord, drawLooks, drawShown, drawEdits, drawReadings, openExcerpt, onToLibrary, openLibrary, onSentImage, onItemText, select, openFile, step,
     showAttachment, onAttachmentOpened, showOwn, putDataFiles, openInJupyter, onJupyterOpened, jupyterPath, shownAttachment: () => (local ? Object.assign({}, local) : null),
     textLines, rangeNow, pictureNow, drawPicture, onPicture, selectionNow, drawSelection, onPoint, clearAiPoint, onWhiteboard,
     // Something changed on the board elsewhere (a tool showed a file).

@@ -233,6 +233,22 @@ module WebSocketHelper
     []
   end
 
+  # The erasures the page sent ([{ item_id, version, targets: [[mark id,
+  # rev]] }]), in their checked form (the board checks the items).
+  private def workbench_erased(list)
+    return [] unless list.is_a?(Array)
+
+    list.first(Monadic::Workbench::Board::ITEM_LIMIT).filter_map do |erase|
+      next unless erase.is_a?(Hash) && erase["item_id"].is_a?(String) && erase["version"].is_a?(String)
+
+      targets = Array(erase["targets"]).select do |pair|
+        pair.is_a?(Array) && pair.size == 2 && pair[0].is_a?(String) && pair[0].match?(Monadic::Workbench::Marks::ID) &&
+          pair[1].is_a?(Integer) && pair[1].between?(0, Monadic::Workbench::Picture::REV_LIMIT)
+      end.first(Monadic::Workbench::Marks::SHOWN_LIMIT)
+      { "item_id" => erase["item_id"][0, 64], "version" => erase["version"][0, 128], "targets" => targets } unless targets.empty?
+    end
+  end
+
   # The pictures kept, now that the message is accepted; one that cannot be
   # kept does not go with it.
   private def kept_workbench_pictures(pictures)
@@ -265,8 +281,8 @@ module WebSocketHelper
 
   # The work screen's turn changes; a failure here never keeps the reply
   # from running.
-  private def desk_turn_begins(chat_id, request_id)
-    Monadic::Workbench::Board.begin_reply(chat_id, request_id)
+  private def desk_turn_begins(chat_id, request_id, marks = nil)
+    Monadic::Workbench::Board.begin_reply(chat_id, request_id, marks: marks)
     Monadic::Workbench::Channel.changed(chat_id)
   rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[Workbench] The turn was not begun on the work screen: #{e.class}" }
@@ -320,6 +336,9 @@ module WebSocketHelper
     sent_picture = obj.delete("workbench_picture")
     # The pictures of the items the user marked (workbench_pictures): the same.
     sent_pictures = obj.delete("workbench_pictures")
+    # The marks the user erased since the last message (workbench_erase):
+    # recorded with this message's turn, never kept with the parameters.
+    erased_marks = workbench_erased(obj.delete("workbench_erase"))
     # The text the user selected in the work screen to send with it
     # (workbench_selection): the same.
     sent_selection = obj.delete("workbench_selection")
@@ -425,7 +444,7 @@ module WebSocketHelper
     reply_running(request_id, ws_session_id)
     # The user's turn ends on the work screen and the reply's opens (its
     # end is the reply's end, finish_reply).
-    desk_turn_begins(chat_at_start, request_id)
+    desk_turn_begins(chat_at_start, request_id, { pictures: pictures, erased: user_sent ? erased_marks : [] })
     # The request this answer runs under. What the model is told of the
     # work screen is read after the user's turn ended there.
     request_context = Monadic::Workspace::RequestContext.new(

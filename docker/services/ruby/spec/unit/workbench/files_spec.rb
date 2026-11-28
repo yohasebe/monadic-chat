@@ -250,6 +250,43 @@ RSpec.describe "files of the shared folder on the workbench (board, channel, ass
       expect(channel.view(session, tab: "tab-1", generation: 1, live: live)["board"]).to include(replying: false)
     end
 
+    it "keeps the marks a message sent on the item, counts them new then earlier, and erases or takes them out" do
+      require_relative "../../../lib/monadic/workbench/picture"
+      write("plan.pdf", "%PDF-1.4 plan")
+      item, = open_file("plan.pdf")
+      picture = lambda do |mark_id, rev, request|
+        Monadic::Workbench::Picture.new(id: "p_#{SecureRandom.hex(10)}", chat_id: chat, request_id: request, item_id: item["id"],
+                                        version: item.dig("file", "sha256"), kind: "pdf", page: 2, pages: 3,
+                                        mark: { "shape" => "rect", "color" => "orange", "x" => 0.1, "y" => 0.1, "w" => 0.2, "h" => 0.2 },
+                                        bytes: "png", mark_id: mark_id, mark_rev: rev,
+                                        rect: { "x" => 0.3, "y" => 0.4, "w" => 0.1, "h" => 0.1 })
+      end
+      first = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(first, marks: { pictures: [picture.call("m_aaaaaa", 1, first)], erased: [] })
+      shown = board.snapshot[:items].first[:marks]
+      expect(shown).to eq([{ "id" => "m_aaaaaa", "rev" => 1, "shape" => "rect", "color" => "orange", "page" => 2,
+                             "rect" => { "x" => 0.3, "y" => 0.4, "w" => 0.1, "h" => 0.1 } }])
+      expect(board.mark_counts(item["id"], first)).to eq("new" => 1, "earlier" => 0)
+      board.end_reply(first)
+      # Placed again by the user (the same file, the same version): its marks are there.
+      board.accept(item_id: item["id"], action: "bring", operation_id: "op-bring-0001", epoch: epoch,
+                   sha256: item.dig("file", "sha256"))
+      second = Monadic::Workspace::Ids.generate(:request)
+      board.begin_reply(second, marks: { pictures: [picture.call("m_bbbbbb", 1, second)],
+                                         erased: [{ "item_id" => item["id"], "version" => item.dig("file", "sha256"),
+                                                    "targets" => [["m_aaaaaa", 1]] }] })
+      expect(board.snapshot[:items].first[:marks].map { |m| m["id"] }).to eq(["m_bbbbbb"])
+      expect(board.mark_counts(item["id"], second)).to eq("new" => 1, "earlier" => 0)
+      board.end_reply(second)
+      # The second message deleted: its mark goes, the one it erased comes back.
+      expect(board.undo_marks(second)).to eq(0)
+      expect(board.snapshot[:items].first[:marks].map { |m| m["id"] }).to eq(["m_aaaaaa"])
+      # A put-away item carries no marks in the view.
+      board.accept(item_id: item["id"], action: "stash", operation_id: "op-stash-0001", epoch: epoch,
+                   sha256: item.dig("file", "sha256"))
+      expect(board.snapshot[:items].first).not_to have_key(:marks)
+    end
+
     it "reads a board saved before the desk had places with every item put away" do
       write("a.txt", "a")
       item, = open_file("a.txt")
